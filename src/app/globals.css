@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 260px;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 antialiased;
+  }
+
+  * {
+    @apply border-gray-800;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-gray-900 border border-gray-800 rounded-xl p-4;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2 rounded-lg
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-gray-400 hover:text-gray-100 hover:bg-gray-800 px-3 py-2 rounded-lg
+           transition-colors;
+  }
+
+  .input {
+    @apply bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-gray-100
+           placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500
+           focus:border-transparent w-full;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-400 mb-1;
+  }
+
+  .badge-verde {
+    @apply inline-flex items-center gap-1 bg-emerald-900/50 text-emerald-400
+           text-xs font-medium px-2 py-0.5 rounded-full border border-emerald-800;
+  }
+
+  .badge-rojo {
+    @apply inline-flex items-center gap-1 bg-red-900/50 text-red-400
+           text-xs font-medium px-2 py-0.5 rounded-full border border-red-800;
+  }
+
+  .badge-amarillo {
+    @apply inline-flex items-center gap-1 bg-yellow-900/50 text-yellow-400
+           text-xs font-medium px-2 py-0.5 rounded-full border border-yellow-800;
+  }
+
+  .badge-azul {
+    @apply inline-flex items-center gap-1 bg-blue-900/50 text-blue-400
+           text-xs font-medium px-2 py-0.5 rounded-full border border-blue-800;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+
+  .stat-card .stat-value {
+    @apply text-3xl font-bold text-white;
+  }
+
+  .stat-card .stat-label {
+    @apply text-sm text-gray-400;
+  }
+}
