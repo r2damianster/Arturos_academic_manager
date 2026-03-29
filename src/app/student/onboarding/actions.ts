@@ -55,9 +55,11 @@ export async function guardarEncuesta(
     tiene_laptop:             checkbox('tiene_laptop'),
     tiene_pc_escritorio:      checkbox('tiene_pc_escritorio'),
     comparte_pc:              checkbox('comparte_pc'),
+    sin_computadora:          checkbox('sin_computadora'),
     dispositivo_movil:        str('dispositivo_movil'),
     trabaja:                  bool('trabaja'),
     tipo_trabajo:             str('tipo_trabajo'),
+    horas_trabajo_diarias:    num('horas_trabajo_diarias'),
     // Step 4
     libros_anio:              num('libros_anio'),
     gusto_escritura:          num('gusto_escritura'),

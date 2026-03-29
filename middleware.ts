@@ -38,10 +38,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Login con sesión activa → redirigir (el callback/layout decidirá adónde)
+  // Login con sesión activa → redirigir según tipo de usuario
   if (user && pathname === '/auth/login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    // Check if student (has row in estudiantes with auth_user_id)
+    const { data: est } = await supabase
+      .from('estudiantes')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .limit(1)
+      .single()
+    url.pathname = est ? '/student' : '/dashboard'
     return NextResponse.redirect(url)
   }
 

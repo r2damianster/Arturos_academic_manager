@@ -519,6 +519,7 @@ export default function OnboardingPage() {
                     ['tiene_laptop', 'Laptop'],
                     ['tiene_pc_escritorio', 'PC de escritorio'],
                     ['comparte_pc', 'Comparto computadora'],
+                    ['sin_computadora', 'Ninguna'],
                   ].map(([name, label]) => (
                     <label key={name} className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-800 hover:border-gray-600 cursor-pointer">
                       <input type="checkbox" name={name} value="true" className="rounded border-gray-600 bg-gray-800" />
@@ -553,9 +554,15 @@ export default function OnboardingPage() {
                 </label>
 
                 {trabaja && (
-                  <div>
-                    <label className="label">Tipo de trabajo <span className="text-gray-500">(opcional)</span></label>
-                    <input name="tipo_trabajo" className="input" placeholder="Ej. tiempo parcial, remoto, familiar..." />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="label">Tipo de trabajo <span className="text-gray-500">(opcional)</span></label>
+                      <input name="tipo_trabajo" className="input" placeholder="Ej. tiempo parcial, remoto, familiar..." />
+                    </div>
+                    <div>
+                      <label className="label">Horas diarias de trabajo <span className="text-gray-500">(opcional)</span></label>
+                      <input type="number" name="horas_trabajo_diarias" className="input" min={1} max={24} placeholder="Ej. 4" />
+                    </div>
                   </div>
                 )}
               </div>
