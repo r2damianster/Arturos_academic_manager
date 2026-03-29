@@ -3,15 +3,20 @@ import Link from 'next/link'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ count: totalCursos }, { count: totalEstudiantes }] = await Promise.all([
-    supabase.from('cursos').select('*', { count: 'exact', head: true }),
-    supabase.from('estudiantes').select('*', { count: 'exact', head: true }),
+  const [cursosCount, estudiantesCount] = await Promise.all([
+    db.from('cursos').select('id', { count: 'exact', head: true }),
+    db.from('estudiantes').select('id', { count: 'exact', head: true }),
   ])
+  const totalCursos: number = cursosCount.count ?? 0
+  const totalEstudiantes: number = estudiantesCount.count ?? 0
 
   // Cursos recientes
-  const { data: cursosRecientes } = await supabase
+  const { data: cursosRecientes } = await db
     .from('cursos')
     .select('id, asignatura, codigo, periodo')
     .order('created_at', { ascending: false })
@@ -19,9 +24,9 @@ export default async function DashboardPage() {
 
   // Asistencia de hoy
   const hoy = new Date().toISOString().split('T')[0]
-  const { count: asistenciaHoy } = await supabase
+  const { count: asistenciaHoy } = await db
     .from('asistencia')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('fecha', hoy)
 
   return (
@@ -34,11 +39,11 @@ export default async function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="stat-card">
-          <span className="stat-value">{totalCursos ?? 0}</span>
+          <span className="stat-value">{totalCursos}</span>
           <span className="stat-label">Cursos activos</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{totalEstudiantes ?? 0}</span>
+          <span className="stat-value">{totalEstudiantes}</span>
           <span className="stat-label">Estudiantes total</span>
         </div>
         <div className="stat-card col-span-2 md:col-span-1">
