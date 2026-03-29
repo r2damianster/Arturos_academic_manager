@@ -29,7 +29,7 @@ export function Header({ nombreProfesor, email }: HeaderProps) {
     .toUpperCase()
 
   return (
-    <header className="h-14 bg-gray-900/80 backdrop-blur border-b border-gray-800 flex items-center justify-end px-6 gap-4">
+    <header className="flex items-center justify-end px-4 md:px-6 gap-4 h-14">
       <div className="flex items-center gap-3">
         <div className="text-right hidden sm:block">
           <p className="text-sm font-medium text-gray-200">{nombreProfesor}</p>

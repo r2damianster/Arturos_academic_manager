@@ -30,373 +30,219 @@ interface TutoriasManagerProps {
 }
 
 const DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'] as const
+const DIAS_SHORT: Record<string, string> = {
+  lunes: 'L', martes: 'M', 'miércoles': 'X', jueves: 'J', viernes: 'V', 'sábado': 'S',
+}
 const DIAS_LABEL: Record<string, string> = {
-  lunes: 'Lun',
-  martes: 'Mar',
-  'miércoles': 'Mié',
-  jueves: 'Jue',
-  viernes: 'Vie',
-  'sábado': 'Sáb',
+  lunes: 'Lun', martes: 'Mar', 'miércoles': 'Mié', jueves: 'Jue', viernes: 'Vie', 'sábado': 'Sáb',
 }
 
-// Generate 30-min time slots from 07:00 to 19:30
-function generarSlots(): string[] {
-  const slots: string[] = []
+function getSlots(): string[] {
+  const s: string[] = []
   for (let h = 7; h <= 19; h++) {
-    slots.push(`${String(h).padStart(2, '0')}:00`)
-    if (h < 19 || true) slots.push(`${String(h).padStart(2, '0')}:30`)
+    s.push(`${String(h).padStart(2, '0')}:00`)
+    s.push(`${String(h).padStart(2, '0')}:30`)
   }
-  // Remove anything after 19:30
-  return slots.filter(s => s <= '19:30')
+  return s.filter(x => x <= '19:30')
+}
+const TIME_SLOTS = getSlots()
+
+function fmt(t: string) { return t.slice(0, 5) }
+function initials(n: string) {
+  return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
-const TIME_SLOTS = generarSlots()
-
-function getInitials(nombre: string): string {
-  return nombre
-    .split(' ')
-    .map(n => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
-export function TutoriasManager({ horarios: initialHorarios, reservas: initialReservas }: TutoriasManagerProps) {
+export function TutoriasManager({ horarios: init, reservas: initRes }: TutoriasManagerProps) {
   const supabase = createClient()
-  const [horarios, setHorarios] = useState<Horario[]>(initialHorarios)
-  const [reservas, setReservas] = useState<Reserva[]>(initialReservas)
+  const [horarios, setHorarios] = useState<Horario[]>(init)
+  const [reservas, setReservas] = useState<Reserva[]>(initRes)
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [activePopover, setActivePopover] = useState<number | null>(null) // horario.id
-  const [cancelingId, setCancelingId] = useState<number | null>(null)
+  const [popover, setPopover] = useState<number | null>(null)
+  const [canceling, setCanceling] = useState<number | null>(null)
+  const [err, setErr] = useState<string | null>(null)
 
   const profesorId = horarios[0]?.profesor_id ?? ''
 
-  // Build lookup: dia+hora -> horario
   const horarioMap = new Map<string, Horario>()
-  for (const h of horarios) {
-    horarioMap.set(`${h.dia_semana}|${h.hora_inicio}`, h)
-  }
+  for (const h of horarios) horarioMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
 
-  // Build lookup: horario_id -> reserva
   const reservaMap = new Map<number, Reserva>()
-  for (const r of reservas) {
-    reservaMap.set(r.horario_id, r)
-  }
+  for (const r of reservas) reservaMap.set(r.horario_id, r)
 
-  // Stats
-  const totalDisponibles = horarios.filter(h => h.estado === 'disponible').length
-  const totalReservados = horarios.filter(h => h.estado === 'reservado').length
-  const totalNoDisponibles = horarios.filter(h => h.estado === 'no_disponible').length
+  const nDisp = horarios.filter(h => h.estado === 'disponible').length
+  const nRes  = horarios.filter(h => h.estado === 'reservado').length
 
-  async function toggleSlot(horario: Horario) {
-    if (horario.estado === 'reservado') {
-      setActivePopover(activePopover === horario.id ? null : horario.id)
-      return
-    }
-    const nuevoEstado = horario.estado === 'disponible' ? 'no_disponible' : 'disponible'
-    // Optimistic update
-    setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, estado: nuevoEstado } : h))
-    setError(null)
+  async function toggleSlot(h: Horario) {
+    if (h.estado === 'reservado') { setPopover(popover === h.id ? null : h.id); return }
+    const next = h.estado === 'disponible' ? 'no_disponible' : 'disponible'
+    setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, estado: next } : x))
+    setErr(null)
     startTransition(async () => {
-      const { error: err } = await supabase
-        .from('horarios')
-        .update({ estado: nuevoEstado })
-        .eq('id', horario.id)
-      if (err) {
-        setError('Error al actualizar el horario')
-        // Revert
-        setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, estado: horario.estado } : h))
+      const { error } = await supabase.from('horarios').update({ estado: next }).eq('id', h.id)
+      if (error) {
+        setErr('Error al guardar')
+        setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, estado: h.estado } : x))
       }
     })
   }
 
-  async function cancelarReserva(reserva: Reserva) {
-    setCancelingId(reserva.id)
-    setError(null)
-    const { error: err1 } = await supabase
-      .from('reservas')
-      .update({ estado: 'cancelado' })
-      .eq('id', reserva.id)
-    const { error: err2 } = await supabase
-      .from('horarios')
-      .update({ estado: 'no_disponible' })
-      .eq('id', reserva.horario_id)
-    setCancelingId(null)
-    if (err1 || err2) {
-      setError('Error al cancelar la reserva')
-      return
-    }
-    setReservas(prev => prev.filter(r => r.id !== reserva.id))
-    setHorarios(prev =>
-      prev.map(h => h.id === reserva.horario_id ? { ...h, estado: 'no_disponible' } : h)
-    )
-    setActivePopover(null)
+  async function cancelarReserva(r: Reserva) {
+    setCanceling(r.id)
+    await supabase.from('reservas').update({ estado: 'cancelado' }).eq('id', r.id)
+    await supabase.from('horarios').update({ estado: 'no_disponible' }).eq('id', r.horario_id)
+    setCanceling(null)
+    setReservas(prev => prev.filter(x => x.id !== r.id))
+    setHorarios(prev => prev.map(h => h.id === r.horario_id ? { ...h, estado: 'no_disponible' } : h))
+    setPopover(null)
   }
 
-  async function ponerTodoNoDisponible() {
-    setError(null)
-    // Optimistic update for non-reserved slots
-    setHorarios(prev =>
-      prev.map(h => h.estado !== 'reservado' ? { ...h, estado: 'no_disponible' } : h)
-    )
+  async function batchNoDisponible() {
+    setHorarios(prev => prev.map(h => h.estado !== 'reservado' ? { ...h, estado: 'no_disponible' } : h))
     startTransition(async () => {
-      const { error: err } = await supabase
-        .from('horarios')
-        .update({ estado: 'no_disponible' })
-        .eq('profesor_id', profesorId)
-        .neq('estado', 'reservado')
-      if (err) setError('Error al actualizar horarios')
+      await supabase.from('horarios').update({ estado: 'no_disponible' })
+        .eq('profesor_id', profesorId).neq('estado', 'reservado')
     })
   }
 
-  async function ponerDisponibleLV() {
-    setError(null)
+  async function batchDisponibleLV() {
     const lv = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
-    // Optimistic update
-    setHorarios(prev =>
-      prev.map(h =>
-        lv.includes(h.dia_semana) &&
-        h.hora_inicio >= '07:00' &&
-        h.hora_inicio < '19:00' &&
-        h.estado !== 'reservado'
-          ? { ...h, estado: 'disponible' }
-          : h
-      )
-    )
+    setHorarios(prev => prev.map(h =>
+      lv.includes(h.dia_semana) && h.hora_inicio >= '07:00' && h.hora_inicio < '19:00' && h.estado !== 'reservado'
+        ? { ...h, estado: 'disponible' } : h
+    ))
     startTransition(async () => {
-      const { error: err } = await supabase
-        .from('horarios')
-        .update({ estado: 'disponible' })
-        .eq('profesor_id', profesorId)
-        .in('dia_semana', lv)
-        .gte('hora_inicio', '07:00')
-        .lt('hora_inicio', '19:00')
-        .neq('estado', 'reservado')
-      if (err) setError('Error al actualizar horarios')
+      await supabase.from('horarios').update({ estado: 'disponible' })
+        .eq('profesor_id', profesorId).in('dia_semana', lv)
+        .gte('hora_inicio', '07:00').lt('hora_inicio', '19:00').neq('estado', 'reservado')
     })
   }
 
-  function getHorarioLabel(horarioId: number): string {
-    const h = horarios.find(x => x.id === horarioId)
-    if (!h) return '—'
-    return `${DIAS_LABEL[h.dia_semana] ?? h.dia_semana} ${h.hora_inicio}–${h.hora_fin}`
+  function slotLabel(hid: number) {
+    const h = horarios.find(x => x.id === hid)
+    return h ? `${DIAS_LABEL[h.dia_semana] ?? h.dia_semana} ${fmt(h.hora_inicio)}` : '—'
   }
 
   return (
-    <div className="space-y-6">
-      {/* Batch action buttons */}
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={ponerTodoNoDisponible}
-          disabled={isPending}
-          className="btn-ghost text-sm disabled:opacity-40"
-        >
-          Poner todo NO disponible
-        </button>
-        <button
-          onClick={ponerDisponibleLV}
-          disabled={isPending}
-          className="btn-primary text-sm disabled:opacity-40"
-        >
-          Poner todo DISPONIBLE (L–V 07–19h)
-        </button>
-      </div>
+    <div className="space-y-4">
 
-      {error && (
-        <div className="bg-red-950 border border-red-800 text-red-400 text-sm px-4 py-2 rounded-lg">
-          {error}
+      {/* Top bar: stats + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-3 text-xs">
+          <span className="text-emerald-400 font-semibold">{nDisp} disponibles</span>
+          <span className="text-blue-400 font-semibold">{nRes} reservados</span>
         </div>
-      )}
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="stat-card">
-          <span className="stat-value">{horarios.length}</span>
-          <span className="stat-label">Total slots</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value text-green-400">{totalDisponibles}</span>
-          <span className="stat-label">Disponibles</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value text-blue-400">{totalReservados}</span>
-          <span className="stat-label">Reservados</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value text-gray-400">{totalNoDisponibles}</span>
-          <span className="stat-label">No disponibles</span>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={batchNoDisponible} disabled={isPending}
+            className="px-2 py-1 text-xs rounded border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors disabled:opacity-40">
+            Todo NO disponible
+          </button>
+          <button onClick={batchDisponibleLV} disabled={isPending}
+            className="px-2 py-1 text-xs rounded border border-emerald-700 text-emerald-400 hover:bg-emerald-900/30 transition-colors disabled:opacity-40">
+            L–V disponible
+          </button>
         </div>
       </div>
 
-      {/* Weekly grid */}
-      <div className="card overflow-x-auto p-0">
-        <div className="min-w-[600px]">
-          {/* Header row */}
-          <div className="grid grid-cols-7 border-b border-gray-800 bg-gray-900/60">
-            <div className="px-2 py-2 text-xs text-gray-500 font-medium text-center border-r border-gray-800">
-              Hora
-            </div>
-            {DIAS.map(dia => (
-              <div
-                key={dia}
-                className="px-1 py-2 text-xs text-gray-400 font-medium text-center border-r border-gray-800 last:border-r-0"
-              >
-                {DIAS_LABEL[dia]}
-              </div>
-            ))}
-          </div>
+      {err && <p className="text-xs text-red-400 bg-red-950 border border-red-800 px-3 py-1.5 rounded">{err}</p>}
 
-          {/* Time slot rows */}
-          {TIME_SLOTS.map((slot, i) => (
-            <div
-              key={slot}
-              className={`grid grid-cols-7 border-b border-gray-800/50 ${i % 2 === 0 ? '' : 'bg-gray-900/20'}`}
-            >
-              {/* Time label */}
-              <div className="px-2 py-1 text-xs text-gray-500 text-center border-r border-gray-800 flex items-center justify-center">
-                {slot}
-              </div>
+      {/* Leyenda */}
+      <div className="flex gap-3 text-[10px] text-gray-500">
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-800 border border-emerald-600 inline-block"/>Disponible (clic=desactivar)</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-900 border border-blue-600 inline-block"/>Reservado</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-800/60 border border-gray-700 inline-block"/>No disponible (clic=activar)</span>
+      </div>
 
-              {/* Day cells */}
-              {DIAS.map(dia => {
-                const horario = horarioMap.get(`${dia}|${slot}`)
-                if (!horario) {
+      {/* Grid — scrollable horizontally */}
+      <div className="card p-0 overflow-x-auto">
+        <table className="w-full border-collapse text-[10px]" style={{ minWidth: 360 }}>
+          <thead>
+            <tr className="bg-gray-900/70 border-b border-gray-800">
+              <th className="w-10 text-gray-600 font-normal px-1 py-1 text-right text-[9px]">Hora</th>
+              {DIAS.map(d => (
+                <th key={d} className="text-center text-gray-400 font-medium px-0.5 py-1">
+                  <span className="hidden sm:inline">{DIAS_LABEL[d]}</span>
+                  <span className="sm:hidden">{DIAS_SHORT[d]}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TIME_SLOTS.map((slot, i) => (
+              <tr key={slot} className={i % 2 === 0 ? '' : 'bg-gray-900/20'}>
+                <td className="text-right text-gray-600 px-1 py-px text-[9px] select-none whitespace-nowrap">
+                  {slot}
+                </td>
+                {DIAS.map(dia => {
+                  const h = horarioMap.get(`${dia}|${slot}`)
+                  if (!h) return <td key={dia} className="px-0.5 py-px" />
+
+                  const r = reservaMap.get(h.id)
+                  const isOpen = popover === h.id
+
                   return (
-                    <div
-                      key={dia}
-                      className="px-1 py-1 border-r border-gray-800/50 last:border-r-0 min-h-[28px]"
-                    />
-                  )
-                }
-
-                const reserva = reservaMap.get(horario.id)
-                const isPopoverOpen = activePopover === horario.id
-
-                return (
-                  <div
-                    key={dia}
-                    className="px-1 py-1 border-r border-gray-800/50 last:border-r-0 relative"
-                  >
-                    {horario.estado === 'reservado' && reserva ? (
-                      <>
-                        <button
-                          onClick={() => setActivePopover(isPopoverOpen ? null : horario.id)}
-                          className="w-full flex items-center justify-center rounded text-xs font-bold h-6 bg-blue-900/60 text-blue-300 border border-blue-700 hover:bg-blue-900 transition-colors"
-                          title={reserva.estudiante_nombre}
-                        >
-                          {getInitials(reserva.estudiante_nombre)}
-                        </button>
-
-                        {/* Popover */}
-                        {isPopoverOpen && (
-                          <div
-                            className="absolute z-50 top-8 left-0 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-3 space-y-2"
-                            style={{ minWidth: '220px' }}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-semibold text-white">Reserva</p>
-                              <button
-                                onClick={() => setActivePopover(null)}
-                                className="text-gray-500 hover:text-gray-300 text-xs"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              <p className="text-gray-200 font-medium">{reserva.estudiante_nombre}</p>
-                              <p className="text-gray-400">{reserva.estudiante_carrera}</p>
-                              <p className="text-gray-400">{reserva.email}</p>
-                              {reserva.telefono && (
-                                <p className="text-gray-400">{reserva.telefono}</p>
-                              )}
-                              {reserva.notas && (
-                                <p className="text-gray-500 italic border-t border-gray-800 pt-1 mt-1">
-                                  {reserva.notas}
-                                </p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => cancelarReserva(reserva)}
-                              disabled={cancelingId === reserva.id}
-                              className="w-full mt-1 px-2 py-1.5 text-xs bg-red-900/40 hover:bg-red-900/70 text-red-400 border border-red-800 rounded transition-colors disabled:opacity-40"
-                            >
-                              {cancelingId === reserva.id ? 'Cancelando...' : 'Cancelar reserva'}
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* Toggle switch for disponible / no_disponible */
+                    <td key={dia} className="px-0.5 py-px relative">
                       <button
-                        onClick={() => toggleSlot(horario)}
-                        disabled={isPending}
-                        className={`w-full h-6 rounded text-xs font-medium transition-colors disabled:cursor-not-allowed ${
-                          horario.estado === 'disponible'
-                            ? 'bg-green-900/50 border border-green-700 text-green-400 hover:bg-green-900/80'
-                            : 'bg-gray-800/60 border border-gray-700 text-gray-600 hover:bg-gray-700/50'
+                        onClick={() => toggleSlot(h)}
+                        title={h.estado === 'reservado' ? `Reservado: ${r?.estudiante_nombre ?? ''}` : h.estado}
+                        className={`w-full h-5 rounded-sm text-[9px] font-medium transition-colors ${
+                          h.estado === 'disponible'
+                            ? 'bg-emerald-900/60 border border-emerald-700 text-emerald-400 hover:bg-emerald-700/60'
+                            : h.estado === 'reservado'
+                            ? 'bg-blue-900/60 border border-blue-700 text-blue-300 hover:bg-blue-800/60'
+                            : 'bg-gray-800/30 border border-gray-800 text-gray-700 hover:bg-gray-700/30'
                         }`}
-                        title={horario.estado === 'disponible' ? 'Disponible — clic para desactivar' : 'No disponible — clic para activar'}
                       >
-                        {horario.estado === 'disponible' ? '●' : '○'}
+                        {h.estado === 'reservado' ? (r ? initials(r.estudiante_nombre) : '●') : ''}
                       </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
 
-        {/* Legend */}
-        <div className="flex gap-4 px-4 py-3 border-t border-gray-800 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-green-900/50 border border-green-700 inline-block" />
-            Disponible
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-blue-900/60 border border-blue-700 inline-block" />
-            Reservado
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-gray-800/60 border border-gray-700 inline-block" />
-            No disponible
-          </span>
-        </div>
+                      {/* Popover for reservado */}
+                      {isOpen && r && (
+                        <div className="absolute z-50 left-0 top-6 w-52 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-3 space-y-1.5 text-xs"
+                          style={{ minWidth: 200 }}>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <p className="font-semibold text-white text-[11px]">Reserva</p>
+                            <button onClick={() => setPopover(null)} className="text-gray-500 hover:text-gray-300">✕</button>
+                          </div>
+                          <p className="text-gray-200 font-medium">{r.estudiante_nombre}</p>
+                          <p className="text-gray-400">{r.estudiante_carrera}</p>
+                          <p className="text-gray-400">{r.email}</p>
+                          {r.telefono && <p className="text-gray-400">{r.telefono}</p>}
+                          {r.notas && <p className="text-gray-500 italic border-t border-gray-800 pt-1 mt-1">"{r.notas}"</p>}
+                          <button
+                            onClick={() => cancelarReserva(r)}
+                            disabled={canceling === r.id}
+                            className="w-full mt-1 py-1 text-[10px] bg-red-950 border border-red-800 text-red-400 rounded hover:bg-red-900/60 transition-colors disabled:opacity-40">
+                            {canceling === r.id ? 'Cancelando...' : 'Cancelar reserva'}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Reservas list */}
       {reservas.length > 0 && (
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-white">Reservas activas ({reservas.length})</h2>
+        <div className="card space-y-2">
+          <h3 className="text-sm font-semibold text-white">Reservas activas ({reservas.length})</h3>
           <div className="divide-y divide-gray-800">
-            {reservas.map(reserva => (
-              <div key={reserva.id} className="py-3 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  {/* Avatar */}
-                  <div className="w-9 h-9 rounded-full bg-blue-900/50 border border-blue-700 flex items-center justify-center text-sm font-bold text-blue-300 flex-shrink-0">
-                    {getInitials(reserva.estudiante_nombre)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-200">{reserva.estudiante_nombre}</p>
-                    <p className="text-xs text-gray-500">{reserva.estudiante_carrera}</p>
-                    <p className="text-xs text-gray-500">{reserva.email}</p>
-                    <p className="text-xs text-blue-400 mt-1 font-medium">
-                      {getHorarioLabel(reserva.horario_id)}
-                    </p>
-                    {reserva.notas && (
-                      <p className="text-xs text-gray-500 italic mt-1">
-                        &ldquo;{reserva.notas}&rdquo;
-                      </p>
-                    )}
-                  </div>
+            {reservas.map(r => (
+              <div key={r.id} className="py-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-200 font-medium">{r.estudiante_nombre}</p>
+                  <p className="text-xs text-gray-500">{r.estudiante_carrera} · {r.email}</p>
+                  <p className="text-xs text-blue-400">{slotLabel(r.horario_id)}</p>
+                  {r.notas && <p className="text-xs text-gray-600 italic">"{r.notas}"</p>}
                 </div>
                 <button
-                  onClick={() => cancelarReserva(reserva)}
-                  disabled={cancelingId === reserva.id}
-                  className="btn-ghost text-xs text-red-400 hover:text-red-300 border border-red-800 hover:border-red-700 px-3 py-1.5 flex-shrink-0 disabled:opacity-40"
-                >
-                  {cancelingId === reserva.id ? 'Cancelando...' : 'Cancelar'}
+                  onClick={() => cancelarReserva(r)}
+                  disabled={canceling === r.id}
+                  className="flex-shrink-0 text-xs text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-950 transition-colors disabled:opacity-40">
+                  {canceling === r.id ? '...' : 'Cancelar'}
                 </button>
               </div>
             ))}
@@ -405,9 +251,7 @@ export function TutoriasManager({ horarios: initialHorarios, reservas: initialRe
       )}
 
       {reservas.length === 0 && (
-        <div className="card text-center py-10">
-          <p className="text-gray-500 text-sm">No hay reservas activas en este momento</p>
-        </div>
+        <p className="text-xs text-gray-600 text-center py-4">Sin reservas activas</p>
       )}
     </div>
   )
