@@ -45,6 +45,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Forward pathname so server layouts can read it
+  supabaseResponse.headers.set('x-pathname', pathname)
+
   return supabaseResponse
 }
 
