@@ -31,8 +31,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-gray-950">
-      {/* Sidebar — desktop only */}
-      <div className="hidden md:block">
+      {/* Sidebar — desktop only (the Sidebar component uses fixed positioning) */}
+      <div className="hidden md:block" aria-hidden="false">
         <Sidebar nombreProfesor={nombre} esAdmin={esAdmin} />
       </div>
 

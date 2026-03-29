@@ -54,7 +54,7 @@ export function Sidebar({ nombreProfesor, esAdmin = false }: { nombreProfesor: s
   }
 
   return (
-    <aside className="fixed top-0 left-0 h-full w-[260px] bg-gray-900 border-r border-gray-800 flex flex-col z-30">
+    <aside className="fixed top-0 left-0 h-full w-[260px] bg-gray-900 border-r border-gray-800 flex flex-col z-30 max-md:hidden">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-800">
         <div className="flex-shrink-0 w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center">
