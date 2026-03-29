@@ -72,7 +72,7 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones }: Pr
 
   return (
     <div className="space-y-4">
-      {/* Tabs ciclos */}
+      {/* Tabs parciales */}
       <div className="flex gap-2">
         {(['1', '2'] as Ciclo[]).map(c => (
           <button
@@ -84,7 +84,7 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones }: Pr
                 : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
               }`}
           >
-            Ciclo {c}
+            Parcial {c}
           </button>
         ))}
         <p className="text-xs text-gray-500 self-center ml-2">

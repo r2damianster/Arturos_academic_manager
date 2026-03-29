@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProfesoresManager } from '@/components/admin/profesores-manager'
+import { CopyButton } from '@/components/admin/copy-button'
+
 interface Profesor {
   id: string
   nombre: string
@@ -22,19 +24,13 @@ export default async function AdminPage() {
   const { data: yo } = await db.from('profesores').select('*').eq('id', user.id).single()
   if (!yo || yo.rol !== 'admin') redirect('/dashboard')
 
-  const [profesoresRes, statsRes] = await Promise.all([
-    db.from('profesores').select('*').order('created_at'),
-    db.from('cursos').select('id', { count: 'exact', head: true }),
-  ])
-
+  const profesoresRes = await db.from('profesores').select('*').order('created_at')
   const profesores: Profesor[] = profesoresRes.data ?? []
 
-  // Contar estudiantes únicos
-  const { count: totalEstudiantes } = await db
-    .from('estudiantes').select('id', { count: 'exact', head: true })
-
-  const { count: totalCursos } = await db
-    .from('cursos').select('id', { count: 'exact', head: true })
+  const estudiantesRes = await db.from('estudiantes').select('id', { count: 'exact', head: true })
+  const cursosRes     = await db.from('cursos').select('id', { count: 'exact', head: true })
+  const totalEstudiantes: number = estudiantesRes.count ?? 0
+  const totalCursos: number      = cursosRes.count ?? 0
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gestor-universitario-next.vercel.app'
 
@@ -59,11 +55,11 @@ export default async function AdminPage() {
           <span className="stat-label">Profesores</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{totalEstudiantes ?? 0}</span>
+          <span className="stat-value">{totalEstudiantes}</span>
           <span className="stat-label">Estudiantes</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{totalCursos ?? 0}</span>
+          <span className="stat-value">{totalCursos}</span>
           <span className="stat-label">Cursos</span>
         </div>
       </div>
@@ -78,23 +74,24 @@ export default async function AdminPage() {
         <div className="border border-gray-800 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-blue-400">👩‍🏫 Agregar profesor</p>
           <p className="text-xs text-gray-400">
-            El profesor debe registrarse directamente en la aplicación. Al hacerlo, se crea su perfil automáticamente con rol <strong className="text-gray-300">profesor</strong>. Puedes subir a <strong className="text-gray-300">admin</strong> desde esta tabla.
+            El profesor debe registrarse directamente en la aplicación. Al hacerlo, se crea su perfil
+            automáticamente con rol <strong className="text-gray-300">profesor</strong>. Puedes subir a{' '}
+            <strong className="text-gray-300">admin</strong> desde esta tabla.
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <code className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300 flex-1 truncate">{appUrl}/auth/login</code>
-            <button
-              onClick={() => {}}
-              className="btn-ghost text-xs px-3 py-1.5"
-            >
-              Copiar
-            </button>
+            <code className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300 flex-1 truncate">
+              {appUrl}/auth/login
+            </code>
+            <CopyButton text={`${appUrl}/auth/login`} />
           </div>
         </div>
 
         <div className="border border-gray-800 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-emerald-400">🎓 Agregar estudiante</p>
           <p className="text-xs text-gray-400">
-            Importa al estudiante en un curso desde <strong className="text-gray-300">Importar estudiantes</strong>. Luego el estudiante se registra con el mismo correo y accede a su portal automáticamente.
+            Importa al estudiante en un curso desde{' '}
+            <strong className="text-gray-300">Importar estudiantes</strong>. Luego el estudiante
+            se registra con el mismo correo y accede a su portal automáticamente.
           </p>
         </div>
       </div>

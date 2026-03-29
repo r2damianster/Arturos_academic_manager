@@ -27,9 +27,9 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   const semana: string | null = semanaRes.data
 
   const modules = [
-    { href: `/dashboard/cursos/${cursoId}/pase-lista`,  label: 'Bitácora y Lista ✅', icon: '📒', desc: 'Bitácora + asistencia' },
-    { href: `/dashboard/cursos/${cursoId}/asistencia`,  label: 'Asistencia',          icon: '📊', desc: 'Reporte completo' },
-    { href: `/dashboard/cursos/${cursoId}/calificaciones`, label: 'Calificaciones',   icon: '📝', desc: 'Notas por ciclo' },
+    { href: `/dashboard/cursos/${cursoId}/pase-lista`,  label: 'Bitácora y Lista', icon: '✅', desc: 'Bitácora + asistencia' },
+    { href: `/dashboard/cursos/${cursoId}/asistencia`,  label: 'Reporte de Asistencia', icon: '📊', desc: 'Reporte completo' },
+    { href: `/dashboard/cursos/${cursoId}/calificaciones`, label: 'Calificaciones',   icon: '📝', desc: 'Notas por parcial' },
     { href: `/dashboard/cursos/${cursoId}/trabajos`,    label: 'Trabajos',            icon: '📋', desc: 'Asignar y monitorear' },
     { href: `/dashboard/cursos/${cursoId}/estudiantes/importar`, label: 'Importar',   icon: '📥', desc: 'Carga masiva' },
   ]

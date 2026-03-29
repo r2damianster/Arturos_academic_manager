@@ -34,8 +34,8 @@ export default async function ConfigPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Configuración</h1>
-        <p className="text-gray-400 mt-1 text-sm">Tu perfil de profesor</p>
+        <h1 className="text-2xl font-bold text-white">Perfil</h1>
+        <p className="text-gray-400 mt-1 text-sm">Tus datos de acceso y perfil</p>
       </div>
 
       <form action={actualizarPerfil} className="card space-y-4">

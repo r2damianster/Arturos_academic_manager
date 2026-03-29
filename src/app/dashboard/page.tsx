@@ -92,32 +92,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Acciones rápidas */}
-      <div className="card">
-        <h2 className="font-semibold text-white mb-4">Acciones rápidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Link href="/dashboard/cursos/nuevo"
-            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-800 hover:bg-gray-750 transition-colors text-center">
-            <span className="text-2xl">📚</span>
-            <span className="text-sm text-gray-300">Nuevo curso</span>
-          </Link>
-          <Link href="/dashboard/cursos"
-            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-800 hover:bg-gray-750 transition-colors text-center">
-            <span className="text-2xl">✅</span>
-            <span className="text-sm text-gray-300">Pase de lista</span>
-          </Link>
-          <Link href="/dashboard/cursos"
-            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-800 hover:bg-gray-750 transition-colors text-center">
-            <span className="text-2xl">📊</span>
-            <span className="text-sm text-gray-300">Ver asistencia</span>
-          </Link>
-          <Link href="/dashboard/cursos"
-            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-800 hover:bg-gray-750 transition-colors text-center">
-            <span className="text-2xl">📋</span>
-            <span className="text-sm text-gray-300">Calificaciones</span>
-          </Link>
-        </div>
-      </div>
     </div>
   )
 }
