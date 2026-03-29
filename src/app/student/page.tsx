@@ -67,6 +67,26 @@ export default async function StudentPage() {
         <Link href="/student/perfil" className="text-xs text-brand-400 hover:text-brand-300">✏️ Editar perfil →</Link>
       </div>
 
+      {/* Accesos rápidos */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/student/tutorias"
+          className="card flex flex-col items-center justify-center py-4 hover:border-brand-600/50 transition-colors group">
+          <svg className="w-6 h-6 text-brand-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-sm font-medium text-gray-200 group-hover:text-white">Agendar Tutoría</span>
+        </Link>
+        <Link href="/student/perfil"
+          className="card flex flex-col items-center justify-center py-4 hover:border-brand-600/50 transition-colors group">
+          <svg className="w-6 h-6 text-brand-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span className="text-sm font-medium text-gray-200 group-hover:text-white">Mi Perfil</span>
+        </Link>
+      </div>
+
       {/* Encuestas — only show if survey completed (always true here since layout redirects otherwise) */}
       <div className="card space-y-3">
         <h2 className="font-semibold text-white text-sm">Encuestas</h2>
