@@ -6,8 +6,6 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const { data: { user } } = await supabase.auth.getUser()
-
   const [cursosCount, estudiantesCount] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -16,18 +14,21 @@ export default async function DashboardPage() {
   const totalEstudiantes: number = estudiantesCount.count ?? 0
 
   // Cursos recientes
-  const { data: cursosRecientes } = await db
+  const cursosRes = await db
     .from('cursos')
     .select('id, asignatura, codigo, periodo')
     .order('created_at', { ascending: false })
     .limit(5)
+  const cursosRecientes: { id: string; asignatura: string; codigo: string; periodo: string }[] =
+    cursosRes.data ?? []
 
   // Asistencia de hoy
   const hoy = new Date().toISOString().split('T')[0]
-  const { count: asistenciaHoy } = await db
+  const asistenciaRes = await db
     .from('asistencia')
     .select('id', { count: 'exact', head: true })
     .eq('fecha', hoy)
+  const asistenciaHoy: number = asistenciaRes.count ?? 0
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
           <span className="stat-label">Estudiantes total</span>
         </div>
         <div className="stat-card col-span-2 md:col-span-1">
-          <span className="stat-value">{asistenciaHoy ?? 0}</span>
+          <span className="stat-value">{asistenciaHoy}</span>
           <span className="stat-label">Registros de asistencia hoy</span>
         </div>
       </div>
@@ -61,7 +62,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {!cursosRecientes || cursosRecientes.length === 0 ? (
+        {cursosRecientes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-3">No tienes cursos aún</p>
             <Link href="/dashboard/cursos/nuevo" className="btn-primary text-sm">
