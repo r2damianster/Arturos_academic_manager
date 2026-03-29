@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 
 type Estudiante = Tables<'estudiantes'>
@@ -36,7 +37,7 @@ export default async function StudentPage() {
   const estudianteIds = estudiantes.map(e => e.id)
   const cursoIds = estudiantes.map(e => e.curso_id)
 
-  // Fetch paralelo de datos
+  // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
   const [cursosRes, trabajosRes, asistenciaRes] = await Promise.all([
     db.from('cursos').select('*').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
@@ -63,6 +64,18 @@ export default async function StudentPage() {
         <p className="text-gray-400 text-sm mt-1">
           {estudiantes.length === 1 ? '1 curso matriculado' : `${estudiantes.length} cursos matriculados`}
         </p>
+        <Link href="/student/perfil" className="text-xs text-brand-400 hover:text-brand-300">✏️ Editar perfil →</Link>
+      </div>
+
+      {/* Encuestas — only show if survey completed (always true here since layout redirects otherwise) */}
+      <div className="card space-y-3">
+        <h2 className="font-semibold text-white text-sm">Encuestas</h2>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-900/20 border border-emerald-800">
+          <div>
+            <p className="text-sm font-medium text-emerald-300">✓ Ficha inicial completada</p>
+            <p className="text-xs text-gray-500 mt-0.5">Tus datos han sido registrados</p>
+          </div>
+        </div>
       </div>
 
       {/* Tarjeta por cada curso */}
