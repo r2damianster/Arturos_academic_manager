@@ -11,9 +11,10 @@ const CursoSchema = z.object({
   periodo:        z.string().min(3).max(20),
   fecha_inicio:   z.string().optional(),
   fecha_fin:      z.string().optional(),
-  horas_semana:   z.coerce.number().int().min(1).max(40).default(16),
-  num_sesiones:   z.coerce.number().int().min(1).max(100).default(8),
-  horas_teoricas: z.coerce.number().int().min(1).max(100).default(16),
+  horas_semana:   z.coerce.number().int().min(1).max(200).default(64),
+  num_sesiones:   z.coerce.number().int().min(1).max(200).default(32),
+  horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
+  num_parciales:  z.coerce.number().int().min(2).max(4).default(2),
 })
 
 // Las Server Actions usadas en <form action={}> deben retornar void | Promise<void>
