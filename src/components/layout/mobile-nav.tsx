@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
@@ -38,6 +38,16 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
   function isActive(href: string, match?: string) {
     if (match) return pathname === match
     return pathname.startsWith(href)
@@ -56,17 +66,17 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
         </svg>
       </button>
 
-      {/* Backdrop */}
+      {/* Backdrop — fully opaque black overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          className="fixed inset-0 z-40 bg-black/80 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Drawer */}
       <div className={clsx(
-        'fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800 z-50 flex flex-col transition-transform duration-200 md:hidden',
+        'fixed top-0 left-0 h-full w-72 bg-gray-900 border-r border-gray-800 z-50 flex flex-col transition-transform duration-200 ease-in-out md:hidden shadow-2xl',
         open ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Logo */}
