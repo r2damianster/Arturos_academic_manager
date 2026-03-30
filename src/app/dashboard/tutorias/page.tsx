@@ -3,27 +3,6 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { TutoriasManager } from './tutorias-manager'
 
-interface Horario {
-  id: number
-  dia_semana: string
-  hora_inicio: string
-  hora_fin: string
-  estado: string
-  profesor_id: string
-}
-
-interface Reserva {
-  id: number
-  estudiante_nombre: string
-  estudiante_carrera: string
-  email: string
-  telefono: string
-  fecha: string
-  horario_id: number
-  estado: string
-  notas?: string | null
-}
-
 export default async function TutoriasPage() {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,10 +11,8 @@ export default async function TutoriasPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  // Initialize professor slots if they don't exist yet (no-op if already created)
   await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
 
-  // Fetch all horarios for this professor
   const { data: horariosData } = await db
     .from('horarios')
     .select('*')
@@ -43,28 +20,27 @@ export default async function TutoriasPage() {
     .order('dia_semana')
     .order('hora_inicio')
 
-  const horarios: Horario[] = horariosData ?? []
+  const horarios = horariosData ?? []
+  const horarioIds: number[] = horarios.map((h: { id: number }) => h.id)
 
-  // Fetch reservas: first get horario ids, then fetch matching reservas
-  const horarioIds: number[] = horarios.map((h: Horario) => h.id)
-
-  let reservas: Reserva[] = []
+  // Fetch ALL reservas (all states) for historial + date-aware grid
+  let reservas = []
   if (horarioIds.length > 0) {
-    const { data: reservasData } = await db
+    const { data } = await db
       .from('reservas')
       .select('*')
       .in('horario_id', horarioIds)
-      .neq('estado', 'cancelado')
-    reservas = reservasData ?? []
+      .order('fecha', { ascending: false })
+    reservas = data ?? []
   }
 
-  // Compute stats
-  const totalDisponibles = horarios.filter((h: Horario) => h.estado === 'disponible').length
-  const totalReservados = horarios.filter((h: Horario) => h.estado === 'reservado').length
-  const totalNoDisponibles = horarios.filter((h: Horario) => h.estado === 'no_disponible').length
+  const nDisp    = horarios.filter((h: { estado: string }) => h.estado === 'disponible').length
+  const nNoDisp  = horarios.filter((h: { estado: string }) => h.estado === 'no_disponible').length
+  const nPending = reservas.filter((r: { estado: string }) => r.estado === 'pendiente').length
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-4">
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="btn-ghost p-2">
@@ -72,33 +48,28 @@ export default async function TutoriasPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Mis Tutorías</h1>
-          <p className="text-gray-400 text-sm">Configura tu disponibilidad y gestiona reservas</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-white">Mis Tutorías</h1>
+          <p className="text-gray-500 text-xs">Disponibilidad y gestión de reservas</p>
+        </div>
+
+        {/* Compact stats inline */}
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+          <span className="bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg text-xs">
+            <span className="font-semibold text-emerald-400">{nDisp}</span>
+            <span className="text-gray-400 ml-1">dispon.</span>
+          </span>
+          <span className="bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg text-xs">
+            <span className="font-semibold text-blue-400">{nPending}</span>
+            <span className="text-gray-400 ml-1">pendientes</span>
+          </span>
+          <span className="bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg text-xs">
+            <span className="font-semibold text-gray-400">{nNoDisp}</span>
+            <span className="text-gray-400 ml-1">no dispon.</span>
+          </span>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="stat-card">
-          <span className="stat-value">{horarios.length}</span>
-          <span className="stat-label">Total slots</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value text-green-400">{totalDisponibles}</span>
-          <span className="stat-label">Disponibles</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value text-blue-400">{totalReservados}</span>
-          <span className="stat-label">Reservados</span>
-        </div>
-        <div className="stat-card col-span-3 md:col-span-1">
-          <span className="stat-value text-gray-400">{totalNoDisponibles}</span>
-          <span className="stat-label">No disponibles</span>
-        </div>
-      </div>
-
-      {/* Interactive manager (client component) */}
       <TutoriasManager horarios={horarios} reservas={reservas} />
     </div>
   )

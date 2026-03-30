@@ -11,7 +11,6 @@ export default async function TutoriasPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  // All student records (may be enrolled in multiple courses)
   const { data: estudiantesData } = await db
     .from('estudiantes')
     .select('id, nombre, email, curso_id, profesor_id')
@@ -20,14 +19,12 @@ export default async function TutoriasPage() {
   const estudiantes = estudiantesData ?? []
   if (estudiantes.length === 0) redirect('/auth/login')
 
-  // Student survey data for carrera & telefono
   const { data: encuesta } = await db
     .from('encuesta_estudiante')
     .select('carrera, telefono')
     .eq('auth_user_id', user.id)
     .maybeSingle()
 
-  // Collect unique profesor_ids from all student records
   const profesorIds: string[] = [
     ...new Set<string>(
       estudiantes
@@ -36,26 +33,40 @@ export default async function TutoriasPage() {
     ),
   ]
 
-  // Fetch horarios for those professors (with professor name)
+  // Fetch horarios (only disponible slots)
   const { data: horariosData } = profesorIds.length > 0
     ? await db
         .from('horarios')
         .select('*, profesores(nombre)')
         .in('profesor_id', profesorIds)
+        .eq('estado', 'disponible')
         .order('dia_semana')
         .order('hora_inicio')
     : { data: [] }
 
-  // Fetch student's pending reservas
+  const horarios = horariosData ?? []
+  const horarioIds: number[] = horarios.map((h: { id: number }) => h.id)
+
+  // Fetch ALL pending reservas for these slots (to show occupancy per date)
+  // Only returns horario_id + fecha to respect privacy of other students
+  let occupiedSlots: { horario_id: number; fecha: string }[] = []
+  if (horarioIds.length > 0) {
+    const { data: occData } = await db
+      .from('reservas')
+      .select('horario_id, fecha')
+      .in('horario_id', horarioIds)
+      .eq('estado', 'pendiente')
+    occupiedSlots = occData ?? []
+  }
+
+  // Fetch student's own pending reservas (with full details)
   const { data: misReservasData } = await db
     .from('reservas')
-    .select('*, horarios(dia_semana, hora_inicio, hora_fin)')
+    .select('id, horario_id, fecha, estado, notas, horarios(dia_semana, hora_inicio, hora_fin)')
     .eq('auth_user_id', user.id)
     .eq('estado', 'pendiente')
 
-  const horarios = horariosData ?? []
   const misReservas = misReservasData ?? []
-
   const primerEstudiante = estudiantes[0]
 
   const studentInfo = {
@@ -64,32 +75,26 @@ export default async function TutoriasPage() {
     carrera: encuesta?.carrera ?? null,
     telefono: encuesta?.telefono ?? null,
     auth_user_id: user.id,
-    estudiante_ids: estudiantes.map((e: { id: string }) => e.id) as string[],
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 py-10 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-
-        {/* Header */}
+    <div className="min-h-screen bg-gray-950 py-8 px-4">
+      <div className="max-w-3xl mx-auto space-y-4">
         <div className="flex items-center gap-3">
-          <Link
-            href="/student"
-            className="btn-ghost p-2"
-            aria-label="Volver"
-          >
+          <Link href="/student" className="btn-ghost p-2" aria-label="Volver">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-white">Tutorías</h1>
+            <h1 className="text-xl font-bold text-white">Tutorías</h1>
             <p className="text-gray-400 text-sm">Agenda una sesión con tu profesor</p>
           </div>
         </div>
 
         <TutoriasBooking
           horarios={horarios}
+          occupiedSlots={occupiedSlots}
           misReservas={misReservas}
           studentInfo={studentInfo}
         />
