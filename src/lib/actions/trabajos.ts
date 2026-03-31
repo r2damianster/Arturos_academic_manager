@@ -88,7 +88,8 @@ export async function actualizarEstadoTrabajo(
 export async function agregarObservacionTrabajo(
   trabajoId: string,
   estudianteId: string,
-  observacion: string
+  observacion: string,
+  cursoId?: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -104,5 +105,51 @@ export async function agregarObservacionTrabajo(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/estudiantes/${estudianteId}`)
+  if (cursoId) revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
+  return {}
+}
+
+export async function actualizarTrabajo(
+  trabajoId: string,
+  cursoId: string,
+  data: { tipo: string; tema?: string; descripcion?: string; estado: string; fecha_asignacion: string }
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await (supabase as AnySupabase).from('trabajos_asignados')
+    .update({
+      tipo: data.tipo,
+      tema: data.tema || null,
+      descripcion: data.descripcion || null,
+      estado: data.estado,
+      fecha_asignacion: data.fecha_asignacion,
+    })
+    .eq('id', trabajoId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
+  return {}
+}
+
+export async function eliminarTrabajo(
+  trabajoId: string,
+  cursoId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await (supabase as AnySupabase).from('trabajos_asignados')
+    .delete()
+    .eq('id', trabajoId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
   return {}
 }

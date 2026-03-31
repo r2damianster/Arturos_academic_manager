@@ -22,6 +22,7 @@ interface RegistroLocal {
   horas: number
   participacion: number | null
   observacion_part: string
+  obs_trabajo: string
 }
 
 interface BitacoraLocal {
@@ -77,7 +78,15 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         horas: estado === 'Ausente' ? 0 : horas,
         participacion: prev[actual.id]?.participacion ?? null,
         observacion_part: prev[actual.id]?.observacion_part ?? '',
+        obs_trabajo: prev[actual.id]?.obs_trabajo ?? '',
       },
+    }))
+  }
+
+  function setObsTrabajo(texto: string) {
+    setRegistros(prev => ({
+      ...prev,
+      [actual.id]: { ...prev[actual.id], obs_trabajo: texto },
     }))
   }
 
@@ -107,6 +116,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
     setError(null)
     const inputs: RegistroAsistenciaInput[] = estudiantes.map(est => {
       const reg = registros[est.id]
+      const perfil = perfiles[est.id]
       return {
         estudiante_id: est.id,
         estado: reg?.estado ?? 'Ausente',
@@ -114,6 +124,8 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         horas: reg?.horas ?? 0,
         participacion: reg?.participacion ?? null,
         observacion_part: reg?.observacion_part?.trim() || null,
+        obs_trabajo: reg?.obs_trabajo?.trim() || null,
+        trabajo_id: perfil?.ultimo_trabajo?.id ?? null,
       }
     })
     startTransition(async () => {
@@ -322,6 +334,23 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           <div className="px-1 border-l-2 border-gray-700">
             <p className="text-xs text-gray-500 mb-0.5">Última observación</p>
             <p className="text-xs text-gray-400 italic line-clamp-2">&ldquo;{perfiles[actual.id].ultima_observacion}&rdquo;</p>
+          </div>
+        )}
+
+        {/* Observación de avance del trabajo */}
+        {perfiles[actual.id]?.ultimo_trabajo && (
+          <div className="px-1">
+            <label className="text-xs text-gray-500 block mb-1">
+              Observación de avance <span className="text-gray-600">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ej: Avanzó en la investigación, falta conclusión..."
+              value={registros[actual.id]?.obs_trabajo ?? ''}
+              onChange={e => setObsTrabajo(e.target.value)}
+              maxLength={300}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
           </div>
         )}
 

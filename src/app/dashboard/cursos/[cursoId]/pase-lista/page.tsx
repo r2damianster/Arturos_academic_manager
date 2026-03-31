@@ -11,7 +11,7 @@ export interface EstudiantePerfil {
   pct_asistencia: number | null
   promedio: number | null
   trabajos_activos: number
-  ultimo_trabajo: { tipo: string; tema: string | null; estado: string } | null
+  ultimo_trabajo: { id: string; tipo: string; tema: string | null; estado: string } | null
   ultima_observacion: string | null
 }
 
@@ -101,7 +101,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     ) ?? trabajosEst[0] ?? null
 
     const ultimo_trabajo = trabajoActivo
-      ? { tipo: trabajoActivo.tipo, tema: trabajoActivo.tema ?? null, estado: trabajoActivo.estado }
+      ? { id: trabajoActivo.id, tipo: trabajoActivo.tipo, tema: trabajoActivo.tema ?? null, estado: trabajoActivo.estado }
       : null
 
     // Última observación del estudiante

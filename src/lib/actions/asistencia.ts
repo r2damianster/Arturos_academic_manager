@@ -13,6 +13,8 @@ export type RegistroAsistenciaInput = {
   horas: number
   participacion?: number | null
   observacion_part?: string | null
+  obs_trabajo?: string | null
+  trabajo_id?: string | null
 }
 
 export async function registrarAsistenciaMasiva(
@@ -58,6 +60,19 @@ export async function registrarAsistenciaMasiva(
 
   if (partRows.length > 0) {
     await (supabase as AnySupabase).from('participacion').insert(partRows)
+  }
+
+  const obsTrabajoRows = registros
+    .filter(r => r.obs_trabajo?.trim() && r.trabajo_id)
+    .map(r => ({
+      profesor_id: user.id,
+      trabajo_id: r.trabajo_id!,
+      observacion: r.obs_trabajo!.trim(),
+      fecha,
+    }))
+
+  if (obsTrabajoRows.length > 0) {
+    await (supabase as AnySupabase).from('observaciones_trabajo').insert(obsTrabajoRows)
   }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/asistencia`)

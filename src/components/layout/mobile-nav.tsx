@@ -76,7 +76,7 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
 
       {/* Drawer */}
       <div className={clsx(
-        'fixed top-0 left-0 h-full w-72 bg-gray-900 border-r border-gray-800 z-50 flex flex-col transition-transform duration-200 ease-in-out md:hidden shadow-2xl',
+        'fixed top-0 left-0 h-screen w-4/5 max-w-xs bg-gray-900 border-r border-gray-800 z-50 flex flex-col transition-transform duration-200 ease-in-out md:hidden shadow-2xl',
         open ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Logo */}
