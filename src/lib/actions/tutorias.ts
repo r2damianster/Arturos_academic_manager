@@ -28,11 +28,15 @@ export async function activarHorario(horarioId: number, duracion: string) {
   } else {
     disponible_hasta = calcDisponibleHasta(duracion as DuracionTutoria)
   }
-  const { error } = await db
+  const { data, error } = await db
     .from('horarios')
     .update({ estado: 'disponible', disponible_hasta })
     .eq('id', horarioId)
-  if (error) return { error: error.message }
+    .select('id')
+
+  if (error) return { error: `Supabase Error: ${error.message}` }
+  if (!data || data.length === 0) return { error: `Error: No se pudo actualizar en BD (permisos RLS o ID '${horarioId}' incorrecto).` }
+
   return { ok: true, disponible_hasta }
 }
 
