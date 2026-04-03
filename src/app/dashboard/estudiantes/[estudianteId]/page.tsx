@@ -3,14 +3,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 
-type Estudiante    = Tables<'estudiantes'>
+type Estudiante    = Tables<'estudiantes'> & { auth_user_id?: string | null }
 type Calificacion  = Tables<'calificaciones'>
 type Asistencia    = Tables<'asistencia'>
 type Participacion = Tables<'participacion'>
 type Perfil        = Tables<'perfiles_estudiante'>
 type Trabajo       = Tables<'trabajos_asignados'>
 type Observacion   = Tables<'observaciones_trabajo'>
-type Curso         = Pick<Tables<'cursos'>, 'id' | 'asignatura' | 'codigo' | 'periodo' | 'nombres_tareas'>
+type Curso         = Pick<Tables<'cursos'>, 'id' | 'asignatura' | 'codigo' | 'periodo'> & { nombres_tareas?: any }
 
 const ESTADO_RESERVA: Record<string, { label: string; color: string }> = {
   pendiente:   { label: 'Pendiente',   color: 'text-yellow-400 bg-yellow-900/30 border-yellow-800' },

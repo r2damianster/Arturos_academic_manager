@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { PaseListaClient } from '@/components/pase-lista/pase-lista-client'
 import type { Tables } from '@/types/database.types'
 
-type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria' | 'auth_user_id'>
+interface Estudiante extends Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria'> {
+  auth_user_id: string | null
+}
 type Curso = Tables<'cursos'>
 
 export interface EstudiantePerfil {
