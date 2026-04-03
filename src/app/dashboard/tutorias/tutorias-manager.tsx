@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { activarHorario, asignarTutoriaDirecta, type DuracionTutoria } from '@/lib/actions/tutorias'
 
 interface Horario {
   id: number
@@ -10,6 +11,7 @@ interface Horario {
   hora_fin: string
   estado: string   // 'disponible' | 'no_disponible'
   profesor_id: string
+  disponible_hasta: string | null
 }
 
 interface Reserva {
@@ -18,9 +20,9 @@ interface Reserva {
   estudiante_carrera: string
   email: string
   telefono: string
-  fecha: string          // YYYY-MM-DD (session date)
+  fecha: string
   horario_id: number
-  estado: string         // pendiente | completada | cancelado
+  estado: string
   cancelado_por?: string | null
   cancelado_at?: string | null
   asistio?: boolean | null
@@ -28,22 +30,46 @@ interface Reserva {
   notas?: string | null
 }
 
-interface Props { horarios: Horario[]; reservas: Reserva[] }
+interface Estudiante {
+  id: string
+  nombre: string
+  email: string
+  auth_user_id: string | null
+  carrera?: string | null
+  telefono?: string | null
+}
+
+interface Props {
+  horarios: Horario[]
+  reservas: Reserva[]
+  estudiantes: Estudiante[]
+  profesorNombre: string
+}
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 const DAY_JS: Record<number, string> = {
   1: 'lunes', 2: 'martes', 3: 'miércoles', 4: 'jueves', 5: 'viernes', 6: 'sábado',
 }
-const DAY_SHORT = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const DAY_SHORT  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-const MAX_WEEK_OFFSET = 4
+const MAX_WEEK_OFFSET = 16 // ~4 months ahead
+
+const DURACIONES: { value: DuracionTutoria; label: string }[] = [
+  { value: '1s',          label: '1 semana' },
+  { value: '2s',          label: '2 semanas' },
+  { value: '1m',          label: '1 mes' },
+  { value: '2m',          label: '2 meses' },
+  { value: '3m',          label: '3 meses' },
+  { value: '4m',          label: '4 meses' },
+  { value: 'permanente',  label: 'Permanente' },
+]
 
 function getWeekDates(weekOffset: number): Date[] {
   const today = new Date()
   const dow = today.getDay()
   const start = new Date(today)
-  if (dow === 0) start.setDate(start.getDate() + 1) // Sunday → next Monday
+  if (dow === 0) start.setDate(start.getDate() + 1)
   start.setDate(start.getDate() + weekOffset * 7)
   const dates: Date[] = []
   const cur = new Date(start)
@@ -61,6 +87,8 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+function todayStr(): string { return toDateStr(new Date()) }
+
 function fmtDateRange(dates: Date[]): string {
   const a = dates[0], b = dates[dates.length - 1]
   const sameMonth = a.getMonth() === b.getMonth()
@@ -71,13 +99,19 @@ function fmtDateRange(dates: Date[]): string {
 function fmt(t: string) { return t?.slice(0, 5) ?? '' }
 function initials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }
 
+function isSlotActiveOnDate(h: Horario, dateStr: string): boolean {
+  if (h.estado !== 'disponible') return false
+  if (!h.disponible_hasta) return true          // permanente
+  return dateStr <= h.disponible_hasta
+}
+
 // ─── Time slots ───────────────────────────────────────────────────────────────
 
 function getSlots(): string[] {
   const s: string[] = []
-  for (let h = 7; h <= 19; h++) {
-    s.push(`${String(h).padStart(2,'0')}:00`)
-    s.push(`${String(h).padStart(2,'0')}:30`)
+  for (let hh = 7; hh <= 19; hh++) {
+    s.push(`${String(hh).padStart(2,'0')}:00`)
+    s.push(`${String(hh).padStart(2,'0')}:30`)
   }
   return s.filter(x => x <= '19:30')
 }
@@ -85,7 +119,7 @@ const TIME_SLOTS = getSlots()
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
+export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes, profesorNombre }: Props) {
   const supabase = createClient()
   const [horarios, setHorarios]     = useState<Horario[]>(init)
   const [reservas, setReservas]     = useState<Reserva[]>(initRes)
@@ -96,6 +130,20 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
   const [err, setErr]               = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
+  // Duration picker: shown when clicking a no_disponible slot
+  const [durPicker, setDurPicker]   = useState<number | null>(null) // horario id
+  const [durDateStr, setDurDateStr] = useState<string | null>(null) // clicked date
+  const [durSaving, setDurSaving]   = useState(false)
+
+  // Direct assignment panel
+  const [showAssign, setShowAssign] = useState(false)
+  const [assignEst, setAssignEst]   = useState<string>('')       // estudiante id
+  const [assignHor, setAssignHor]   = useState<string>('')       // horario id (string for select)
+  const [assignDate, setAssignDate] = useState<string>(todayStr())
+  const [assignNota, setAssignNota] = useState<string>('')
+  const [assigning, setAssigning]   = useState(false)
+  const [assignMsg, setAssignMsg]   = useState<string | null>(null)
+
   // Historial filters
   const [fNombre,  setFNombre]  = useState('')
   const [fCarrera, setFCarrera] = useState('')
@@ -104,27 +152,23 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
 
   const profesorId = horarios[0]?.profesor_id ?? ''
 
-  // Current week dates
-  const weekDates  = getWeekDates(weekOffset)
-  const weekDateStrs = weekDates.map(toDateStr)
-
-  // Lookup: dia_semana → horarios for that day
-  const horarioMap = new Map<string, Horario>()
+  const weekDates    = getWeekDates(weekOffset)
+  const horarioMap   = new Map<string, Horario>()
   for (const h of horarios) {
     horarioMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
   }
 
-  // Lookup: `horarioId|dateStr` → pending reserva
   const reservaBySlotDate = new Map<string, Reserva>()
   for (const r of reservas) {
-    if (r.estado === 'pendiente') {
+    if (r.estado === 'pendiente' || r.estado === 'confirmada') {
       reservaBySlotDate.set(`${r.horario_id}|${r.fecha}`, r)
     }
   }
 
-  const pendientes = reservas.filter(r => r.estado === 'pendiente')
+  const pendientes = reservas
+    .filter(r => r.estado === 'pendiente' || r.estado === 'confirmada')
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
-  const historial  = reservas.filter(r => r.estado !== 'pendiente')
+  const historial  = reservas.filter(r => r.estado !== 'pendiente' && r.estado !== 'confirmada')
 
   const historialFiltrado = historial.filter(r => {
     if (fNombre  && !r.estudiante_nombre.toLowerCase().includes(fNombre.toLowerCase()))   return false
@@ -134,27 +178,55 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
     return true
   })
 
-  const nDisp = horarios.filter(h => h.estado === 'disponible').length
+  const hoy = toDateStr(new Date())
+  const nDisp = horarios.filter(h => isSlotActiveOnDate(h, hoy)).length
 
-  // ── Toggle individual slot ─────────────────────────────────────────────────
+  const activeDias = weekDates.filter(date => {
+    const diaKey = DAY_JS[date.getDay()]
+    return horarios.some(h => h.dia_semana === diaKey)
+  })
+
+  // ── Toggle slot ────────────────────────────────────────────────────────────
   async function toggleSlot(h: Horario, dateStr: string) {
     const key = `${h.id}|${dateStr}`
     if (reservaBySlotDate.has(key)) { setPopover(popover === key ? null : key); return }
-    if (h.estado === 'no_disponible') return // can only toggle disponible slots
-    // Toggle disponible ↔ no_disponible by clicking
-    const next = h.estado === 'disponible' ? 'no_disponible' : 'disponible'
-    setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, estado: next } : x))
-    setErr(null)
-    startTransition(async () => {
-      const { error } = await supabase.from('horarios').update({ estado: next }).eq('id', h.id)
-      if (error) {
-        setErr('Error al guardar')
-        setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, estado: h.estado } : x))
-      }
-    })
+
+    if (isSlotActiveOnDate(h, dateStr)) {
+      // Truncate disponible_hasta to day BEFORE clicked date
+      // → semanas previas permanecen verdes, esta semana en adelante queda gris
+      const d = new Date(dateStr + 'T00:00:00')
+      d.setDate(d.getDate() - 1)
+      const nuevoHasta = d.toISOString().split('T')[0]
+      setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: nuevoHasta } : x))
+      setErr(null)
+      startTransition(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).from('horarios')
+          .update({ disponible_hasta: nuevoHasta })
+          .eq('id', h.id)
+        if (error) {
+          setErr('Error al guardar')
+          setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: h.disponible_hasta } : x))
+        }
+      })
+    } else {
+      // Show duration picker to reactivate
+      setDurPicker(durPicker === h.id ? null : h.id)
+      setDurDateStr(dateStr)
+    }
   }
 
-  // ── Professor actions ──────────────────────────────────────────────────────
+  async function confirmarDuracion(h: Horario, duracion: Pick<DuracionTutoria, never> | string) {
+    setDurSaving(true); setErr(null)
+    const res = await activarHorario(h.id, duracion as DuracionTutoria)
+    if (res.error) { setErr(res.error); setDurSaving(false); return }
+    setHorarios(prev => prev.map(x =>
+      x.id === h.id ? { ...x, estado: 'disponible', disponible_hasta: res.disponible_hasta ?? null } : x
+    ))
+    setDurPicker(null); setDurDateStr(null); setDurSaving(false)
+  }
+
+  // ── Professor actions on reservas ──────────────────────────────────────────
   async function accionReserva(r: Reserva, accion: 'asistio' | 'no_asistio' | 'cancelar') {
     setActing(r.id); setErr(null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -177,30 +249,67 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
 
   // ── Batch ──────────────────────────────────────────────────────────────────
   async function batchNoDisponible() {
-    setHorarios(prev => prev.map(h => ({ ...h, estado:'no_disponible' })))
+    setHorarios(prev => prev.map(h => ({ ...h, estado:'no_disponible', disponible_hasta: null })))
     startTransition(async () => {
-      await supabase.from('horarios').update({ estado:'no_disponible' }).eq('profesor_id', profesorId)
+      await (supabase as any).from('horarios').update({ estado:'no_disponible', disponible_hasta: null }).eq('profesor_id', profesorId)
     })
   }
   async function batchLV() {
     const lv = ['lunes','martes','miércoles','jueves','viernes']
     setHorarios(prev => prev.map(h => ({
-      ...h, estado: lv.includes(h.dia_semana) ? 'disponible' : h.estado
+      ...h,
+      estado: lv.includes(h.dia_semana) ? 'disponible' : h.estado,
+      disponible_hasta: lv.includes(h.dia_semana) ? null : h.disponible_hasta,
     })))
     startTransition(async () => {
-      await supabase.from('horarios').update({ estado:'disponible' })
+      await (supabase as any).from('horarios')
+        .update({ estado:'disponible', disponible_hasta: null })
         .eq('profesor_id', profesorId).in('dia_semana', lv)
     })
   }
 
-  // ─── Which days have any horarios ────────────────────────────────────────
-  const activeDias = weekDates.filter(date => {
-    const diaKey = DAY_JS[date.getDay()]
-    return horarios.some(h => h.dia_semana === diaKey)
-  })
+  // ── Direct assignment ──────────────────────────────────────────────────────
+  async function handleAsignar() {
+    if (!assignEst || !assignHor || !assignDate) return
+    const est = estudiantes.find(e => e.id === assignEst)
+    if (!est?.auth_user_id) { setAssignMsg('❌ Este estudiante no tiene cuenta vinculada.'); return }
+    setAssigning(true); setAssignMsg(null)
+    const res = await asignarTutoriaDirecta({
+      horarioId:         Number(assignHor),
+      fecha:             assignDate,
+      authUserId:        est.auth_user_id,
+      estudianteNombre:  est.nombre,
+      estudianteEmail:   est.email,
+      estudianteCarrera: est.carrera ?? null,
+      estudianteTelefono: est.telefono ?? null,
+      nota:              assignNota.trim() || null,
+    })
+    if (res.error) {
+      setAssignMsg(`❌ ${res.error}`)
+    } else {
+      const h = horarios.find(x => x.id === Number(assignHor))
+      // Add to local reservas list
+      setReservas(prev => [...prev, {
+        id: res.reservaId ?? Math.random(),
+        horario_id: Number(assignHor),
+        fecha: assignDate,
+        estudiante_nombre: est.nombre,
+        estudiante_carrera: est.carrera ?? '',
+        email: est.email,
+        telefono: est.telefono ?? '',
+        notas: assignNota.trim() || null,
+        estado: 'confirmada',
+      }])
+      setAssignMsg(`✓ Tutoría asignada a ${est.nombre} — ${assignDate} ${h ? fmt(h.hora_inicio) : ''}`)
+      setAssignEst(''); setAssignHor(''); setAssignNota('')
+    }
+    setAssigning(false)
+  }
 
-  // ─── Status badge ─────────────────────────────────────────────────────────
+  // ─── Status badge ──────────────────────────────────────────────────────────
   function StatusBadge({ r }: { r: Reserva }) {
+    if (r.estado === 'confirmada')
+      return <span className="text-[10px] bg-blue-900/40 text-blue-300 border border-blue-800 px-1.5 py-0.5 rounded">Confirmada</span>
     if (r.estado === 'completada') {
       return r.asistio
         ? <span className="text-[10px] bg-emerald-900/40 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded">Asistió</span>
@@ -208,12 +317,13 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
     }
     if (r.estado === 'cancelado') {
       return r.cancelado_por === 'estudiante'
-        ? <span className="text-[10px] bg-gray-800 text-gray-400 border border-gray-700 px-1.5 py-0.5 rounded">Canceló estudiante</span>
-        : <span className="text-[10px] bg-red-900/40 text-red-400 border border-red-800 px-1.5 py-0.5 rounded">Cancelado por prof.</span>
+        ? <span className="text-[10px] bg-gray-800 text-gray-400 border border-gray-700 px-1.5 py-0.5 rounded">Canceló est.</span>
+        : <span className="text-[10px] bg-red-900/40 text-red-400 border border-red-800 px-1.5 py-0.5 rounded">Cancelado prof.</span>
     }
     return null
   }
 
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
 
@@ -224,10 +334,9 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
         </div>
       )}
 
-      {/* ── Grid card ───────────────────────────────────────────────────── */}
+      {/* ── Grid card ─────────────────────────────────────────────────────── */}
       <div className="card space-y-2">
 
-        {/* Week navigation */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
@@ -253,7 +362,6 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
             </button>
           </div>
 
-          {/* Batch actions + small stats */}
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="text-[10px] text-gray-500">{nDisp} disp · {pendientes.length} pend</span>
             <button onClick={batchNoDisponible} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
@@ -270,7 +378,49 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-900/60 border border-emerald-700 inline-block"/>Disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-800 border border-gray-700 inline-block"/>No disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Reservado</span>
+          <span className="text-gray-600 text-[9px]">Clic en gris → activar con duración · Clic en verde → desactivar</span>
         </div>
+
+        {/* Duration picker overlay */}
+        {durPicker !== null && (() => {
+          const h = horarios.find(x => x.id === durPicker)
+          if (!h) return null
+          return (
+            <div className="border-2 border-brand-500 rounded-lg bg-gray-800 shadow-xl px-4 py-4 space-y-3 relative z-10 my-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Activar <span className="text-brand-400 capitalize">{h.dia_semana}</span> {fmt(h.hora_inicio)}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">¿Por cuánto tiempo deseas abrir este horario?</p>
+                </div>
+                <button onClick={() => { setDurPicker(null); setDurDateStr(null) }} className="text-gray-400 hover:text-white p-2">✕</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {durDateStr && (
+                  <button
+                    onClick={() => confirmarDuracion(h, `hasta_${durDateStr}`)}
+                    disabled={durSaving}
+                    title={`Habilitado solo hasta la medianoche del ${durDateStr}`}
+                    className="text-[12px] font-medium px-3 py-2 rounded-lg border-2 border-emerald-600 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-700/50 disabled:opacity-40 transition-all shadow-sm"
+                  >
+                    Solo hasta el {durDateStr} (Puntual)
+                  </button>
+                )}
+                {DURACIONES.map(d => (
+                  <button
+                    key={d.value}
+                    onClick={() => confirmarDuracion(h, d.value)}
+                    disabled={durSaving}
+                    className="text-[12px] font-medium px-3 py-2 rounded-lg border border-brand-700 bg-brand-900/30 text-brand-300 hover:bg-brand-700/50 hover:border-brand-500 disabled:opacity-40 transition-all"
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Grid */}
         {activeDias.length === 0 ? (
@@ -308,30 +458,23 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
                       {activeDias.map(date => {
                         const diaKey  = DAY_JS[date.getDay()]
                         const dateStr = toDateStr(date)
-                        const h       = horarioMap.get(`${diaKey}|${time}`)
+                        const h = horarioMap.get(`${diaKey}|${time}`)
                         if (!h) return <td key={dateStr} className="px-0.5 py-0.5" />
 
-                        const popKey = `${h.id}|${dateStr}`
+                        const popKey  = `${h.id}|${dateStr}`
                         const reserva = reservaBySlotDate.get(popKey)
                         const isReserved = !!reserva
                         const isOpen  = popover === popKey
+                        const isDurOpen = durPicker === h.id
 
-                        if (h.estado === 'no_disponible' && !isReserved) {
-                          return (
-                            <td key={dateStr} className="px-0.5 py-0.5">
-                              <button
-                                onClick={() => toggleSlot(h, dateStr)}
-                                className="w-full h-5 rounded border border-gray-800/30 bg-gray-900/20 hover:bg-gray-800/40 transition-colors"
-                              />
-                            </td>
-                          )
-                        }
+                        // Disponible but expired for this date
+                        const activeOnDate = isSlotActiveOnDate(h, dateStr)
 
                         if (isReserved) {
                           return (
                             <td key={dateStr} className="px-0.5 py-0.5 relative">
                               <button
-                                onClick={() => { setPopover(isOpen ? null : popKey) }}
+                                onClick={() => setPopover(isOpen ? null : popKey)}
                                 className={`w-full h-5 rounded border text-[8px] font-bold transition-colors ${
                                   isOpen
                                     ? 'bg-blue-600/80 border-blue-400 text-white ring-1 ring-blue-400'
@@ -350,6 +493,9 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
                                       <p className="text-gray-500 text-[10px]">{reserva.fecha} · {fmt(h.hora_inicio)}</p>
                                       {reserva.email && <p className="text-gray-600 text-[10px] truncate">{reserva.email}</p>}
                                       {reserva.notas && <p className="text-gray-500 text-[10px] italic mt-1">"{reserva.notas}"</p>}
+                                      {reserva.estado === 'confirmada' && (
+                                        <p className="text-blue-400 text-[10px] mt-1">Asignada directamente</p>
+                                      )}
                                     </div>
                                     <button onClick={() => setPopover(null)} className="text-gray-500 hover:text-gray-300 ml-1 flex-shrink-0">✕</button>
                                   </div>
@@ -373,7 +519,23 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
                           )
                         }
 
-                        // disponible
+                        if (!activeOnDate) {
+                          // Slot exists but expired or no_disponible — gray clickable
+                          return (
+                            <td key={dateStr} className="px-0.5 py-0.5">
+                              <button
+                                onClick={() => toggleSlot(h, dateStr)}
+                                className={`w-full h-5 rounded border transition-colors ${
+                                  isDurOpen && h.estado === 'no_disponible'
+                                    ? 'border-brand-600 bg-brand-900/20'
+                                    : 'border-gray-800/30 bg-gray-900/20 hover:bg-gray-800/40'
+                                }`}
+                              />
+                            </td>
+                          )
+                        }
+
+                        // disponible & active for this date
                         return (
                           <td key={dateStr} className="px-0.5 py-0.5">
                             <button
@@ -392,13 +554,98 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
         )}
       </div>
 
-      {/* ── Pending reservations ─────────────────────────────────────────── */}
+      {/* ── Asignar tutoría directa ────────────────────────────────────────── */}
+      <div className="card space-y-3">
+        <button
+          onClick={() => { setShowAssign(v => !v); setAssignMsg(null) }}
+          className="flex items-center gap-2 w-full text-left"
+        >
+          <svg className={`w-3.5 h-3.5 text-brand-400 transition-transform ${showAssign ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="text-xs font-semibold text-white">Asignar tutoría directa a estudiante</span>
+        </button>
+
+        {showAssign && (
+          <div className="space-y-3 pt-1">
+            {assignMsg && (
+              <div className={`text-xs px-3 py-2 rounded-lg border ${
+                assignMsg.startsWith('✓')
+                  ? 'bg-emerald-900/30 border-emerald-800 text-emerald-300'
+                  : 'bg-red-900/30 border-red-800 text-red-300'
+              }`}>
+                {assignMsg}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="label text-xs">Estudiante</label>
+                <select className="input text-xs" value={assignEst} onChange={e => setAssignEst(e.target.value)}>
+                  <option value="">— Seleccionar —</option>
+                  {estudiantes.map(e => (
+                    <option key={e.id} value={e.id} disabled={!e.auth_user_id}>
+                      {e.nombre}{!e.auth_user_id ? ' (sin cuenta)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label text-xs">Horario disponible</label>
+                <select className="input text-xs" value={assignHor} onChange={e => setAssignHor(e.target.value)}>
+                  <option value="">— Seleccionar —</option>
+                  {horarios.filter(h => h.estado === 'disponible').map(h => (
+                    <option key={h.id} value={String(h.id)}>
+                      {h.dia_semana} {fmt(h.hora_inicio)}–{fmt(h.hora_fin)}
+                      {h.disponible_hasta ? ` (hasta ${h.disponible_hasta})` : ' (permanente)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label text-xs">Fecha de la sesión</label>
+                <input
+                  type="date" className="input text-xs"
+                  value={assignDate}
+                  min={todayStr()}
+                  onChange={e => setAssignDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label text-xs">Nota / Motivo <span className="text-gray-600">(opcional)</span></label>
+                <input
+                  type="text" className="input text-xs"
+                  placeholder="Ej: Revisión de ensayo..."
+                  value={assignNota}
+                  maxLength={200}
+                  onChange={e => setAssignNota(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleAsignar}
+              disabled={!assignEst || !assignHor || !assignDate || assigning}
+              className="btn-primary text-sm disabled:opacity-40"
+            >
+              {assigning ? 'Asignando...' : 'Asignar y notificar por email'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Pending reservations ──────────────────────────────────────────── */}
       {pendientes.length > 0 && (
         <div className="card space-y-2">
-          <h3 className="text-xs font-semibold text-white">Reservas pendientes ({pendientes.length})</h3>
+          <h3 className="text-xs font-semibold text-white">Reservas activas ({pendientes.length})</h3>
           {pendientes.map(r => {
             const h = horarios.find(x => x.id === r.horario_id)
-            const dateLabel = r.fecha ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short' }) : '—'
+            const dateLabel = r.fecha
+              ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short' })
+              : '—'
             return (
               <div key={r.id} className="flex items-start justify-between gap-2 px-3 py-2 rounded-lg bg-blue-900/10 border border-blue-900/40">
                 <div className="min-w-0 flex-1">
@@ -407,7 +654,10 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
                       {initials(r.estudiante_nombre)}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{r.estudiante_nombre}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-white truncate">{r.estudiante_nombre}</p>
+                        <StatusBadge r={r} />
+                      </div>
                       <p className="text-[10px] text-gray-400">{r.estudiante_carrera}</p>
                     </div>
                   </div>
@@ -437,7 +687,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
         </div>
       )}
 
-      {/* ── Historial ──────────────────────────────────────────────────── */}
+      {/* ── Historial ─────────────────────────────────────────────────────── */}
       {historial.length > 0 && (
         <div className="card space-y-2">
           <button
@@ -452,63 +702,45 @@ export function TutoriasManager({ horarios: init, reservas: initRes }: Props) {
 
           {showHistory && (
             <div className="space-y-2">
-              {/* Filters */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <input
-                  type="text" placeholder="Estudiante..." value={fNombre} onChange={e => setFNombre(e.target.value)}
-                  className="input text-xs py-1.5"
-                />
-                <input
-                  type="text" placeholder="Carrera..." value={fCarrera} onChange={e => setFCarrera(e.target.value)}
-                  className="input text-xs py-1.5"
-                />
-                <input
-                  type="date" value={fDesde} onChange={e => setFDesde(e.target.value)}
-                  className="input text-xs py-1.5" title="Desde"
-                />
-                <input
-                  type="date" value={fHasta} onChange={e => setFHasta(e.target.value)}
-                  className="input text-xs py-1.5" title="Hasta"
-                />
+                <input type="text" placeholder="Estudiante..." value={fNombre} onChange={e => setFNombre(e.target.value)} className="input text-xs py-1.5" />
+                <input type="text" placeholder="Carrera..." value={fCarrera} onChange={e => setFCarrera(e.target.value)} className="input text-xs py-1.5" />
+                <input type="date" value={fDesde} onChange={e => setFDesde(e.target.value)} className="input text-xs py-1.5" title="Desde" />
+                <input type="date" value={fHasta} onChange={e => setFHasta(e.target.value)} className="input text-xs py-1.5" title="Hasta" />
               </div>
               {(fNombre || fCarrera || fDesde || fHasta) && (
                 <button onClick={() => { setFNombre(''); setFCarrera(''); setFDesde(''); setFHasta('') }}
                   className="text-[10px] text-gray-500 hover:text-gray-300">
-                  ✕ Limpiar filtros — {historialFiltrado.length} resultado{historialFiltrado.length !== 1 ? 's' : ''}
+                  ✕ Limpiar — {historialFiltrado.length} resultado{historialFiltrado.length !== 1 ? 's' : ''}
                 </button>
               )}
-
-              {/* Rows */}
               {historialFiltrado.length === 0 ? (
                 <p className="text-xs text-gray-500 text-center py-3">Sin resultados</p>
-              ) : (
-                historialFiltrado.map(r => {
-                  const h = horarios.find(x => x.id === r.horario_id)
-                  const dateLabel = r.fecha
-                    ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
-                    : '—'
-                  return (
-                    <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-800/30 border border-gray-800">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-medium text-gray-200 truncate">{r.estudiante_nombre}</p>
-                          <StatusBadge r={r} />
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate">
-                          {r.estudiante_carrera} · {dateLabel}
-                          {h ? ` · ${fmt(h.hora_inicio)}` : ''}
-                        </p>
+              ) : historialFiltrado.map(r => {
+                const h = horarios.find(x => x.id === r.horario_id)
+                const dateLabel = r.fecha
+                  ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
+                  : '—'
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-800/30 border border-gray-800">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium text-gray-200 truncate">{r.estudiante_nombre}</p>
+                        <StatusBadge r={r} />
                       </div>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {r.estudiante_carrera} · {dateLabel}{h ? ` · ${fmt(h.hora_inicio)}` : ''}
+                      </p>
                     </div>
-                  )
-                })
-              )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* Close popover on outside click */}
+      {/* Close grid popover on outside click (durPicker is inline — no overlay needed) */}
       {popover && (
         <div className="fixed inset-0 z-40" onClick={() => setPopover(null)} />
       )}

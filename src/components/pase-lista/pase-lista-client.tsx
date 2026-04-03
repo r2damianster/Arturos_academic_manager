@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva, type RegistroAsistenciaInput } from '@/lib/actions/asistencia'
 import { guardarBitacoraData } from '@/lib/actions/bitacora'
+import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
 import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lista/page'
 
@@ -14,6 +15,15 @@ interface Estudiante {
   nombre: string
   email: string
   tutoria: boolean
+  auth_user_id: string | null
+}
+
+interface HorarioTutoria {
+  id: number
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string
+  disponible_hasta: string | null
 }
 
 interface RegistroLocal {
@@ -38,6 +48,7 @@ interface Props {
   fecha: string
   horasSesion: number
   perfiles: Record<string, EstudiantePerfil>
+  horariosTutoria: HorarioTutoria[]
 }
 
 const COLORES_BTN: Record<number, string> = {
@@ -55,7 +66,10 @@ const ETIQUETAS: Record<number, string> = {
   1: 'Nula', 2: 'Baja', 3: 'Media', 4: 'Alta', 5: 'Excelente',
 }
 
-export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perfiles }: Props) {
+function fmt(t: string) { return t?.slice(0, 5) ?? '' }
+function todayStr() { return new Date().toISOString().split('T')[0] }
+
+export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perfiles, horariosTutoria }: Props) {
   const [paso, setPaso] = useState<Paso>('bitacora')
   const [bitacora, setBitacora] = useState<BitacoraLocal>({ tema: '', actividades: '', materiales: '', observaciones: '' })
   const [indice, setIndice] = useState(0)
@@ -63,6 +77,14 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  // Per-student tutoría assignment state
+  const [tutOpen, setTutOpen]   = useState<string | null>(null)  // student id
+  const [tutHor,  setTutHor]    = useState<string>('')
+  const [tutDate, setTutDate]   = useState<string>(todayStr())
+  const [tutNota, setTutNota]   = useState<string>('')
+  const [tutSaving, setTutSaving] = useState(false)
+  const [tutMsg, setTutMsg]     = useState<string | null>(null)
 
   const horas = Math.max(1, Math.round(horasSesion))
   const actual = estudiantes[indice]
@@ -105,6 +127,28 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
       ...prev,
       [actual.id]: { ...prev[actual.id], observacion_part: texto },
     }))
+  }
+
+  async function asignarTutoria(est: Estudiante) {
+    if (!est.auth_user_id) { setTutMsg('❌ Sin cuenta vinculada'); return }
+    if (!tutHor || !tutDate) { setTutMsg('❌ Selecciona horario y fecha'); return }
+    setTutSaving(true); setTutMsg(null)
+    const res = await asignarTutoriaDirecta({
+      horarioId:        Number(tutHor),
+      fecha:            tutDate,
+      authUserId:       est.auth_user_id,
+      estudianteNombre: est.nombre,
+      estudianteEmail:  est.email,
+      nota:             tutNota.trim() || null,
+    })
+    if (res.error) {
+      setTutMsg(`❌ ${res.error}`)
+    } else {
+      const h = horariosTutoria.find(x => x.id === Number(tutHor))
+      setTutMsg(`✓ Tutoría asignada — ${tutDate}${h ? ' ' + fmt(h.hora_inicio) : ''}`)
+      setTutHor(''); setTutNota('')
+    }
+    setTutSaving(false)
   }
 
   function siguiente() {
@@ -351,6 +395,76 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
               maxLength={300}
               className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
+          </div>
+        )}
+
+        {/* ── Asignar tutoría ── */}
+        {horariosTutoria.length > 0 && (
+          <div className="px-1 border-t border-gray-800 pt-3">
+            <button
+              onClick={() => {
+                const isOpen = tutOpen === actual.id
+                setTutOpen(isOpen ? null : actual.id)
+                setTutMsg(null)
+                if (!isOpen) { setTutHor(''); setTutNota(''); setTutDate(todayStr()) }
+              }}
+              className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300"
+            >
+              <svg className={`w-3.5 h-3.5 transition-transform ${tutOpen === actual.id ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Asignar tutoría
+            </button>
+
+            {tutOpen === actual.id && (
+              <div className="mt-2 space-y-2">
+                {tutMsg && (
+                  <p className={`text-[11px] ${tutMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>{tutMsg}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-0.5">Horario</label>
+                    <select
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      value={tutHor}
+                      onChange={e => setTutHor(e.target.value)}
+                    >
+                      <option value="">— Seleccionar —</option>
+                      {horariosTutoria.map(h => (
+                        <option key={h.id} value={String(h.id)}>
+                          {h.dia_semana} {fmt(h.hora_inicio)}–{fmt(h.hora_fin)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-0.5">Fecha</label>
+                    <input
+                      type="date"
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      value={tutDate}
+                      min={todayStr()}
+                      onChange={e => setTutDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Nota (opcional)"
+                  value={tutNota}
+                  maxLength={200}
+                  onChange={e => setTutNota(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <button
+                  onClick={() => asignarTutoria(actual)}
+                  disabled={!tutHor || !tutDate || tutSaving || !actual.auth_user_id}
+                  className="w-full py-1.5 text-xs rounded-lg bg-brand-700/40 border border-brand-700 text-brand-300 hover:bg-brand-700/60 disabled:opacity-40 transition-colors"
+                >
+                  {tutSaving ? 'Asignando...' : 'Confirmar tutoría'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

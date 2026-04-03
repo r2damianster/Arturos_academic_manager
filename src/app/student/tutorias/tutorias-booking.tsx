@@ -10,6 +10,7 @@ interface Horario {
   hora_inicio: string
   hora_fin: string
   estado: string
+  disponible_hasta: string | null
   profesores: { nombre: string } | null
 }
 
@@ -43,7 +44,7 @@ const DAY_JS: Record<number, string> = {
 }
 const DAY_SHORT  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-const MAX_WEEK_OFFSET = 4
+const MAX_WEEK_OFFSET = 16 // ~4 months ahead
 
 function getWeekDates(weekOffset: number): Date[] {
   const today = new Date()
@@ -75,6 +76,12 @@ function fmtDateRange(dates: Date[]): string {
 }
 
 function fmt(t: string) { return t?.slice(0, 5) ?? '' }
+
+function isSlotActiveOnDate(h: Horario, dateStr: string): boolean {
+  if (h.estado !== 'disponible') return false
+  if (!h.disponible_hasta) return true
+  return dateStr <= h.disponible_hasta
+}
 
 function getSlots(): string[] {
   const s: string[] = []
@@ -341,6 +348,10 @@ export function TutoriasBooking({ horarios: initH, occupiedSlots: initOcc, misRe
                         const isMine   = mySet.has(slotKey)
                         const isOccupied = occupiedSet.has(slotKey) && !isMine
                         const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
+                        const activeOnDate = isSlotActiveOnDate(slot, dateStr)
+
+                        // Slot expired for this date — show as empty
+                        if (!activeOnDate && !isMine) return <td key={dateStr} className="px-1 py-0.5" />
 
                         if (isMine) {
                           return (

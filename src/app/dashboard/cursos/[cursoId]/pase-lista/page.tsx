@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { PaseListaClient } from '@/components/pase-lista/pase-lista-client'
 import type { Tables } from '@/types/database.types'
 
-type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria'>
+type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria' | 'auth_user_id'>
 type Curso = Tables<'cursos'>
 
 export interface EstudiantePerfil {
@@ -23,7 +23,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
 
   const [cursoRes, estudiantesRes, asistenciaHistRes, calificacionesRes, trabajosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email, tutoria').eq('curso_id', cursoId).order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, tutoria, auth_user_id').eq('curso_id', cursoId).order('nombre'),
     db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
     db.from('calificaciones').select('estudiante_id, acd1, ta1, pe1, ex1, acd2, ta2, pe2, ex2').eq('curso_id', cursoId),
     db.from('trabajos_asignados')
@@ -36,6 +36,18 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
 
   const curso = cursoRes.data as Curso
   const estudiantes: Estudiante[] = estudiantesRes.data ?? []
+
+  // Fetch profesor's disponible horarios for direct tutoría assignment
+  const hoyStr = new Date().toISOString().split('T')[0]
+  const { data: horariosData } = await db
+    .from('horarios')
+    .select('id, dia_semana, hora_inicio, hora_fin, disponible_hasta')
+    .eq('profesor_id', curso.profesor_id ?? '')
+    .eq('estado', 'disponible')
+    .or(`disponible_hasta.is.null,disponible_hasta.gte.${hoyStr}`)
+    .order('dia_semana')
+    .order('hora_inicio')
+  const horariosTutoria: { id: number; dia_semana: string; hora_inicio: string; hora_fin: string; disponible_hasta: string | null }[] = horariosData ?? []
 
   // Fetch observaciones de todos los trabajos del curso
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,6 +165,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
           fecha={hoy}
           horasSesion={horasSesion}
           perfiles={perfiles}
+          horariosTutoria={horariosTutoria}
         />
       )}
     </div>

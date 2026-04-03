@@ -33,13 +33,15 @@ export default async function TutoriasPage() {
     ),
   ]
 
-  // Fetch horarios (only disponible slots)
+  // Fetch horarios (disponible, not yet expired)
+  const hoy = new Date().toISOString().split('T')[0]
   const { data: horariosData } = profesorIds.length > 0
     ? await db
         .from('horarios')
         .select('*, profesores(nombre)')
         .in('profesor_id', profesorIds)
         .eq('estado', 'disponible')
+        .or(`disponible_hasta.is.null,disponible_hasta.gte.${hoy}`)
         .order('dia_semana')
         .order('hora_inicio')
     : { data: [] }
