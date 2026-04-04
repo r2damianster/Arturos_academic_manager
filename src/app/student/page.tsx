@@ -5,7 +5,7 @@ import type { Tables } from '@/types/database.types'
 
 type Estudiante = Tables<'estudiantes'>
 type Curso = Tables<'cursos'>
-type Trabajo = Tables<'trabajos_asignados'>
+type Trabajo = Tables<'trabajos_asignados'> & { urgente?: boolean | null }
 type Asistencia = Pick<Tables<'asistencia'>, 'estado'>
 
 const ESTADO_TRABAJO_COLOR: Record<string, string> = {
@@ -38,15 +38,17 @@ export default async function StudentPage() {
   const cursoIds = estudiantes.map(e => e.curso_id)
 
   // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
-  const [cursosRes, trabajosRes, asistenciaRes] = await Promise.all([
+  const [cursosRes, trabajosRes, asistenciaRes, reservasRes] = await Promise.all([
     db.from('cursos').select('*').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
     db.from('asistencia').select('estado, estudiante_id').in('estudiante_id', estudianteIds),
+    db.from('reservas').select('*, horarios!inner(profesor_id)').eq('auth_user_id', user.id).eq('estado', 'completada').order('fecha', { ascending: false }),
   ])
 
   const cursos: Curso[] = cursosRes.data ?? []
   const trabajos: Trabajo[] = trabajosRes.data ?? []
   const asistenciaReg: (Asistencia & { estudiante_id: string })[] = asistenciaRes.data ?? []
+  const reservasReg: any[] = reservasRes.data ?? []
 
   // Mapas
   const cursosMap = Object.fromEntries(cursos.map(c => [c.id, c]))
@@ -108,6 +110,9 @@ export default async function StudentPage() {
         const regAsis = asistenciaReg.filter(r => r.estudiante_id === est.id)
         const presentes = regAsis.filter(r => r.estado === 'Presente').length
         const pctAsistencia = regAsis.length > 0 ? Math.round(presentes / regAsis.length * 100) : null
+        const misReservas = reservasReg.filter(r => r.horarios?.profesor_id === curso.profesor_id)
+        const tutoriasAsistidas = misReservas.filter(r => r.asistio).length
+        const tutoriasFaltadas = misReservas.filter(r => r.asistio === false).length
 
         return (
           <div key={est.id} className="card space-y-4">
@@ -135,22 +140,59 @@ export default async function StudentPage() {
                 <p className="text-sm text-blue-300 font-medium">Estás citado a tutoría</p>
               </div>
             )}
+            
+            {/* Historial de Tutorías */}
+            {misReservas.length > 0 && (
+              <div className="flex gap-2 text-xs">
+                {tutoriasAsistidas > 0 && (
+                  <span className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 px-2 py-1 rounded">
+                    Tutorías asistidas: <span className="font-bold">{tutoriasAsistidas}</span>
+                  </span>
+                )}
+                {tutoriasFaltadas > 0 && (
+                  <span className="bg-red-900/30 border border-red-800 text-red-400 px-2 py-1 rounded">
+                    Tutorías faltadas: <span className="font-bold">{tutoriasFaltadas}</span>
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Trabajos activos */}
             {activos.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-gray-400 mb-2">Trabajos activos ({activos.length})</p>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {activos.map(t => (
-                    <div key={t.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-800 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-200">{t.tipo}</p>
-                        {t.tema && <p className="text-xs text-gray-500 truncate">{t.tema}</p>}
-                        {t.descripcion && <p className="text-xs text-gray-600 truncate italic">{t.descripcion}</p>}
+                    <div key={t.id} className="py-2 border-b border-gray-800 last:border-0 border-l-2 pl-3 border-l-brand-600">
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-200">{t.tipo}</p>
+                          {t.urgente && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border border-red-500/50 bg-red-950/60 text-red-500">
+                              URGENTE
+                            </span>
+                          )}
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>
+                          {t.estado}
+                        </span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs border flex-shrink-0 ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>
-                        {t.estado}
-                      </span>
+                      
+                      {t.tema && <p className="text-xs text-gray-400 font-medium truncate">{t.tema}</p>}
+                      {t.descripcion && <p className="text-xs text-gray-500 truncate italic mt-0.5"><span className="text-gray-600">Instr:</span> {t.descripcion}</p>}
+                      
+                      <div className="mt-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] font-semibold tracking-wide uppercase text-gray-500">Mi Progreso</span>
+                          <span className="text-[10px] font-bold text-brand-400">{t.progreso ?? 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-900 border border-gray-800 rounded-full h-1.5">
+                          <div 
+                            className={`h-1.5 rounded-full ${t.progreso < 34 ? 'bg-red-500' : t.progreso < 67 ? 'bg-yellow-500' : 'bg-emerald-500'}`} 
+                            style={{ width: `${t.progreso ?? 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -165,9 +207,9 @@ export default async function StudentPage() {
                 </summary>
                 <div className="mt-2 space-y-1 pl-2">
                   {ts.filter(t => !activos.includes(t)).map(t => (
-                    <div key={t.id} className="flex items-center justify-between gap-2">
-                      <span className="text-gray-500">{t.tipo}{t.tema ? ` · ${t.tema}` : ''}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-xs border ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>{t.estado}</span>
+                    <div key={t.id} className="flex items-center justify-between gap-2 p-1.5 hover:bg-gray-800/40 rounded transition-colors">
+                      <span className="text-gray-400 font-medium">{t.tipo}{t.tema ? <span className="text-gray-600 font-normal"> · {t.tema}</span> : ''}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>{t.estado}</span>
                     </div>
                   ))}
                 </div>

@@ -19,6 +19,7 @@ export type Trabajo = {
   estado: string | null
   fecha_asignacion: string | null
   progreso: number
+  urgente: boolean | null
   observaciones_trabajo: Observacion[]
 }
 
@@ -41,6 +42,7 @@ export function TrabajoEditPanel({ cursoId, estudianteNombre, estudianteId, trab
   const [estado, setEstado] = useState(trabajo.estado ?? 'Pendiente')
   const [fechaAsig, setFechaAsig] = useState(trabajo.fecha_asignacion ?? '')
   const [progreso, setProgreso] = useState(trabajo.progreso ?? 0)
+  const [urgente, setUrgente] = useState(trabajo.urgente ?? false)
   
   const [newObs, setNewObs] = useState('')
   const [localObs, setLocalObs] = useState<Observacion[]>([])
@@ -59,6 +61,7 @@ export function TrabajoEditPanel({ cursoId, estudianteNombre, estudianteId, trab
     setEstado(trabajo.estado ?? 'Pendiente')
     setFechaAsig(trabajo.fecha_asignacion ?? '')
     setProgreso(trabajo.progreso ?? 0)
+    setUrgente(trabajo.urgente ?? false)
     setNewObs('')
     setError(null)
     setSaved(false)
@@ -80,6 +83,7 @@ export function TrabajoEditPanel({ cursoId, estudianteNombre, estudianteId, trab
         estado,
         fecha_asignacion: fechaAsig,
         progreso,
+        urgente,
       })
       if (res.error) { setError(res.error); return }
       setSaved(true)
@@ -165,7 +169,7 @@ export function TrabajoEditPanel({ cursoId, estudianteNombre, estudianteId, trab
             />
           </div>
 
-          {/* Estado + Fecha */}
+          {/* Estado + Fecha + Urgente */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Estado</label>
@@ -177,6 +181,18 @@ export function TrabajoEditPanel({ cursoId, estudianteNombre, estudianteId, trab
               <label className="label">Fecha asignación</label>
               <input type="date" className="input" value={fechaAsig} onChange={e => setFechaAsig(e.target.value)} />
             </div>
+          </div>
+          
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer mt-1">
+              <input 
+                type="checkbox" 
+                checked={urgente} 
+                onChange={e => setUrgente(e.target.checked)}
+                className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900"
+              />
+              <span className="text-xs font-medium text-red-400">Marcar como URGENTE</span>
+            </label>
           </div>
 
           {/* Progreso */}

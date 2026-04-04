@@ -112,7 +112,7 @@ export async function agregarObservacionTrabajo(
 export async function actualizarTrabajo(
   trabajoId: string,
   cursoId: string,
-  data: { tipo: string; tema?: string; descripcion?: string; estado: string; fecha_asignacion: string; progreso?: number }
+  data: { tipo: string; tema?: string; descripcion?: string; estado: string; fecha_asignacion: string; progreso?: number; urgente?: boolean | null }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -126,6 +126,7 @@ export async function actualizarTrabajo(
       estado: data.estado,
       fecha_asignacion: data.fecha_asignacion,
       progreso: data.progreso,
+      urgente: data.urgente,
     })
     .eq('id', trabajoId)
     .eq('profesor_id', user.id)
