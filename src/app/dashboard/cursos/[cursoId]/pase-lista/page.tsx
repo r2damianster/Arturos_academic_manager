@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { PaseListaClient } from '@/components/pase-lista/pase-lista-client'
 import type { Tables } from '@/types/database.types'
 
+export const dynamic = 'force-dynamic'
+
 interface Estudiante extends Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria'> {
   auth_user_id: string | null
 }
@@ -77,10 +79,10 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     .eq('curso_id', cursoId)
     .eq('fecha', hoy)
 
-  // Fetch encuestas
+  // Fetch encuestas (especificar columnas explícitamente evita fallos de caché (PGRST205) de Supabase)
   const encuestasRes = await db
     .from('encuesta_estudiante')
-    .select('*')
+    .select('auth_user_id, carrera, modalidad_carrera, situacion_vivienda, es_foraneo')
     .in('auth_user_id', estudiantes.map(e => e.auth_user_id).filter(Boolean))
 
   const encuestas: any[] = encuestasRes.data ?? []

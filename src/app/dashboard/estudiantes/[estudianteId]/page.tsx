@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 
+export const dynamic = 'force-dynamic'
+
 type Estudiante    = Tables<'estudiantes'> & { auth_user_id?: string | null }
 type Calificacion  = Tables<'calificaciones'>
 type Asistencia    = Tables<'asistencia'>
