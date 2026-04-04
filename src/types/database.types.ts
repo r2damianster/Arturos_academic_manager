@@ -276,6 +276,7 @@ export type Database = {
           descripcion: string | null
           estado: string
           fecha_asignacion: string
+          progreso: number
           created_at: string
         }
         Insert: {
@@ -288,6 +289,7 @@ export type Database = {
           descripcion?: string | null
           estado?: string
           fecha_asignacion?: string
+          progreso?: number
           created_at?: string
         }
         Update: {
@@ -295,6 +297,7 @@ export type Database = {
           tema?: string | null
           descripcion?: string | null
           estado?: string
+          progreso?: number
         }
         Relationships: []
       }

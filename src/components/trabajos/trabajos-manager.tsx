@@ -19,6 +19,7 @@ type Trabajo = {
   descripcion: string | null
   estado: string | null
   fecha_asignacion: string | null
+  progreso: number
   observaciones_trabajo: Observacion[]
 }
 
@@ -52,6 +53,7 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
   const [descripcion, setDescripcion] = useState('')
   const [estado, setEstado] = useState('Pendiente')
   const [fechaAsig, setFechaAsig] = useState('')
+  const [progreso, setProgreso] = useState(0)
   const [newObs, setNewObs] = useState('')
   const [localObs, setLocalObs] = useState<Observacion[]>([])
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -67,6 +69,7 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
       setDescripcion(selected.trabajo.descripcion ?? '')
       setEstado(selected.trabajo.estado ?? 'Pendiente')
       setFechaAsig(selected.trabajo.fecha_asignacion ?? '')
+      setProgreso(selected.trabajo.progreso ?? 0)
       setNewObs('')
       setError(null)
       setSaved(false)
@@ -94,6 +97,7 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
         descripcion: descripcion || undefined,
         estado,
         fecha_asignacion: fechaAsig,
+        progreso,
       })
       if (res.error) { setError(res.error); return }
       setSaved(true)
@@ -255,6 +259,27 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
                 </div>
               </div>
 
+              {/* Progreso */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label">Progreso del trabajo</label>
+                  <span className={`text-xs font-bold ${progreso < 34 ? 'text-red-400' : progreso < 67 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                    {progreso}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={progreso}
+                  onChange={e => setProgreso(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, ${progreso < 34 ? '#f87171' : progreso < 67 ? '#facc15' : '#34d399'} ${progreso}%, #374151 ${progreso}%)`
+                  }}
+                />
+              </div>
+
               {error && (
                 <p className="text-red-400 text-xs bg-red-950 border border-red-800 px-3 py-2 rounded-lg">{error}</p>
               )}
@@ -263,11 +288,11 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={handleGuardar}
                   disabled={isPending || !tipo}
-                  className="btn-primary flex-1 text-sm disabled:opacity-40"
+                  className="btn-primary w-full text-sm disabled:opacity-40"
                 >
                   {isPending && !confirmDelete ? 'Guardando...' : 'Guardar cambios'}
                 </button>
@@ -275,28 +300,31 @@ export function TrabajosManager({ cursoId, estudiantes, trabajos }: Props) {
                 {!confirmDelete ? (
                   <button
                     onClick={() => setConfirmDelete(true)}
-                    className="btn-ghost text-red-400 hover:bg-red-950/60 hover:border-red-800 px-3 text-sm"
-                    title="Eliminar trabajo"
+                    className="btn-ghost flex items-center justify-center gap-2 text-red-400 hover:bg-red-950/60 hover:border-red-800 px-3 py-2 text-sm mt-1"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
+                    Eliminar Trabajo Asignado
                   </button>
                 ) : (
-                  <div className="flex gap-1 flex-1">
-                    <button
-                      onClick={handleEliminar}
-                      disabled={isPending}
-                      className="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs px-2 py-2 transition-colors disabled:opacity-40"
-                    >
-                      Sí, eliminar
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(false)}
-                      className="flex-1 btn-ghost text-xs px-2"
-                    >
-                      Cancelar
-                    </button>
+                  <div className="flex gap-1 w-full flex-col p-2 bg-red-950/40 rounded-lg border border-red-900">
+                    <p className="text-xs text-red-400 text-center mb-1">¿Estás seguro/a?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleEliminar}
+                        disabled={isPending}
+                        className="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs px-2 py-2 transition-colors disabled:opacity-40"
+                      >
+                        Sí, eliminar
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 btn-ghost text-xs px-2"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
