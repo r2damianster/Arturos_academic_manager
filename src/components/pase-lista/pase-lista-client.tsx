@@ -279,7 +279,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
 
   // ── PASO 2: Lista ─────────────────────────────────────────────────────────
   const regActual = registros[actual.id]
-  const puedeParticipacion = regActual?.estado === 'Presente' || regActual?.estado === 'Atraso'
+  const puedeParticipacion = regActual?.estado !== 'Ausente'
 
   return (
     <div className="space-y-4">
