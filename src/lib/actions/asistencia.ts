@@ -58,6 +58,13 @@ export async function registrarAsistenciaMasiva(
       observacion: r.observacion_part ?? null,
     }))
 
+  // Evitar duplicados si se vuelve a tomar lista para la misma fecha
+  await (supabase as AnySupabase)
+    .from('participacion')
+    .delete()
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+
   if (partRows.length > 0) {
     await (supabase as AnySupabase).from('participacion').insert(partRows)
   }
