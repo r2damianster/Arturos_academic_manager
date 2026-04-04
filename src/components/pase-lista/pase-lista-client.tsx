@@ -7,6 +7,7 @@ import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
 import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lista/page'
 import { TrabajoEditPanel, type Trabajo } from '@/components/trabajos/trabajo-edit-panel'
+import { StudentProfilePanel } from './student-profile-panel'
 
 type EstadoAsistencia = 'Presente' | 'Ausente' | 'Atraso'
 type Paso = 'bitacora' | 'lista' | 'resumen'
@@ -89,6 +90,9 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
 
   // Track the task being edited
   const [selectedTrabajo, setSelectedTrabajo] = useState<Trabajo | null>(null)
+  
+  // Track if profile panel is open
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   const horas = Math.max(1, Math.round(horasSesion))
   const actual = estudiantes[indice]
@@ -327,6 +331,29 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           </div>
           <h2 className="text-xl font-bold text-white mb-0.5">{actual.nombre}</h2>
           <p className="text-gray-500 text-sm">{actual.email}</p>
+          
+          <div className="mt-3 flex justify-center">
+            {perfiles[actual.id]?.encuesta ? (
+              <button 
+                onClick={() => setIsProfileOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-brand-900/40 text-brand-400 border border-brand-800 rounded-full hover:bg-brand-900/60 transition-colors"
+                title="Ver encuesta y ficha del estudiante"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Ver Perfil
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-gray-900 text-gray-500 border border-gray-800 rounded-full">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Sin Perfil
+              </span>
+            )}
+          </div>
+
           {actual.tutoria && (
             <div className="mt-2 inline-block px-3 py-1 bg-blue-900/40 border border-blue-700 rounded-lg text-blue-300 text-xs font-medium">
               Citado a tutoría
@@ -547,6 +574,14 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           onSaved={() => {
             router.refresh()
           }}
+        />
+      )}
+      {/* Panel de Perfil del Estudiante */}
+      {isProfileOpen && (
+        <StudentProfilePanel
+          estudianteNombre={actual.nombre}
+          encuesta={perfiles[actual.id]?.encuesta}
+          onClose={() => setIsProfileOpen(false)}
         />
       )}
     </div>

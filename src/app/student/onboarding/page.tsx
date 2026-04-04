@@ -97,6 +97,9 @@ type FormState = {
   nivelEstudio: 'grado' | 'posgrado' | ''
   carreraSeleccionada: string
   carreraPersonalizada: string
+  modalidad_carrera: string
+  situacion_vivienda: string
+  es_foraneo: boolean | null
   carrera_inicio_deseada: number | null
   carrera_actual_deseada: number | null
   // Step 3
@@ -119,6 +122,9 @@ const initialFormState: FormState = {
   nivelEstudio: '',
   carreraSeleccionada: '',
   carreraPersonalizada: '',
+  modalidad_carrera: '',
+  situacion_vivienda: '',
+  es_foraneo: null,
   carrera_inicio_deseada: null,
   carrera_actual_deseada: null,
   nivel_tecnologia: null,
@@ -173,6 +179,15 @@ export default function OnboardingPage() {
     }
     if (formState.carreraSeleccionada === 'Otra' && !formState.carreraPersonalizada.trim()) {
       errors['carreraPersonalizada'] = 'Por favor escribe el nombre de tu carrera.'
+    }
+    if (!formState.modalidad_carrera) {
+      errors['modalidad_carrera'] = 'Por favor selecciona la modalidad.'
+    }
+    if (!formState.situacion_vivienda) {
+      errors['situacion_vivienda'] = 'Por favor escoge tu situación de vivienda.'
+    }
+    if (formState.es_foraneo === null) {
+      errors['es_foraneo'] = 'Esta pregunta es requerida.'
     }
     if (formState.carrera_inicio_deseada === null) {
       errors['carrera_inicio_deseada'] = 'Esta pregunta es requerida.'
@@ -250,6 +265,9 @@ export default function OnboardingPage() {
         ? formState.carreraPersonalizada
         : formState.carreraSeleccionada
     fd.set('carrera', carreraFinal)
+    fd.set('modalidad_carrera', formState.modalidad_carrera)
+    fd.set('situacion_vivienda', formState.situacion_vivienda)
+    fd.set('es_foraneo', formState.es_foraneo !== null ? formState.es_foraneo.toString() : '')
     fd.set('carrera_inicio_deseada', formState.carrera_inicio_deseada?.toString() ?? '')
     fd.set('carrera_actual_deseada', formState.carrera_actual_deseada?.toString() ?? '')
     fd.set('nivel_tecnologia', formState.nivel_tecnologia?.toString() ?? '')
@@ -435,6 +453,90 @@ export default function OnboardingPage() {
                   )}
                 </div>
               )}
+
+              {/* Modalidad de carrera */}
+              <div>
+                <label className="label">
+                  Modalidad de estudio <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="modalidad_carrera"
+                  className="input"
+                  value={formState.modalidad_carrera}
+                  onChange={e => setField('modalidad_carrera', e.target.value)}
+                >
+                  <option value="">Selecciona una opción</option>
+                  <option value="Presencial">Presencial</option>
+                  <option value="Virtual">Virtual / En línea</option>
+                  <option value="Híbrida">Híbrida / Semipresencial</option>
+                  <option value="Otra">Otra</option>
+                </select>
+                {stepErrors['modalidad_carrera'] && (
+                  <p className="text-xs text-red-400 mt-1">{stepErrors['modalidad_carrera']}</p>
+                )}
+              </div>
+
+              {/* Situacion de Vivienda */}
+              <div>
+                <label className="label">
+                  Situación de vivienda actual <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="situacion_vivienda"
+                  className="input"
+                  value={formState.situacion_vivienda}
+                  onChange={e => setField('situacion_vivienda', e.target.value)}
+                >
+                  <option value="">Selecciona una opción</option>
+                  <option value="Casa propia">Casa propia</option>
+                  <option value="Con padres">Con mis padres</option>
+                  <option value="Familiar">Con otros familiares</option>
+                  <option value="Arrienda">Arriendo (Inquilino)</option>
+                  <option value="Residencia universitaria">Residencia universitaria</option>
+                  <option value="Otra">Otra</option>
+                </select>
+                {stepErrors['situacion_vivienda'] && (
+                  <p className="text-xs text-red-400 mt-1">{stepErrors['situacion_vivienda']}</p>
+                )}
+              </div>
+
+              {/* Foraneo */}
+              <div>
+                <label className="label">
+                  ¿Eres foráneo? (naciste o tu familia vive en una ciudad distinta a la universidad) <span className="text-red-400">*</span>
+                </label>
+                <div className="flex gap-3 mt-1">
+                  <label className="flex-1">
+                    <input
+                      type="radio"
+                      name="es_foraneo_radio"
+                      value="true"
+                      checked={formState.es_foraneo === true}
+                      onChange={() => setField('es_foraneo', true)}
+                      className="sr-only peer"
+                    />
+                    <span className="block text-center px-3 py-2 rounded-lg border border-gray-700 text-sm text-gray-400 cursor-pointer peer-checked:bg-brand-600/20 peer-checked:border-brand-500 peer-checked:text-white transition-colors">
+                      Sí, soy foráneo/a
+                    </span>
+                  </label>
+                  <label className="flex-1">
+                    <input
+                      type="radio"
+                      name="es_foraneo_radio"
+                      value="false"
+                      checked={formState.es_foraneo === false}
+                      onChange={() => setField('es_foraneo', false)}
+                      className="sr-only peer"
+                    />
+                    <span className="block text-center px-3 py-2 rounded-lg border border-gray-700 text-sm text-gray-400 cursor-pointer peer-checked:bg-brand-600/20 peer-checked:border-brand-500 peer-checked:text-white transition-colors">
+                      No
+                    </span>
+                  </label>
+                </div>
+                {stepErrors['es_foraneo'] && (
+                  <p className="text-xs text-red-400 mt-1">{stepErrors['es_foraneo']}</p>
+                )}
+              </div>
 
               {/* Hidden inputs for submission */}
               <input type="hidden" name="nivel_estudio" value={formState.nivelEstudio} />

@@ -57,17 +57,24 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
     db.from('perfiles_estudiante').select('*').eq('estudiante_id', estudianteId).single(),
   ])
 
-  // Fetch tutorías reservas if student has an auth account
+  // Fetch tutorías reservas and encuesta_estudiante if student has an auth account
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let reservas: any[] = []
+  let encuestaData: any = null
   if (estudiante.auth_user_id) {
-    const { data } = await db
-      .from('reservas')
-      .select('id, fecha, estado, notas, horarios(dia_semana, hora_inicio, hora_fin)')
-      .eq('auth_user_id', estudiante.auth_user_id)
-      .order('fecha', { ascending: false })
-      .limit(20)
-    reservas = data ?? []
+    const [resVs, encVs] = await Promise.all([
+      db.from('reservas')
+        .select('id, fecha, estado, notas, horarios(dia_semana, hora_inicio, hora_fin)')
+        .eq('auth_user_id', estudiante.auth_user_id)
+        .order('fecha', { ascending: false })
+        .limit(20),
+      db.from('encuesta_estudiante')
+        .select('modalidad_carrera, situacion_vivienda, es_foraneo')
+        .eq('auth_user_id', estudiante.auth_user_id)
+        .maybeSingle()
+    ])
+    reservas = resVs.data ?? []
+    encuestaData = encVs.data ?? null
   }
 
   const calificaciones  = califRes.data as Calificacion | null
@@ -237,6 +244,18 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
                 <dt className="text-gray-500">Laptop</dt>
                 <dd>{perfil.laptop ? <span className="badge-verde">Sí</span> : <span className="badge-rojo">No</span>}</dd>
               </div>
+              {encuestaData?.modalidad_carrera && (
+                <div className="flex justify-between"><dt className="text-gray-500">Modalidad</dt><dd className="text-gray-200">{encuestaData.modalidad_carrera}</dd></div>
+              )}
+              {encuestaData?.situacion_vivienda && (
+                <div className="flex justify-between"><dt className="text-gray-500">Vivienda</dt><dd className="text-gray-200">{encuestaData.situacion_vivienda}</dd></div>
+              )}
+              {encuestaData?.es_foraneo !== undefined && encuestaData?.es_foraneo !== null && (
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">Foráneo</dt>
+                  <dd>{encuestaData.es_foraneo ? <span className="badge-amarillo">Sí</span> : <span className="badge-verde">No</span>}</dd>
+                </div>
+              )}
             </dl>
           </div>
         )}

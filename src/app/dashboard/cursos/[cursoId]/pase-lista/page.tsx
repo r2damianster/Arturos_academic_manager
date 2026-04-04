@@ -15,6 +15,7 @@ export interface EstudiantePerfil {
   trabajos_activos: number
   ultimo_trabajo: { id: string; tipo: string; tema: string | null; descripcion: string | null; estado: string | null; fecha_asignacion: string | null; progreso: number; observaciones_trabajo: { id: string; observacion: string; fecha: string | null }[] } | null
   ultima_observacion: string | null
+  encuesta: any | null
 }
 
 export default async function PaseListaPage({ params }: { params: Promise<{ cursoId: string }> }) {
@@ -76,6 +77,14 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     .eq('curso_id', cursoId)
     .eq('fecha', hoy)
 
+  // Fetch encuestas
+  const encuestasRes = await db
+    .from('encuesta_estudiante')
+    .select('*')
+    .in('auth_user_id', estudiantes.map(e => e.auth_user_id).filter(Boolean))
+
+  const encuestas: any[] = encuestasRes.data ?? []
+
   const yaRegistrado = (asistenciaHoyRes.data?.length ?? 0) > 0
   const horasSesion = Math.max(1, Math.round(curso.horas_semana / Math.max(1, curso.num_sesiones)))
 
@@ -133,7 +142,9 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     )
     const ultima_observacion = obsEst[0]?.observacion ?? null
 
-    perfiles[est.id] = { pct_asistencia, promedio, trabajos_activos, ultimo_trabajo, ultima_observacion }
+    const encuesta = est.auth_user_id ? encuestas.find(e => e.auth_user_id === est.auth_user_id) : null
+
+    perfiles[est.id] = { pct_asistencia, promedio, trabajos_activos, ultimo_trabajo, ultima_observacion, encuesta }
   }
 
   return (

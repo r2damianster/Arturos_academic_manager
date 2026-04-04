@@ -50,6 +50,9 @@ export async function guardarEncuesta(
     institucion:              str('institucion'),
     carrera_inicio_deseada:   num('carrera_inicio_deseada'),
     carrera_actual_deseada:   num('carrera_actual_deseada'),
+    modalidad_carrera:        str('modalidad_carrera'),
+    situacion_vivienda:       str('situacion_vivienda'),
+    es_foraneo:               bool('es_foraneo'),
     // Step 3
     nivel_tecnologia:         num('nivel_tecnologia'),
     tiene_laptop:             checkbox('tiene_laptop'),
@@ -84,6 +87,46 @@ export async function guardarEncuesta(
   if (error) {
     console.error('Error guardando encuesta:', error)
     return { error: 'Error al guardar. Intenta de nuevo.' }
+  }
+
+  // Sincronizar la información base con la tabla 'perfiles_estudiante'
+  const { data: estudiantesList } = await db
+    .from('estudiantes')
+    .select('id, profesor_id')
+    .eq('auth_user_id', user.id)
+
+  if (estudiantesList && estudiantesList.length > 0) {
+    let edad: number | null = null
+    const fnac = str('fecha_nac')
+    if (fnac) {
+      const d = new Date(fnac)
+      if (!isNaN(d.getTime())) {
+        const today = new Date()
+        edad = today.getFullYear() - d.getFullYear()
+        const m = today.getMonth() - d.getMonth()
+        if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+          edad--
+        }
+      }
+    }
+
+    const perfilesData = estudiantesList.map((est: any) => ({
+      profesor_id: est.profesor_id,
+      estudiante_id: est.id,
+      carrera: carreraFinal,
+      trabaja: bool('trabaja'),
+      laptop: checkbox('tiene_laptop'),
+      genero: str('genero'),
+      edad: edad
+    }))
+
+    const { error: errorPerfiles } = await db
+      .from('perfiles_estudiante')
+      .upsert(perfilesData, { onConflict: 'estudiante_id' })
+
+    if (errorPerfiles) {
+      console.error('Error sincronizando perfiles_estudiante:', errorPerfiles)
+    }
   }
 
   return null
