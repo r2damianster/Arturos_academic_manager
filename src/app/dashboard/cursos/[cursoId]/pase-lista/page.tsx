@@ -13,7 +13,7 @@ export interface EstudiantePerfil {
   pct_asistencia: number | null
   promedio: number | null
   trabajos_activos: number
-  ultimo_trabajo: { id: string; tipo: string; tema: string | null; estado: string } | null
+  ultimo_trabajo: { id: string; tipo: string; tema: string | null; descripcion: string | null; estado: string | null; fecha_asignacion: string | null; progreso: number; observaciones_trabajo: { id: string; observacion: string; fecha: string | null }[] } | null
   ultima_observacion: string | null
 }
 
@@ -29,7 +29,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
     db.from('calificaciones').select('estudiante_id, acd1, ta1, pe1, ex1, acd2, ta2, pe2, ex2').eq('curso_id', cursoId),
     db.from('trabajos_asignados')
-      .select('id, estudiante_id, tipo, tema, estado, fecha_asignacion')
+      .select('id, estudiante_id, tipo, tema, descripcion, estado, fecha_asignacion, progreso')
       .eq('curso_id', cursoId)
       .order('fecha_asignacion', { ascending: false }),
   ])
@@ -58,7 +58,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
 
   const observacionesRes = trabajoIds.length > 0
     ? await db.from('observaciones_trabajo')
-        .select('observacion, fecha, trabajo_id')
+        .select('id, observacion, fecha, trabajo_id')
         .in('trabajo_id', trabajoIds)
         .order('fecha', { ascending: false })
     : { data: [] }
@@ -115,7 +115,16 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     ) ?? trabajosEst[0] ?? null
 
     const ultimo_trabajo = trabajoActivo
-      ? { id: trabajoActivo.id, tipo: trabajoActivo.tipo, tema: trabajoActivo.tema ?? null, estado: trabajoActivo.estado }
+      ? { 
+          id: trabajoActivo.id, 
+          tipo: trabajoActivo.tipo, 
+          tema: trabajoActivo.tema ?? null, 
+          descripcion: trabajoActivo.descripcion ?? null,
+          estado: trabajoActivo.estado,
+          fecha_asignacion: trabajoActivo.fecha_asignacion ?? null,
+          progreso: trabajoActivo.progreso ?? 0,
+          observaciones_trabajo: observaciones.filter((o: { trabajo_id: string }) => o.trabajo_id === trabajoActivo.id).map((o: any) => ({ id: o.id, observacion: o.observacion, fecha: o.fecha }))
+        }
       : null
 
     // Última observación del estudiante

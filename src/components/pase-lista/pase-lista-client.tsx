@@ -6,6 +6,7 @@ import { guardarBitacoraData } from '@/lib/actions/bitacora'
 import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
 import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lista/page'
+import { TrabajoEditPanel, type Trabajo } from '@/components/trabajos/trabajo-edit-panel'
 
 type EstadoAsistencia = 'Presente' | 'Ausente' | 'Atraso'
 type Paso = 'bitacora' | 'lista' | 'resumen'
@@ -85,6 +86,9 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
   const [tutNota, setTutNota]   = useState<string>('')
   const [tutSaving, setTutSaving] = useState(false)
   const [tutMsg, setTutMsg]     = useState<string | null>(null)
+
+  // Track the task being edited
+  const [selectedTrabajo, setSelectedTrabajo] = useState<Trabajo | null>(null)
 
   const horas = Math.max(1, Math.round(horasSesion))
   const actual = estudiantes[indice]
@@ -365,10 +369,14 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           return (
             <div className="px-1">
               <p className="text-xs text-gray-500 mb-1">Trabajo</p>
-              <div className="flex items-center justify-between gap-2">
+              <button 
+                onClick={() => setSelectedTrabajo({ ...t, estudiante_id: actual.id } as Trabajo)}
+                className="w-full flex items-center justify-between gap-2 p-1.5 -ml-1.5 rounded-lg hover:bg-gray-800/60 border border-transparent hover:border-gray-700/60 transition-colors text-left"
+                title="Editar este trabajo"
+              >
                 <p className="text-xs text-gray-300 truncate"><span className="font-medium">{t.tipo}</span>{t.tema ? ` · ${t.tema}` : ''}</p>
                 <span className={`px-2 py-0.5 rounded-full text-xs border flex-shrink-0 ${c}`}>{t.estado}</span>
-              </div>
+              </button>
             </div>
           )
         })()}
@@ -527,6 +535,20 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           {indice === total - 1 ? 'Finalizar →' : 'Siguiente →'}
         </button>
       </div>
+
+      {/* Panel de Edición de Trabajo Integrado */}
+      {selectedTrabajo && (
+        <TrabajoEditPanel
+          cursoId={cursoId}
+          estudianteNombre={actual.nombre}
+          estudianteId={actual.id}
+          trabajo={selectedTrabajo}
+          onClose={() => setSelectedTrabajo(null)}
+          onSaved={() => {
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }
