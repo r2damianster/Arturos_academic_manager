@@ -287,17 +287,11 @@ export function TutoriasBooking({
   return (
     <div className="space-y-4">
 
-      {/* Feedback */}
+      {/* Feedback global */}
       {success && (
         <div className="px-3 py-2 rounded-lg bg-emerald-900/30 border border-emerald-800 text-emerald-300 text-sm flex justify-between">
           <span>✓ {success}</span>
           <button onClick={() => setSuccess(null)} className="text-emerald-600">✕</button>
-        </div>
-      )}
-      {error && (
-        <div className="px-3 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm flex justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-600">✕</button>
         </div>
       )}
 
@@ -512,46 +506,113 @@ export function TutoriasBooking({
         )}
       </div>
 
-      {/* Confirmation panel */}
+      {/* Sidebar overlay */}
       {selected && (
-        <div className="card border border-emerald-800/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white text-sm">Confirmar tutoría</h3>
-            <button onClick={() => { setSelected(null); setNotas('') }} className="text-gray-500 hover:text-gray-300 text-xl leading-none">×</button>
-          </div>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+            onClick={() => { setSelected(null); setNotas('') }}
+          />
 
-          <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-sm">
-            <p className="text-white font-medium capitalize">
-              {selected.date.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' })}
-            </p>
-            <p className="text-gray-300 text-xs mt-0.5">
-              {fmt(selected.horario.hora_inicio)} – {fmt(selected.horario.hora_fin)} · Prof. {selected.horario.profesores?.nombre ?? '—'}
-            </p>
-          </div>
+          {/* Slide-over panel */}
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm flex flex-col bg-gray-900 border-l border-gray-700 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+              <div>
+                <h3 className="font-semibold text-white">Agendar tutoría</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Reserva una sesión con tu profesor</p>
+              </div>
+              <button
+                onClick={() => { setSelected(null); setNotas('') }}
+                className="text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg p-1.5 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-            <div><span className="text-gray-600">Nombre: </span><span className="text-gray-200">{studentInfo.nombre}</span></div>
-            <div><span className="text-gray-600">Correo: </span><span className="text-gray-200 truncate">{studentInfo.email}</span></div>
-          </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+              {/* Date & time */}
+              <div className="rounded-xl bg-emerald-900/20 border border-emerald-800/50 px-4 py-3 space-y-1">
+                <p className="text-white font-semibold capitalize">
+                  {selected.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
+                <p className="text-emerald-300 text-sm">
+                  {fmt(selected.horario.hora_inicio)} – {fmt(selected.horario.hora_fin)}
+                </p>
+                <p className="text-gray-400 text-xs">
+                  Prof. {selected.horario.profesores?.nombre ?? '—'}
+                </p>
+              </div>
 
-          <div>
-            <label className="label text-xs" htmlFor="notas-input">
-              Motivo / Notas <span className="text-gray-600">(opcional)</span>
-            </label>
-            <textarea id="notas-input" className="input resize-none text-sm" rows={2}
-              placeholder="Ej. Tengo dudas sobre el ensayo del tema 3..."
-              value={notas} onChange={e => setNotas(e.target.value)} maxLength={300} />
-          </div>
+              {/* Student info */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tus datos</p>
+                <div className="rounded-lg bg-gray-800/60 border border-gray-700 divide-y divide-gray-700">
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Nombre</span>
+                    <span className="text-sm text-gray-200 font-medium">{studentInfo.nombre}</span>
+                  </div>
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Correo</span>
+                    <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.email}</span>
+                  </div>
+                  {studentInfo.carrera && (
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Carrera</span>
+                      <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.carrera}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          <div className="flex gap-2">
-            <button onClick={handleConfirm} disabled={loading} className="btn-primary flex-1 text-sm disabled:opacity-60">
-              {loading ? 'Confirmando...' : 'Confirmar reserva'}
-            </button>
-            <button onClick={() => { setSelected(null); setNotas('') }} disabled={loading} className="btn-ghost flex-1 text-sm">
-              Cancelar
-            </button>
+              {/* Notas */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="notas-input">
+                  Motivo / Notas <span className="text-gray-700 normal-case font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  id="notas-input"
+                  className="input resize-none text-sm w-full"
+                  rows={3}
+                  placeholder="Ej. Tengo dudas sobre el ensayo del tema 3..."
+                  value={notas}
+                  onChange={e => setNotas(e.target.value)}
+                  maxLength={300}
+                />
+                <p className="text-right text-[10px] text-gray-600">{notas.length}/300</p>
+              </div>
+
+              {/* Error inline */}
+              {error && (
+                <div className="px-3 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-5 py-4 border-t border-gray-800 space-y-2">
+              <button
+                onClick={handleConfirm}
+                disabled={loading}
+                className="btn-primary w-full text-sm py-3 disabled:opacity-60"
+              >
+                {loading ? 'Confirmando...' : '✓ Confirmar reserva'}
+              </button>
+              <button
+                onClick={() => { setSelected(null); setNotas('') }}
+                disabled={loading}
+                className="btn-ghost w-full text-sm disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
