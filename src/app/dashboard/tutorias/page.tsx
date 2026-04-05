@@ -23,8 +23,9 @@ export default async function TutoriasPage() {
       .select('nombre')
       .eq('id', user.id)
       .maybeSingle(),
+    // Sin join de anuncios para evitar fallo por RLS; se une después
     db.from('horarios_clases')
-      .select('id, dia_semana, hora_inicio, hora_fin, tipo, cursos(id, asignatura), anuncios_tutoria_curso(estudiante_id, fecha, estudiantes(nombre, carrera, email))')
+      .select('id, dia_semana, hora_inicio, hora_fin, tipo, cursos(id, asignatura)')
       .eq('profesor_id', user.id)
   ])
 
@@ -91,8 +92,33 @@ export default async function TutoriasPage() {
   const nDisp    = horarios.filter((h: { estado: string }) => h.estado === 'disponible').length
   const nNoDisp  = horarios.filter((h: { estado: string }) => h.estado === 'no_disponible').length
   const nPending = reservas.filter((r: { estado: string }) => r.estado === 'pendiente' || r.estado === 'confirmada').length
-  
-  const clases = clasesRes.data ?? []
+
+  // Fetch anuncios separado para evitar que un fallo de RLS deje clases vacío
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clasesBase: any[] = clasesRes.data ?? []
+  const claseIds = clasesBase.map((c: { id: string }) => c.id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let anunciosData: any[] = []
+  if (claseIds.length > 0) {
+    const { data: anRes } = await db
+      .from('anuncios_tutoria_curso')
+      .select('horario_clase_id, estudiante_id, fecha, estudiantes(nombre, carrera, email)')
+      .in('horario_clase_id', claseIds)
+    anunciosData = anRes ?? []
+  }
+  // Agrupar anuncios por horario_clase_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anunciosPorClase: Record<string, any[]> = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const a of anunciosData as any[]) {
+    if (!anunciosPorClase[a.horario_clase_id]) anunciosPorClase[a.horario_clase_id] = []
+    anunciosPorClase[a.horario_clase_id].push(a)
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clases = clasesBase.map((c: any) => ({
+    ...c,
+    anuncios_tutoria_curso: anunciosPorClase[c.id] ?? [],
+  }))
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
