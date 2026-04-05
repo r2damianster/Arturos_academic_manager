@@ -13,7 +13,7 @@ export default async function TutoriasPage() {
 
   await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
 
-  const [horariosRes, profesorRes] = await Promise.all([
+  const [horariosRes, profesorRes, clasesRes] = await Promise.all([
     db.from('horarios')
       .select('*')
       .eq('profesor_id', user.id)
@@ -23,6 +23,9 @@ export default async function TutoriasPage() {
       .select('nombre')
       .eq('id', user.id)
       .maybeSingle(),
+    db.from('horarios_clases')
+      .select('id, dia_semana, hora_inicio, hora_fin, cursos(asignatura)')
+      .eq('profesor_id', user.id)
   ])
 
   const horarios = horariosRes.data ?? []
@@ -88,6 +91,8 @@ export default async function TutoriasPage() {
   const nDisp    = horarios.filter((h: { estado: string }) => h.estado === 'disponible').length
   const nNoDisp  = horarios.filter((h: { estado: string }) => h.estado === 'no_disponible').length
   const nPending = reservas.filter((r: { estado: string }) => r.estado === 'pendiente' || r.estado === 'confirmada').length
+  
+  const clases = clasesRes.data ?? []
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
@@ -122,6 +127,7 @@ export default async function TutoriasPage() {
       <TutoriasManager
         horarios={horarios}
         reservas={reservas}
+        clases={clases}
         estudiantes={estudiantesConDatos}
         profesorNombre={profesorNombre}
       />

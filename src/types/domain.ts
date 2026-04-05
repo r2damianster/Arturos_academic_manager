@@ -11,6 +11,7 @@ export type Calificacion    = Database['public']['Tables']['calificaciones']['Ro
 export type Trabajo         = Database['public']['Tables']['trabajos_asignados']['Row']
 export type ObservacionTrabajo = Database['public']['Tables']['observaciones_trabajo']['Row']
 export type BitacoraClase   = Database['public']['Tables']['bitacora_clase']['Row']
+export type HorarioClase    = Database['public']['Tables']['horarios_clases']['Row']
 
 // Tipos de Insert
 export type CursoInsert      = Database['public']['Tables']['cursos']['Insert']
@@ -19,6 +20,7 @@ export type AsistenciaInsert = Database['public']['Tables']['asistencia']['Inser
 export type ParticipacionInsert = Database['public']['Tables']['participacion']['Insert']
 export type CalificacionInsert = Database['public']['Tables']['calificaciones']['Insert']
 export type TrabajoInsert    = Database['public']['Tables']['trabajos_asignados']['Insert']
+export type HorarioClaseInsert = Database['public']['Tables']['horarios_clases']['Insert']
 
 // Tipos compuestos para vistas
 export type EstudianteConCalificaciones = Estudiante & {

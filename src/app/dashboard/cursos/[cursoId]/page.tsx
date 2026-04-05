@@ -13,15 +13,17 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, clasesRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes').select('*').eq('curso_id', cursoId).order('nombre'),
+    db.from('horarios_clases').select('*').eq('curso_id', cursoId).order('dia_semana').order('hora_inicio'),
   ])
 
   const curso = cursoRes.data as Curso | null
   if (!curso) notFound()
 
   const estudiantes: Estudiante[] = estudiantesRes.data ?? []
+  const clases = clasesRes.data ?? []
 
   const semanaRes = await db.rpc('calcular_semana', { p_curso_id: cursoId })
   const semana: string | null = semanaRes.data
@@ -55,6 +57,18 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               {new Date(curso.fecha_inicio).toLocaleDateString('es-ES', { month: 'long', day: 'numeric', year: 'numeric' })}
               {curso.fecha_fin && <> → {new Date(curso.fecha_fin).toLocaleDateString('es-ES', { month: 'long', day: 'numeric', year: 'numeric' })}</>}
             </p>
+          )}
+
+          {/* Horarios de Clase */}
+          {clases.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {clases.map((c: any) => (
+                <div key={c.id} className="bg-purple-900/40 border border-purple-800 rounded px-2.5 py-1 text-xs text-purple-200">
+                  <strong className="capitalize text-purple-300 mr-2">{c.dia_semana}</strong>
+                  {c.hora_inicio.slice(0,5)} - {c.hora_fin.slice(0,5)}
+                </div>
+              ))}
+            </div>
           )}
         </div>
         <div className="text-right">

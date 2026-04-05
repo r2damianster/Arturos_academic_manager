@@ -77,6 +77,49 @@ export type Database = {
           }
         ]
       }
+      horarios_clases: {
+        Row: {
+          id: string
+          curso_id: string
+          profesor_id: string
+          dia_semana: string
+          hora_inicio: string
+          hora_fin: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          curso_id: string
+          profesor_id: string
+          dia_semana: string
+          hora_inicio: string
+          hora_fin: string
+          created_at?: string
+        }
+        Update: {
+          curso_id?: string
+          profesor_id?: string
+          dia_semana?: string
+          hora_inicio?: string
+          hora_fin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "horarios_clases_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "horarios_clases_profesor_id_fkey"
+            columns: ["profesor_id"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       estudiantes: {
         Row: {
           id: string

@@ -74,7 +74,7 @@ export function Sidebar({ nombreProfesor, esAdmin = false }: { nombreProfesor: s
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-white font-semibold text-sm truncate">Gestor Universitario</p>
+          <p className="text-white font-semibold text-sm truncate">Gestor Universitario - Arturo</p>
           <p className="text-gray-500 text-xs truncate">{nombreProfesor}</p>
         </div>
       </div>

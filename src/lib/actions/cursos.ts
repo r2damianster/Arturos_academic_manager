@@ -51,12 +51,36 @@ export async function crearCursoAction(formData: FormData): Promise<void> {
   if (!parsed.success) return
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('cursos').insert({
+  const { data: curso, error } = await (supabase as any).from('cursos').insert({
     ...parsed.data,
     profesor_id: user.id,
     fecha_inicio: parsed.data.fecha_inicio || null,
     fecha_fin: parsed.data.fecha_fin || null,
-  })
+  }).select('id').single()
+
+  if (error || !curso) return
+
+  // Parse horarios_clases if present
+  const horariosJson = formData.get('horarios_clases') as string
+  if (horariosJson) {
+    try {
+      const horarios = JSON.parse(horariosJson)
+      if (Array.isArray(horarios) && horarios.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const inserts = horarios.map((h: any) => ({
+          curso_id: curso.id,
+          profesor_id: user.id,
+          dia_semana: h.dia_semana,
+          hora_inicio: h.hora_inicio,
+          hora_fin: h.hora_fin
+        }))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('horarios_clases').insert(inserts)
+      }
+    } catch {
+      // Ignorar errores de parseo
+    }
+  }
 
   revalidatePath('/dashboard/cursos')
   redirect('/dashboard/cursos')

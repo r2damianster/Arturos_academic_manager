@@ -39,9 +39,20 @@ interface Estudiante {
   telefono?: string | null
 }
 
+interface Clase {
+  id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string
+  cursos: {
+    asignatura: string
+  } | null
+}
+
 interface Props {
   horarios: Horario[]
   reservas: Reserva[]
+  clases: Clase[]
   estudiantes: Estudiante[]
   profesorNombre: string
 }
@@ -119,7 +130,7 @@ const TIME_SLOTS = getSlots()
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes, profesorNombre }: Props) {
+export function TutoriasManager({ horarios: init, reservas: initRes, clases, estudiantes, profesorNombre }: Props) {
   const supabase = createClient()
   const [horarios, setHorarios]     = useState<Horario[]>(init)
   const [reservas, setReservas]     = useState<Reserva[]>(initRes)
@@ -156,6 +167,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes
   const horarioMap   = new Map<string, Horario>()
   for (const h of horarios) {
     horarioMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
+  }
+
+  const claseMap = new Map<string, Clase>()
+  for (const c of clases) {
+    const start = fmt(c.hora_inicio)
+    const end = fmt(c.hora_fin)
+    for (const slot of TIME_SLOTS) {
+      if (slot >= start && slot < end) {
+        claseMap.set(`${c.dia_semana}|${slot}`, c)
+      }
+    }
   }
 
   const reservaBySlotDate = new Map<string, Reserva>()
@@ -378,6 +400,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-900/60 border border-emerald-700 inline-block"/>Disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-800 border border-gray-700 inline-block"/>No disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Reservado</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-purple-900/60 border border-purple-700 inline-block"/>Clase</span>
           <span className="text-gray-600 text-[9px]">Clic en gris → activar con duración · Clic en verde → desactivar</span>
         </div>
 
@@ -450,7 +473,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes
               <tbody>
                 {TIME_SLOTS.map(time => {
                   const diaKeys = activeDias.map(d => DAY_JS[d.getDay()])
-                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`))
+                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`) || claseMap.has(`${dia}|${time}`))
                   if (!hasSomething) return null
                   return (
                     <tr key={time}>
@@ -459,6 +482,18 @@ export function TutoriasManager({ horarios: init, reservas: initRes, estudiantes
                         const diaKey  = DAY_JS[date.getDay()]
                         const dateStr = toDateStr(date)
                         const h = horarioMap.get(`${diaKey}|${time}`)
+                        const clase = claseMap.get(`${diaKey}|${time}`)
+
+                        if (clase) {
+                          return (
+                            <td key={dateStr} className="px-0.5 py-0.5">
+                              <div className="w-full h-5 rounded border border-purple-800/60 bg-purple-900/30 flex items-center justify-center overflow-hidden" title={`Clase: ${clase.cursos?.asignatura}`}>
+                                <span className="text-[7px] text-purple-300 font-bold px-0.5 truncate">{clase.cursos?.asignatura}</span>
+                              </div>
+                            </td>
+                          )
+                        }
+
                         if (!h) return <td key={dateStr} className="px-0.5 py-0.5" />
 
                         const popKey  = `${h.id}|${dateStr}`

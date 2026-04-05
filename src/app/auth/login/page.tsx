@@ -13,7 +13,7 @@ export default function LoginPage() {
   const supabase = createClient()
 
   // --- Shared ---
-  const [activeTab, setActiveTab] = useState<Tab>('profesor')
+  const [activeTab, setActiveTab] = useState<Tab>('estudiante')
 
   // --- Profesor state ---
   const [profEmail, setProfEmail] = useState('')
@@ -157,6 +157,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white">Gestor Universitario</h1>
+          <p className="text-gray-400 mt-1 text-xs">Derechos reservados Profesor Arturo Rodríguez</p>
           <p className="text-gray-400 mt-1 text-sm">Ingresa a tu cuenta</p>
         </div>
 
@@ -166,17 +167,17 @@ export default function LoginPage() {
           <div className="flex border-b border-gray-800 -mx-6 -mt-6 mb-6 px-0">
             <button
               type="button"
-              onClick={() => handleTabChange('profesor')}
-              className={activeTab === 'profesor' ? tabActive : tabInactive}
-            >
-              Profesores
-            </button>
-            <button
-              type="button"
               onClick={() => handleTabChange('estudiante')}
               className={activeTab === 'estudiante' ? tabActive : tabInactive}
             >
               Estudiantes
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('profesor')}
+              className={activeTab === 'profesor' ? tabActive : tabInactive}
+            >
+              Profesores
             </button>
           </div>
 

@@ -25,6 +25,14 @@ interface Reserva {
 
 interface OccupiedSlot { horario_id: number; fecha: string }
 
+interface Clase {
+  id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string
+  profesor_id: string
+}
+
 interface StudentInfo {
   nombre: string; email: string; carrera: string | null
   telefono: string | null; auth_user_id: string
@@ -32,6 +40,7 @@ interface StudentInfo {
 
 interface Props {
   horarios: Horario[]
+  clases: Clase[]
   occupiedSlots: OccupiedSlot[]
   misReservas: Reserva[]
   studentInfo: StudentInfo
@@ -95,9 +104,10 @@ const TIME_SLOTS = getSlots()
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasBooking({ horarios: initH, occupiedSlots: initOcc, misReservas: initR, studentInfo }: Props) {
+export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedSlots: initOcc, misReservas: initR, studentInfo }: Props) {
   const supabase = createClient()
   const [horarios]  = useState<Horario[]>(initH)
+  const [clases]    = useState<Clase[]>(initClases)
   const [occupied, setOccupied] = useState<OccupiedSlot[]>(initOcc)
   const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
@@ -129,13 +139,26 @@ export function TutoriasBooking({ horarios: initH, occupiedSlots: initOcc, misRe
   // Occupied set: `horarioId|dateStr`
   const occupiedSet = new Set(occupied.map(o => `${o.horario_id}|${o.fecha}`))
 
+  // Clases set for active professor
+  const profClases = clases.filter(c => c.profesor_id === activePid)
+  const claseSet = new Set<string>() // `dia|time`
+  for (const c of profClases) {
+    const start = fmt(c.hora_inicio)
+    const end = fmt(c.hora_fin)
+    for (const slot of TIME_SLOTS) {
+      if (slot >= start && slot < end) {
+        claseSet.add(`${c.dia_semana}|${slot}`)
+      }
+    }
+  }
+
   // My reservas set: `horarioId|dateStr`
   const mySet = new Set(reservas.map(r => `${r.horario_id}|${r.fecha}`))
 
   // Active days for this professor in the viewed week
   const activeDias = weekDates.filter(date => {
     const diaKey = DAY_JS[date.getDay()]
-    return profHorarios.some(h => h.dia_semana === diaKey)
+    return profHorarios.some(h => h.dia_semana === diaKey) || profClases.some(c => c.dia_semana === diaKey)
   })
 
   // ── Confirm booking ────────────────────────────────────────────────────────
@@ -342,16 +365,16 @@ export function TutoriasBooking({ horarios: initH, occupiedSlots: initOcc, misRe
                         const diaKey  = DAY_JS[date.getDay()]
                         const dateStr = toDateStr(date)
                         const slot    = slotMap.get(`${diaKey}|${time}`)
-                        if (!slot) return <td key={dateStr} className="px-1 py-0.5" />
 
-                        const slotKey  = `${slot.id}|${dateStr}`
-                        const isMine   = mySet.has(slotKey)
-                        const isOccupied = occupiedSet.has(slotKey) && !isMine
-                        const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
-                        const activeOnDate = isSlotActiveOnDate(slot, dateStr)
+                        const slotKey  = `${slot?.id}|${dateStr}`
+                        const isMine   = slot ? mySet.has(slotKey) : false
+                        const isOccupied = slot ? (occupiedSet.has(slotKey) && !isMine) : false
+                        const isClass = claseSet.has(`${diaKey}|${time}`)
+                        const isSelected = slot ? (selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr) : false
+                        const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr) : false
 
                         // Slot expired for this date — show as empty
-                        if (!activeOnDate && !isMine) return <td key={dateStr} className="px-1 py-0.5" />
+                        if (!activeOnDate && !isMine && !isClass) return <td key={dateStr} className="px-1 py-0.5" />
 
                         if (isMine) {
                           return (
@@ -362,15 +385,17 @@ export function TutoriasBooking({ horarios: initH, occupiedSlots: initOcc, misRe
                             </td>
                           )
                         }
-                        if (isOccupied) {
+                        if (isOccupied || isClass) {
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
-                              <div className="h-7 rounded border border-red-900 bg-red-950/40 flex items-center justify-center">
+                              <div className="h-7 rounded border border-red-900 bg-red-950/40 flex items-center justify-center pointer-events-none">
                                 <span className="text-red-700 text-[9px]">Ocupado</span>
                               </div>
                             </td>
                           )
                         }
+
+                        if (!slot) return <td key={dateStr} className="px-1 py-0.5" />
 
                         // disponible
                         return (

@@ -61,6 +61,15 @@ export default async function TutoriasPage() {
     occupiedSlots = occData ?? []
   }
 
+  // Fetch clases (so students see class times as occupied)
+  const { data: clasesData } = profesorIds.length > 0
+    ? await db
+        .from('horarios_clases')
+        .select('id, dia_semana, hora_inicio, hora_fin, profesor_id')
+        .in('profesor_id', profesorIds)
+    : { data: [] }
+  const clases = clasesData ?? []
+
   // Fetch student's own pending reservas (with full details)
   const { data: misReservasData } = await db
     .from('reservas')
@@ -96,6 +105,7 @@ export default async function TutoriasPage() {
 
         <TutoriasBooking
           horarios={horarios}
+          clases={clases}
           occupiedSlots={occupiedSlots}
           misReservas={misReservas}
           studentInfo={studentInfo}

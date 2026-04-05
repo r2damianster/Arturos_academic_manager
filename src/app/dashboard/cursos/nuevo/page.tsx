@@ -22,6 +22,10 @@ export default function NuevoCursoPage() {
   const [codigoManual, setCodigoManual] = useState(false)
   const [numParciales, setNumParciales] = useState(2)
 
+  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string }
+  const [horariosClases, setHorariosClases] = useState<HorarioInput[]>([])
+
+
   useEffect(() => {
     if (!codigoManual && (asignatura || periodo)) {
       setCodigo(generarCodigo(asignatura, periodo))
@@ -43,6 +47,7 @@ export default function NuevoCursoPage() {
       </div>
 
       <form action={crearCursoAction} className="card space-y-5">
+        <input type="hidden" name="horarios_clases" value={JSON.stringify(horariosClases)} />
         {/* Asignatura + Período */}
         <div>
           <label className="label">Nombre de la asignatura *</label>
@@ -77,6 +82,55 @@ export default function NuevoCursoPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Horarios de Clases */}
+        <div className="space-y-3 pt-2 pb-2 border-y border-gray-800">
+          <div className="flex justify-between items-center">
+            <label className="label !mb-0">Horarios de Clases</label>
+            <button type="button" className="text-xs text-brand-400 font-semibold"
+              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00' }])}>
+              + Añadir horario
+            </button>
+          </div>
+          {horariosClases.length === 0 ? (
+            <p className="text-xs text-gray-500">No se han añadido horarios. (Útil para cruce automático con tutorías)</p>
+          ) : (
+            <div className="space-y-2">
+              {horariosClases.map((h, i) => (
+                <div key={i} className="flex gap-2 items-center bg-gray-900/50 p-2 rounded-lg border border-gray-800">
+                  <select 
+                    className="input text-xs py-1" 
+                    value={h.dia_semana}
+                    onChange={e => {
+                      const newH = [...horariosClases]
+                      newH[i].dia_semana = e.target.value
+                      setHorariosClases(newH)
+                    }}>
+                    {['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <span className="text-gray-500 text-xs text-center w-8">De</span>
+                  <input type="time" className="input text-xs py-1" required value={h.hora_inicio}
+                    onChange={e => {
+                      const newH = [...horariosClases]
+                      newH[i].hora_inicio = e.target.value
+                      setHorariosClases(newH)
+                    }} />
+                  <span className="text-gray-500 text-xs text-center w-8">a</span>
+                  <input type="time" className="input text-xs py-1" required value={h.hora_fin}
+                    onChange={e => {
+                      const newH = [...horariosClases]
+                      newH[i].hora_fin = e.target.value
+                      setHorariosClases(newH)
+                    }} />
+                  <button type="button" onClick={() => setHorariosClases(horariosClases.filter((_, idx) => idx !== i))}
+                    className="text-red-400 hover:text-red-300 ml-2">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Fechas */}
@@ -138,3 +192,4 @@ export default function NuevoCursoPage() {
     </div>
   )
 }
+
