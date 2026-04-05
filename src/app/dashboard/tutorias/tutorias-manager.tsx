@@ -407,7 +407,8 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-900/60 border border-emerald-700 inline-block"/>Disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-800 border border-gray-700 inline-block"/>No disponible</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Reservado</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-purple-900/60 border border-purple-700 inline-block"/>Clase</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-purple-900/60 border border-purple-700 inline-block"/>Clase regular</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-orange-900/60 border border-orange-700 inline-block"/>Tutoría de curso</span>
           <span className="text-gray-600 text-[9px]">Clic en gris → activar con duración · Clic en verde → desactivar</span>
         </div>
 

@@ -36,9 +36,9 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
       <div className="mt-4">
         <div className="flex items-center gap-3 mb-2">
           <h2 className="font-semibold text-white text-sm">Horarios de Clase</h2>
-          <button onClick={() => setIsEditing(true)} 
-            className="text-xs text-brand-400 hover:text-brand-300">
-            Editar horarios
+          <button onClick={() => setIsEditing(true)}
+            className="text-xs bg-brand-700/30 border border-brand-600/50 text-brand-400 hover:text-brand-300 hover:bg-brand-700/50 px-2 py-0.5 rounded transition-colors">
+            ✏️ Editar
           </button>
         </div>
         
@@ -78,7 +78,7 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
               <div className="flex gap-2 items-center">
                 <select
                   className="input text-xs py-1 px-2 flex-1"
-                  value={h.tipo}
+                  value={h.tipo ?? 'clase'}
                   onChange={e => {
                     const newH = [...clases]
                     newH[i] = { ...newH[i], tipo: e.target.value }
