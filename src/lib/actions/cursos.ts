@@ -72,7 +72,8 @@ export async function crearCursoAction(formData: FormData): Promise<void> {
           profesor_id: user.id,
           dia_semana: h.dia_semana,
           hora_inicio: h.hora_inicio,
-          hora_fin: h.hora_fin
+          hora_fin: h.hora_fin,
+          tipo: h.tipo || 'clase'
         }))
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any).from('horarios_clases').insert(inserts)
@@ -119,7 +120,7 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   redirect('/dashboard/cursos')
 }
 
-export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string }[]): Promise<{ok: boolean, error?: string}> {
+export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string, tipo?: string }[]): Promise<{ok: boolean, error?: string}> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Unauthorized' }
@@ -140,7 +141,8 @@ export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_s
       profesor_id: user.id,
       dia_semana: h.dia_semana,
       hora_inicio: h.hora_inicio,
-      hora_fin: h.hora_fin
+      hora_fin: h.hora_fin,
+      tipo: h.tipo || 'clase'
     }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('horarios_clases').insert(inserts)

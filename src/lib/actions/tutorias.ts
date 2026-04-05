@@ -145,3 +145,43 @@ export async function asignarTutoriaDirecta(params: {
 
   return { ok: true, reservaId: reserva?.id }
 }
+
+// ─── Student announces attendance to a group tutoria ─────────────────────────
+
+export async function anunciarAsistenciaTutoria(params: {
+  horarioClaseId: string
+  estudianteId: string
+  fecha: string
+}) {
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const { error } = await db
+    .from('anuncios_tutoria_curso')
+    .insert({
+      horario_clase_id: params.horarioClaseId,
+      estudiante_id:    params.estudianteId,
+      fecha:            params.fecha,
+    })
+  if (error && error.code !== '23505') // ignore duplicate key
+    return { error: error.message }
+  return { ok: true }
+}
+
+export async function cancelarAnuncioTutoria(params: {
+  horarioClaseId: string
+  estudianteId: string
+  fecha: string
+}) {
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const { error } = await db
+    .from('anuncios_tutoria_curso')
+    .delete()
+    .eq('horario_clase_id', params.horarioClaseId)
+    .eq('estudiante_id',    params.estudianteId)
+    .eq('fecha',            params.fecha)
+  if (error) return { error: error.message }
+  return { ok: true }
+}

@@ -22,7 +22,7 @@ export default function NuevoCursoPage() {
   const [codigoManual, setCodigoManual] = useState(false)
   const [numParciales, setNumParciales] = useState(2)
 
-  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string }
+  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string, tipo: string }
   const [horariosClases, setHorariosClases] = useState<HorarioInput[]>([])
 
 
@@ -87,18 +87,29 @@ export default function NuevoCursoPage() {
         {/* Horarios de Clases */}
         <div className="space-y-3 pt-2 pb-2 border-y border-gray-800">
           <div className="flex justify-between items-center">
-            <label className="label !mb-0">Horarios de Clases</label>
+            <label className="label !mb-0">Horarios de Clases o Tutorías de Curso</label>
             <button type="button" className="text-xs text-brand-400 font-semibold"
-              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00' }])}>
+              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase' }])}>
               + Añadir horario
             </button>
           </div>
           {horariosClases.length === 0 ? (
-            <p className="text-xs text-gray-500">No se han añadido horarios. (Útil para cruce automático con tutorías)</p>
+            <p className="text-xs text-gray-500">No se han añadido horarios. (Útil para cruce automático con tutorías generales)</p>
           ) : (
             <div className="space-y-2">
               {horariosClases.map((h, i) => (
                 <div key={i} className="flex gap-2 items-center bg-gray-900/50 p-2 rounded-lg border border-gray-800">
+                  <select 
+                    className="input text-xs py-1 px-2 min-w-[120px]" 
+                    value={h.tipo}
+                    onChange={e => {
+                      const newH = [...horariosClases]
+                      newH[i].tipo = e.target.value
+                      setHorariosClases(newH)
+                    }}>
+                    <option value="clase">Clase Regular</option>
+                    <option value="tutoria_curso">Tutoría de Curso</option>
+                  </select>
                   <select 
                     className="input text-xs py-1" 
                     value={h.dia_semana}

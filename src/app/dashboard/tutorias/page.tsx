@@ -24,7 +24,7 @@ export default async function TutoriasPage() {
       .eq('id', user.id)
       .maybeSingle(),
     db.from('horarios_clases')
-      .select('id, dia_semana, hora_inicio, hora_fin, cursos(asignatura)')
+      .select('id, dia_semana, hora_inicio, hora_fin, tipo, cursos(id, asignatura), anuncios_tutoria_curso(estudiante_id, fecha, estudiantes(nombre, carrera, email))')
       .eq('profesor_id', user.id)
   ])
 

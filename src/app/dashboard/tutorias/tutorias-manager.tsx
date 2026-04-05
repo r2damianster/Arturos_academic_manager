@@ -44,9 +44,16 @@ interface Clase {
   dia_semana: string
   hora_inicio: string
   hora_fin: string
+  tipo: string
   cursos: {
+    id: string
     asignatura: string
   } | null
+  anuncios_tutoria_curso?: {
+    estudiante_id: string
+    fecha: string
+    estudiantes: { nombre: string, carrera: string, email: string }
+  }[]
 }
 
 interface Props {
@@ -205,7 +212,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
   const activeDias = weekDates.filter(date => {
     const diaKey = DAY_JS[date.getDay()]
-    return horarios.some(h => h.dia_semana === diaKey)
+    return horarios.some(h => h.dia_semana === diaKey) || clases.some(c => c.dia_semana === diaKey)
   })
 
   // ── Toggle slot ────────────────────────────────────────────────────────────
@@ -485,6 +492,54 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                         const clase = claseMap.get(`${diaKey}|${time}`)
 
                         if (clase) {
+                          if (clase.tipo === 'tutoria_curso') {
+                            const isTutoriaOpen = popover === `tutoria|${clase.id}|${dateStr}`
+                            const anunciosDelDia = clase.anuncios_tutoria_curso?.filter(a => a.fecha === dateStr) || []
+                            return (
+                              <td key={dateStr} className="px-0.5 py-0.5 relative">
+                                <button
+                                  onClick={() => setPopover(isTutoriaOpen ? null : `tutoria|${clase.id}|${dateStr}`)}
+                                  className={`w-full h-5 rounded border flex items-center justify-center transition-colors ${
+                                    isTutoriaOpen ? 'bg-orange-600/80 border-orange-400 ring-1 ring-orange-400' : 'bg-orange-900/30 border-orange-800/60 hover:bg-orange-800/50'
+                                  }`}
+                                  title={`Tutoría Grupal: ${clase.cursos?.asignatura}`}
+                                >
+                                  <span className="text-[7px] text-orange-300 font-bold px-0.5 truncate flex gap-1">
+                                    {clase.cursos?.asignatura}
+                                    {anunciosDelDia.length > 0 && <span className="bg-orange-500 text-white rounded-full px-1">{anunciosDelDia.length}</span>}
+                                  </span>
+                                </button>
+                                {isTutoriaOpen && (
+                                  <div className="absolute left-0 top-6 z-50 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 space-y-2 pointer-events-auto"
+                                    onClick={e => e.stopPropagation()}>
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="min-w-0 pr-4">
+                                        <p className="text-white text-xs font-semibold">Tutoría: {clase.cursos?.asignatura}</p>
+                                        <p className="text-gray-400 text-[10px]">{dateStr} · {fmt(clase.hora_inicio)} - {fmt(clase.hora_fin)}</p>
+                                      </div>
+                                      <button onClick={() => setPopover(null)} className="text-gray-500 hover:text-gray-300 ml-1 flex-shrink-0">✕</button>
+                                    </div>
+                                    <div className="text-[10px]">
+                                      <p className="font-semibold text-gray-300 mb-1 border-b border-gray-700 pb-1">Estudiantes asistentes ({anunciosDelDia.length}):</p>
+                                      {anunciosDelDia.length === 0 ? (
+                                        <p className="text-gray-500 italic">Nadie ha confirmado asistencia aún.</p>
+                                      ) : (
+                                        <ul className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                                          {anunciosDelDia.map(a => (
+                                            <li key={a.estudiante_id} className="text-gray-300">
+                                              • {a.estudiantes.nombre.split(' ')[0]} <span className="text-gray-500 text-[9px]">{a.estudiantes.carrera}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          }
+                          
+                          // Clase normal
                           return (
                             <td key={dateStr} className="px-0.5 py-0.5">
                               <div className="w-full h-5 rounded border border-purple-800/60 bg-purple-900/30 flex items-center justify-center overflow-hidden" title={`Clase: ${clase.cursos?.asignatura}`}>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { anunciarAsistenciaTutoria, cancelarAnuncioTutoria } from '@/lib/actions/tutorias'
 
 interface Horario {
   id: number
@@ -31,6 +32,8 @@ interface Clase {
   hora_inicio: string
   hora_fin: string
   profesor_id: string
+  tipo: string
+  curso_id: string | null
 }
 
 interface StudentInfo {
@@ -44,6 +47,9 @@ interface Props {
   occupiedSlots: OccupiedSlot[]
   misReservas: Reserva[]
   studentInfo: StudentInfo
+  estudianteCursoIds: string[]
+  estudianteId: string
+  misAnuncios: { horario_clase_id: string; fecha: string }[]
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -104,7 +110,16 @@ const TIME_SLOTS = getSlots()
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedSlots: initOcc, misReservas: initR, studentInfo }: Props) {
+export function TutoriasBooking({
+  horarios: initH,
+  clases: initClases,
+  occupiedSlots: initOcc,
+  misReservas: initR,
+  studentInfo,
+  estudianteCursoIds,
+  estudianteId,
+  misAnuncios,
+}: Props) {
   const supabase = createClient()
   const [horarios]  = useState<Horario[]>(initH)
   const [clases]    = useState<Clase[]>(initClases)
@@ -118,8 +133,13 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
   const [error,   setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Announce state: `horario_clase_id|fecha`
+  const [localAnuncios, setLocalAnuncios] = useState<Set<string>>(
+    () => new Set(misAnuncios.map(a => `${a.horario_clase_id}|${a.fecha}`))
+  )
+  const [anuncioLoading, setAnuncioLoading] = useState<string | null>(null)
+
   const weekDates    = getWeekDates(weekOffset)
-  const weekDateStrs = weekDates.map(toDateStr)
 
   // Group horarios by profesor
   const profesorIds = [...new Set(horarios.map(h => h.profesor_id))]
@@ -139,15 +159,15 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
   // Occupied set: `horarioId|dateStr`
   const occupiedSet = new Set(occupied.map(o => `${o.horario_id}|${o.fecha}`))
 
-  // Clases set for active professor
+  // Clases map for active professor: `dia|time` → Clase
   const profClases = clases.filter(c => c.profesor_id === activePid)
-  const claseSet = new Set<string>() // `dia|time`
+  const claseMap = new Map<string, Clase>() // `dia|time` → Clase
   for (const c of profClases) {
     const start = fmt(c.hora_inicio)
     const end = fmt(c.hora_fin)
     for (const slot of TIME_SLOTS) {
       if (slot >= start && slot < end) {
-        claseSet.add(`${c.dia_semana}|${slot}`)
+        claseMap.set(`${c.dia_semana}|${slot}`, c)
       }
     }
   }
@@ -160,6 +180,39 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
     const diaKey = DAY_JS[date.getDay()]
     return profHorarios.some(h => h.dia_semana === diaKey) || profClases.some(c => c.dia_semana === diaKey)
   })
+
+  // ── Toggle tutoria_curso announce ─────────────────────────────────────────
+  async function handleAnuncio(clase: Clase, dateStr: string) {
+    const key = `${clase.id}|${dateStr}`
+    const isAnnounced = localAnuncios.has(key)
+    setAnuncioLoading(key)
+    setError(null)
+    try {
+      if (isAnnounced) {
+        const res = await cancelarAnuncioTutoria({
+          horarioClaseId: clase.id,
+          estudianteId,
+          fecha: dateStr,
+        })
+        if (res.error) throw new Error(res.error)
+        setLocalAnuncios(prev => { const s = new Set(prev); s.delete(key); return s })
+        setSuccess('Asistencia cancelada.')
+      } else {
+        const res = await anunciarAsistenciaTutoria({
+          horarioClaseId: clase.id,
+          estudianteId,
+          fecha: dateStr,
+        })
+        if (res.error) throw new Error(res.error)
+        setLocalAnuncios(prev => new Set([...prev, key]))
+        setSuccess('¡Asistencia confirmada!')
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al confirmar asistencia')
+    } finally {
+      setAnuncioLoading(null)
+    }
+  }
 
   // ── Confirm booking ────────────────────────────────────────────────────────
   async function handleConfirm() {
@@ -223,7 +276,7 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
     }
   }
 
-  if (horarios.length === 0) {
+  if (horarios.length === 0 && profClases.length === 0) {
     return (
       <div className="card text-center py-12">
         <p className="text-gray-400 text-sm">No hay horarios de tutoría disponibles para tus cursos.</p>
@@ -325,6 +378,7 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
         {/* Legend */}
         <div className="flex gap-3 text-[10px] text-gray-500 flex-wrap">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-900/60 border border-emerald-600 inline-block"/>Disponible</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-900/60 border border-orange-600 inline-block"/>Tutoría de curso</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-900/60 border border-red-700 inline-block"/>Ocupado</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Tu reserva</span>
         </div>
@@ -356,7 +410,10 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
               </thead>
               <tbody>
                 {TIME_SLOTS.map(time => {
-                  const hasSomething = activeDias.some(date => slotMap.has(`${DAY_JS[date.getDay()]}|${time}`))
+                  const hasSomething = activeDias.some(date => {
+                    const diaKey = DAY_JS[date.getDay()]
+                    return slotMap.has(`${diaKey}|${time}`) || claseMap.has(`${diaKey}|${time}`)
+                  })
                   if (!hasSomething) return null
                   return (
                     <tr key={time}>
@@ -365,16 +422,19 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
                         const diaKey  = DAY_JS[date.getDay()]
                         const dateStr = toDateStr(date)
                         const slot    = slotMap.get(`${diaKey}|${time}`)
+                        const clase   = claseMap.get(`${diaKey}|${time}`)
 
                         const slotKey  = `${slot?.id}|${dateStr}`
                         const isMine   = slot ? mySet.has(slotKey) : false
                         const isOccupied = slot ? (occupiedSet.has(slotKey) && !isMine) : false
-                        const isClass = claseSet.has(`${diaKey}|${time}`)
-                        const isSelected = slot ? (selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr) : false
                         const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr) : false
 
-                        // Slot expired for this date — show as empty
-                        if (!activeOnDate && !isMine && !isClass) return <td key={dateStr} className="px-1 py-0.5" />
+                        // tutoria_curso for student's course
+                        const isTutoriaCurso = clase?.tipo === 'tutoria_curso' && estudianteCursoIds.includes(clase.curso_id ?? '')
+                        const isRegularClass = !!clase && !isTutoriaCurso
+
+                        // Slot expired + not a class — empty cell
+                        if (!activeOnDate && !isMine && !clase) return <td key={dateStr} className="px-1 py-0.5" />
 
                         if (isMine) {
                           return (
@@ -385,7 +445,34 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
                             </td>
                           )
                         }
-                        if (isOccupied || isClass) {
+
+                        // tutoria_curso — orange announce button
+                        if (isTutoriaCurso) {
+                          const anuncioKey = `${clase!.id}|${dateStr}`
+                          const isAnnounced = localAnuncios.has(anuncioKey)
+                          const isLoadingThis = anuncioLoading === anuncioKey
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <button
+                                onClick={() => handleAnuncio(clase!, dateStr)}
+                                disabled={isLoadingThis}
+                                title={isAnnounced ? 'Cancelar asistencia' : 'Confirmar asistencia'}
+                                className={`w-full h-7 rounded border text-[9px] font-medium transition-colors disabled:opacity-50 ${
+                                  isLoadingThis
+                                    ? 'bg-orange-900/30 border-orange-700 text-orange-500'
+                                    : isAnnounced
+                                      ? 'bg-orange-600/70 border-orange-400 text-white ring-1 ring-orange-400'
+                                      : 'bg-orange-900/40 border-orange-700 text-orange-300 hover:bg-orange-700/60'
+                                }`}
+                              >
+                                {isLoadingThis ? '...' : isAnnounced ? '✓ Voy' : 'Voy'}
+                              </button>
+                            </td>
+                          )
+                        }
+
+                        // Regular class or occupied slot
+                        if (isOccupied || isRegularClass) {
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
                               <div className="h-7 rounded border border-red-900 bg-red-950/40 flex items-center justify-center pointer-events-none">
@@ -395,9 +482,10 @@ export function TutoriasBooking({ horarios: initH, clases: initClases, occupiedS
                           )
                         }
 
-                        if (!slot) return <td key={dateStr} className="px-1 py-0.5" />
+                        if (!slot || !activeOnDate) return <td key={dateStr} className="px-1 py-0.5" />
 
-                        // disponible
+                        // disponible — book button
+                        const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
                         return (
                           <td key={dateStr} className="px-1 py-0.5">
                             <button

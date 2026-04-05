@@ -85,6 +85,7 @@ export type Database = {
           dia_semana: string
           hora_inicio: string
           hora_fin: string
+          tipo: string
           created_at: string
         }
         Insert: {
@@ -94,14 +95,17 @@ export type Database = {
           dia_semana: string
           hora_inicio: string
           hora_fin: string
+          tipo?: string
           created_at?: string
         }
         Update: {
+          id?: string
           curso_id?: string
           profesor_id?: string
           dia_semana?: string
           hora_inicio?: string
           hora_fin?: string
+          tipo?: string
         }
         Relationships: [
           {
@@ -116,6 +120,44 @@ export type Database = {
             columns: ["profesor_id"]
             isOneToOne: false
             referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      anuncios_tutoria_curso: {
+        Row: {
+          id: string
+          horario_clase_id: string
+          estudiante_id: string
+          fecha: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          horario_clase_id: string
+          estudiante_id: string
+          fecha: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          horario_clase_id?: string
+          estudiante_id?: string
+          fecha?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anuncios_tutoria_curso_horario_clase_id_fkey"
+            columns: ["horario_clase_id"]
+            isOneToOne: false
+            referencedRelation: "horarios_clases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anuncios_tutoria_curso_estudiante_id_fkey"
+            columns: ["estudiante_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes"
             referencedColumns: ["id"]
           }
         ]

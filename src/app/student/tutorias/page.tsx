@@ -61,14 +61,38 @@ export default async function TutoriasPage() {
     occupiedSlots = occData ?? []
   }
 
-  // Fetch clases (so students see class times as occupied)
+  // IDs de cursos del estudiante (para filtrar tutorías de curso abiertas)
+  const estudianteCursoIds: string[] = estudiantes
+    .map((e: { curso_id: string | null }) => e.curso_id)
+    .filter(Boolean) as string[]
+
+  // ID del primer registro de estudiante (para anuncios)
+  const estudianteId: string = estudiantes[0]?.id ?? ''
+
+  // Fetch clases con tipo y curso_id
   const { data: clasesData } = profesorIds.length > 0
     ? await db
         .from('horarios_clases')
-        .select('id, dia_semana, hora_inicio, hora_fin, profesor_id')
+        .select('id, dia_semana, hora_inicio, hora_fin, profesor_id, tipo, curso_id')
         .in('profesor_id', profesorIds)
     : { data: [] }
   const clases = clasesData ?? []
+
+  // IDs de horarios_clases tipo tutoria_curso del estudiante (para cargar anuncios previos)
+  const tutoriaCursoIds: string[] = clases
+    .filter((c: { tipo: string; curso_id: string | null }) =>
+      c.tipo === 'tutoria_curso' && estudianteCursoIds.includes(c.curso_id ?? ''))
+    .map((c: { id: string }) => c.id)
+
+  // Anuncios ya realizados por el estudiante
+  const { data: misAnunciosData } = tutoriaCursoIds.length > 0
+    ? await db
+        .from('anuncios_tutoria_curso')
+        .select('horario_clase_id, fecha')
+        .eq('estudiante_id', estudianteId)
+        .in('horario_clase_id', tutoriaCursoIds)
+    : { data: [] }
+  const misAnuncios: { horario_clase_id: string; fecha: string }[] = misAnunciosData ?? []
 
   // Fetch student's own pending reservas (with full details)
   const { data: misReservasData } = await db
@@ -109,6 +133,9 @@ export default async function TutoriasPage() {
           occupiedSlots={occupiedSlots}
           misReservas={misReservas}
           studentInfo={studentInfo}
+          estudianteCursoIds={estudianteCursoIds}
+          estudianteId={estudianteId}
+          misAnuncios={misAnuncios}
         />
       </div>
     </div>
