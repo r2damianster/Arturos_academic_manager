@@ -73,46 +73,52 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
       ) : (
         <div className="space-y-2">
           {clases.map((h, i) => (
-            <div key={i} className="flex gap-2 items-center bg-gray-800/80 p-2 rounded-lg border border-gray-700">
-              <select 
-                className="input text-xs py-1 px-2 min-w-[120px]" 
-                value={h.tipo}
-                onChange={e => {
-                  const newH = [...clases]
-                  newH[i].tipo = e.target.value
-                  setClases(newH)
-                }}>
-                <option value="clase">Clase Regular</option>
-                <option value="tutoria_curso">Tutoría de Curso</option>
-              </select>
-              <select 
-                className="input text-xs py-1" 
-                value={h.dia_semana}
-                onChange={e => {
-                  const newH = [...clases]
-                  newH[i].dia_semana = e.target.value
-                  setClases(newH)
-                }}>
-                {['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'].map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              <span className="text-gray-500 text-xs text-center w-8">De</span>
-              <input type="time" className="input text-xs py-1" required value={h.hora_inicio}
-                onChange={e => {
-                  const newH = [...clases]
-                  newH[i].hora_inicio = e.target.value
-                  setClases(newH)
-                }} />
-              <span className="text-gray-500 text-xs text-center w-8">a</span>
-              <input type="time" className="input text-xs py-1" required value={h.hora_fin}
-                onChange={e => {
-                  const newH = [...clases]
-                  newH[i].hora_fin = e.target.value
-                  setClases(newH)
-                }} />
-              <button type="button" onClick={() => setClases(clases.filter((_, idx) => idx !== i))}
-                className="text-red-400 hover:text-red-300 ml-2 text-lg leading-none">✕</button>
+            <div key={i} className="bg-gray-800/80 p-2 rounded-lg border border-gray-700 space-y-2">
+              {/* Fila 1: tipo + día + eliminar */}
+              <div className="flex gap-2 items-center">
+                <select
+                  className="input text-xs py-1 px-2 flex-1"
+                  value={h.tipo}
+                  onChange={e => {
+                    const newH = [...clases]
+                    newH[i] = { ...newH[i], tipo: e.target.value }
+                    setClases(newH)
+                  }}>
+                  <option value="clase">Clase Regular</option>
+                  <option value="tutoria_curso">Tutoría de Curso</option>
+                </select>
+                <select
+                  className="input text-xs py-1 flex-1"
+                  value={h.dia_semana}
+                  onChange={e => {
+                    const newH = [...clases]
+                    newH[i] = { ...newH[i], dia_semana: e.target.value }
+                    setClases(newH)
+                  }}>
+                  {['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'].map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setClases(clases.filter((_, idx) => idx !== i))}
+                  className="text-red-400 hover:text-red-300 text-lg leading-none flex-shrink-0">✕</button>
+              </div>
+              {/* Fila 2: horas */}
+              <div className="flex gap-2 items-center">
+                <span className="text-gray-500 text-xs w-6 flex-shrink-0">De</span>
+                <input type="time" className="input text-xs py-1 flex-1" required value={h.hora_inicio}
+                  onChange={e => {
+                    const newH = [...clases]
+                    newH[i] = { ...newH[i], hora_inicio: e.target.value }
+                    setClases(newH)
+                  }} />
+                <span className="text-gray-500 text-xs w-4 text-center flex-shrink-0">a</span>
+                <input type="time" className="input text-xs py-1 flex-1" required value={h.hora_fin}
+                  onChange={e => {
+                    const newH = [...clases]
+                    newH[i] = { ...newH[i], hora_fin: e.target.value }
+                    setClases(newH)
+                  }} />
+              </div>
             </div>
           ))}
         </div>

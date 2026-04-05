@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { HorarioSemanaWidget } from '@/components/dashboard/horario-semana-widget'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -30,20 +31,20 @@ export default async function DashboardPage() {
     .eq('fecha', hoy)
   const asistenciaHoy: number = asistenciaRes.count ?? 0
 
-  // Clases de hoy
+  // Todas las clases de la semana (para el widget navegable)
   const DOW_MAP = [ 'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado' ]
-  const hoyDow = DOW_MAP[new Date().getDay()]
-  
+  const hoyDow = DOW_MAP[new Date().getDay()] ?? 'lunes'
+
   const { data: { user } } = await supabase.auth.getUser()
-  let clasesHoy: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let todasClases: any[] = []
   if (user) {
     const clasesRes = await db
       .from('horarios_clases')
-      .select('id, hora_inicio, hora_fin, cursos(asignatura, codigo)')
+      .select('id, hora_inicio, hora_fin, dia_semana, tipo, cursos(asignatura, codigo)')
       .eq('profesor_id', user.id)
-      .eq('dia_semana', hoyDow)
       .order('hora_inicio')
-    clasesHoy = clasesRes.data ?? []
+    todasClases = clasesRes.data ?? []
   }
 
   return (
@@ -76,41 +77,8 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Clases de hoy */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-white flex items-center gap-2">
-              <span>📅</span> Horario de Hoy ({hoyDow})
-            </h2>
-            <Link href="/dashboard/tutorias" className="text-sm text-brand-400 hover:text-brand-300">
-              Ver calendario →
-            </Link>
-          </div>
-
-          {clasesHoy.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-gray-500 mb-2">No tienes clases registradas para hoy.</p>
-              <Link href="/dashboard/cursos" className="text-xs text-brand-400 hover:text-brand-300">
-                Gestionar cursos
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {clasesHoy.map((clase, idx) => (
-                <div key={idx} className="flex gap-3 p-3 rounded-lg bg-gray-800/50 border border-gray-800">
-                  <div className="flex flex-col justify-center text-center px-3 py-1 bg-gray-900 rounded border border-gray-700 min-w-[70px]">
-                    <span className="text-xs font-bold text-white">{clase.hora_inicio.slice(0, 5)}</span>
-                    <span className="text-[10px] text-gray-500">{clase.hora_fin.slice(0, 5)}</span>
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <p className="font-medium text-gray-200 text-sm">{clase.cursos?.asignatura}</p>
-                    <p className="text-xs text-gray-500">{clase.cursos?.codigo}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Horario semanal navegable */}
+        <HorarioSemanaWidget clases={todasClases} todayDia={hoyDow} />
 
         {/* Cursos recientes */}
         <div className="card">
