@@ -118,3 +118,38 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   revalidatePath('/dashboard/cursos')
   redirect('/dashboard/cursos')
 }
+
+export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string }[]): Promise<{ok: boolean, error?: string}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Unauthorized' }
+
+  // 1. Verify ownership of the course
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: curso } = await (supabase as any).from('cursos').select('id').eq('id', cursoId).eq('profesor_id', user.id).single()
+  if (!curso) return { ok: false, error: 'Course not found or unauthorized' }
+
+  // 2. Delete all existing horarios for this course
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('horarios_clases').delete().eq('curso_id', cursoId)
+
+  // 3. Insert new horarios
+  if (horarios && horarios.length > 0) {
+    const inserts = horarios.map(h => ({
+      curso_id: cursoId,
+      profesor_id: user.id,
+      dia_semana: h.dia_semana,
+      hora_inicio: h.hora_inicio,
+      hora_fin: h.hora_fin
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('horarios_clases').insert(inserts)
+    if (error) return { ok: false, error: error.message }
+  }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}`)
+  revalidatePath('/dashboard/tutorias')
+  revalidatePath('/dashboard')
+  
+  return { ok: true }
+}

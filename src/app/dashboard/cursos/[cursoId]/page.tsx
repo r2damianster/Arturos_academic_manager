@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { TutoriaToggle } from '@/components/cursos/tutoria-toggle'
+import { HorariosEditor } from '@/components/cursos/horarios-editor'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -60,16 +61,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
           )}
 
           {/* Horarios de Clase */}
-          {clases.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {clases.map((c: any) => (
-                <div key={c.id} className="bg-purple-900/40 border border-purple-800 rounded px-2.5 py-1 text-xs text-purple-200">
-                  <strong className="capitalize text-purple-300 mr-2">{c.dia_semana}</strong>
-                  {c.hora_inicio.slice(0,5)} - {c.hora_fin.slice(0,5)}
-                </div>
-              ))}
-            </div>
-          )}
+          <HorariosEditor cursoId={cursoId} initialClases={clases as any} />
         </div>
         <div className="text-right">
           <p className="text-3xl font-bold text-white">{estudiantes.length}</p>
