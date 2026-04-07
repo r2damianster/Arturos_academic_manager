@@ -31,41 +31,6 @@ export default async function DashboardPage() {
     .eq('fecha', hoy)
   const asistenciaHoy: number = asistenciaRes.count ?? 0
 
-  // Eventos de hoy
-  const eventosHoyRes = user
-    ? await db.from('eventos_profesor').select('id, titulo, tipo, hora_inicio, hora_fin, todo_el_dia, recurrente, recurrencia, recurrencia_dias, recurrencia_hasta, fecha_inicio, fecha_fin').eq('profesor_id', user.id)
-    : { data: [] }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const todosEventos: any[] = eventosHoyRes.data ?? []
-
-  // ── helpers inline ─────────────────────────────────────────────
-  function getEventosHoy(eventos: typeof todosEventos, hoy: string) {
-    const [y, m, d] = hoy.split('-').map(Number)
-    const date = new Date(y, m - 1, d)
-    const dow = date.getDay()
-    return eventos.filter((ev: typeof todosEventos[0]) => {
-      const [sy, sm, sd] = (ev.fecha_inicio as string).split('-').map(Number)
-      const [ey, em, ed] = (ev.fecha_fin as string).split('-').map(Number)
-      const start = new Date(sy, sm - 1, sd)
-      const end   = new Date(ey, em - 1, ed)
-      if (!ev.recurrente) return date >= start && date <= end
-      const hastaStr = ev.recurrencia_hasta ?? ev.fecha_fin
-      const [hy2, hm2, hd2] = (hastaStr as string).split('-').map(Number)
-      const hasta = new Date(hy2, hm2 - 1, hd2)
-      if (date < start || date > hasta) return false
-      if (ev.recurrencia === 'diaria') return true
-      if (ev.recurrencia === 'semanal') return (ev.recurrencia_dias ?? []).includes(dow)
-      if (ev.recurrencia === 'mensual') return date.getDate() === start.getDate()
-      return false
-    })
-  }
-  const eventosHoy = getEventosHoy(todosEventos, hoy)
-
-  const TIPO_DOT: Record<string, string> = {
-    personal: 'bg-purple-500', académico: 'bg-blue-500',
-    laboral: 'bg-emerald-500', social: 'bg-pink-500', otro: 'bg-gray-500',
-  }
-
   // Todas las clases de la semana (para el widget navegable)
   const DOW_MAP = [ 'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado' ]
   const hoyDow = DOW_MAP[new Date().getDay()] ?? 'lunes'
@@ -80,6 +45,41 @@ export default async function DashboardPage() {
       .eq('profesor_id', user.id)
       .order('hora_inicio')
     todasClases = clasesRes.data ?? []
+  }
+
+  // Eventos de hoy
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const todosEventos: any[] = user
+    ? (await db.from('eventos_profesor').select('id, titulo, tipo, hora_inicio, hora_fin, todo_el_dia, recurrente, recurrencia, recurrencia_dias, recurrencia_hasta, fecha_inicio, fecha_fin').eq('profesor_id', user.id)).data ?? []
+    : []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function getEventosHoy(eventos: any[], diaStr: string) {
+    const [y, m, d] = diaStr.split('-').map(Number)
+    const date = new Date(y, m - 1, d)
+    const dow = date.getDay()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return eventos.filter((ev: any) => {
+      const [sy, sm, sd] = (ev.fecha_inicio as string).split('-').map(Number)
+      const [ey, em, ed] = (ev.fecha_fin as string).split('-').map(Number)
+      const start = new Date(sy, sm - 1, sd)
+      const end   = new Date(ey, em - 1, ed)
+      if (!ev.recurrente) return date >= start && date <= end
+      const hastaStr = (ev.recurrencia_hasta ?? ev.fecha_fin) as string
+      const [hy2, hm2, hd2] = hastaStr.split('-').map(Number)
+      const hasta = new Date(hy2, hm2 - 1, hd2)
+      if (date < start || date > hasta) return false
+      if (ev.recurrencia === 'diaria') return true
+      if (ev.recurrencia === 'semanal') return ((ev.recurrencia_dias ?? []) as number[]).includes(dow)
+      if (ev.recurrencia === 'mensual') return date.getDate() === start.getDate()
+      return false
+    })
+  }
+  const eventosHoy = getEventosHoy(todosEventos, hoy)
+
+  const TIPO_DOT: Record<string, string> = {
+    personal: 'bg-purple-500', académico: 'bg-blue-500',
+    laboral: 'bg-emerald-500', social: 'bg-pink-500', otro: 'bg-gray-500',
   }
 
   return (
