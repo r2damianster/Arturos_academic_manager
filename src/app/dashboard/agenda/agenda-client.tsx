@@ -93,9 +93,9 @@ function getDynamicSlots(eventos: Evento[], weekDates: Date[]): string[] {
   return buildSlots(tMin, tMax)
 }
 
-function buildSlots(fromMin: number, toMin: number): string[] {
+function buildSlots(startMin: number, endMin: number): string[] {
   const slots: string[] = []
-  for (let m = fromMin; m < toMin; m += 30) {
+  for (let m = startMin; m < endMin; m += 30) {
     slots.push(fromMin(m))
   }
   return slots
