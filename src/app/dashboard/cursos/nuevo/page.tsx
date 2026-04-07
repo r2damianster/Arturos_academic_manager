@@ -22,7 +22,7 @@ export default function NuevoCursoPage() {
   const [codigoManual, setCodigoManual] = useState(false)
   const [numParciales, setNumParciales] = useState(2)
 
-  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string, tipo: string }
+  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string, tipo: string, centro_computo: boolean }
   const [horariosClases, setHorariosClases] = useState<HorarioInput[]>([])
 
 
@@ -84,12 +84,19 @@ export default function NuevoCursoPage() {
           </div>
         </div>
 
+        {/* Aula */}
+        <div>
+          <label className="label">Aula</label>
+          <input name="aula" className="input" placeholder="Ej: Aula 102 – Bloque PADF" maxLength={100} />
+          <p className="text-xs text-gray-500 mt-1">Visible también para los estudiantes</p>
+        </div>
+
         {/* Horarios de Clases */}
         <div className="space-y-3 pt-2 pb-2 border-y border-gray-800">
           <div className="flex justify-between items-center">
             <label className="label !mb-0">Horarios de Clases o Tutorías de Curso</label>
             <button type="button" className="text-xs text-brand-400 font-semibold"
-              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase' }])}>
+              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase', centro_computo: false }])}>
               + Añadir horario
             </button>
           </div>
@@ -144,6 +151,17 @@ export default function NuevoCursoPage() {
                         setHorariosClases(newH)
                       }} />
                   </div>
+                  {/* Fila 3: centro de cómputo */}
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" className="w-4 h-4 rounded accent-brand-500"
+                      checked={h.centro_computo}
+                      onChange={e => {
+                        const newH = [...horariosClases]
+                        newH[i] = { ...newH[i], centro_computo: e.target.checked }
+                        setHorariosClases(newH)
+                      }} />
+                    <span className="text-xs text-gray-400">Centro de cómputo</span>
+                  </label>
                 </div>
               ))}
             </div>

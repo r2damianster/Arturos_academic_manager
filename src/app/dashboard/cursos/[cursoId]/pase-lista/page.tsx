@@ -17,6 +17,7 @@ export interface EstudiantePerfil {
   trabajos_activos: number
   ultimo_trabajo: { id: string; tipo: string; tema: string | null; descripcion: string | null; estado: string | null; fecha_asignacion: string | null; progreso: number; observaciones_trabajo: { id: string; observacion: string; fecha: string | null }[] } | null
   ultima_observacion: string | null
+  ultima_obs_clase: { observacion: string; fecha: string } | null
   encuesta: any | null
 }
 
@@ -29,7 +30,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
   const [cursoRes, estudiantesRes, asistenciaHistRes, calificacionesRes, trabajosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, tutoria, auth_user_id').eq('curso_id', cursoId).order('nombre'),
-    db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
+    db.from('asistencia').select('estudiante_id, estado, observacion_part, fecha').eq('curso_id', cursoId).order('fecha', { ascending: false }),
     db.from('calificaciones').select('estudiante_id, acd1, ta1, pe1, ex1, acd2, ta2, pe2, ex2').eq('curso_id', cursoId),
     db.from('trabajos_asignados')
       .select('id, estudiante_id, tipo, tema, descripcion, estado, fecha_asignacion, progreso')
@@ -138,15 +139,21 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
         }
       : null
 
-    // Última observación del estudiante
+    // Última observación del trabajo (de observaciones_trabajo)
     const obsEst = observaciones.filter((o: { trabajo_id: string }) =>
       trabajoAEstudiante[o.trabajo_id] === est.id
     )
     const ultima_observacion = obsEst[0]?.observacion ?? null
 
+    // Última observación de clase (de asistencia.observacion_part)
+    const obsClaseEst = asistenciaHist.filter((r: any) => r.estudiante_id === est.id && r.observacion_part)
+    const ultima_obs_clase = obsClaseEst[0]
+      ? { observacion: obsClaseEst[0].observacion_part as string, fecha: obsClaseEst[0].fecha as string }
+      : null
+
     const encuesta = est.auth_user_id ? encuestas.find(e => e.auth_user_id === est.auth_user_id) : null
 
-    perfiles[est.id] = { pct_asistencia, promedio, trabajos_activos, ultimo_trabajo, ultima_observacion, encuesta }
+    perfiles[est.id] = { pct_asistencia, promedio, trabajos_activos, ultimo_trabajo, ultima_observacion, ultima_obs_clase, encuesta }
   }
 
   return (

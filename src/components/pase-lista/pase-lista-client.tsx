@@ -105,7 +105,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
       [actual.id]: {
         estado,
         atraso: estado === 'Atraso',
-        horas: estado === 'Ausente' ? 0 : horas,
+        horas: estado === 'Ausente' ? 0 : estado === 'Atraso' ? Math.max(1, Math.round(horas / 2)) : horas,
         participacion: prev[actual.id]?.participacion ?? null,
         observacion_part: prev[actual.id]?.observacion_part ?? '',
         obs_trabajo: prev[actual.id]?.obs_trabajo ?? '',
@@ -408,10 +408,20 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           )
         })()}
 
-        {/* Última observación */}
+        {/* Última observación de clase */}
+        {perfiles[actual.id]?.ultima_obs_clase && (
+          <div className="px-1 border-l-2 border-blue-800">
+            <p className="text-xs text-gray-500 mb-0.5">
+              Última obs. de clase <span className="text-gray-600">({new Date(perfiles[actual.id].ultima_obs_clase!.fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })})</span>
+            </p>
+            <p className="text-xs text-gray-400 italic line-clamp-2">&ldquo;{perfiles[actual.id].ultima_obs_clase!.observacion}&rdquo;</p>
+          </div>
+        )}
+
+        {/* Última observación del trabajo */}
         {perfiles[actual.id]?.ultima_observacion && (
           <div className="px-1 border-l-2 border-gray-700">
-            <p className="text-xs text-gray-500 mb-0.5">Última observación</p>
+            <p className="text-xs text-gray-500 mb-0.5">Última obs. del trabajo</p>
             <p className="text-xs text-gray-400 italic line-clamp-2">&ldquo;{perfiles[actual.id].ultima_observacion}&rdquo;</p>
           </div>
         )}
@@ -518,7 +528,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           ))}
         </div>
 
-        {/* ── Participación (aparece al marcar Presente o Atraso) ── */}
+        {/* ── Participación y observación (aparece al marcar Presente o Atraso) ── */}
         {puedeParticipacion && (
           <div className="border-t border-gray-800 pt-3 space-y-2">
             <p className="text-xs text-gray-400 font-medium">
@@ -536,20 +546,18 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
               ))}
             </div>
             {regActual?.participacion != null && (
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-medium flex-shrink-0 ${COLORES_TEXT[regActual.participacion]}`}>
-                  {ETIQUETAS[regActual.participacion]}
-                </span>
-                <input
-                  type="text"
-                  placeholder="Observación (opcional)"
-                  value={regActual.observacion_part ?? ''}
-                  onChange={e => setObservacion(e.target.value)}
-                  maxLength={200}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
+              <p className={`text-xs font-medium ${COLORES_TEXT[regActual.participacion]}`}>
+                {ETIQUETAS[regActual.participacion]}
+              </p>
             )}
+            <input
+              type="text"
+              placeholder="Observación de participación (opcional)"
+              value={regActual?.observacion_part ?? ''}
+              onChange={e => setObservacion(e.target.value)}
+              maxLength={200}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
           </div>
         )}
       </div>

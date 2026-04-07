@@ -9,6 +9,7 @@ const CursoSchema = z.object({
   codigo:         z.string().min(2).max(30),
   asignatura:     z.string().min(3).max(100),
   periodo:        z.string().min(3).max(20),
+  aula:           z.string().max(100).optional(),
   fecha_inicio:   z.string().optional(),
   fecha_fin:      z.string().optional(),
   horas_semana:   z.coerce.number().int().min(1).max(200).default(64),
@@ -73,7 +74,8 @@ export async function crearCursoAction(formData: FormData): Promise<void> {
           dia_semana: h.dia_semana,
           hora_inicio: h.hora_inicio,
           hora_fin: h.hora_fin,
-          tipo: h.tipo || 'clase'
+          tipo: h.tipo || 'clase',
+          centro_computo: h.centro_computo ?? false,
         }))
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any).from('horarios_clases').insert(inserts)
@@ -120,7 +122,7 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   redirect('/dashboard/cursos')
 }
 
-export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string, tipo?: string }[]): Promise<{ok: boolean, error?: string}> {
+export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string, tipo?: string, centro_computo?: boolean }[]): Promise<{ok: boolean, error?: string}> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Unauthorized' }
@@ -142,7 +144,8 @@ export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_s
       dia_semana: h.dia_semana,
       hora_inicio: h.hora_inicio,
       hora_fin: h.hora_fin,
-      tipo: h.tipo || 'clase'
+      tipo: h.tipo || 'clase',
+      centro_computo: h.centro_computo ?? false,
     }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('horarios_clases').insert(inserts)

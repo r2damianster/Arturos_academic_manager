@@ -17,12 +17,26 @@ interface CalificacionRow {
 
 interface Estudiante { id: string; nombre: string; email: string }
 
+interface EncuestaEstudiante {
+  tiene_laptop: boolean | null
+  tiene_pc_escritorio: boolean | null
+  comparte_pc: boolean | null
+  trabaja: boolean | null
+  tipo_trabajo: string | null
+  situacion_vivienda: string | null
+  es_foraneo: boolean | null
+  problemas_reportados: string | null
+  nivel_tecnologia: number | null
+  modalidad_carrera: string | null
+}
+
 interface Props {
   cursoId: string
   estudiantes: Estudiante[]
   calificaciones: Record<string, Partial<CalificacionRow>>
   numParciales?: number
   nombresTareas?: string[]
+  perfiles?: Record<string, EncuestaEstudiante>
 }
 
 const PREFIJOS: Prefijo[] = ['acd', 'ta', 'pe', 'ex']
@@ -38,7 +52,7 @@ function calcularPromedio(notas: Partial<CalificacionRow>, p: Parcial): number {
   return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
 }
 
-export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numParciales = 2, nombresTareas = NOMBRES_DEFAULT }: Props) {
+export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numParciales = 2, nombresTareas = NOMBRES_DEFAULT, perfiles = {} }: Props) {
   const parciales = Array.from({ length: numParciales }, (_, i) => (i + 1) as Parcial)
   const [parcial, setParcial] = useState<Parcial>(1)
   const [datos, setDatos] = useState<Record<string, Partial<CalificacionRow>>>(() => {
@@ -96,8 +110,39 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numP
               return (
                 <tr key={est.id} className="hover:bg-gray-800/50 transition-colors">
                   <td className="px-4 py-2">
-                    <Link href={`/dashboard/estudiantes/${est.id}`} className="font-medium text-gray-200 hover:text-white transition-colors">{est.nombre}</Link>
-                    <p className="text-xs text-gray-600 truncate">{est.email}</p>
+                    <div className="flex items-start gap-1.5">
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/dashboard/estudiantes/${est.id}`} className="font-medium text-gray-200 hover:text-white transition-colors">{est.nombre}</Link>
+                        <p className="text-xs text-gray-600 truncate">{est.email}</p>
+                        {perfiles[est.id] && (() => {
+                          const p = perfiles[est.id]
+                          const tienePC = p.tiene_laptop || p.tiene_pc_escritorio
+                          return (
+                            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              {tienePC && <span className="text-[10px] text-gray-500" title={p.comparte_pc ? 'Comparte PC' : 'Tiene computadora'}>💻</span>}
+                              {!tienePC && <span className="text-[10px] text-red-500" title="Sin computadora">📵</span>}
+                              {p.trabaja && <span className="text-[10px] text-yellow-500" title={p.tipo_trabajo ?? 'Trabaja'}>💼</span>}
+                              {p.es_foraneo && <span className="text-[10px] text-blue-400" title="Foráneo">🏠</span>}
+                              {/* Tooltip de datos sensibles */}
+                              <div className="relative group inline-block">
+                                <span className="cursor-help text-gray-600 hover:text-gray-300 text-[10px] leading-none select-none">ℹ</span>
+                                <div className="absolute left-0 bottom-full mb-1 w-56 bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-[11px] text-gray-300 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-2xl pointer-events-none space-y-1">
+                                  <p><span className="text-gray-500">Vivienda:</span> {p.situacion_vivienda ?? '—'}</p>
+                                  <p><span className="text-gray-500">Modalidad:</span> {p.modalidad_carrera ?? '—'}</p>
+                                  <p><span className="text-gray-500">Trabaja:</span> {p.trabaja ? (p.tipo_trabajo ?? 'Sí') : 'No'}</p>
+                                  <p><span className="text-gray-500">Nivel tech:</span> {p.nivel_tecnologia != null ? `${p.nivel_tecnologia}/5` : '—'}</p>
+                                  {p.problemas_reportados && p.problemas_reportados !== 'Ninguna' && (
+                                    <p className="text-yellow-400 border-t border-gray-800 pt-1 mt-1">
+                                      <span className="text-gray-500">Problemas:</span> {p.problemas_reportados}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
                   </td>
                   {campos.map(campo => (
                     <td key={campo} className="px-3 py-2 text-center">

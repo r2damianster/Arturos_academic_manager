@@ -122,6 +122,9 @@ export default async function StudentPage() {
                 <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">{curso.codigo}</span>
                 <h2 className="text-lg font-semibold text-white mt-1">{curso.asignatura}</h2>
                 <p className="text-xs text-gray-500">{curso.periodo}</p>
+                {(curso as any).aula && (
+                  <p className="text-xs text-gray-400 mt-0.5">📍 {(curso as any).aula}</p>
+                )}
               </div>
               {pctAsistencia !== null && (
                 <div className="text-right">

@@ -496,21 +496,24 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                           if (clase.tipo === 'tutoria_curso') {
                             const isTutoriaOpen = popover === `tutoria|${clase.id}|${dateStr}`
                             const anunciosDelDia = clase.anuncios_tutoria_curso?.filter(a => a.fecha === dateStr) || []
+                            const isFirstSlot = time === fmt(clase.hora_inicio)
                             return (
                               <td key={dateStr} className="px-0.5 py-0.5 relative">
                                 <button
-                                  onClick={() => setPopover(isTutoriaOpen ? null : `tutoria|${clase.id}|${dateStr}`)}
+                                  onClick={() => isFirstSlot ? setPopover(isTutoriaOpen ? null : `tutoria|${clase.id}|${dateStr}`) : undefined}
                                   className={`w-full h-5 rounded border flex items-center justify-center transition-colors ${
                                     isTutoriaOpen ? 'bg-orange-600/80 border-orange-400 ring-1 ring-orange-400' : 'bg-orange-900/30 border-orange-800/60 hover:bg-orange-800/50'
-                                  }`}
+                                  } ${!isFirstSlot ? 'cursor-default' : ''}`}
                                   title={`Tutoría Grupal: ${clase.cursos?.asignatura}`}
                                 >
-                                  <span className="text-[7px] text-orange-300 font-bold px-0.5 truncate flex gap-1">
-                                    {clase.cursos?.asignatura}
-                                    {anunciosDelDia.length > 0 && <span className="bg-orange-500 text-white rounded-full px-1">{anunciosDelDia.length}</span>}
-                                  </span>
+                                  {isFirstSlot && (
+                                    <span className="text-[7px] text-orange-300 font-bold px-0.5 truncate flex gap-1">
+                                      {clase.cursos?.asignatura}
+                                      {anunciosDelDia.length > 0 && <span className="bg-orange-500 text-white rounded-full px-1">{anunciosDelDia.length}</span>}
+                                    </span>
+                                  )}
                                 </button>
-                                {isTutoriaOpen && (
+                                {isTutoriaOpen && isFirstSlot && (
                                   <div className="absolute left-0 top-6 z-50 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 space-y-2 pointer-events-auto"
                                     onClick={e => e.stopPropagation()}>
                                     <div className="flex justify-between items-start mb-2">

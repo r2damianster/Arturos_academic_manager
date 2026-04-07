@@ -53,6 +53,9 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
             {semana && <span className="badge-azul">{semana}</span>}
           </div>
           <h1 className="text-2xl font-bold text-white">{curso.asignatura}</h1>
+          {(curso as any).aula && (
+            <p className="text-sm text-gray-400 mt-0.5">📍 {(curso as any).aula}</p>
+          )}
           {curso.fecha_inicio && (
             <p className="text-sm text-gray-500 mt-1">
               {new Date(curso.fecha_inicio).toLocaleDateString('es-ES', { month: 'long', day: 'numeric', year: 'numeric' })}

@@ -8,6 +8,7 @@ interface Clase {
   hora_inicio: string
   hora_fin: string
   tipo: string
+  centro_computo?: boolean
 }
 
 interface Props {
@@ -49,7 +50,9 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
             {clases.map((c, i) => (
               <div key={i} className={`border rounded px-2.5 py-1 text-xs ${c.tipo === 'tutoria_curso' ? 'bg-orange-900/40 border-orange-800 text-orange-200' : 'bg-purple-900/40 border-purple-800 text-purple-200'}`}>
                 <strong className={`capitalize mr-2 ${c.tipo === 'tutoria_curso' ? 'text-orange-300' : 'text-purple-300'}`}>{c.dia_semana}</strong>
-                {c.hora_inicio.slice(0,5)} - {c.hora_fin.slice(0,5)} {c.tipo === 'tutoria_curso' && '(Tutoría)'}
+                {c.hora_inicio.slice(0,5)} - {c.hora_fin.slice(0,5)}
+                {c.tipo === 'tutoria_curso' && ' (Tutoría)'}
+                {c.centro_computo && ' 💻'}
               </div>
             ))}
           </div>
@@ -63,7 +66,7 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
       <div className="flex justify-between items-center">
         <h2 className="font-semibold text-white text-sm">Editar Horarios de Clase</h2>
         <button type="button" className="text-xs text-brand-400 hover:text-brand-300 font-semibold"
-          onClick={() => setClases([...clases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase' }])}>
+          onClick={() => setClases([...clases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase', centro_computo: false }])}>
           + Añadir horario
         </button>
       </div>
@@ -119,6 +122,17 @@ export function HorariosEditor({ cursoId, initialClases }: Props) {
                     setClases(newH)
                   }} />
               </div>
+              {/* Fila 3: centro de cómputo */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" className="w-4 h-4 rounded accent-brand-500"
+                  checked={h.centro_computo ?? false}
+                  onChange={e => {
+                    const newH = [...clases]
+                    newH[i] = { ...newH[i], centro_computo: e.target.checked }
+                    setClases(newH)
+                  }} />
+                <span className="text-xs text-gray-400">💻 Centro de cómputo</span>
+              </label>
             </div>
           ))}
         </div>

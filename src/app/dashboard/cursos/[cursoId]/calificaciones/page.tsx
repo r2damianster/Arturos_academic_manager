@@ -11,7 +11,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
 
   const [cursoRes, estudiantesRes, califRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
   ])
 
@@ -20,6 +20,21 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const curso = cursoRes.data
   const estudiantes = estudiantesRes.data ?? []
   const calificaciones = califRes.data ?? []
+
+  const authIds = estudiantes.map((e: any) => e.auth_user_id).filter(Boolean)
+  const encuestasRes = authIds.length > 0
+    ? await db.from('encuesta_estudiante')
+        .select('auth_user_id, tiene_laptop, tiene_pc_escritorio, comparte_pc, trabaja, tipo_trabajo, situacion_vivienda, es_foraneo, problemas_reportados, nivel_tecnologia, modalidad_carrera')
+        .in('auth_user_id', authIds)
+    : { data: [] }
+  const encuestas: any[] = encuestasRes.data ?? []
+  const authToEstId: Record<string, string> = {}
+  for (const e of estudiantes as any[]) if (e.auth_user_id) authToEstId[e.auth_user_id] = e.id
+  const perfilesMap: Record<string, any> = {}
+  for (const enc of encuestas) {
+    const estId = authToEstId[enc.auth_user_id]
+    if (estId) perfilesMap[estId] = enc
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapaCalif: Record<string, any> = {}
@@ -61,6 +76,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           calificaciones={mapaCalif}
           numParciales={numParciales}
           nombresTareas={nombresTareas}
+          perfiles={perfilesMap}
         />
       )}
     </div>
