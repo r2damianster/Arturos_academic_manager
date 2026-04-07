@@ -38,6 +38,7 @@ export async function registrarAsistenciaMasiva(
     estado: r.estado,
     atraso: r.atraso,
     horas: r.horas,
+    observacion_part: r.observacion_part?.trim() || null,
   }))
 
   const { error: errAsis } = await (supabase as AnySupabase)
@@ -55,7 +56,6 @@ export async function registrarAsistenciaMasiva(
       fecha,
       semana,
       nivel: r.participacion,
-      observacion: r.observacion_part ?? null,
     }))
 
   // Evitar duplicados si se vuelve a tomar lista para la misma fecha
