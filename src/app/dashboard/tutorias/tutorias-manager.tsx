@@ -125,15 +125,51 @@ function isSlotActiveOnDate(h: Horario, dateStr: string): boolean {
 
 // ─── Time slots ───────────────────────────────────────────────────────────────
 
-function getSlots(): string[] {
+const DEFAULT_START = 9   // 09:00 fallback
+const DEFAULT_END   = 17  // 17:00 fallback
+
+function allSlots(): string[] {
   const s: string[] = []
-  for (let hh = 7; hh <= 19; hh++) {
+  for (let hh = 0; hh <= 23; hh++) {
     s.push(`${String(hh).padStart(2,'0')}:00`)
     s.push(`${String(hh).padStart(2,'0')}:30`)
   }
-  return s.filter(x => x <= '19:30')
+  return s
 }
-const TIME_SLOTS = getSlots()
+const ALL_SLOTS = allSlots()
+
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+function fromMinutes(total: number): string {
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+}
+
+function getDynamicSlots(horarios: { hora_inicio: string; hora_fin: string }[], clases: { hora_inicio: string; hora_fin: string }[]): string[] {
+  const allEvents = [...horarios, ...clases]
+  if (allEvents.length === 0) {
+    return ALL_SLOTS.filter(s => s >= `${String(DEFAULT_START).padStart(2,'0')}:00` && s < `${String(DEFAULT_END).padStart(2,'0')}:00`)
+  }
+
+  const starts = allEvents.map(e => toMinutes(fmt(e.hora_inicio)))
+  const ends   = allEvents.map(e => toMinutes(fmt(e.hora_fin)))
+
+  const tMin = Math.max(0,    Math.min(...starts) - 60)  // –1h, no bajar de 00:00
+  const tMax = Math.min(1440, Math.max(...ends)   + 60)  // +1h, no pasar de 24:00
+
+  // snap to the nearest :00 or :30
+  const snapMin = Math.floor(tMin / 30) * 30
+  const snapMax = Math.ceil(tMax  / 30) * 30
+
+  return ALL_SLOTS.filter(s => {
+    const m = toMinutes(s)
+    return m >= snapMin && m < snapMax
+  })
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -171,6 +207,10 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const profesorId = horarios[0]?.profesor_id ?? ''
 
   const weekDates    = getWeekDates(weekOffset)
+
+  // Dynamic time slots: scan all horarios + clases to find Tmin/Tmax for this week
+  const timeSlots = getDynamicSlots(horarios, clases)
+
   const horarioMap   = new Map<string, Horario>()
   for (const h of horarios) {
     horarioMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
@@ -180,7 +220,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   for (const c of clases) {
     const start = fmt(c.hora_inicio)
     const end = fmt(c.hora_fin)
-    for (const slot of TIME_SLOTS) {
+    for (const slot of ALL_SLOTS) {
       if (slot >= start && slot < end) {
         claseMap.set(`${c.dia_semana}|${slot}`, c)
       }
@@ -479,7 +519,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                 </tr>
               </thead>
               <tbody>
-                {TIME_SLOTS.map(time => {
+                {timeSlots.map(time => {
                   const diaKeys = activeDias.map(d => DAY_JS[d.getDay()])
                   const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`) || claseMap.has(`${dia}|${time}`))
                   if (!hasSomething) return null
