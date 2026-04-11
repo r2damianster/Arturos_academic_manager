@@ -176,9 +176,16 @@ export function TutoriasBooking({
   const mySet = new Set(reservas.map(r => `${r.horario_id}|${r.fecha}`))
 
   // Active days for this professor in the viewed week
+  // Only include days with tutoria slots OR tutoria_curso for the student's own courses
   const activeDias = weekDates.filter(date => {
     const diaKey = DAY_JS[date.getDay()]
-    return profHorarios.some(h => h.dia_semana === diaKey) || profClases.some(c => c.dia_semana === diaKey)
+    const hasTutoriaSlot = profHorarios.some(h => h.dia_semana === diaKey)
+    const hasTutoriaCurso = profClases.some(c =>
+      c.dia_semana === diaKey &&
+      c.tipo === 'tutoria_curso' &&
+      estudianteCursoIds.includes(c.curso_id ?? '')
+    )
+    return hasTutoriaSlot || hasTutoriaCurso
   })
 
   // ── Toggle tutoria_curso announce ─────────────────────────────────────────
@@ -406,7 +413,10 @@ export function TutoriasBooking({
                 {TIME_SLOTS.map(time => {
                   const hasSomething = activeDias.some(date => {
                     const diaKey = DAY_JS[date.getDay()]
-                    return slotMap.has(`${diaKey}|${time}`) || claseMap.has(`${diaKey}|${time}`)
+                    const hasSlot = slotMap.has(`${diaKey}|${time}`)
+                    const c = claseMap.get(`${diaKey}|${time}`)
+                    const hasRelevantClase = !!c && c.tipo === 'tutoria_curso' && estudianteCursoIds.includes(c.curso_id ?? '')
+                    return hasSlot || hasRelevantClase
                   })
                   if (!hasSomething) return null
                   return (
@@ -427,8 +437,8 @@ export function TutoriasBooking({
                         const isTutoriaCurso = clase?.tipo === 'tutoria_curso' && estudianteCursoIds.includes(clase.curso_id ?? '')
                         const isRegularClass = !!clase && !isTutoriaCurso
 
-                        // Slot expired + not a class — empty cell
-                        if (!activeOnDate && !isMine && !clase) return <td key={dateStr} className="px-1 py-0.5" />
+                        // Slot expired + not a relevant class — empty cell
+                        if (!activeOnDate && !isMine && !isTutoriaCurso) return <td key={dateStr} className="px-1 py-0.5" />
 
                         if (isMine) {
                           return (
@@ -465,8 +475,11 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Regular class or occupied slot
-                        if (isOccupied || isRegularClass) {
+                        // Regular class — not shown to students
+                        if (isRegularClass) return <td key={dateStr} className="px-1 py-0.5" />
+
+                        // Occupied by another student
+                        if (isOccupied) {
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
                               <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
