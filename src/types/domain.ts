@@ -10,7 +10,16 @@ export type Participacion   = Database['public']['Tables']['participacion']['Row
 export type Calificacion    = Database['public']['Tables']['calificaciones']['Row']
 export type Trabajo         = Database['public']['Tables']['trabajos_asignados']['Row']
 export type ObservacionTrabajo = Database['public']['Tables']['observaciones_trabajo']['Row']
-export type BitacoraClase   = Database['public']['Tables']['bitacora_clase']['Row']
+export type BitacoraClaseRow = Database['public']['Tables']['bitacora_clase']['Row']
+export type BitacoraClase   = BitacoraClaseRow & {
+  estado?: 'planificado' | 'cumplido' | null
+  actividades_json?: ActividadPlanificada[] | null
+}
+
+export type ActividadPlanificada = {
+  actividad: string
+  recurso: string
+}
 export type HorarioClase    = Database['public']['Tables']['horarios_clases']['Row']
 export type AnuncioTutoria  = Database['public']['Tables']['anuncios_tutoria_curso']['Row']
 

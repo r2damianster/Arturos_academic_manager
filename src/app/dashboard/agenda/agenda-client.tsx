@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { crearEvento, eliminarEvento } from '@/lib/actions/eventos'
 import { activarHorario, asignarTutoriaDirecta, type DuracionTutoria } from '@/lib/actions/tutorias'
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
+import { PlanificarModal } from '@/components/agenda/PlanificarModal'
+import { PasarListaModal } from '@/components/agenda/PasarListaModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -210,6 +212,24 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [durSaving,   setDurSaving]   = useState(false)
   const [popover,     setPopover]     = useState<string | null>(null) // `${horarioId}|${dateStr}`
 
+  // Planificación / pase de lista desde agenda
+  type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista' }
+  const [claseModal,    setClaseModal]    = useState<ClaseModal | null>(null)
+  const [clasePicker,   setClasePicker]   = useState<{ clase: Clase; fecha: string } | null>(null)
+  const clasePickerRef = useRef<HTMLDivElement>(null)
+
+  // Cerrar clase picker al hacer click fuera
+  useEffect(() => {
+    if (!clasePicker) return
+    function handleClick(e: MouseEvent) {
+      if (clasePickerRef.current && !clasePickerRef.current.contains(e.target as Node)) {
+        setClasePicker(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [clasePicker])
+
   // Direct assignment
   const [showAssign,  setShowAssign]  = useState(false)
   const [assignEst,   setAssignEst]   = useState('')
@@ -220,10 +240,35 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
   const [, startTransition] = useTransition()
 
+  // Bitácoras de la semana visible (para badges en bloques de clase)
+  const [bitacoraMap, setBitacoraMap] = useState<Map<string, { estado: string }>>(new Map())
+
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
   const timeSlots = useMemo(() => getDynamicSlots(horarios, clases, eventos, weekDates), [horarios, clases, eventos, weekDates])
+
+  // Cargar bitácoras de la semana visible para mostrar badges
+  useEffect(() => {
+    const fechaMin = dateToStr(weekDates[0])
+    const fechaMax = dateToStr(weekDates[weekDates.length - 1])
+    const cursoIds = [...new Set(clases.map(c => c.cursos?.id).filter(Boolean))]
+    if (cursoIds.length === 0) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase as any)
+      .from('bitacora_clase')
+      .select('curso_id, fecha, estado')
+      .in('curso_id', cursoIds)
+      .gte('fecha', fechaMin)
+      .lte('fecha', fechaMax)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }: { data: any[] | null }) => {
+        const m = new Map<string, { estado: string }>()
+        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, { estado: b.estado })
+        setBitacoraMap(m)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekOffset, clases.length])
   const slotStart = timeSlots.length ? toMin(timeSlots[0]) : DEFAULT_START
 
 
@@ -454,22 +499,64 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                     />
                   ))}
 
-                  {/* ── Clase blocks (non-interactive) ── */}
+                  {/* ── Clase blocks (clickable: planificar / tomar lista) ── */}
                   {dayClases.map(c => {
-                    const pos = blockPos(c.hora_inicio, c.hora_fin)
+                    const pos       = blockPos(c.hora_inicio, c.hora_fin)
                     const isTutoria = c.tipo === 'tutoria_curso'
-                    const voy = c.anuncios_tutoria_curso?.length ?? 0
+                    const voy       = c.anuncios_tutoria_curso?.length ?? 0
+                    const cursoId   = c.cursos?.id
+                    const bitKey    = `${cursoId}|${ds}`
+                    const bitEstado = cursoId ? bitacoraMap.get(bitKey)?.estado : undefined
+                    const isOpen    = clasePicker?.clase.id === c.id && clasePicker?.fecha === ds
+
                     return (
-                      <div key={c.id}
-                        className={`absolute left-0.5 right-0.5 rounded border px-1.5 py-1 overflow-hidden z-10 ${isTutoria ? 'bg-orange-600/25 border-orange-500/50' : 'bg-blue-600/25 border-blue-500/50'}`}
+                      <div key={c.id} className="absolute left-0.5 right-0.5 z-10"
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>
-                        <p className={`text-[11px] font-semibold leading-tight truncate ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
-                          {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
-                        </p>
-                        {pos.height >= SLOT_H && (
-                          <p className="text-[10px] opacity-60 leading-none mt-0.5">
-                            {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+
+                        {/* Bloque principal */}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setClasePicker(isOpen ? null : { clase: c, fecha: ds })
+                          }}
+                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden
+                            ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
+                                        : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
+                          <p className={`text-[11px] font-semibold leading-tight truncate
+                            ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
+                            {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
                           </p>
+                          {pos.height >= SLOT_H && (
+                            <p className="text-[10px] opacity-60 leading-none mt-0.5">
+                              {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+                            </p>
+                          )}
+                          {/* Badge de estado de planificación */}
+                          {bitEstado && pos.height >= SLOT_H * 1.5 && (
+                            <p className={`text-[10px] font-medium mt-0.5 ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
+                              {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
+                            </p>
+                          )}
+                        </button>
+
+                        {/* Picker de acción */}
+                        {isOpen && (
+                          <div ref={clasePickerRef}
+                            className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[160px]"
+                            onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'planificar' }) }}
+                              className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
+                              <span>📋</span><span>Planificar clase</span>
+                            </button>
+                            {c.cursos?.id && (
+                              <button
+                                onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'lista' }) }}
+                                className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
+                                <span>✓</span><span>Tomar lista</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )
@@ -763,6 +850,48 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       {/* Close popover on outside click */}
       {popover && (
         <div className="fixed inset-0 z-30" onClick={() => setPopover(null)} />
+      )}
+
+      {/* ── Planificar modal ──────────────────────────────────────── */}
+      {claseModal?.mode === 'planificar' && claseModal.clase.cursos?.id && (
+        <PlanificarModal
+          cursoId={claseModal.clase.cursos.id}
+          asignatura={claseModal.clase.cursos.asignatura}
+          fecha={claseModal.fecha}
+          horaInicio={claseModal.clase.hora_inicio}
+          horaFin={claseModal.clase.hora_fin}
+          onClose={() => setClaseModal(null)}
+          onSaved={() => {
+            setClaseModal(null)
+            // Refrescar badges de bitácora
+            setBitacoraMap(prev => {
+              const next = new Map(prev)
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado' })
+              return next
+            })
+          }}
+        />
+      )}
+
+      {/* ── Pase de lista modal ───────────────────────────────────── */}
+      {claseModal?.mode === 'lista' && claseModal.clase.cursos?.id && (
+        <PasarListaModal
+          cursoId={claseModal.clase.cursos.id}
+          asignatura={claseModal.clase.cursos.asignatura}
+          fecha={claseModal.fecha}
+          horaInicio={claseModal.clase.hora_inicio}
+          horaFin={claseModal.clase.hora_fin}
+          onClose={() => setClaseModal(null)}
+          onSaved={() => {
+            setClaseModal(null)
+            setBitacoraMap(prev => {
+              const next = new Map(prev)
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'cumplido' })
+              return next
+            })
+            router.refresh()
+          }}
+        />
       )}
     </>
   )

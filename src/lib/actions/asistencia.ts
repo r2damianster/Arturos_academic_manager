@@ -20,7 +20,8 @@ export type RegistroAsistenciaInput = {
 export async function registrarAsistenciaMasiva(
   cursoId: string,
   fecha: string,
-  registros: RegistroAsistenciaInput[]
+  registros: RegistroAsistenciaInput[],
+  bitacoraId?: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,6 +40,7 @@ export async function registrarAsistenciaMasiva(
     atraso: r.atraso,
     horas: r.horas,
     observacion_part: r.observacion_part?.trim() || null,
+    bitacora_id: bitacoraId ?? null,
   }))
 
   const { error: errAsis } = await (supabase as AnySupabase)
@@ -83,5 +85,6 @@ export async function registrarAsistenciaMasiva(
   }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/asistencia`)
+  revalidatePath('/dashboard/agenda')
   return {}
 }
