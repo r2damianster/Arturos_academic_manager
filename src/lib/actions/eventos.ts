@@ -59,6 +59,27 @@ export async function crearEvento(data: EventoInput): Promise<{ error?: string; 
   return { id: row.id }
 }
 
+export async function actualizarEvento(id: string, data: EventoInput): Promise<{ error?: string }> {
+  const parsed = EventoSchema.safeParse(data)
+  if (!parsed.success) return { error: 'Datos inválidos' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('eventos_profesor')
+    .update(parsed.data)
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
+  return {}
+}
+
 export async function eliminarEvento(id: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

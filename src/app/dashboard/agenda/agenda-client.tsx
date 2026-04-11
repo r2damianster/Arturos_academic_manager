@@ -3,8 +3,8 @@
 import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { crearEvento, eliminarEvento } from '@/lib/actions/eventos'
-import { activarHorario, asignarTutoriaDirecta, type DuracionTutoria } from '@/lib/actions/tutorias'
+import { crearEvento, actualizarEvento, eliminarEvento } from '@/lib/actions/eventos'
+import { activarHorario, asignarTutoriaDirecta, eliminarReserva, type DuracionTutoria } from '@/lib/actions/tutorias'
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PasarListaModal } from '@/components/agenda/PasarListaModal'
@@ -56,7 +56,7 @@ interface Estudiante {
 
 const TIPO_COLOR: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   personal:  { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40', dot: 'bg-purple-500' },
-  académico: { bg: 'bg-blue-500/15',   text: 'text-blue-300',   border: 'border-blue-500/40',   dot: 'bg-blue-500' },
+  académico: { bg: 'bg-teal-500/15',   text: 'text-teal-300',   border: 'border-teal-500/40',   dot: 'bg-teal-500' },
   laboral:   { bg: 'bg-amber-500/15',  text: 'text-amber-300',  border: 'border-amber-500/40',  dot: 'bg-amber-500' },
   social:    { bg: 'bg-pink-500/15',   text: 'text-pink-300',   border: 'border-pink-500/40',   dot: 'bg-pink-500' },
   otro:      { bg: 'bg-gray-500/15',   text: 'text-gray-300',   border: 'border-gray-500/40',   dot: 'bg-gray-500' },
@@ -197,14 +197,15 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
   const [eventos,    setEventos]    = useState<Evento[]>(initEv)
   const [horarios,   setHorarios]   = useState<HorarioTutoria[]>(initH)
-  const [reservas] = useState<Reserva[]>(initR)
+  const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
 
   // Personal event form
-  const [showEvForm, setShowEvForm] = useState(false)
-  const [evForm,     setEvForm]     = useState<EventoInput>(emptyForm(today))
-  const [evSaving,   setEvSaving]   = useState(false)
-  const [selEvento,  setSelEvento]  = useState<Evento | null>(null)
+  const [showEvForm,    setShowEvForm]    = useState(false)
+  const [editingEvento, setEditingEvento] = useState<string | null>(null) // id del evento siendo editado
+  const [evForm,        setEvForm]        = useState<EventoInput>(emptyForm(today))
+  const [evSaving,      setEvSaving]      = useState(false)
+  const [selEvento,     setSelEvento]     = useState<Evento | null>(null)
 
   // Tutoría slot UI
   const [durPicker,   setDurPicker]   = useState<number | null>(null)
@@ -348,9 +349,18 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   async function handleEvSubmit(e: React.FormEvent) {
     e.preventDefault()
     setEvSaving(true)
-    const result = await crearEvento(evForm)
+    if (editingEvento) {
+      const result = await actualizarEvento(editingEvento, evForm)
+      if (!result.error) {
+        setShowEvForm(false)
+        setEditingEvento(null)
+        router.refresh()
+      }
+    } else {
+      const result = await crearEvento(evForm)
+      if (!result.error) { setShowEvForm(false); router.refresh() }
+    }
     setEvSaving(false)
-    if (!result.error) { setShowEvForm(false); router.refresh() }
   }
 
   function handleEvDelete(id: string) {
@@ -359,6 +369,34 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       await eliminarEvento(id)
       setEventos(prev => prev.filter(ev => ev.id !== id))
     })
+  }
+
+  function handleEliminarReserva(reservaId: number) {
+    setPopover(null)
+    setReservas(prev => prev.filter(r => r.id !== reservaId))
+    startTransition(async () => {
+      await eliminarReserva(reservaId)
+    })
+  }
+
+  function openEvEdit(ev: Evento) {
+    setSelEvento(null)
+    setEditingEvento(ev.id)
+    setEvForm({
+      titulo: ev.titulo,
+      descripcion: ev.descripcion,
+      tipo: ev.tipo as EventoInput['tipo'],
+      fecha_inicio: ev.fecha_inicio,
+      fecha_fin: ev.fecha_fin,
+      hora_inicio: ev.hora_inicio,
+      hora_fin: ev.hora_fin,
+      todo_el_dia: ev.todo_el_dia,
+      recurrente: ev.recurrente,
+      recurrencia: ev.recurrencia as EventoInput['recurrencia'],
+      recurrencia_dias: ev.recurrencia_dias,
+      recurrencia_hasta: ev.recurrencia_hasta,
+    })
+    setShowEvForm(true)
   }
 
   // ── Direct assignment ──────────────────────────────────────────────────────
@@ -576,17 +614,17 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                           onClick={e => { e.stopPropagation(); handleToggleSlot(h, ds) }}
                           className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden ${
                             reserva
-                              ? 'bg-emerald-700/40 border-emerald-500/60 hover:bg-emerald-700/50'
+                              ? 'bg-violet-700/40 border-violet-500/60 hover:bg-violet-700/50'
                               : active
                               ? 'bg-emerald-600/25 border-emerald-500/40 hover:bg-emerald-600/35'
                               : 'bg-gray-700/20 border-gray-600/30 hover:bg-gray-700/30'
                           }`}
                         >
-                          <p className={`text-[11px] font-semibold leading-tight truncate ${reserva ? 'text-emerald-200' : active ? 'text-emerald-400' : 'text-gray-600'}`}>
+                          <p className={`text-[11px] font-semibold leading-tight truncate ${reserva ? 'text-violet-200' : active ? 'text-emerald-400' : 'text-gray-600'}`}>
                             {reserva ? reserva.estudiante_nombre : active ? 'Disponible' : 'No disponible'}
                           </p>
                           {pos.height >= SLOT_H && (
-                            <p className={`text-[10px] leading-none mt-0.5 ${reserva ? 'text-emerald-300/60' : 'opacity-50'}`}>
+                            <p className={`text-[10px] leading-none mt-0.5 ${reserva ? 'text-violet-300/60' : 'opacity-50'}`}>
                               {fmt(h.hora_inicio)}–{fmt(h.hora_fin)}
                             </p>
                           )}
@@ -600,7 +638,13 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             {reserva.estudiante_carrera && <p className="text-xs text-gray-400">{reserva.estudiante_carrera}</p>}
                             {reserva.email && <p className="text-xs text-gray-500">{reserva.email}</p>}
                             {reserva.notas && <p className="text-xs text-gray-400 mt-1 italic">"{reserva.notas}"</p>}
-                            <button onClick={() => setPopover(null)} className="mt-2 text-xs text-gray-600 hover:text-gray-400">Cerrar</button>
+                            <div className="flex gap-2 mt-2">
+                              <button onClick={() => handleEliminarReserva(reserva.id)}
+                                className="flex-1 py-1.5 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors text-xs font-medium">
+                                Cancelar reserva
+                              </button>
+                              <button onClick={() => setPopover(null)} className="text-xs text-gray-600 hover:text-gray-400 px-2">Cerrar</button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -636,6 +680,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-blue-600/60 border border-blue-500/50" /> Clase</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-orange-600/60 border border-orange-500/50" /> Tutoría grupal</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-600/40 border border-emerald-500/40" /> Tutoría disponible</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-violet-600/40 border border-violet-500/40" /> Tutoría reservada</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gray-700/30 border border-gray-600/30" /> No disponible</div>
           {Object.entries(TIPO_COLOR).map(([tipo, c]) => (
             <div key={tipo} className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} /><span className="capitalize">{tipo}</span></div>
@@ -682,10 +727,16 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               )}
               {selEvento.descripcion && <p className="text-gray-500 mt-1">{selEvento.descripcion}</p>}
             </div>
-            <button onClick={() => handleEvDelete(selEvento.id)}
-              className="w-full py-2 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors text-sm font-medium">
-              Eliminar evento
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => openEvEdit(selEvento)}
+                className="flex-1 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors text-sm font-medium">
+                Editar
+              </button>
+              <button onClick={() => handleEvDelete(selEvento.id)}
+                className="flex-1 py-2 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors text-sm font-medium">
+                Eliminar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -693,11 +744,11 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       {/* ── New personal event modal ──────────────────────────────── */}
       {showEvForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowEvForm(false) }}>
+          onClick={e => { if (e.target === e.currentTarget) { setShowEvForm(false); setEditingEvento(null) } }}>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-semibold text-white">Nuevo evento</h3>
-              <button onClick={() => setShowEvForm(false)} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
+              <h3 className="font-semibold text-white">{editingEvento ? 'Editar evento' : 'Nuevo evento'}</h3>
+              <button onClick={() => { setShowEvForm(false); setEditingEvento(null) }} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
             </div>
             <form onSubmit={handleEvSubmit} className="space-y-4">
               <div>
@@ -798,8 +849,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   className="input resize-none" placeholder="Notas..." />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowEvForm(false)} className="btn-ghost flex-1">Cancelar</button>
-                <button type="submit" disabled={evSaving} className="btn-primary flex-1">{evSaving ? 'Guardando...' : 'Crear evento'}</button>
+                <button type="button" onClick={() => { setShowEvForm(false); setEditingEvento(null) }} className="btn-ghost flex-1">Cancelar</button>
+                <button type="submit" disabled={evSaving} className="btn-primary flex-1">{evSaving ? 'Guardando...' : editingEvento ? 'Guardar cambios' : 'Crear evento'}</button>
               </div>
             </form>
           </div>

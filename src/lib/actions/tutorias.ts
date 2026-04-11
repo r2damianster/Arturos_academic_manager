@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 // ─── Duration options ─────────────────────────────────────────────────────────
@@ -184,4 +185,20 @@ export async function cancelarAnuncioTutoria(params: {
     .eq('fecha',            params.fecha)
   if (error) return { error: error.message }
   return { ok: true }
+}
+
+export async function eliminarReserva(reservaId: number): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('reservas')
+    .delete()
+    .eq('id', reservaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/agenda')
+  return {}
 }
