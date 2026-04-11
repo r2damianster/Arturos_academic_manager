@@ -435,7 +435,10 @@ export function TutoriasBooking({
 
                         // tutoria_curso for student's course
                         const isTutoriaCurso = clase?.tipo === 'tutoria_curso' && estudianteCursoIds.includes(clase.curso_id ?? '')
-                        const isRegularClass = !!clase && !isTutoriaCurso
+                        // tutoria_curso for a different course — show as blocked
+                        const isTutoriaCursoOtro = !!clase && clase.tipo === 'tutoria_curso' && !isTutoriaCurso
+                        // regular class — invisible
+                        const isRegularClass = !!clase && clase.tipo === 'clase'
 
                         // Slot expired + not a relevant class — empty cell
                         if (!activeOnDate && !isMine && !isTutoriaCurso) return <td key={dateStr} className="px-1 py-0.5" />
@@ -475,8 +478,19 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Regular class — not shown to students
+                        // Regular class — invisible
                         if (isRegularClass) return <td key={dateStr} className="px-1 py-0.5" />
+
+                        // tutoria_curso of another course — blocked, not available
+                        if (isTutoriaCursoOtro) {
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <div className="h-7 rounded border border-gray-700/50 bg-gray-800/30 flex items-center justify-center pointer-events-none">
+                                <span className="text-gray-600 text-[9px]">No disp.</span>
+                              </div>
+                            </td>
+                          )
+                        }
 
                         // Occupied by another student
                         if (isOccupied) {
