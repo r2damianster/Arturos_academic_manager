@@ -609,7 +609,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                     const isOpen  = popover === popKey
 
                     return (
-                      <div key={h.id} className="absolute left-0.5 right-0.5 z-20" style={{ top: pos.top + 1, height: pos.height - 2 }}>
+                      <div key={h.id} className={`absolute left-0.5 right-0.5 ${isOpen ? 'z-50' : 'z-20'}`} style={{ top: pos.top + 1, height: pos.height - 2 }}>
                         <button
                           onClick={e => { e.stopPropagation(); handleToggleSlot(h, ds) }}
                           className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden ${
