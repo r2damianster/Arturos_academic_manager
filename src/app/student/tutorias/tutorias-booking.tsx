@@ -373,7 +373,7 @@ export function TutoriasBooking({
         <div className="flex gap-3 text-[10px] text-gray-500 flex-wrap">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-900/60 border border-emerald-600 inline-block"/>Disponible</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-900/60 border border-orange-600 inline-block"/>Tutoría de curso</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-900/60 border border-red-700 inline-block"/>Ocupado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-violet-900/60 border border-violet-700 inline-block"/>Agendado</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Tu reserva</span>
         </div>
 
@@ -469,8 +469,8 @@ export function TutoriasBooking({
                         if (isOccupied || isRegularClass) {
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
-                              <div className="h-7 rounded border border-red-900 bg-red-950/40 flex items-center justify-center pointer-events-none">
-                                <span className="text-red-700 text-[9px]">Ocupado</span>
+                              <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
+                                <span className="text-violet-500 text-[9px]">Agendado</span>
                               </div>
                             </td>
                           )

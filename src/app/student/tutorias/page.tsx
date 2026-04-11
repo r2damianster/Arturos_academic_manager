@@ -57,7 +57,7 @@ export default async function TutoriasPage() {
       .from('reservas')
       .select('horario_id, fecha')
       .in('horario_id', horarioIds)
-      .eq('estado', 'pendiente')
+      .in('estado', ['pendiente', 'confirmada'])
     occupiedSlots = occData ?? []
   }
 
