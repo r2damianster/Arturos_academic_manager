@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "TutorArt",
-    "supabase/functions"
+    "supabase/functions",
+    "pixel-agents"
   ]
 }

@@ -3,6 +3,9 @@
 node_modules/
 .next/
 out/
+
+# Extensión VS Code anidada (repo independiente)
+pixel-agents/
 dist/
 *.tsbuildinfo
 
