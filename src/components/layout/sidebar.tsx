@@ -24,16 +24,6 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    href: '/dashboard/pase-lista',
-    label: 'Tomar lista',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
     href: '/dashboard/cursos',
     label: 'Mis Cursos',
     icon: (
@@ -100,6 +90,20 @@ export function Sidebar({ nombreProfesor, esAdmin = false }: { nombreProfesor: s
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-gray-800 space-y-1">
+        <Link
+          href="/dashboard/cursos/nuevo"
+          className={clsx(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+            pathname === '/dashboard/cursos/nuevo'
+              ? 'bg-brand-600/20 text-brand-400 border border-brand-600/30'
+              : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+          )}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Curso
+        </Link>
         {esAdmin && (
           <Link
             href="/dashboard/admin"
