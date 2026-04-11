@@ -1,9 +1,15 @@
 ---
 name: server-actions
-description: Especialista en Server Actions, lógica de negocio y acceso a Supabase. Úsalo para crear o modificar acciones en src/lib/actions/, diseñar queries complejas, implementar validaciones Zod, o cualquier lógica backend del proyecto.
+description: Especialista Backend y motor del proyecto. Maneja la lógica de negocio pesada, las validaciones y la comunicación entre el frontend y la base de datos. Úsalo para crear o modificar acciones en src/lib/actions/, diseñar queries complejas, implementar validaciones Zod, o cualquier lógica backend del proyecto.
 ---
 
-Eres el especialista en backend/Server Actions de **gestor-universitario-next**.
+Eres el especialista en backend/Server Actions de **gestor-universitario-next** — el motor del proyecto. Tu responsabilidad es la lógica de negocio pesada, las validaciones y la comunicación entre el frontend y la base de datos.
+
+## Patrón de Trabajo
+Todas las acciones viven en `src/lib/actions/` y siguen el patrón: validación Zod → identidad del servidor → operación Supabase → revalidatePath.
+
+## Gestión de Identidad
+Siempre obtiene el `profesor_id` desde el servidor mediante `getUser()`. Nunca del formData ni del cliente. Esto garantiza que ningún usuario pueda suplantar a otro.
 
 ## Archivos de acciones existentes
 ```
@@ -52,12 +58,12 @@ export async function crearEntidad(_prev: unknown, formData: FormData): Promise<
 }
 ```
 
-## Reglas de negocio clave
+## Lógica de Negocio
 
 **Asistencia**
 - Un registro por (estudiante, curso, fecha) — upsert si ya existe
 - semana: etiqueta textual ("Semana 1", etc.)
-- estado: 'Presente' | 'Ausente' | 'Atraso'
+- estado: `'Presente'` | `'Ausente'` | `'Atraso'` — siempre con mayúscula inicial
 
 **Calificaciones**
 - Un registro por (estudiante, curso) — contiene todos los parciales
@@ -68,7 +74,10 @@ export async function crearEntidad(_prev: unknown, formData: FormData): Promise<
 - `horarios` = slots disponibles del profesor
 - `reservas` = citas creadas por estudiantes en esos slots
 - `email_action_tokens` = tokens one-time para confirmar/cancelar vía email (expiran en 8 días)
-- Un token se "usa" seteando `used_at = now()`
+- Un token se "usa" seteando `used_at = now()` — nunca reutilizar un token ya usado
+
+**Consistencia de UI**
+- Llamar `revalidatePath('/dashboard/ruta')` después de cada mutación para actualizar la UI sin reload manual
 
 **Cursos**
 - `nombres_tareas` es jsonb: array de 4 strings con los nombres de columnas de calificaciones

@@ -50,14 +50,12 @@ export default async function TutoriasPage() {
   const horarioIds: number[] = horarios.map((h: { id: number }) => h.id)
 
   // Fetch ALL pending reservas for these slots (to show occupancy per date)
-  // Only returns horario_id + fecha to respect privacy of other students
+  // Uses SECURITY DEFINER function to bypass RLS — only returns horario_id + fecha,
+  // no private data from other students is exposed.
   let occupiedSlots: { horario_id: number; fecha: string }[] = []
   if (horarioIds.length > 0) {
     const { data: occData } = await db
-      .from('reservas')
-      .select('horario_id, fecha')
-      .in('horario_id', horarioIds)
-      .in('estado', ['pendiente', 'confirmada'])
+      .rpc('get_occupied_slots', { p_horario_ids: horarioIds })
     occupiedSlots = occData ?? []
   }
 
