@@ -510,7 +510,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                     const isOpen    = clasePicker?.clase.id === c.id && clasePicker?.fecha === ds
 
                     return (
-                      <div key={c.id} className="absolute left-0.5 right-0.5 z-10"
+                      <div key={c.id} className="absolute left-0.5 right-0.5 z-30"
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>
 
                         {/* Bloque principal */}
