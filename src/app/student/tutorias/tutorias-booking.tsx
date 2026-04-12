@@ -175,17 +175,15 @@ export function TutoriasBooking({
   // My reservas set: `horarioId|dateStr`
   const mySet = new Set(reservas.map(r => `${r.horario_id}|${r.fecha}`))
 
-  // Active days for this professor in the viewed week
-  // Only include days with tutoria slots OR tutoria_curso for the student's own courses
+  // Active days: any tutoria slot OR any class from the student's own course
   const activeDias = weekDates.filter(date => {
     const diaKey = DAY_JS[date.getDay()]
     const hasTutoriaSlot = profHorarios.some(h => h.dia_semana === diaKey)
-    const hasTutoriaCurso = profClases.some(c =>
+    const hasPropiaCurso = profClases.some(c =>
       c.dia_semana === diaKey &&
-      c.tipo === 'tutoria_curso' &&
       estudianteCursoIds.includes(c.curso_id ?? '')
     )
-    return hasTutoriaSlot || hasTutoriaCurso
+    return hasTutoriaSlot || hasPropiaCurso
   })
 
   // ── Toggle tutoria_curso announce ─────────────────────────────────────────
@@ -378,6 +376,7 @@ export function TutoriasBooking({
 
         {/* Legend */}
         <div className="flex gap-3 text-[10px] text-gray-500 flex-wrap">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-indigo-950/50 border border-indigo-800/60 inline-block"/>Clase</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-900/60 border border-emerald-600 inline-block"/>Disponible</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-900/60 border border-orange-600 inline-block"/>Tutoría de curso</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-violet-900/60 border border-violet-700 inline-block"/>Agendado</span>
@@ -415,8 +414,8 @@ export function TutoriasBooking({
                     const diaKey = DAY_JS[date.getDay()]
                     const hasSlot = slotMap.has(`${diaKey}|${time}`)
                     const c = claseMap.get(`${diaKey}|${time}`)
-                    const hasRelevantClase = !!c && c.tipo === 'tutoria_curso' && estudianteCursoIds.includes(c.curso_id ?? '')
-                    return hasSlot || hasRelevantClase
+                    const hasPropiaCurso = !!c && estudianteCursoIds.includes(c.curso_id ?? '')
+                    return hasSlot || hasPropiaCurso
                   })
                   if (!hasSomething) return null
                   return (
@@ -433,15 +432,17 @@ export function TutoriasBooking({
                         const isOccupied = slot ? (occupiedSet.has(slotKey) && !isMine) : false
                         const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr) : false
 
-                        // tutoria_curso for student's course
-                        const isTutoriaCurso = clase?.tipo === 'tutoria_curso' && estudianteCursoIds.includes(clase.curso_id ?? '')
-                        // tutoria_curso for a different course — show as blocked
-                        const isTutoriaCursoOtro = !!clase && clase.tipo === 'tutoria_curso' && !isTutoriaCurso
-                        // regular class — invisible
-                        const isRegularClass = !!clase && clase.tipo === 'clase'
+                        // Any class belonging to the student's own course
+                        const isPropiaCurso = !!clase && estudianteCursoIds.includes(clase.curso_id ?? '')
+                        // tutoria_curso of student's own course — orange announce
+                        const isTutoriaCurso = isPropiaCurso && clase!.tipo === 'tutoria_curso'
+                        // any other class type of student's own course (clase, centro_computo, etc.)
+                        const isClasePropia = isPropiaCurso && !isTutoriaCurso
+                        // class of a different course — show as blocked
+                        const isOtroCurso = !!clase && !isPropiaCurso
 
-                        // Slot expired + not a relevant class — empty cell
-                        if (!activeOnDate && !isMine && !isTutoriaCurso) return <td key={dateStr} className="px-1 py-0.5" />
+                        // No slot + no own class → empty cell
+                        if (!activeOnDate && !isMine && !isPropiaCurso) return <td key={dateStr} className="px-1 py-0.5" />
 
                         if (isMine) {
                           return (
@@ -478,15 +479,19 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Regular class — invisible
-                        if (isRegularClass) return <td key={dateStr} className="px-1 py-0.5" />
+                        // Class of another course — invisible
+                        if (isOtroCurso) return <td key={dateStr} className="px-1 py-0.5" />
 
-                        // tutoria_curso of another course — blocked, not available
-                        if (isTutoriaCursoOtro) {
+                        // Class of student's own course (clase, centro_computo, etc.)
+                        if (isClasePropia) {
+                          const label =
+                            clase!.tipo === 'clase' ? 'Clase'
+                            : clase!.tipo === 'centro_computo' ? 'Comp.'
+                            : clase!.tipo
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
-                              <div className="h-7 rounded border border-gray-700/50 bg-gray-800/30 flex items-center justify-center pointer-events-none">
-                                <span className="text-gray-600 text-[9px]">No disp.</span>
+                              <div className="h-7 rounded border border-indigo-800/60 bg-indigo-950/50 flex items-center justify-center pointer-events-none">
+                                <span className="text-indigo-400 text-[9px] font-medium">{label}</span>
                               </div>
                             </td>
                           )
