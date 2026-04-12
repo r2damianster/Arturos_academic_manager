@@ -464,7 +464,7 @@ export function TutoriasBooking({
                               <button
                                 onClick={() => handleAnuncio(clase!, dateStr)}
                                 disabled={isLoadingThis}
-                                title={isAnnounced ? 'Cancelar asistencia' : 'Confirmar asistencia'}
+                                title={isAnnounced ? 'Cancelar asistencia' : 'Confirmar que asistiré'}
                                 className={`w-full h-7 rounded border text-[9px] font-medium transition-colors disabled:opacity-50 ${
                                   isLoadingThis
                                     ? 'bg-orange-900/30 border-orange-700 text-orange-500'
@@ -473,7 +473,7 @@ export function TutoriasBooking({
                                       : 'bg-orange-900/40 border-orange-700 text-orange-300 hover:bg-orange-700/60'
                                 }`}
                               >
-                                {isLoadingThis ? '...' : isAnnounced ? '✓ Voy' : 'Voy'}
+                                {isLoadingThis ? '...' : isAnnounced ? '✓ Asistiré' : 'Asistiré'}
                               </button>
                             </td>
                           )
@@ -486,7 +486,7 @@ export function TutoriasBooking({
                         if (isClasePropia) {
                           const label =
                             clase!.tipo === 'clase' ? 'Clase'
-                            : clase!.tipo === 'centro_computo' ? 'Comp.'
+                            : clase!.tipo === 'centro_computo' ? 'Centro Cómputo'
                             : clase!.tipo
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
