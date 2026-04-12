@@ -48,8 +48,8 @@ interface Props {
   misReservas: Reserva[]
   studentInfo: StudentInfo
   estudianteCursoIds: string[]
-  estudianteId: string
-  misAnuncios: { horario_clase_id: string; fecha: string }[]
+  estudianteByCurso: Record<string, string>
+  misAnuncios: { horario_clase_id: string; fecha: string; estudiante_id: string }[]
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export function TutoriasBooking({
   misReservas: initR,
   studentInfo,
   estudianteCursoIds,
-  estudianteId,
+  estudianteByCurso,
   misAnuncios,
 }: Props) {
   const supabase = createClient()
@@ -190,6 +190,10 @@ export function TutoriasBooking({
   async function handleAnuncio(clase: Clase, dateStr: string) {
     const key = `${clase.id}|${dateStr}`
     const isAnnounced = localAnuncios.has(key)
+    // Resolve the correct estudiante_id for this class's course
+    const estudianteId = (clase.curso_id && estudianteByCurso[clase.curso_id])
+      ? estudianteByCurso[clase.curso_id]
+      : Object.values(estudianteByCurso)[0] ?? ''
     setAnuncioLoading(key)
     setError(null)
     try {

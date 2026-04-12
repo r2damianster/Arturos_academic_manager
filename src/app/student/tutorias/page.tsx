@@ -64,8 +64,12 @@ export default async function TutoriasPage() {
     .map((e: { curso_id: string | null }) => e.curso_id)
     .filter(Boolean) as string[]
 
-  // ID del primer registro de estudiante (para anuncios)
-  const estudianteId: string = estudiantes[0]?.id ?? ''
+  // Mapa curso_id → estudiante_id para atribuir anuncios al registro correcto
+  const estudianteByCurso: Record<string, string> = Object.fromEntries(
+    estudiantes
+      .filter((e: { curso_id: string | null; id: string }) => e.curso_id)
+      .map((e: { curso_id: string; id: string }) => [e.curso_id, e.id])
+  )
 
   // Fetch clases con tipo y curso_id
   const { data: clasesData } = profesorIds.length > 0
@@ -82,15 +86,16 @@ export default async function TutoriasPage() {
       c.tipo === 'tutoria_curso' && estudianteCursoIds.includes(c.curso_id ?? ''))
     .map((c: { id: string }) => c.id)
 
-  // Anuncios ya realizados por el estudiante
-  const { data: misAnunciosData } = tutoriaCursoIds.length > 0
+  // Anuncios ya realizados por el estudiante (todos sus registros)
+  const todosEstudianteIds = Object.values(estudianteByCurso)
+  const { data: misAnunciosData } = tutoriaCursoIds.length > 0 && todosEstudianteIds.length > 0
     ? await db
         .from('anuncios_tutoria_curso')
-        .select('horario_clase_id, fecha')
-        .eq('estudiante_id', estudianteId)
+        .select('horario_clase_id, fecha, estudiante_id')
+        .in('estudiante_id', todosEstudianteIds)
         .in('horario_clase_id', tutoriaCursoIds)
     : { data: [] }
-  const misAnuncios: { horario_clase_id: string; fecha: string }[] = misAnunciosData ?? []
+  const misAnuncios: { horario_clase_id: string; fecha: string; estudiante_id: string }[] = misAnunciosData ?? []
 
   // Fetch student's own pending reservas (with full details)
   const { data: misReservasData } = await db
@@ -132,7 +137,7 @@ export default async function TutoriasPage() {
           misReservas={misReservas}
           studentInfo={studentInfo}
           estudianteCursoIds={estudianteCursoIds}
-          estudianteId={estudianteId}
+          estudianteByCurso={estudianteByCurso}
           misAnuncios={misAnuncios}
         />
       </div>

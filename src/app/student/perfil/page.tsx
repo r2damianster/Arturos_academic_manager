@@ -28,6 +28,22 @@ async function actualizarPerfilEstudiante(formData: FormData) {
     .update({ telefono, genero, gmail, institucion })
     .eq('auth_user_id', user.id)
 
+  // Sincronizar genero en perfiles_estudiante para todos los registros del usuario
+  if (genero) {
+    const { data: estudiantesList } = await db
+      .from('estudiantes')
+      .select('id')
+      .eq('auth_user_id', user.id)
+
+    if (estudiantesList && estudiantesList.length > 0) {
+      const estudianteIds = estudiantesList.map((e: { id: string }) => e.id)
+      await db
+        .from('perfiles_estudiante')
+        .update({ genero })
+        .in('estudiante_id', estudianteIds)
+    }
+  }
+
   redirect('/student')
 }
 
