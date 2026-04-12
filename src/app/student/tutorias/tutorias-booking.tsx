@@ -34,6 +34,7 @@ interface Clase {
   profesor_id: string
   tipo: string
   curso_id: string | null
+  centro_computo: boolean | null
 }
 
 interface StudentInfo {
@@ -489,8 +490,8 @@ export function TutoriasBooking({
                         // Class of student's own course (clase, centro_computo, etc.)
                         if (isClasePropia) {
                           const label =
-                            clase!.tipo === 'clase' ? 'Clase'
-                            : clase!.tipo === 'centro_computo' ? 'Centro Cómputo'
+                            clase!.centro_computo ? 'Centro Cómputo'
+                            : clase!.tipo === 'clase' ? 'Clase'
                             : clase!.tipo
                           return (
                             <td key={dateStr} className="px-1 py-0.5">

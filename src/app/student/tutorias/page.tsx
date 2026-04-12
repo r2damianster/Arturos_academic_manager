@@ -75,7 +75,7 @@ export default async function TutoriasPage() {
   const { data: clasesData } = profesorIds.length > 0
     ? await db
         .from('horarios_clases')
-        .select('id, dia_semana, hora_inicio, hora_fin, profesor_id, tipo, curso_id')
+        .select('id, dia_semana, hora_inicio, hora_fin, profesor_id, tipo, curso_id, centro_computo')
         .in('profesor_id', profesorIds)
     : { data: [] }
   const clases = clasesData ?? []
