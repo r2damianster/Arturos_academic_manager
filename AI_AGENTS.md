@@ -79,7 +79,7 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 | `horarios_tutoria_profesor` | Disponibilidad del profesor para tutorías |
 | `eventos` | Eventos en la agenda del profesor |
 | `perfiles_estudiante` | Perfil vinculado a auth.users del estudiante |
-| `bitacora` | Log de actividad del profesor |
+| `bitacora_clase` | Planificación de clases (tema, actividades_json, estado) |
 
 **RLS**: Todas las tablas del profesor filtran por `profesor_id = auth.uid()`.
 
@@ -95,6 +95,9 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 5. estado en asistencia: 'Presente' | 'Ausente' | 'Atraso' (mayúscula inicial)
 6. centro_computo en horarios_clase es boolean, no enum
 7. Portal estudiante: usar RPC get_occupied_slots para bypassear RLS
+8. bitacora_clase.estado: 'planificado' (antes de clase) | 'cumplido' (tras tomar lista)
+9. Calificaciones solo se pueden mover si estado='planificado', nunca si='cumplido'
+10. Replanificación: modo 'merge' fusiona actividades; modo 'shift' desplaza en cascada
 ```
 
 ---
@@ -114,7 +117,8 @@ Ejecutar en orden para inicializar la base de datos:
 9. `20260405_add_horarios_tutoria.sql` — Horarios disponibles del profesor
 10. `20260405_fix_anuncios_rls.sql` — Fix RLS en anuncios
 11. `20260411_get_occupied_slots.sql` — RPC para portal estudiante
-12. `20260411_planificacion_clase.sql` — Tabla planificación de clases
+12. `20260411_planificacion_clase.sql` — Planificación de clases en agenda
+13. `20260413_replanificar_clases.sql` — Replanificación de clases (merge + shift en cascada)
 
 ---
 

@@ -32,7 +32,7 @@ App Next.js 15 (v16.2.1) para gestión docente universitaria — cursos, asisten
 /dashboard/cursos        → CRUD cursos + subida de Excel
 /dashboard/estudiantes   → Ficha individual de estudiante
 /dashboard/pase-lista    → Toma de asistencia + participación
-/dashboard/agenda        → Calendario semanal (clases + eventos + tutorías)
+/dashboard/agenda        → Calendario semanal (clases + eventos + tutorías + planificación)
 /dashboard/tutorias      → Horarios disponibles + reservas
 /dashboard/config        → Perfil del profesor
 /student/                → Portal del estudiante (onboarding, calendario, perfil)
@@ -64,6 +64,7 @@ App Next.js 15 (v16.2.1) para gestión docente universitaria — cursos, asisten
 20260405_fix_anuncios_rls       → Fix RLS en anuncios
 20260411_get_occupied_slots     → RPC bypass RLS para slots portal estudiante
 20260411_planificacion_clase    → Planificación de clases en agenda
+20260413_replanificar_clases    → Replanificación de clases (merge + shift cascada)
 ```
 
 ## Convenciones críticas

@@ -53,6 +53,11 @@ export async function miAction(formData: FormData) {
 - Calificaciones: siempre `upsert` con `onConflict: 'estudiante_id,curso_id'`.
 - Campo `estado` en asistencia: `'Presente'` | `'Ausente'` | `'Atraso'` (con mayúscula inicial).
 - `centro_computo` en `horarios_clase` es un `boolean`, no un tipo de aula.
+- `bitacora_clase.estado`: `'planificado'` (antes de clase) | `'cumplido'` (tras tomar lista).
+- Solo se pueden mover planificaciones con `estado='planificado'`, nunca `'cumplido'`.
+- Replanificación: `replanificarClase()` en `src/lib/actions/bitacora.ts`
+  - Modo `'merge'`: fusiona actividades_json de origen+destino, borra origen
+  - Modo `'shift'`: desplaza bitácoras en cascada hasta encontrar hueco vacío o llegar a fecha_fin del curso
 
 ### Tipos
 - Tipos generados en `src/types/database.types.ts` (no editar manualmente).
@@ -82,11 +87,28 @@ src/
 │       ├── trabajos.ts
 │       └── bitacora.ts
 ├── components/            → Componentes UI por módulo
+│   └── agenda/
+│       ├── PlanificarModal.tsx
+│       ├── PasarListaModal.tsx
+│       └── ReplanificarModal.tsx
 └── types/
     ├── database.types.ts  → Tipos Supabase (generado)
     └── domain.ts          → Aliases y tipos de dominio
 supabase/
 └── migrations/            → Historial SQL ordenado cronológicamente
+    ├── 001_initial_schema.sql
+    ├── 002_rls_policies.sql
+    ├── 003_functions.sql
+    ├── 004_email_action_tokens.sql
+    ├── 20260331_add_disponible_hasta.sql
+    ├── 20260404_add_encuesta_campos.sql
+    ├── 20260404_add_progreso.sql
+    ├── 20260405_add_horarios_clases.sql
+    ├── 20260405_add_horarios_tutoria.sql
+    ├── 20260405_fix_anuncios_rls.sql
+    ├── 20260411_get_occupied_slots.sql
+    ├── 20260411_planificacion_clase.sql
+    └── 20260413_replanificar_clases.sql
 ```
 
 ## Changelog
