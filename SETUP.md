@@ -1,7 +1,7 @@
 # Gestor Universitario — Guía de Configuración
 
 ## Stack
-- **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+- **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS
 - **Backend/DB**: Supabase (PostgreSQL + Auth + RLS)
 - **Deploy**: Vercel
 
@@ -94,22 +94,36 @@ Cada cuenta es completamente independiente — sus datos están aislados por RLS
 src/
 ├── app/
 │   ├── auth/login/         → Página de login/registro
-│   ├── auth/callback/      → Handler OAuth
-│   └── dashboard/
-│       ├── page.tsx        → Panel de inicio
-│       ├── cursos/         → Gestión de cursos
-│       ├── estudiantes/    → Ficha individual
-│       └── config/         → Perfil del profesor
+│   ├── auth/callback/      → Handler OAuth/PKCE
+│   ├── dashboard/          → Portal del profesor
+│   │   ├── page.tsx        → Panel de inicio
+│   │   ├── cursos/         → Gestión de cursos
+│   │   ├── estudiantes/    → Ficha individual
+│   │   ├── pase-lista/     → Toma de asistencia
+│   │   ├── agenda/         → Calendario semanal
+│   │   ├── tutorias/       → Gestión de tutorías
+│   │   └── config/         → Perfil del profesor
+│   ├── student/            → Portal del estudiante
+│   │   ├── onboarding/     → Setup inicial
+│   │   ├── tutorias/       → Reserva de tutorías
+│   │   └── perfil/         → Perfil del estudiante
+│   └── tutoria-action/     → Confirmación por email token
 ├── components/
 │   ├── layout/             → Sidebar y Header
 │   ├── cursos/             → Componentes de cursos
 │   ├── pase-lista/         → UI de toma de asistencia
 │   ├── calificaciones/     → Tabla de notas editable
+│   ├── agenda/             → Calendario semanal
+│   ├── student/            → Componentes del portal estudiante
 │   └── ...
 ├── lib/
 │   ├── supabase/           → Clientes (browser + server)
-│   └── actions/            → Server Actions (CRUD)
-└── types/                  → Tipos TypeScript
+│   └── actions/            → Server Actions por módulo
+└── types/
+    ├── database.types.ts   → Tipos Supabase (generado)
+    └── domain.ts           → Aliases y tipos de dominio
+supabase/
+└── migrations/             → Historial SQL (ejecutar en orden)
 ```
 
 ---
