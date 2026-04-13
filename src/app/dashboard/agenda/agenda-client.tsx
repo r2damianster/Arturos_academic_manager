@@ -263,7 +263,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(supabase as any)
       .from('bitacora_clase')
-      .select('curso_id, fecha, estado')
+      .select('curso_id, fecha, estado, tema')
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
