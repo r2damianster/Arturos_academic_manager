@@ -8,6 +8,7 @@ import { activarHorario, asignarTutoriaDirecta, eliminarReserva, type DuracionTu
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PasarListaModal } from '@/components/agenda/PasarListaModal'
+import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -213,11 +214,15 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [durSaving,   setDurSaving]   = useState(false)
   const [popover,     setPopover]     = useState<string | null>(null) // `${horarioId}|${dateStr}`
 
-  // Planificación / pase de lista desde agenda
+  // Planificación / pase de lista / replanificación desde agenda
   type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista' }
   const [claseModal,    setClaseModal]    = useState<ClaseModal | null>(null)
   const [clasePicker,   setClasePicker]   = useState<{ clase: Clase; fecha: string } | null>(null)
   const clasePickerRef = useRef<HTMLDivElement>(null)
+
+  // Replanificar
+  type ClaseReplanificar = { cursoId: string; asignatura: string; fecha: string; tema: string; bitacoraId: string }
+  const [replanificar,  setReplanificar]  = useState<ClaseReplanificar | null>(null)
 
   // Cerrar clase picker al hacer click fuera
   useEffect(() => {
@@ -242,7 +247,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [, startTransition] = useTransition()
 
   // Bitácoras de la semana visible (para badges en bloques de clase)
-  const [bitacoraMap, setBitacoraMap] = useState<Map<string, { estado: string }>>(new Map())
+  const [bitacoraMap, setBitacoraMap] = useState<Map<string, { estado: string; tema: string }>>(new Map())
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -264,8 +269,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       .lte('fecha', fechaMax)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then(({ data }: { data: any[] | null }) => {
-        const m = new Map<string, { estado: string }>()
-        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, { estado: b.estado })
+        const m = new Map<string, { estado: string; tema: string }>()
+        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, { estado: b.estado, tema: b.tema ?? '' })
         setBitacoraMap(m)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -587,6 +592,23 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
                               <span>📋</span><span>Planificar clase</span>
                             </button>
+                            {bitEstado === 'planificado' && c.cursos?.id && (
+                              <button
+                                onClick={() => {
+                                  const bit = bitacoraMap.get(`${c.cursos!.id}|${ds}`)
+                                  setClasePicker(null)
+                                  setReplanificar({
+                                    cursoId: c.cursos!.id,
+                                    asignatura: c.cursos!.asignatura,
+                                    fecha: ds,
+                                    tema: bit?.tema ?? '',
+                                    bitacoraId: '',
+                                  })
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
+                                <span>↻</span><span>Replanificar</span>
+                              </button>
+                            )}
                             {c.cursos?.id && (
                               <button
                                 onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'lista' }) }}
@@ -917,7 +939,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
             // Refrescar badges de bitácora
             setBitacoraMap(prev => {
               const next = new Map(prev)
-              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado' })
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado', tema: '' })
               return next
             })
           }}
@@ -937,9 +959,24 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
             setClaseModal(null)
             setBitacoraMap(prev => {
               const next = new Map(prev)
-              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'cumplido' })
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'cumplido', tema: '' })
               return next
             })
+            router.refresh()
+          }}
+        />
+      )}
+
+      {/* ── Replanificar modal ────────────────────────────────────── */}
+      {replanificar && (
+        <ReplanificarModal
+          cursoId={replanificar.cursoId}
+          asignatura={replanificar.asignatura}
+          origenFecha={replanificar.fecha}
+          origenTema={replanificar.tema}
+          onClose={() => setReplanificar(null)}
+          onDone={() => {
+            setReplanificar(null)
             router.refresh()
           }}
         />
