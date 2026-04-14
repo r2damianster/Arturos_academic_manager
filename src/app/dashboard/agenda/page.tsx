@@ -13,7 +13,7 @@ export default async function AgendaPage() {
 
   const [eventosRes, clasesRes, horariosRes, profesorRes] = await Promise.all([
     db.from('eventos_profesor').select('*').eq('profesor_id', user.id).order('fecha_inicio'),
-    db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, cursos(id, asignatura)').eq('profesor_id', user.id),
+    db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, cursos(id, asignatura)').eq('profesor_id', user.id),
     db.from('horarios').select('*').eq('profesor_id', user.id).order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
   ])

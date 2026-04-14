@@ -18,6 +18,7 @@ interface PlanificarModalProps {
   fecha: string          // YYYY-MM-DD
   horaInicio: string
   horaFin: string
+  centroComputo?: boolean
   onClose: () => void
   onSaved: () => void
   clases?: ClaseParaCopiar[]
@@ -85,7 +86,7 @@ function emptyActividad(): ActividadPlanificada {
 }
 
 export function PlanificarModal({
-  cursoId, asignatura, fecha, horaInicio, horaFin, onClose, onSaved, clases = []
+  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = []
 }: PlanificarModalProps) {
   const supabase = createClient()
 
@@ -254,7 +255,14 @@ export function PlanificarModal({
                 {existing?.estado === 'cumplido' ? '✓ Cumplido' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
               </span>
             </div>
-            <h3 className="font-semibold text-white text-base">{asignatura}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-white text-base">{asignatura}</h3>
+              {centroComputo && (
+                <span className="text-xs bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded">
+                  Centro Cómputo
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
               {fmtFecha(fecha)} · {fmt(horaInicio)}–{fmt(horaFin)}
             </p>

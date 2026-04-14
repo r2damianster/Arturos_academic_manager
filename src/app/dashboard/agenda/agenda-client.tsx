@@ -40,6 +40,7 @@ interface Clase {
   hora_inicio: string
   hora_fin: string
   tipo: string
+  centro_computo: boolean
   cursos: { id: string; asignatura: string } | null
   anuncios_tutoria_curso?: { estudiante_id: string; fecha: string; estudiantes: { nombre: string } }[]
 }
@@ -447,6 +448,20 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
             <span className="text-sm text-gray-300 font-medium">{fmtRange(weekDates)}</span>
+            {/* Saltar a cualquier fecha (útil para editar asistencias pasadas) */}
+            <input
+              type="date"
+              title="Ir a la semana de esta fecha"
+              onChange={e => {
+                if (!e.target.value) return
+                const target = new Date(e.target.value + 'T12:00:00')
+                const base = new Date(); base.setHours(12, 0, 0, 0)
+                const diff = Math.round((target.getTime() - base.getTime()) / (7 * 24 * 60 * 60 * 1000))
+                setWeekOffset(diff)
+                e.target.value = ''
+              }}
+              className="text-xs bg-transparent border border-gray-700 rounded px-1.5 py-1 text-gray-400 hover:border-gray-500 focus:outline-none focus:border-gray-400 cursor-pointer w-8 focus:w-auto transition-all"
+            />
             <a
               href={`/dashboard/agenda/imprimir?fecha=${dateToStr(weekDates[0])}&modo=semana`}
               target="_blank"
@@ -975,6 +990,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           fecha={claseModal.fecha}
           horaInicio={claseModal.clase.hora_inicio}
           horaFin={claseModal.clase.hora_fin}
+          centroComputo={claseModal.clase.centro_computo}
           clases={clases}
           onClose={() => setClaseModal(null)}
           onSaved={() => {

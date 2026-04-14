@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { StudentLogoutButton } from '@/components/student/logout-button'
+import { ChatBot } from '@/components/student/ChatBot'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -62,6 +63,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
       <main className="pt-14 px-4 py-6 max-w-2xl mx-auto">
         {children}
       </main>
+      <ChatBot />
     </div>
   )
 }
