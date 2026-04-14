@@ -444,3 +444,30 @@ export async function copiarPlanificacion(params: {
     observaciones: fuente.observaciones,
   })
 }
+
+/**
+ * Mueve la planificación de una clase a otro curso+fecha (copia y elimina el original).
+ */
+export async function moverPlanificacion(params: {
+  sourceCursoId: string
+  sourceFecha: string
+  destCursoId: string
+  destFecha: string
+}): Promise<{ error?: string; id?: string }> {
+  const result = await copiarPlanificacion(params)
+  if (result.error) return result
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  await supabase
+    .from('bitacora_clase')
+    .delete()
+    .eq('curso_id', params.sourceCursoId)
+    .eq('fecha', params.sourceFecha)
+    .eq('profesor_id', user.id)
+
+  revalidatePath('/dashboard/agenda')
+  return result
+}

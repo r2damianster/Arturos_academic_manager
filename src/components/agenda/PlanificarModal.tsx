@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { guardarPlanificacion, copiarPlanificacion } from '@/lib/actions/bitacora'
+import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion } from '@/lib/actions/bitacora'
 import type { ActividadPlanificada } from '@/types/domain'
 
 interface ClaseParaCopiar {
@@ -31,14 +31,57 @@ interface BitacoraExistente {
   estado: string | null
 }
 
-function emptyActividad(): ActividadPlanificada {
-  return { actividad: '', recurso: '' }
+// ─── Date helpers ──────────────────────────────────────────────────────────────
+
+const DIA_TO_DOW: Record<string, number> = {
+  lunes: 1, martes: 2, 'miércoles': 3, jueves: 4, viernes: 5, 'sábado': 6,
 }
 
-function fmtFecha(fecha: string) {
-  const [y, m, d] = fecha.split('-')
-  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-  return `${d} ${meses[Number(m) - 1]} ${y}`
+const DIAS_CORTO = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+function parseDateStr(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function dateToStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** "lun, 14 abr 2026" */
+function fmtFechaOpt(s: string): string {
+  const d = parseDateStr(s)
+  return `${DIAS_CORTO[d.getDay()]}, ${d.getDate()} ${MESES_CORTO[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/** Short display: "14 abr 2026" */
+function fmtFecha(s: string) {
+  const [y, m, d] = s.split('-')
+  return `${d} ${MESES_CORTO[Number(m) - 1]} ${y}`
+}
+
+/**
+ * Generate the next `n` dates (starting the day after `desde`) whose day-of-week
+ * is in `dowSet`. Returns YYYY-MM-DD strings.
+ */
+function generarFechasValidas(dowSet: Set<number>, desde: string, n = 14): string[] {
+  const fechas: string[] = []
+  const d = parseDateStr(desde)
+  d.setDate(d.getDate() + 1)
+  let iter = 0
+  while (fechas.length < n && iter < 365) {
+    if (dowSet.has(d.getDay())) fechas.push(dateToStr(d))
+    d.setDate(d.getDate() + 1)
+    iter++
+  }
+  return fechas
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
+function emptyActividad(): ActividadPlanificada {
+  return { actividad: '', recurso: '' }
 }
 
 export function PlanificarModal({
@@ -51,19 +94,22 @@ export function PlanificarModal({
   const [error,    setError]    = useState<string | null>(null)
   const [existing, setExisting] = useState<BitacoraExistente | null>(null)
 
-  const [tema,         setTema]         = useState('')
-  const [actividades,  setActividades]  = useState<ActividadPlanificada[]>([emptyActividad()])
+  const [tema,          setTema]          = useState('')
+  const [actividades,   setActividades]   = useState<ActividadPlanificada[]>([emptyActividad()])
   const [observaciones, setObservaciones] = useState('')
 
-  // Sub-panel "Copiar a..."
-  const [copyOpen,     setCopyOpen]     = useState(false)
-  const [copyFecha,    setCopyFecha]    = useState(fecha)
-  const [copyCursoId,  setCopyCursoId]  = useState(cursoId)
-  const [copying,      setCopying]      = useState(false)
-  const [copyError,    setCopyError]    = useState<string | null>(null)
-  const [copySuccess,  setCopySuccess]  = useState(false)
+  // Sub-panel "Copiar / Mover a..."
+  const [copyOpen,    setCopyOpen]    = useState(false)
+  const [copyMode,    setCopyMode]    = useState<'copiar' | 'mover'>('copiar')
+  const [copyCursoId, setCopyCursoId] = useState(cursoId)
+  const [copyFecha,   setCopyFecha]   = useState('')
+  const [copying,     setCopying]     = useState(false)
+  const [copyError,   setCopyError]   = useState<string | null>(null)
+  const [copySuccess, setCopySuccess] = useState(false)
 
-  // Cursos únicos disponibles derivados de la prop clases (excluye tutoria_curso)
+  // ── Derived data from clases ────────────────────────────────────────────────
+
+  /** All unique courses from horarios (excluding tutoria_curso) */
   const cursosUnicos = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of clases) {
@@ -74,7 +120,34 @@ export function PlanificarModal({
     return Array.from(map.entries()).map(([id, asignatura]) => ({ id, asignatura }))
   }, [clases])
 
-  // Fetch bitácora existente para este curso+fecha
+  /** Map: cursoId → Set of valid DOW numbers (1=lun … 6=sáb) */
+  const cursoDiasMap = useMemo(() => {
+    const map = new Map<string, Set<number>>()
+    for (const c of clases) {
+      if (c.tipo === 'tutoria_curso' || !c.cursos) continue
+      const dow = DIA_TO_DOW[c.dia_semana.toLowerCase()]
+      if (dow === undefined) continue
+      if (!map.has(c.cursos.id)) map.set(c.cursos.id, new Set())
+      map.get(c.cursos.id)!.add(dow)
+    }
+    return map
+  }, [clases])
+
+  /** Valid upcoming dates for the currently selected copy-destination course */
+  const fechasDestino = useMemo(() => {
+    const dias = cursoDiasMap.get(copyCursoId)
+    if (!dias || dias.size === 0) return []
+    return generarFechasValidas(dias, fecha)
+  }, [copyCursoId, cursoDiasMap, fecha])
+
+  // Auto-select first valid date when course or valid-dates list changes
+  useEffect(() => {
+    if (fechasDestino.length > 0) setCopyFecha(fechasDestino[0])
+    else setCopyFecha('')
+  }, [fechasDestino])
+
+  // ── Fetch existing bitácora ─────────────────────────────────────────────────
+
   const fetchExisting = useCallback(async () => {
     setLoading(true)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +175,8 @@ export function PlanificarModal({
 
   useEffect(() => { fetchExisting() }, [fetchExisting])
 
+  // ── Actividades helpers ─────────────────────────────────────────────────────
+
   function addActividad() {
     setActividades(prev => [...prev, emptyActividad()])
   }
@@ -114,10 +189,13 @@ export function PlanificarModal({
     setActividades(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a))
   }
 
+  // ── Copy / Move handler ─────────────────────────────────────────────────────
+
   async function handleCopiar() {
     setCopyError(null)
     setCopying(true)
-    const result = await copiarPlanificacion({
+    const action = copyMode === 'mover' ? moverPlanificacion : copiarPlanificacion
+    const result = await action({
       sourceCursoId: cursoId,
       sourceFecha: fecha,
       destCursoId: copyCursoId,
@@ -128,10 +206,17 @@ export function PlanificarModal({
       setCopyError(result.error)
       return
     }
-    setCopySuccess(true)
-    setCopyOpen(false)
-    setTimeout(() => setCopySuccess(false), 2000)
+    if (copyMode === 'mover') {
+      // Source was deleted — close modal and refresh calendar
+      onSaved()
+    } else {
+      setCopySuccess(true)
+      setCopyOpen(false)
+      setTimeout(() => setCopySuccess(false), 2000)
+    }
   }
+
+  // ── Save handler ────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -153,6 +238,8 @@ export function PlanificarModal({
   }
 
   const fmt = (t: string) => t?.slice(0, 5) ?? ''
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
@@ -208,7 +295,6 @@ export function PlanificarModal({
                 </div>
 
                 <div className="space-y-2">
-                  {/* Header de columnas */}
                   <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1">
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Actividad</span>
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Recurso</span>
@@ -253,7 +339,7 @@ export function PlanificarModal({
                 />
               </div>
 
-              {/* Sub-panel Copiar a... — solo visible si ya existe un plan guardado */}
+              {/* Sub-panel Copiar / Mover — solo visible si ya existe un plan guardado */}
               {existing && (
                 <div className="border border-gray-700 rounded-xl overflow-hidden">
                   <button
@@ -263,23 +349,48 @@ export function PlanificarModal({
                   >
                     <span className="flex items-center gap-2">
                       <span className="text-base">⎘</span>
-                      Copiar plan a otra fecha / curso
+                      Copiar / Mover plan a otra clase
                     </span>
                     <span className="text-gray-500 text-xs">{copyOpen ? '▲' : '▼'}</span>
                   </button>
 
                   {copyOpen && (
-                    <div className="px-4 pb-4 pt-1 space-y-3 bg-gray-800/50 border-t border-gray-700">
+                    <div className="px-4 pb-4 pt-3 space-y-3 bg-gray-800/50 border-t border-gray-700">
+
+                      {/* Copiar vs Mover toggle */}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCopyMode('copiar')}
+                          className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
+                            copyMode === 'copiar'
+                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                              : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                          }`}
+                        >
+                          Copiar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCopyMode('mover')}
+                          className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
+                            copyMode === 'mover'
+                              ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
+                              : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                          }`}
+                        >
+                          Mover (elimina original)
+                        </button>
+                      </div>
+
+                      {copyMode === 'mover' && (
+                        <p className="text-[11px] text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-1.5">
+                          El plan original será eliminado de esta clase al confirmar.
+                        </p>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="label">Fecha destino</label>
-                          <input
-                            type="date"
-                            value={copyFecha}
-                            onChange={e => setCopyFecha(e.target.value)}
-                            className="input text-sm"
-                          />
-                        </div>
+                        {/* Curso destino */}
                         <div>
                           <label className="label">Curso destino</label>
                           <select
@@ -287,13 +398,33 @@ export function PlanificarModal({
                             onChange={e => setCopyCursoId(e.target.value)}
                             className="input text-sm"
                           >
-                            {cursosUnicos.length === 0 && (
-                              <option value={cursoId}>{asignatura}</option>
-                            )}
-                            {cursosUnicos.map(c => (
-                              <option key={c.id} value={c.id}>{c.asignatura}</option>
-                            ))}
+                            {cursosUnicos.length === 0
+                              ? <option value={cursoId}>{asignatura}</option>
+                              : cursosUnicos.map(c => (
+                                  <option key={c.id} value={c.id}>{c.asignatura}</option>
+                                ))
+                            }
                           </select>
+                        </div>
+
+                        {/* Fecha destino — solo fechas válidas del curso seleccionado */}
+                        <div>
+                          <label className="label">Fecha destino</label>
+                          {fechasDestino.length === 0 ? (
+                            <p className="text-xs text-gray-500 italic mt-1">
+                              Sin fechas disponibles
+                            </p>
+                          ) : (
+                            <select
+                              value={copyFecha}
+                              onChange={e => setCopyFecha(e.target.value)}
+                              className="input text-sm"
+                            >
+                              {fechasDestino.map(f => (
+                                <option key={f} value={f}>{fmtFechaOpt(f)}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
 
@@ -313,11 +444,17 @@ export function PlanificarModal({
                         </button>
                         <button
                           type="button"
-                          disabled={copying || !copyFecha || !copyCursoId}
+                          disabled={copying || !copyFecha || !copyCursoId || fechasDestino.length === 0}
                           onClick={handleCopiar}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className={`text-xs px-3 py-1.5 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                            copyMode === 'mover'
+                              ? 'bg-amber-600 hover:bg-amber-500'
+                              : 'bg-blue-600 hover:bg-blue-500'
+                          }`}
                         >
-                          {copying ? 'Copiando...' : 'Copiar'}
+                          {copying
+                            ? (copyMode === 'mover' ? 'Moviendo...' : 'Copiando...')
+                            : (copyMode === 'mover' ? 'Mover' : 'Copiar')}
                         </button>
                       </div>
                     </div>
