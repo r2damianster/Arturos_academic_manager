@@ -564,7 +564,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   {dayClases.map(c => {
                     const pos       = blockPos(c.hora_inicio, c.hora_fin)
                     const isTutoria = c.tipo === 'tutoria_curso'
-                    const voy       = c.anuncios_tutoria_curso?.length ?? 0
+                    const voyHoy    = c.anuncios_tutoria_curso?.filter(a => a.fecha === ds) ?? []
+                    const voy       = voyHoy.length
                     const cursoId   = c.cursos?.id
                     const bitKey    = `${cursoId}|${ds}`
                     const bitEstado = cursoId ? bitacoraMap.get(bitKey)?.estado : undefined
@@ -581,15 +582,21 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                           }}
                           className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden
-                            ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
-                                        : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
+                            ${isTutoria
+                              ? voy > 0
+                                ? 'bg-orange-600/35 border-orange-400/70 hover:bg-orange-600/45'
+                                : 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
+                              : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
                           <p className={`text-[11px] font-semibold leading-tight truncate
                             ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
                             {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
                           </p>
                           {pos.height >= SLOT_H && (
-                            <p className="text-[10px] opacity-60 leading-none mt-0.5">
-                              {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+                            <p className="text-[10px] leading-none mt-0.5">
+                              <span className="opacity-60">{fmt(c.hora_inicio)}–{fmt(c.hora_fin)}</span>
+                              {voy > 0 && (
+                                <span className="ml-1 text-orange-300 font-medium">· {voy} {voy === 1 ? 'asiste' : 'asisten'}</span>
+                              )}
                             </p>
                           )}
                           {/* Badge de estado de planificación */}
@@ -603,8 +610,25 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                         {/* Picker de acción */}
                         {isOpen && (
                           <div ref={clasePickerRef}
-                            className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[160px]"
+                            className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[180px]"
                             onClick={e => e.stopPropagation()}>
+
+                            {/* Estudiantes que confirmaron asistencia hoy */}
+                            {isTutoria && voyHoy.length > 0 && (
+                              <div className="px-3 py-2 mb-1 border-b border-gray-700">
+                                <p className="text-[11px] text-orange-300 font-medium mb-1">
+                                  Confirman asistencia ({voyHoy.length})
+                                </p>
+                                <ul className="space-y-0.5">
+                                  {voyHoy.map((a, i) => (
+                                    <li key={i} className="text-[11px] text-gray-300 truncate">
+                                      · {a.estudiantes?.nombre ?? '—'}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
                             <button
                               onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'planificar' }) }}
                               className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
