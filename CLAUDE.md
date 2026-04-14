@@ -73,13 +73,22 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente (existen en DB, no en schema inicial)
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 
-## Features recientes (2026-04-14)
-- `copiarPlanificacion` / `moverPlanificacion` en `src/lib/actions/bitacora.ts`
-- `PlanificarModal` — fechas destino filtradas por días hábiles del curso, toggle Copiar/Mover
-- Agenda profesor — confirmaciones "Asistiré" visibles por día con lista de nombres
+## Features recientes (2026-04-14 — sesiones 1-3)
 
-## Bug pendiente
-- **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar tildes al construir `cursoDiasMap`, o hacer fetch cliente de `horarios_clases` al abrir el panel.
+### Agenda del profesor
+- `copiarPlanificacion` / `moverPlanificacion` en `bitacora.ts` — copia o mueve plan entre cursos/fechas
+- `PlanificarModal` — badge Centro Cómputo en header, fechas destino filtradas por `dia_semana` del curso, toggle Copiar/Mover
+- `PasarListaModal` — tab "Todos a la vez" (+ observación inline) y tab "Uno por uno" (tarjeta grande, barra de progreso, mini-mapa de estados)
+- Confirmaciones "Asistiré" filtradas por día en bloques de tutoría grupal; picker muestra lista de nombres
+- Input de fecha en navegación semanal para saltar directamente a semanas pasadas (editar asistencias pasadas)
+- PDF export diario/semanal (`/dashboard/agenda/imprimir`)
+
+### Portal del estudiante
+- `ChatBot` flotante (`src/components/student/ChatBot.tsx`) — ayuda contextual por página (`usePathname`), FAQ predefinida, chips de sugerencias, input libre. Estructura lista para conectar Claude API.
+
+## Bugs pendientes
+- **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar con `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup, o hacer fetch cliente de `horarios_clases` al abrir el panel.
+- **Desconexión bitácora**: `guardarBitacoraData()` (cursos/pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar en una sola función.
 
 ## Convenciones críticas
 - `getUser()` en servidor, **nunca** `getSession()`

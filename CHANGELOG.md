@@ -4,6 +4,25 @@ Formato: `[fecha] tipo: descripción`
 
 ---
 
+## [2026-04-14] — Sesión 3
+
+### Features
+- **Centro Cómputo en PlanificarModal**: badge cyan en el header del modal cuando la clase tiene `centro_computo=true`. Se agrega el campo al fetch de `horarios_clases` en `agenda/page.tsx` y a la interfaz `Clase`.
+- **Saltar a fecha en agenda**: input de fecha junto a las flechas de navegación semanal. Permite ir directamente a cualquier semana pasada o futura — útil para editar asistencias registradas.
+- **Tabs en PasarListaModal** (pase de lista desde agenda):
+  - "Todos a la vez": vista original mejorada con campo de observación inline por estudiante
+  - "Uno por uno": tarjeta centrada por estudiante con botones grandes P/A/At, participación 1-5, textarea de observación, barra de progreso, mini-mapa de puntos clicables para saltar a cualquier estudiante. Al llegar al último ofrece "Ver resumen".
+  - Ambas tabs comparten estado — cambiar de una a otra preserva todo lo marcado.
+- **ChatBot flotante en portal del estudiante** (`src/components/student/ChatBot.tsx`):
+  - Botón flotante 💬 en esquina inferior derecha (todo el portal)
+  - "¿Qué puedo hacer aquí?" responde según ruta actual (`/student`, `/student/tutorias`, `/student/perfil`)
+  - FAQ por palabras clave: tutorías, asistencia, cancelar, perfil
+  - Chips de sugerencias rápidas scrolleables
+  - Input libre con Enter para enviar
+  - Estructura preparada para conectar Claude API: reemplazar `respondTo()` con `fetch('/api/chat')`
+
+---
+
 ## [2026-04-14] — Sesión 2 (tarde)
 
 ### Features

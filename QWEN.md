@@ -68,6 +68,7 @@ export async function miAction(formData: FormData) {
 ### Portal del estudiante (`src/app/student/`)
 - El portal usa RPC `get_occupied_slots` para slots de tutorías (bypassa RLS correctamente).
 - Separar siempre la lógica del profesor de la del estudiante — son contextos distintos.
+- `ChatBot` flotante en `src/components/student/ChatBot.tsx` — cliente puro, usa `usePathname()` para ayuda contextual. Para conectar IA: reemplazar `respondTo()` con `fetch('/api/chat')`.
 
 ## Estructura de archivos relevantes
 ```
@@ -89,10 +90,13 @@ src/
 │       ├── trabajos.ts
 │       └── bitacora.ts
 ├── components/            → Componentes UI por módulo
-│   └── agenda/
-│       ├── PlanificarModal.tsx
-│       ├── PasarListaModal.tsx
-│       └── ReplanificarModal.tsx
+│   ├── agenda/
+│   │   ├── PlanificarModal.tsx   → planificar clase (copy/move, badge centro_computo)
+│   │   ├── PasarListaModal.tsx   → tomar lista (tabs todos/uno-por-uno)
+│   │   └── ReplanificarModal.tsx → replanificar (merge/shift)
+│   └── student/
+│       ├── ChatBot.tsx           → asistente flotante del portal estudiante
+│       └── logout-button.tsx
 └── types/
     ├── database.types.ts  → Tipos Supabase (generado)
     └── domain.ts          → Aliases y tipos de dominio
@@ -120,8 +124,9 @@ supabase/
 - `moverPlanificacion(...)` — igual que copiar + DELETE del original
 - `replanificarClase(...)` — merge o shift en cascada
 
-## Bug pendiente
-- **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`). Si la BD almacena sin tilde, el lookup falla. Fix: normalizar tildes o fetch cliente de `horarios_clases`.
+## Bugs pendientes
+- **"Sin fechas disponibles"** en `PlanificarModal` al copiar: `DIA_TO_DOW` usa tildes (`'miércoles'`). Si DB almacena sin tilde, lookup falla. Fix: `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup.
+- **Desconexión bitácora**: `guardarBitacoraData()` (cursos) guarda `actividades` texto; `guardarPlanificacion()` (agenda) guarda `actividades_json`. Incompatibles en `bitacora_clase`. Pendiente unificar.
 
 ## Changelog
 Ver `CHANGELOG.md` para historial detallado de features y fixes.
