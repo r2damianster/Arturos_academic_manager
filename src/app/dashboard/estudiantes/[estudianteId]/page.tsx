@@ -5,7 +5,7 @@ import type { Tables } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
 
-type Estudiante    = Tables<'estudiantes'> & { auth_user_id?: string | null }
+type Estudiante    = Tables<'estudiantes'>
 type Calificacion  = Tables<'calificaciones'>
 type Asistencia    = Tables<'asistencia'>
 type Participacion = Tables<'participacion'>

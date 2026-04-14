@@ -65,7 +65,13 @@ App Next.js 15 (v16.2.1) para gestión docente universitaria — cursos, asisten
 20260411_get_occupied_slots     → RPC bypass RLS para slots portal estudiante
 20260411_planificacion_clase    → Planificación de clases en agenda
 20260413_replanificar_clases    → Replanificación de clases (merge + shift cascada)
+20260414_add_auth_user_id_estudiantes → Columna auth_user_id en tabla estudiantes
 ```
+
+## Tipos TypeScript (`src/types/database.types.ts`)
+Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas extras no en el schema inicial):
+- `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente (existen en DB, no en schema inicial)
+- `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 
 ## Convenciones críticas
 - `getUser()` en servidor, **nunca** `getSession()`

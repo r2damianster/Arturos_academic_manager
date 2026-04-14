@@ -6,9 +6,7 @@ import type { Tables } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
 
-interface Estudiante extends Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria'> {
-  auth_user_id: string | null
-}
+type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria' | 'auth_user_id'>
 type Curso = Tables<'cursos'>
 
 export interface EstudiantePerfil {

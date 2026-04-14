@@ -3,16 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
-
 async function requireAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado', supabase: null, user: null }
 
-  const { data: profesor } = await (supabase as AnySupabase)
-    .from('profesores').select('rol').eq('id', user.id).single()
+  const { data: profesor } = await supabase.from('profesores')
+    .select('rol').eq('id', user.id).single()
 
   if (profesor?.rol !== 'admin') return { error: 'Acceso denegado: se requiere rol admin', supabase: null, user: null }
 
@@ -26,8 +23,7 @@ export async function cambiarRolProfesor(
   const { error, supabase } = await requireAdmin()
   if (error || !supabase) return { error: error ?? 'Error' }
 
-  const { error: dbError } = await (supabase as AnySupabase)
-    .from('profesores')
+  const { error: dbError } = await supabase.from('profesores')
     .update({ rol: nuevoRol })
     .eq('id', profesorId)
 

@@ -447,6 +447,24 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
             <span className="text-sm text-gray-300 font-medium">{fmtRange(weekDates)}</span>
+            <a
+              href={`/dashboard/agenda/imprimir?fecha=${dateToStr(weekDates[0])}&modo=semana`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost text-xs px-2 py-1"
+              title="Exportar semana como PDF"
+            >
+              PDF semana
+            </a>
+            <a
+              href={`/dashboard/agenda/imprimir?fecha=${today}&modo=dia`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost text-xs px-2 py-1"
+              title="Exportar día de hoy como PDF"
+            >
+              PDF día
+            </a>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg">
@@ -933,6 +951,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           fecha={claseModal.fecha}
           horaInicio={claseModal.clase.hora_inicio}
           horaFin={claseModal.clase.hora_fin}
+          clases={clases}
           onClose={() => setClaseModal(null)}
           onSaved={() => {
             setClaseModal(null)

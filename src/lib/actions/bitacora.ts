@@ -6,9 +6,6 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { ActividadPlanificada } from '@/types/domain'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
-
 const BitacoraSchema = z.object({
   tema:          z.string().min(1, 'El tema es obligatorio'),
   actividades:   z.string().optional(),
@@ -25,9 +22,9 @@ export async function guardarBitacoraData(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { data: semanaData } = await (supabase as AnySupabase).rpc('calcular_semana', { p_curso_id: cursoId })
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
 
-  const { error } = await (supabase as AnySupabase).from('bitacora_clase').insert({
+  const { error } = await supabase.from('bitacora_clase').insert({
     ...data,
     profesor_id: user.id,
     curso_id: cursoId,
@@ -47,9 +44,9 @@ export async function guardarBitacora(cursoId: string, formData: FormData): Prom
   const parsed = BitacoraSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return
 
-  const { data: semanaData } = await (supabase as AnySupabase).rpc('calcular_semana', { p_curso_id: cursoId })
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
 
-  await (supabase as AnySupabase).from('bitacora_clase').insert({
+  await supabase.from('bitacora_clase').insert({
     ...parsed.data,
     profesor_id: user.id,
     curso_id: cursoId,
@@ -83,12 +80,10 @@ export async function guardarPlanificacion(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const db = supabase as AnySupabase
-
-  const { data: semanaData } = await db.rpc('calcular_semana', { p_curso_id: cursoId })
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
 
   // Buscar bitácora existente para este curso+fecha
-  const { data: existing } = await db
+  const { data: existing } = await supabase
     .from('bitacora_clase')
     .select('id, estado')
     .eq('curso_id', cursoId)
@@ -100,7 +95,7 @@ export async function guardarPlanificacion(
 
   if (existing) {
     // Actualizar sin cambiar estado si ya está cumplido
-    const { error } = await db
+    const { error } = await supabase
       .from('bitacora_clase')
       .update({
         tema: data.tema,
@@ -117,7 +112,7 @@ export async function guardarPlanificacion(
   }
 
   // Crear nueva
-  const { data: created, error } = await db
+  const { data: created, error } = await supabase
     .from('bitacora_clase')
     .insert({
       profesor_id: user.id,
@@ -154,7 +149,7 @@ export async function confirmarCumplido(
   if (data?.actividades_json) update.actividades_json = data.actividades_json
   if (data?.observaciones !== undefined) update.observaciones = data.observaciones
 
-  const { error } = await (supabase as AnySupabase)
+  const { error } = await supabase
     .from('bitacora_clase')
     .update(update)
     .eq('id', bitacoraId)
@@ -202,11 +197,10 @@ export async function replanificarClase(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const db = supabase as any
   const { cursoId, origenFecha, destinoFecha, modo } = params
 
   // 1. Validar que origenFecha existe y está 'planificado'
-  const { data: origen, error: errOrigen } = await db
+  const { data: origen, error: errOrigen } = await supabase
     .from('bitacora_clase')
     .select('*')
     .eq('curso_id', cursoId)
@@ -223,7 +217,7 @@ export async function replanificarClase(params: {
   if (destinoFecha < today) return { error: 'No se puede mover a una fecha pasada' }
 
   // 3. Buscar si ya existe bitácora en destino
-  const { data: destino } = await db
+  const { data: destino } = await supabase
     .from('bitacora_clase')
     .select('*')
     .eq('curso_id', cursoId)
@@ -235,7 +229,7 @@ export async function replanificarClase(params: {
   if (modo === 'merge') {
     if (!destino) {
       // No hay conflicto, simplemente mover
-      const { error } = await db
+      const { error } = await supabase
         .from('bitacora_clase')
         .update({ fecha: destinoFecha })
         .eq('id', origen.id)
@@ -251,7 +245,7 @@ export async function replanificarClase(params: {
 
     const mergedTema = `${origen.tema} + ${destino.tema}`
 
-    const { error: errUpd } = await db
+    const { error: errUpd } = await supabase
       .from('bitacora_clase')
       .update({
         tema: mergedTema,
@@ -264,7 +258,7 @@ export async function replanificarClase(params: {
 
     if (errUpd) return { error: errUpd.message }
 
-    const { error: errDel } = await db
+    const { error: errDel } = await supabase
       .from('bitacora_clase')
       .delete()
       .eq('id', origen.id)
@@ -279,7 +273,7 @@ export async function replanificarClase(params: {
 
   if (!destino) {
     // No hay conflicto, simplemente mover
-    const { error } = await db
+    const { error } = await supabase
       .from('bitacora_clase')
       .update({ fecha: destinoFecha })
       .eq('id', origen.id)
@@ -290,7 +284,7 @@ export async function replanificarClase(params: {
 
   // Hay conflicto → shift en cascada
   // 1. Obtener fecha_fin del curso para saber hasta dónde desplazar
-  const { data: curso } = await db
+  const { data: curso } = await supabase
     .from('cursos')
     .select('fecha_fin, fecha_inicio')
     .eq('id', cursoId)
@@ -299,14 +293,14 @@ export async function replanificarClase(params: {
   if (!curso?.fecha_fin) return { error: 'El curso no tiene fecha_fin definida. No se puede hacer shift.' }
 
   // 2. Obtener horarios del curso para generar slots válidos
-  const { data: horarios } = await db
+  const { data: horarios } = await supabase
     .from('horarios_clases')
     .select('dia_semana')
     .eq('curso_id', cursoId)
 
   if (!horarios || horarios.length === 0) return { error: 'El curso no tiene horarios definidos.' }
 
-  const diasSemana = horarios.map((h: { dia_semana: string }) => h.dia_semana)
+  const diasSemana = horarios.map((h) => h.dia_semana)
 
   // 3. Generar todas las fechas válidas entre destinoFecha y fecha_fin
   const validSlots: string[] = []
@@ -326,7 +320,7 @@ export async function replanificarClase(params: {
   if (destIdx === -1) return { error: 'La fecha destino no coincide con un horario del curso.' }
 
   // Recolectar bitácoras existentes desde destino en adelante
-  const { data: bitacorasEnRango } = await db
+  const { data: bitacorasEnRango } = await supabase
     .from('bitacora_clase')
     .select('id, fecha')
     .eq('curso_id', cursoId)
@@ -362,7 +356,7 @@ export async function replanificarClase(params: {
     const bitacoraId = bitacorasMap.get(fechaActual)
 
     if (bitacoraId && fechaSiguiente) {
-      const { error } = await db
+      const { error } = await supabase
         .from('bitacora_clase')
         .update({ fecha: fechaSiguiente })
         .eq('id', bitacoraId)
@@ -372,7 +366,7 @@ export async function replanificarClase(params: {
   }
 
   // 7. Ahora mover origen a destino (que quedó libre)
-  const { error: errMove } = await db
+  const { error: errMove } = await supabase
     .from('bitacora_clase')
     .update({ fecha: destinoFecha })
     .eq('id', origen.id)
@@ -387,4 +381,66 @@ export async function replanificarClase(params: {
 const DIAS_ES: Record<number, string> = {
   0: 'domingo', 1: 'lunes', 2: 'martes', 3: 'miércoles',
   4: 'jueves', 5: 'viernes', 6: 'sábado',
+}
+
+// ─── Copiar planificación ─────────────────────────────────────────────────────
+
+/**
+ * Copia la planificación de una clase (curso+fecha fuente) a otro curso+fecha.
+ * Valida que el curso destino tenga clase el día de la semana de destFecha.
+ */
+export async function copiarPlanificacion(params: {
+  sourceCursoId: string
+  sourceFecha: string
+  destCursoId: string
+  destFecha: string
+}): Promise<{ error?: string; id?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { sourceCursoId, sourceFecha, destCursoId, destFecha } = params
+
+  // 1. Leer bitácora fuente
+  const { data: fuente, error: errFuente } = await supabase
+    .from('bitacora_clase')
+    .select('tema, actividades_json, observaciones')
+    .eq('curso_id', sourceCursoId)
+    .eq('fecha', sourceFecha)
+    .eq('profesor_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (errFuente) return { error: errFuente.message }
+  if (!fuente) return { error: 'No hay plan en la fecha de origen' }
+
+  // 2. Validar que el curso destino tiene clase el día de la semana de destFecha
+  // new Date(YYYY-MM-DD) en UTC → getUTCDay() evita desfase de zona horaria
+  const fechaDestObj = new Date(destFecha + 'T12:00:00')
+  const diaDestino = DIAS_ES[fechaDestObj.getDay()]
+
+  const { data: horarios, error: errHorarios } = await supabase
+    .from('horarios_clases')
+    .select('id')
+    .eq('curso_id', destCursoId)
+    .eq('dia_semana', diaDestino)
+    .neq('tipo', 'tutoria_curso')
+    .limit(1)
+
+  if (errHorarios) return { error: errHorarios.message }
+  if (!horarios || horarios.length === 0) {
+    return { error: 'El curso destino no tiene clase ese día' }
+  }
+
+  // 3. Copiar usando guardarPlanificacion
+  const actividadesJson = Array.isArray(fuente.actividades_json)
+    ? (fuente.actividades_json as ActividadPlanificada[])
+    : []
+
+  return guardarPlanificacion(destCursoId, destFecha, {
+    tema: fuente.tema ?? '',
+    actividades_json: actividadesJson,
+    observaciones: fuente.observaciones,
+  })
 }

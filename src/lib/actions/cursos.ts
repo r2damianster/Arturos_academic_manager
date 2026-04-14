@@ -18,6 +18,30 @@ const CursoSchema = z.object({
   num_parciales:  z.coerce.number().int().min(2).max(4).default(2),
 })
 
+type HorarioInput = { dia_semana: string; hora_inicio: string; hora_fin: string; tipo?: string; centro_computo?: boolean }
+
+function buildHorariosInserts(horarios: HorarioInput[], cursoId: string, profesorId: string) {
+  return horarios.map(h => ({
+    curso_id: cursoId,
+    profesor_id: profesorId,
+    dia_semana: h.dia_semana,
+    hora_inicio: h.hora_inicio,
+    hora_fin: h.hora_fin,
+    tipo: h.tipo || 'clase',
+    centro_computo: h.centro_computo ?? false,
+  }))
+}
+
+function parseCursoData(raw: z.infer<typeof CursoSchema>) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { aula: _aula, ...data } = raw
+  return {
+    ...data,
+    fecha_inicio: data.fecha_inicio || null,
+    fecha_fin: data.fecha_fin || null,
+  }
+}
+
 // Las Server Actions usadas en <form action={}> deben retornar void | Promise<void>
 // Para manejo de errores usamos state con useActionState o redireccionamos
 
@@ -29,14 +53,7 @@ export async function crearCurso(_prev: unknown, formData: FormData): Promise<vo
   const parsed = CursoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).from('cursos').insert({
-    ...parsed.data,
-    profesor_id: user.id,
-    fecha_inicio: parsed.data.fecha_inicio || null,
-    fecha_fin: parsed.data.fecha_fin || null,
-  })
-
+  const { error } = await supabase.from('cursos').insert({ ...parseCursoData(parsed.data), profesor_id: user.id })
   if (error) return
 
   revalidatePath('/dashboard/cursos')
@@ -51,37 +68,21 @@ export async function crearCursoAction(formData: FormData): Promise<void> {
   const parsed = CursoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: curso, error } = await (supabase as any).from('cursos').insert({
-    ...parsed.data,
-    profesor_id: user.id,
-    fecha_inicio: parsed.data.fecha_inicio || null,
-    fecha_fin: parsed.data.fecha_fin || null,
-  }).select('id').single()
+  const { data: curso, error } = await supabase.from('cursos')
+    .insert({ ...parseCursoData(parsed.data), profesor_id: user.id })
+    .select('id').single()
 
   if (error || !curso) return
 
-  // Parse horarios_clases if present
   const horariosJson = formData.get('horarios_clases') as string
   if (horariosJson) {
     try {
-      const horarios = JSON.parse(horariosJson)
+      const horarios: HorarioInput[] = JSON.parse(horariosJson)
       if (Array.isArray(horarios) && horarios.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const inserts = horarios.map((h: any) => ({
-          curso_id: curso.id,
-          profesor_id: user.id,
-          dia_semana: h.dia_semana,
-          hora_inicio: h.hora_inicio,
-          hora_fin: h.hora_fin,
-          tipo: h.tipo || 'clase',
-          centro_computo: h.centro_computo ?? false,
-        }))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any).from('horarios_clases').insert(inserts)
+        await supabase.from('horarios_clases').insert(buildHorariosInserts(horarios, curso.id, user.id))
       }
-    } catch {
-      // Ignorar errores de parseo
+    } catch (e) {
+      console.error('Error parsing horarios_clases JSON:', e)
     }
   }
 
@@ -97,9 +98,8 @@ export async function actualizarCurso(cursoId: string, formData: FormData): Prom
   const parsed = CursoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('cursos')
-    .update({ ...parsed.data, fecha_inicio: parsed.data.fecha_inicio || null, fecha_fin: parsed.data.fecha_fin || null })
+  await supabase.from('cursos')
+    .update(parseCursoData(parsed.data))
     .eq('id', cursoId)
     .eq('profesor_id', user.id)
 
@@ -112,8 +112,7 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('cursos')
+  await supabase.from('cursos')
     .delete()
     .eq('id', cursoId)
     .eq('profesor_id', user.id)
@@ -128,33 +127,21 @@ export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_s
   if (!user) return { ok: false, error: 'Unauthorized' }
 
   // 1. Verify ownership of the course
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: curso } = await (supabase as any).from('cursos').select('id').eq('id', cursoId).eq('profesor_id', user.id).single()
+  const { data: curso } = await supabase.from('cursos').select('id').eq('id', cursoId).eq('profesor_id', user.id).single()
   if (!curso) return { ok: false, error: 'Course not found or unauthorized' }
 
   // 2. Delete all existing horarios for this course
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('horarios_clases').delete().eq('curso_id', cursoId)
+  await supabase.from('horarios_clases').delete().eq('curso_id', cursoId)
 
   // 3. Insert new horarios
   if (horarios && horarios.length > 0) {
-    const inserts = horarios.map(h => ({
-      curso_id: cursoId,
-      profesor_id: user.id,
-      dia_semana: h.dia_semana,
-      hora_inicio: h.hora_inicio,
-      hora_fin: h.hora_fin,
-      tipo: h.tipo || 'clase',
-      centro_computo: h.centro_computo ?? false,
-    }))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from('horarios_clases').insert(inserts)
+    const { error } = await supabase.from('horarios_clases').insert(buildHorariosInserts(horarios, cursoId, user.id))
     if (error) return { ok: false, error: error.message }
   }
 
   revalidatePath(`/dashboard/cursos/${cursoId}`)
   revalidatePath('/dashboard/tutorias')
   revalidatePath('/dashboard')
-  
+
   return { ok: true }
 }

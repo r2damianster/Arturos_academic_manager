@@ -4,9 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
-
 const TrabajoSchema = z.object({
   tipo:             z.string().min(1),
   tema:             z.string().optional(),
@@ -32,7 +29,7 @@ export async function asignarTrabajoMasivo(
     estudiante_id: id,
   }))
 
-  const { error } = await (supabase as AnySupabase).from('trabajos_asignados').insert(rows)
+  const { error } = await supabase.from('trabajos_asignados').insert(rows)
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
@@ -51,7 +48,7 @@ export async function asignarTrabajo(
   const parsed = TrabajoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { error } = await (supabase as AnySupabase).from('trabajos_asignados').insert({
+  const { error } = await supabase.from('trabajos_asignados').insert({
     ...parsed.data,
     profesor_id: user.id,
     curso_id: cursoId,
@@ -74,7 +71,7 @@ export async function actualizarEstadoTrabajo(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('trabajos_asignados')
+  const { error } = await supabase.from('trabajos_asignados')
     .update({ estado })
     .eq('id', trabajoId)
     .eq('profesor_id', user.id)
@@ -95,7 +92,7 @@ export async function agregarObservacionTrabajo(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('observaciones_trabajo').insert({
+  const { error } = await supabase.from('observaciones_trabajo').insert({
     profesor_id: user.id,
     trabajo_id: trabajoId,
     observacion,
@@ -118,7 +115,7 @@ export async function actualizarTrabajo(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('trabajos_asignados')
+  const { error } = await supabase.from('trabajos_asignados')
     .update({
       tipo: data.tipo,
       tema: data.tema || null,
@@ -145,7 +142,7 @@ export async function eliminarTrabajo(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('trabajos_asignados')
+  const { error } = await supabase.from('trabajos_asignados')
     .delete()
     .eq('id', trabajoId)
     .eq('profesor_id', user.id)

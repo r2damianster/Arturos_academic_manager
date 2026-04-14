@@ -13,6 +13,7 @@ export type Database = {
           email: string
           avatar_url: string | null
           institucion: string | null
+          rol: string
           created_at: string
         }
         Insert: {
@@ -21,12 +22,14 @@ export type Database = {
           email: string
           avatar_url?: string | null
           institucion?: string | null
+          rol?: string
           created_at?: string
         }
         Update: {
           nombre?: string
           avatar_url?: string | null
           institucion?: string | null
+          rol?: string
         }
         Relationships: []
       }
@@ -42,6 +45,8 @@ export type Database = {
           horas_semana: number
           num_sesiones: number
           horas_teoricas: number
+          num_parciales: number | null
+          nombres_tareas: Json | null
           created_at: string
         }
         Insert: {
@@ -55,6 +60,8 @@ export type Database = {
           horas_semana?: number
           num_sesiones?: number
           horas_teoricas?: number
+          num_parciales?: number | null
+          nombres_tareas?: Json | null
           created_at?: string
         }
         Update: {
@@ -66,6 +73,8 @@ export type Database = {
           horas_semana?: number
           num_sesiones?: number
           horas_teoricas?: number
+          num_parciales?: number | null
+          nombres_tareas?: Json | null
         }
         Relationships: [
           {
@@ -86,6 +95,7 @@ export type Database = {
           hora_inicio: string
           hora_fin: string
           tipo: string
+          centro_computo: boolean
           created_at: string
         }
         Insert: {
@@ -96,6 +106,7 @@ export type Database = {
           hora_inicio: string
           hora_fin: string
           tipo?: string
+          centro_computo?: boolean
           created_at?: string
         }
         Update: {
@@ -106,6 +117,7 @@ export type Database = {
           hora_inicio?: string
           hora_fin?: string
           tipo?: string
+          centro_computo?: boolean
         }
         Relationships: [
           {
@@ -170,6 +182,7 @@ export type Database = {
           nombre: string
           email: string
           tutoria: boolean
+          auth_user_id: string | null
           created_at: string
         }
         Insert: {
@@ -179,12 +192,14 @@ export type Database = {
           nombre: string
           email: string
           tutoria?: boolean
+          auth_user_id?: string | null
           created_at?: string
         }
         Update: {
           nombre?: string
           email?: string
           tutoria?: boolean
+          auth_user_id?: string | null
         }
         Relationships: [
           {
@@ -246,6 +261,8 @@ export type Database = {
           atraso: boolean
           horas: number
           momento: string | null
+          observacion_part: string | null
+          bitacora_id: string | null
           created_at: string
         }
         Insert: {
@@ -259,6 +276,8 @@ export type Database = {
           atraso?: boolean
           horas?: number
           momento?: string | null
+          observacion_part?: string | null
+          bitacora_id?: string | null
           created_at?: string
         }
         Update: {
@@ -266,6 +285,8 @@ export type Database = {
           atraso?: boolean
           horas?: number
           momento?: string | null
+          observacion_part?: string | null
+          bitacora_id?: string | null
         }
         Relationships: [
           {
@@ -320,6 +341,14 @@ export type Database = {
           ta2: number
           pe2: number
           ex2: number
+          acd3: number | null
+          ta3: number | null
+          pe3: number | null
+          ex3: number | null
+          acd4: number | null
+          ta4: number | null
+          pe4: number | null
+          ex4: number | null
           updated_at: string
         }
         Insert: {
@@ -335,6 +364,14 @@ export type Database = {
           ta2?: number
           pe2?: number
           ex2?: number
+          acd3?: number | null
+          ta3?: number | null
+          pe3?: number | null
+          ex3?: number | null
+          acd4?: number | null
+          ta4?: number | null
+          pe4?: number | null
+          ex4?: number | null
           updated_at?: string
         }
         Update: {
@@ -346,6 +383,14 @@ export type Database = {
           ta2?: number
           pe2?: number
           ex2?: number
+          acd3?: number | null
+          ta3?: number | null
+          pe3?: number | null
+          ex3?: number | null
+          acd4?: number | null
+          ta4?: number | null
+          pe4?: number | null
+          ex4?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -419,6 +464,199 @@ export type Database = {
           }
         ]
       }
+      horarios: {
+        Row: {
+          id: number
+          profesor_id: string
+          dia_semana: number
+          hora_inicio: string
+          hora_fin: string
+          estado: string
+          disponible_hasta: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          profesor_id: string
+          dia_semana: number
+          hora_inicio: string
+          hora_fin: string
+          estado?: string
+          disponible_hasta?: string | null
+          created_at?: string
+        }
+        Update: {
+          estado?: string
+          disponible_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "horarios_profesor_id_fkey"
+            columns: ["profesor_id"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      reservas: {
+        Row: {
+          id: number
+          horario_id: number
+          fecha: string
+          auth_user_id: string
+          estudiante_nombre: string
+          estudiante_carrera: string
+          email: string
+          telefono: string
+          notas: string | null
+          estado: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          horario_id: number
+          fecha: string
+          auth_user_id: string
+          estudiante_nombre: string
+          estudiante_carrera?: string
+          email: string
+          telefono?: string
+          notas?: string | null
+          estado?: string
+          created_at?: string
+        }
+        Update: {
+          estado?: string
+          notas?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_horario_id_fkey"
+            columns: ["horario_id"]
+            isOneToOne: false
+            referencedRelation: "horarios"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      encuesta_estudiante: {
+        Row: {
+          id: string
+          auth_user_id: string
+          genero: string | null
+          fecha_nac: string | null
+          telefono: string | null
+          gmail: string | null
+          nivel_estudio: string | null
+          carrera: string | null
+          institucion: string | null
+          carrera_inicio_deseada: number | null
+          carrera_actual_deseada: number | null
+          modalidad_carrera: string | null
+          situacion_vivienda: string | null
+          es_foraneo: boolean
+          nivel_tecnologia: number | null
+          tiene_laptop: boolean
+          tiene_pc_escritorio: boolean
+          comparte_pc: boolean
+          sin_computadora: boolean
+          dispositivo_movil: string | null
+          trabaja: boolean
+          tipo_trabajo: string | null
+          horas_trabajo_diarias: number | null
+          libros_anio: number | null
+          gusto_escritura: number | null
+          uso_ia_comprension: number | null
+          uso_ia_resumen: number | null
+          uso_ia_ideas: number | null
+          uso_ia_redaccion: number | null
+          uso_ia_tareas: number | null
+          uso_ia_verificacion: number | null
+          uso_ia_critico: number | null
+          uso_ia_traduccion: number | null
+          uso_ia_idiomas: number | null
+          problemas_reportados: string | null
+          consentimiento: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          auth_user_id: string
+          genero?: string | null
+          fecha_nac?: string | null
+          telefono?: string | null
+          gmail?: string | null
+          nivel_estudio?: string | null
+          carrera?: string | null
+          institucion?: string | null
+          carrera_inicio_deseada?: number | null
+          carrera_actual_deseada?: number | null
+          modalidad_carrera?: string | null
+          situacion_vivienda?: string | null
+          es_foraneo?: boolean
+          nivel_tecnologia?: number | null
+          tiene_laptop?: boolean
+          tiene_pc_escritorio?: boolean
+          comparte_pc?: boolean
+          sin_computadora?: boolean
+          dispositivo_movil?: string | null
+          trabaja?: boolean
+          tipo_trabajo?: string | null
+          horas_trabajo_diarias?: number | null
+          libros_anio?: number | null
+          gusto_escritura?: number | null
+          uso_ia_comprension?: number | null
+          uso_ia_resumen?: number | null
+          uso_ia_ideas?: number | null
+          uso_ia_redaccion?: number | null
+          uso_ia_tareas?: number | null
+          uso_ia_verificacion?: number | null
+          uso_ia_critico?: number | null
+          uso_ia_traduccion?: number | null
+          uso_ia_idiomas?: number | null
+          problemas_reportados?: string | null
+          consentimiento?: boolean
+          created_at?: string
+        }
+        Update: {
+          genero?: string | null
+          fecha_nac?: string | null
+          telefono?: string | null
+          gmail?: string | null
+          nivel_estudio?: string | null
+          carrera?: string | null
+          institucion?: string | null
+          carrera_inicio_deseada?: number | null
+          carrera_actual_deseada?: number | null
+          modalidad_carrera?: string | null
+          situacion_vivienda?: string | null
+          es_foraneo?: boolean
+          nivel_tecnologia?: number | null
+          tiene_laptop?: boolean
+          tiene_pc_escritorio?: boolean
+          comparte_pc?: boolean
+          sin_computadora?: boolean
+          dispositivo_movil?: string | null
+          trabaja?: boolean
+          tipo_trabajo?: string | null
+          horas_trabajo_diarias?: number | null
+          libros_anio?: number | null
+          gusto_escritura?: number | null
+          uso_ia_comprension?: number | null
+          uso_ia_resumen?: number | null
+          uso_ia_ideas?: number | null
+          uso_ia_redaccion?: number | null
+          uso_ia_tareas?: number | null
+          uso_ia_verificacion?: number | null
+          uso_ia_critico?: number | null
+          uso_ia_traduccion?: number | null
+          uso_ia_idiomas?: number | null
+          problemas_reportados?: string | null
+          consentimiento?: boolean
+        }
+        Relationships: []
+      }
       bitacora_clase: {
         Row: {
           id: string
@@ -430,6 +668,8 @@ export type Database = {
           actividades: string | null
           materiales: string | null
           observaciones: string | null
+          estado: string | null
+          actividades_json: Json | null
           created_at: string
         }
         Insert: {
@@ -442,6 +682,8 @@ export type Database = {
           actividades?: string | null
           materiales?: string | null
           observaciones?: string | null
+          estado?: string | null
+          actividades_json?: Json | null
           created_at?: string
         }
         Update: {
@@ -449,14 +691,84 @@ export type Database = {
           actividades?: string | null
           materiales?: string | null
           observaciones?: string | null
+          estado?: string | null
+          actividades_json?: Json | null
         }
         Relationships: []
+      }
+      eventos_profesor: {
+        Row: {
+          id: string
+          profesor_id: string
+          titulo: string
+          descripcion: string | null
+          tipo: string
+          fecha_inicio: string
+          fecha_fin: string
+          hora_inicio: string | null
+          hora_fin: string | null
+          todo_el_dia: boolean
+          recurrente: boolean
+          recurrencia: string | null
+          recurrencia_dias: number[] | null
+          recurrencia_hasta: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profesor_id: string
+          titulo: string
+          descripcion?: string | null
+          tipo: string
+          fecha_inicio: string
+          fecha_fin: string
+          hora_inicio?: string | null
+          hora_fin?: string | null
+          todo_el_dia?: boolean
+          recurrente?: boolean
+          recurrencia?: string | null
+          recurrencia_dias?: number[] | null
+          recurrencia_hasta?: string | null
+          created_at?: string
+        }
+        Update: {
+          titulo?: string
+          descripcion?: string | null
+          tipo?: string
+          fecha_inicio?: string
+          fecha_fin?: string
+          hora_inicio?: string | null
+          hora_fin?: string | null
+          todo_el_dia?: boolean
+          recurrente?: boolean
+          recurrencia?: string | null
+          recurrencia_dias?: number[] | null
+          recurrencia_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_profesor_profesor_id_fkey"
+            columns: ["profesor_id"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_occupied_slots: {
+        Args: {
+          p_horario_ids: number[]
+        }
+        Returns: {
+          horario_id: number
+          fecha: string
+        }[]
+      }
       calcular_semana: {
         Args: {
           p_curso_id: string

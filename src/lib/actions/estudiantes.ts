@@ -9,15 +9,12 @@ const EstudianteSchema = z.object({
   email:  z.string().email(),
 })
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
-
 export async function setTutoria(estudianteId: string, activar: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('estudiantes')
+  const { error } = await supabase.from('estudiantes')
     .update({ tutoria: activar })
     .eq('id', estudianteId)
     .eq('profesor_id', user.id)
@@ -46,7 +43,7 @@ export async function importarEstudiantesMasivo(
 
   if (rows.length === 0) return { error: 'No se encontraron estudiantes válidos.' }
 
-  const { error, data } = await (supabase as AnySupabase)
+  const { error, data } = await supabase
     .from('estudiantes')
     .upsert(rows, { onConflict: 'curso_id,email', ignoreDuplicates: true })
     .select()
@@ -62,7 +59,7 @@ export async function eliminarEstudiante(estudianteId: string, cursoId: string):
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { error } = await (supabase as AnySupabase).from('estudiantes')
+  const { error } = await supabase.from('estudiantes')
     .delete()
     .eq('id', estudianteId)
     .eq('profesor_id', user.id)

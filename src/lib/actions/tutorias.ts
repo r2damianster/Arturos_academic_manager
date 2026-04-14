@@ -21,15 +21,13 @@ function calcDisponibleHasta(duracion: DuracionTutoria): string | null {
 
 export async function activarHorario(horarioId: number, duracion: string) {
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
   let disponible_hasta: string | null = null
   if (duracion.startsWith('hasta_')) {
     disponible_hasta = duracion.replace('hasta_', '')
   } else {
     disponible_hasta = calcDisponibleHasta(duracion as DuracionTutoria)
   }
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('horarios')
     .update({ estado: 'disponible', disponible_hasta })
     .eq('id', horarioId)

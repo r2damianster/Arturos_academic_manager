@@ -4,7 +4,7 @@ Formato: `[fecha] tipo: descripción`
 
 ---
 
-## [2026-04-13] — Estado actual
+## [2026-04-14] — Estado actual
 
 ### Features implementadas
 - Portal completo del estudiante (onboarding, calendario tutorías, perfil)
@@ -20,10 +20,16 @@ Formato: `[fecha] tipo: descripción`
 - Widget horario semanal navegable
 - Sidebar slide-over para confirmar tutoría
 - Viewport dinámico en calendario de tutorías (Tmin-1h / Tmax+1h)
+- Tipos TypeScript sincronizados con esquema real de Supabase
 
 ---
 
 ## Historial de commits recientes
+
+### 2026-04-14
+- `refactor`: `src/types/database.types.ts` — sincronización masiva: `auth_user_id` en `estudiantes`, `centro_computo` en `horarios_clases`, `num_parciales`/`nombres_tareas` en `cursos`, `bitacora_id` en `asistencia`; tablas nuevas `horarios`, `reservas`, `encuesta_estudiante`; RPC `get_occupied_slots`
+- `refactor`: eliminados `as any` y `eslint-disable` en actions y pages (tipos ahora cubiertos)
+- `feat`: `supabase/migrations/20260414_add_auth_user_id_estudiantes.sql` — migración que documenta `auth_user_id` en `estudiantes`
 
 ### 2026-04-13
 - `fix`: mostrar etiqueta 'Centro Cómputo' usando campo booleano `centro_computo`
@@ -79,3 +85,5 @@ Formato: `[fecha] tipo: descripción`
 | `20260405_fix_anuncios_rls` | Fix RLS anuncios | 2026-04-05 |
 | `20260411_get_occupied_slots` | RPC bypass RLS portal estudiante | 2026-04-11 |
 | `20260411_planificacion_clase` | Tabla planificación clases | 2026-04-11 |
+| `20260413_replanificar_clases` | Replanificación (merge + shift cascada) | 2026-04-13 |
+| `20260414_add_auth_user_id_estudiantes` | Columna `auth_user_id` en `estudiantes` | 2026-04-14 |

@@ -3,9 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabase = any
-
 export type RegistroAsistenciaInput = {
   estudiante_id: string
   estado: 'Presente' | 'Ausente' | 'Atraso'
@@ -27,7 +24,7 @@ export async function registrarAsistenciaMasiva(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const { data: semanaData } = await (supabase as AnySupabase).rpc('calcular_semana', { p_curso_id: cursoId })
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
   const semana = semanaData ?? null
 
   const asistenciaRows = registros.map(r => ({
@@ -43,7 +40,7 @@ export async function registrarAsistenciaMasiva(
     bitacora_id: bitacoraId ?? null,
   }))
 
-  const { error: errAsis } = await (supabase as AnySupabase)
+  const { error: errAsis } = await supabase
     .from('asistencia')
     .upsert(asistenciaRows, { onConflict: 'curso_id,estudiante_id,fecha' })
 
@@ -60,15 +57,9 @@ export async function registrarAsistenciaMasiva(
       nivel: r.participacion,
     }))
 
-  // Evitar duplicados si se vuelve a tomar lista para la misma fecha
-  await (supabase as AnySupabase)
-    .from('participacion')
-    .delete()
-    .eq('curso_id', cursoId)
-    .eq('fecha', fecha)
-
   if (partRows.length > 0) {
-    await (supabase as AnySupabase).from('participacion').insert(partRows)
+    await supabase.from('participacion')
+      .upsert(partRows, { onConflict: 'curso_id,estudiante_id,fecha' })
   }
 
   const obsTrabajoRows = registros
@@ -81,7 +72,7 @@ export async function registrarAsistenciaMasiva(
     }))
 
   if (obsTrabajoRows.length > 0) {
-    await (supabase as AnySupabase).from('observaciones_trabajo').insert(obsTrabajoRows)
+    await supabase.from('observaciones_trabajo').insert(obsTrabajoRows)
   }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/asistencia`)

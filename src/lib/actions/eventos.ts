@@ -46,8 +46,7 @@ export async function crearEvento(data: EventoInput): Promise<{ error?: string; 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: row, error } = await (supabase as any)
+  const { data: row, error } = await supabase
     .from('eventos_profesor')
     .insert({ ...parsed.data, profesor_id: user.id })
     .select('id')
@@ -67,8 +66,7 @@ export async function actualizarEvento(id: string, data: EventoInput): Promise<{
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('eventos_profesor')
     .update(parsed.data)
     .eq('id', id)
@@ -85,8 +83,7 @@ export async function eliminarEvento(id: string): Promise<{ error?: string }> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('eventos_profesor')
     .delete()
     .eq('id', id)
