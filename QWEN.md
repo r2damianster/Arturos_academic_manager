@@ -60,8 +60,10 @@ export async function miAction(formData: FormData) {
   - Modo `'shift'`: desplaza bitácoras en cascada hasta encontrar hueco vacío o llegar a fecha_fin del curso
 
 ### Tipos
-- Tipos generados en `src/types/database.types.ts` (no editar manualmente).
+- `src/types/database.types.ts` se mantiene **manualmente** (no regenerar con CLI sin revisar).
 - Aliases y tipos de dominio en `src/types/domain.ts`.
+- Tablas agregadas manualmente: `horarios`, `reservas`, `encuesta_estudiante`, `eventos_profesor`.
+- Campos agregados manualmente: `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `asistencia.bitacora_id`, `bitacora_clase.estado/actividades_json`, `calificaciones.acd3-ex4`.
 
 ### Portal del estudiante (`src/app/student/`)
 - El portal usa RPC `get_occupied_slots` para slots de tutorías (bypassa RLS correctamente).
@@ -108,8 +110,18 @@ supabase/
     ├── 20260405_fix_anuncios_rls.sql
     ├── 20260411_get_occupied_slots.sql
     ├── 20260411_planificacion_clase.sql
-    └── 20260413_replanificar_clases.sql
+    ├── 20260413_replanificar_clases.sql
+    └── 20260414_add_auth_user_id_estudiantes.sql
 ```
+
+## Acciones de planificación (`src/lib/actions/bitacora.ts`)
+- `guardarPlanificacion(cursoId, fecha, data)` — upsert bitácora
+- `copiarPlanificacion({ sourceCursoId, sourceFecha, destCursoId, destFecha })` — copia plan, valida que destino tenga clase ese día
+- `moverPlanificacion(...)` — igual que copiar + DELETE del original
+- `replanificarClase(...)` — merge o shift en cascada
+
+## Bug pendiente
+- **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`). Si la BD almacena sin tilde, el lookup falla. Fix: normalizar tildes o fetch cliente de `horarios_clases`.
 
 ## Changelog
 Ver `CHANGELOG.md` para historial detallado de features y fixes.

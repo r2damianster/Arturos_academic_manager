@@ -73,6 +73,14 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente (existen en DB, no en schema inicial)
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 
+## Features recientes (2026-04-14)
+- `copiarPlanificacion` / `moverPlanificacion` en `src/lib/actions/bitacora.ts`
+- `PlanificarModal` — fechas destino filtradas por días hábiles del curso, toggle Copiar/Mover
+- Agenda profesor — confirmaciones "Asistiré" visibles por día con lista de nombres
+
+## Bug pendiente
+- **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar tildes al construir `cursoDiasMap`, o hacer fetch cliente de `horarios_clases` al abrir el panel.
+
 ## Convenciones críticas
 - `getUser()` en servidor, **nunca** `getSession()`
 - Inserts siempre incluyen `profesor_id: user.id` (nunca del formData)

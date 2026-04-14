@@ -4,7 +4,20 @@ Formato: `[fecha] tipo: descripción`
 
 ---
 
-## [2026-04-14] — Estado actual
+## [2026-04-14] — Sesión 2 (tarde)
+
+### Features
+- **Copiar/Mover plan de clase** (`PlanificarModal`): toggle Copiar vs Mover (mover elimina el original). La fecha destino ya no es libre — es un `<select>` con las próximas fechas válidas del curso seleccionado, derivadas de sus `dia_semana` en `horarios_clases`. Auto-selecciona la primera fecha válida al cambiar curso.
+- **`moverPlanificacion()`** en `bitacora.ts`: acción que ejecuta `copiarPlanificacion` + `DELETE` del original en una sola operación, con `revalidatePath`.
+- **Confirmaciones "Asistiré" visibles en agenda del profesor** (`agenda-client.tsx`): el contador `voy` ahora filtra `anuncios_tutoria_curso` por `fecha === ds` (antes contaba todos sin filtro de fecha). El bloque de tutoría muestra borde más vivo y texto "X asisten" en naranja cuando hay confirmaciones. El picker emergente muestra la lista de nombres de los estudiantes confirmados ese día.
+
+### Bug conocido (pendiente)
+- **"Sin fechas disponibles"** en panel de copiar plan: el `cursoDiasMap` se construye con `c.dia_semana.toLowerCase()` mapeado contra `DIA_TO_DOW` que usa claves con tilde (`'miércoles'`, `'sábado'`). Si los valores almacenados en DB omiten tildes o tienen capitalización diferente, el lookup falla silenciosamente y `fechasDestino` queda vacío.
+  - **Fix sugerido**: normalizar el string antes del lookup (strip tildes) o incluir variantes sin tilde en `DIA_TO_DOW`. Alternativa más robusta: hacer fetch cliente de `horarios_clases` al abrir el panel de copia, en lugar de depender de la prop `clases`.
+
+---
+
+## [2026-04-14] — Sesión 1 (mañana) — Estado actual
 
 ### Features implementadas
 - Portal completo del estudiante (onboarding, calendario tutorías, perfil)
