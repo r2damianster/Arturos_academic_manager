@@ -56,6 +56,14 @@ const ESTADO_COLORS = {
   Atraso:   'bg-amber-600/20 border-amber-500/40 text-amber-300',
 } as const
 
+const ESTADO_COLORS_LG = {
+  Presente: 'bg-emerald-600/30 border-emerald-500/60 text-emerald-200 hover:bg-emerald-600/45',
+  Ausente:  'bg-red-600/25 border-red-500/50 text-red-200 hover:bg-red-600/40',
+  Atraso:   'bg-amber-600/25 border-amber-500/50 text-amber-200 hover:bg-amber-600/40',
+} as const
+
+const ESTADO_INACTIVE = 'bg-gray-800/50 border-gray-700/50 text-gray-500 hover:border-gray-600 hover:text-gray-300'
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PasarListaModal({
@@ -77,6 +85,10 @@ export function PasarListaModal({
   // Lista state
   const [estudiantes, setEstudiantes] = useState<EstudianteClase[]>([])
   const [registros,   setRegistros]   = useState<RegistroLocal[]>([])
+
+  // Lista UI mode
+  const [listaTab,    setListaTab]    = useState<'todos' | 'uno'>('todos')
+  const [currentIdx,  setCurrentIdx]  = useState(0)
 
   const fmt = (t: string) => t?.slice(0, 5) ?? ''
 
@@ -128,9 +140,9 @@ export function PasarListaModal({
       return {
         estudiante_id: e.id,
         nombre: e.nombre,
-        estado:       prev?.estado       ?? 'Presente',
-        participacion: prev?.participacion ?? null,
-        observacion:   prev?.observacion_part ?? '',
+        estado:        prev?.estado            ?? 'Presente',
+        participacion: prev?.participacion     ?? null,
+        observacion:   prev?.observacion_part  ?? '',
       }
     }))
 
@@ -162,6 +174,10 @@ export function PasarListaModal({
     setRegistros(p => p.map(r => r.estudiante_id === id ? { ...r, participacion: nivel } : r))
   }
 
+  function setObservacion(id: string, obs: string) {
+    setRegistros(p => p.map(r => r.estudiante_id === id ? { ...r, observacion: obs } : r))
+  }
+
   // ── Step 1 → Step 2 ────────────────────────────────────────────────────────
   async function handleContinuar() {
     if (!tema.trim()) { setError('El tema es obligatorio'); return }
@@ -178,7 +194,6 @@ export function PasarListaModal({
     setSaving(false)
     if (result.error) { setError(result.error); return }
 
-    // Refrescar bitácora con el id
     if (result.id) setBitacora(prev => prev
       ? { ...prev, id: result.id! }
       : { id: result.id!, tema: tema.trim(), actividades_json: actsFiltradas, observaciones: observaciones || null, estado: 'planificado' }
@@ -191,8 +206,7 @@ export function PasarListaModal({
     setSaving(true)
     setError(null)
 
-    // Marcar bitácora como cumplida
-    let bitacoraId = bitacora?.id ?? null
+    const bitacoraId = bitacora?.id ?? null
     if (bitacoraId) {
       const actsFiltradas = actividades.filter(a => a.actividad.trim())
       await confirmarCumplido(bitacoraId, {
@@ -202,16 +216,15 @@ export function PasarListaModal({
       })
     }
 
-    // Registrar asistencia
     const result = await registrarAsistenciaMasiva(
       cursoId,
       fecha,
       registros.map(r => ({
-        estudiante_id: r.estudiante_id,
-        estado: r.estado,
-        atraso: r.estado === 'Atraso',
-        horas: r.estado === 'Presente' || r.estado === 'Atraso' ? 1 : 0,
-        participacion: r.participacion,
+        estudiante_id:    r.estudiante_id,
+        estado:           r.estado,
+        atraso:           r.estado === 'Atraso',
+        horas:            r.estado === 'Presente' || r.estado === 'Atraso' ? 1 : 0,
+        participacion:    r.participacion,
         observacion_part: r.observacion || null,
       })),
       bitacoraId
@@ -226,6 +239,9 @@ export function PasarListaModal({
   const ausentes  = registros.filter(r => r.estado === 'Ausente').length
   const atrasos   = registros.filter(r => r.estado === 'Atraso').length
 
+  // Cuántos ya tienen estado distinto al default para "uno por uno"
+  const marcados  = registros.filter(r => r.estado !== 'Presente' || r.observacion || r.participacion != null).length
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
@@ -235,26 +251,21 @@ export function PasarListaModal({
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-800 flex-shrink-0">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {/* Steps */}
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold
-                  ${step === 1 ? 'bg-brand-600 text-white' : 'bg-emerald-600/30 text-emerald-400'}`}>
-                  {step > 1 ? '✓' : '1'}
-                </span>
-                <span className={step === 1 ? 'text-white' : 'text-gray-500'}>Planificación</span>
-                <span className="text-gray-700 mx-1">→</span>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold
-                  ${step === 2 ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-600'}`}>
-                  2
-                </span>
-                <span className={step === 2 ? 'text-white' : 'text-gray-500'}>Pase de lista</span>
-              </div>
+            <div className="flex items-center gap-1.5 text-xs mb-1">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold
+                ${step === 1 ? 'bg-brand-600 text-white' : 'bg-emerald-600/30 text-emerald-400'}`}>
+                {step > 1 ? '✓' : '1'}
+              </span>
+              <span className={step === 1 ? 'text-white' : 'text-gray-500'}>Planificación</span>
+              <span className="text-gray-700 mx-1">→</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold
+                ${step === 2 ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-600'}`}>
+                2
+              </span>
+              <span className={step === 2 ? 'text-white' : 'text-gray-500'}>Pase de lista</span>
             </div>
             <h3 className="font-semibold text-white text-base truncate">{asignatura}</h3>
-            <p className="text-xs text-gray-500">
-              {fmtFecha(fecha)} · {fmt(horaInicio)}–{fmt(horaFin)}
-            </p>
+            <p className="text-xs text-gray-500">{fmtFecha(fecha)} · {fmt(horaInicio)}–{fmt(horaFin)}</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none ml-4">✕</button>
         </div>
@@ -264,7 +275,8 @@ export function PasarListaModal({
             <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : step === 1 ? (
-          /* ── PASO 1: Planificación ────────────────────────────────── */
+
+          /* ── PASO 1: Planificación ──────────────────────────────────────── */
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
@@ -273,7 +285,7 @@ export function PasarListaModal({
                   ${bitacora.estado === 'cumplido'
                     ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400'
                     : 'bg-blue-600/10 border-blue-500/30 text-blue-400'}`}>
-                  <span>{bitacora.estado === 'cumplido' ? '✓ Clase ya registrada como cumplida' : '📋 Planificación existente — puedes editarla'}</span>
+                  {bitacora.estado === 'cumplido' ? '✓ Clase ya registrada como cumplida' : '📋 Planificación existente — puedes editarla'}
                 </div>
               )}
 
@@ -332,11 +344,13 @@ export function PasarListaModal({
               </button>
             </div>
           </div>
+
         ) : (
-          /* ── PASO 2: Pase de lista ────────────────────────────────── */
+
+          /* ── PASO 2: Pase de lista ──────────────────────────────────────── */
           <div className="flex flex-col flex-1 overflow-hidden">
 
-            {/* Resumen plan (collapsed) */}
+            {/* Resumen plan colapsado */}
             {tema && (
               <div className="px-5 pt-3 pb-2 border-b border-gray-800/60 flex-shrink-0">
                 <div className="flex items-start gap-2 text-xs text-gray-400">
@@ -353,78 +367,253 @@ export function PasarListaModal({
               </div>
             )}
 
-            {/* Stats */}
-            <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-800/60 flex-shrink-0 flex-wrap">
-              <span className="text-xs text-gray-500">{estudiantes.length} estudiantes</span>
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-xs text-emerald-400 font-medium">{presentes} presentes</span>
-                <span className="text-xs text-red-400">{ausentes} ausentes</span>
-                {atrasos > 0 && <span className="text-xs text-amber-400">{atrasos} atrasos</span>}
+            {/* Stats + tabs */}
+            <div className="px-5 py-2.5 border-b border-gray-800/60 flex-shrink-0 space-y-2.5">
+              {/* Contadores */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-gray-500">{estudiantes.length} estudiantes</span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-xs text-emerald-400 font-medium">{presentes}P</span>
+                  <span className="text-xs text-red-400">{ausentes}A</span>
+                  {atrasos > 0 && <span className="text-xs text-amber-400">{atrasos}At</span>}
+                </div>
+                {/* Marcar todos — solo en modo "todos" */}
+                {listaTab === 'todos' && (
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    <span className="text-[11px] text-gray-600">Todos:</span>
+                    {(['Presente','Ausente','Atraso'] as const).map(est => (
+                      <button key={est} type="button" onClick={() => toggleTodos(est)}
+                        className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${ESTADO_COLORS[est]}`}>
+                        {est}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                <span className="text-[11px] text-gray-600">Marcar todos:</span>
-                {(['Presente','Ausente','Atraso'] as const).map(est => (
-                  <button key={est} type="button" onClick={() => toggleTodos(est)}
-                    className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${ESTADO_COLORS[est]}`}>
-                    {est}
-                  </button>
-                ))}
+
+              {/* Tabs */}
+              <div className="flex gap-1 bg-gray-800/60 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setListaTab('todos')}
+                  className={`flex-1 text-xs py-1.5 rounded-md transition-colors font-medium ${
+                    listaTab === 'todos'
+                      ? 'bg-gray-700 text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  Todos a la vez
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setListaTab('uno'); setCurrentIdx(0) }}
+                  className={`flex-1 text-xs py-1.5 rounded-md transition-colors font-medium ${
+                    listaTab === 'uno'
+                      ? 'bg-gray-700 text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  Uno por uno
+                </button>
               </div>
             </div>
 
-            {/* Lista de estudiantes */}
-            <div className="flex-1 overflow-y-auto">
-              {registros.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-10 text-gray-600 text-sm">
-                  <p>No hay estudiantes en este curso</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-800/60">
-                  {registros.map((r, i) => (
-                    <div key={r.estudiante_id} className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        {/* Número */}
-                        <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0">{i + 1}</span>
+            {/* ── Vista: Todos a la vez ────────────────────────────────────── */}
+            {listaTab === 'todos' && (
+              <div className="flex-1 overflow-y-auto">
+                {registros.length === 0 ? (
+                  <div className="flex items-center justify-center p-10 text-gray-600 text-sm">
+                    No hay estudiantes en este curso
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-800/60">
+                    {registros.map((r, i) => (
+                      <div key={r.estudiante_id} className="px-5 py-3 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-600 w-5 text-right flex-shrink-0">{i + 1}</span>
+                          <span className="flex-1 text-sm text-gray-200 truncate min-w-0">{r.nombre}</span>
 
-                        {/* Nombre */}
-                        <span className="flex-1 text-sm text-gray-200 truncate min-w-0">{r.nombre}</span>
+                          {/* Estado */}
+                          <div className="flex gap-1 flex-shrink-0">
+                            {(['Presente','Ausente','Atraso'] as const).map(est => (
+                              <button key={est} type="button"
+                                onClick={() => setEstado(r.estudiante_id, est)}
+                                className={`text-[11px] px-2 py-1 rounded border transition-colors font-medium
+                                  ${r.estado === est ? ESTADO_COLORS[est] : 'bg-gray-800/50 border-gray-700/50 text-gray-600 hover:border-gray-600'}`}>
+                                {est === 'Presente' ? 'P' : est === 'Ausente' ? 'A' : 'At'}
+                              </button>
+                            ))}
+                          </div>
 
-                        {/* Estado buttons */}
-                        <div className="flex gap-1 flex-shrink-0">
-                          {(['Presente','Ausente','Atraso'] as const).map(est => (
-                            <button key={est} type="button"
-                              onClick={() => setEstado(r.estudiante_id, est)}
-                              className={`text-[11px] px-2 py-1 rounded border transition-colors font-medium
-                                ${r.estado === est
-                                  ? ESTADO_COLORS[est]
-                                  : 'bg-gray-800/50 border-gray-700/50 text-gray-600 hover:border-gray-600'}`}>
-                              {est === 'Presente' ? 'P' : est === 'Ausente' ? 'A' : 'At'}
-                            </button>
-                          ))}
+                          {/* Participación */}
+                          <div className="flex gap-0.5 flex-shrink-0">
+                            {[1,2,3,4,5].map(n => (
+                              <button key={n} type="button"
+                                onClick={() => setParticipacion(r.estudiante_id, r.participacion === n ? null : n)}
+                                disabled={r.estado === 'Ausente'}
+                                className={`w-5 h-5 rounded text-[10px] font-bold transition-colors
+                                  ${r.participacion === n
+                                    ? 'bg-brand-600 text-white'
+                                    : r.estado === 'Ausente'
+                                    ? 'bg-gray-800/30 text-gray-700 cursor-not-allowed'
+                                    : 'bg-gray-800 text-gray-500 hover:bg-gray-700'}`}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
                         </div>
 
-                        {/* Participación */}
-                        <div className="flex gap-0.5 flex-shrink-0">
-                          {[1,2,3,4,5].map(n => (
-                            <button key={n} type="button"
-                              onClick={() => setParticipacion(r.estudiante_id, r.participacion === n ? null : n)}
-                              disabled={r.estado === 'Ausente'}
-                              className={`w-5 h-5 rounded text-[10px] font-bold transition-colors
-                                ${r.participacion === n
-                                  ? 'bg-brand-600 text-white'
-                                  : r.estado === 'Ausente'
-                                  ? 'bg-gray-800/30 text-gray-700 cursor-not-allowed'
-                                  : 'bg-gray-800 text-gray-500 hover:bg-gray-700'}`}>
-                              {n}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Observación inline */}
+                        {r.estado !== 'Ausente' && (
+                          <input
+                            type="text"
+                            value={r.observacion}
+                            onChange={e => setObservacion(r.estudiante_id, e.target.value)}
+                            placeholder="Observación (opcional)"
+                            className="w-full ml-8 text-xs bg-gray-800/50 border border-gray-700/50 rounded-lg px-2.5 py-1 text-gray-300 placeholder-gray-600 focus:outline-none focus:border-gray-500"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Vista: Uno por uno ───────────────────────────────────────── */}
+            {listaTab === 'uno' && registros.length > 0 && (() => {
+              const r = registros[currentIdx]
+              const total = registros.length
+              return (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Barra de progreso */}
+                  <div className="px-5 pt-3 flex-shrink-0">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                      <span>{currentIdx + 1} de {total}</span>
+                      <span>{marcados} con anotación</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-600 rounded-full transition-all duration-300"
+                        style={{ width: `${((currentIdx + 1) / total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tarjeta del estudiante */}
+                  <div className="flex-1 flex flex-col items-center justify-center px-6 py-4 gap-5">
+
+                    {/* Nombre */}
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-white leading-tight">{r.nombre}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Estudiante {currentIdx + 1} de {total}</p>
+                    </div>
+
+                    {/* Botones de estado — grandes */}
+                    <div className="flex gap-3">
+                      {(['Presente','Ausente','Atraso'] as const).map(est => (
+                        <button key={est} type="button"
+                          onClick={() => setEstado(r.estudiante_id, est)}
+                          className={`px-5 py-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                            r.estado === est ? ESTADO_COLORS_LG[est] : ESTADO_INACTIVE
+                          }`}>
+                          {est}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Participación */}
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Participación</span>
+                      <div className="flex gap-2">
+                        {[1,2,3,4,5].map(n => (
+                          <button key={n} type="button"
+                            onClick={() => setParticipacion(r.estudiante_id, r.participacion === n ? null : n)}
+                            disabled={r.estado === 'Ausente'}
+                            className={`w-9 h-9 rounded-lg text-sm font-bold transition-colors
+                              ${r.participacion === n
+                                ? 'bg-brand-600 text-white'
+                                : r.estado === 'Ausente'
+                                ? 'bg-gray-800/30 text-gray-700 cursor-not-allowed'
+                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`}>
+                            {n}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  ))}
+
+                    {/* Observación */}
+                    <div className="w-full max-w-sm">
+                      <textarea
+                        value={r.observacion}
+                        onChange={e => setObservacion(r.estudiante_id, e.target.value)}
+                        placeholder="Observación sobre participación o conducta..."
+                        rows={2}
+                        disabled={r.estado === 'Ausente'}
+                        className="w-full text-sm bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gray-500 resize-none disabled:opacity-40"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Navegación */}
+                  <div className="flex items-center gap-3 px-5 pb-4 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
+                      disabled={currentIdx === 0}
+                      className="btn-ghost px-4 disabled:opacity-30"
+                    >
+                      ← Anterior
+                    </button>
+
+                    {/* Mini mapa de estados */}
+                    <div className="flex-1 flex gap-0.5 justify-center flex-wrap">
+                      {registros.map((reg, i) => (
+                        <button
+                          key={reg.estudiante_id}
+                          type="button"
+                          onClick={() => setCurrentIdx(i)}
+                          title={reg.nombre}
+                          className={`w-3 h-3 rounded-sm transition-all ${
+                            i === currentIdx
+                              ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-900'
+                              : ''
+                          } ${
+                            reg.estado === 'Presente' ? 'bg-emerald-600/60'
+                            : reg.estado === 'Ausente' ? 'bg-red-600/60'
+                            : 'bg-amber-600/60'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    {currentIdx < registros.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIdx(i => Math.min(registros.length - 1, i + 1))}
+                        className="btn-primary px-4"
+                      >
+                        Siguiente →
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setListaTab('todos')}
+                        className="btn-primary px-4"
+                      >
+                        Ver resumen
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              )
+            })()}
+
+            {listaTab === 'uno' && registros.length === 0 && (
+              <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
+                No hay estudiantes en este curso
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mx-5 mb-2">
