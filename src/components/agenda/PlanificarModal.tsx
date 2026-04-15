@@ -35,7 +35,12 @@ interface BitacoraExistente {
 // ─── Date helpers ──────────────────────────────────────────────────────────────
 
 const DIA_TO_DOW: Record<string, number> = {
-  lunes: 1, martes: 2, 'miércoles': 3, jueves: 4, viernes: 5, 'sábado': 6,
+  lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6,
+}
+
+/** Normaliza un string de día: minúsculas sin tildes */
+function normDia(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
 const DIAS_CORTO = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
@@ -126,7 +131,7 @@ export function PlanificarModal({
     const map = new Map<string, Set<number>>()
     for (const c of clases) {
       if (c.tipo === 'tutoria_curso' || !c.cursos) continue
-      const dow = DIA_TO_DOW[c.dia_semana.toLowerCase()]
+      const dow = DIA_TO_DOW[normDia(c.dia_semana)]
       if (dow === undefined) continue
       if (!map.has(c.cursos.id)) map.set(c.cursos.id, new Set())
       map.get(c.cursos.id)!.add(dow)

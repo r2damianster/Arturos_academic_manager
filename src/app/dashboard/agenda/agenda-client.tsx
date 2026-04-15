@@ -1001,6 +1001,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado', tema: '' })
               return next
             })
+            router.refresh()
           }}
         />
       )}
