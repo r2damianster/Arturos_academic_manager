@@ -471,3 +471,112 @@ export async function moverPlanificacion(params: {
   revalidatePath('/dashboard/agenda')
   return result
 }
+
+// ─── Eliminar planificación ───────────────────────────────────────────────────
+
+/**
+ * Elimina la planificación de una clase (solo si no está en estado 'cumplido').
+ */
+export async function eliminarPlanificacion(params: {
+  cursoId: string
+  fecha: string
+}): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { cursoId, fecha } = params
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .delete()
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+    .eq('profesor_id', user.id)
+    .neq('estado', 'cumplido')
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/agenda')
+  return {}
+}
+
+// ─── Fusionar planificaciones ─────────────────────────────────────────────────
+
+/**
+ * Fusiona la planificación de origen en el destino combinando temas, actividades
+ * y observaciones. Opcionalmente elimina el origen si deleteSource=true.
+ */
+export async function fusionarPlanificacion(params: {
+  sourceCursoId: string
+  sourceFecha: string
+  destCursoId: string
+  destFecha: string
+  deleteSource: boolean
+}): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { sourceCursoId, sourceFecha, destCursoId, destFecha, deleteSource } = params
+
+  // Leer origen
+  const { data: src, error: errSrc } = await supabase
+    .from('bitacora_clase')
+    .select('tema, actividades_json, observaciones, estado')
+    .eq('curso_id', sourceCursoId)
+    .eq('fecha', sourceFecha)
+    .eq('profesor_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (errSrc) return { error: errSrc.message }
+  if (!src) return { error: 'No hay plan en la fecha de origen' }
+
+  // Leer destino
+  const { data: dst, error: errDst } = await supabase
+    .from('bitacora_clase')
+    .select('id, tema, actividades_json, observaciones, estado')
+    .eq('curso_id', destCursoId)
+    .eq('fecha', destFecha)
+    .eq('profesor_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (errDst) return { error: errDst.message }
+  if (!dst) return { error: 'No hay plan en la fecha destino para fusionar' }
+
+  const srcActs = Array.isArray(src.actividades_json) ? (src.actividades_json as ActividadPlanificada[]) : []
+  const dstActs = Array.isArray(dst.actividades_json) ? (dst.actividades_json as ActividadPlanificada[]) : []
+
+  const mergedObs = dst.observaciones
+    ? `${dst.observaciones}\n---\n${src.observaciones ?? ''}`.trim()
+    : (src.observaciones ?? null)
+
+  const { error: errUpd } = await supabase
+    .from('bitacora_clase')
+    .update({
+      tema: `${dst.tema} + ${src.tema}`,
+      actividades_json: [...dstActs, ...srcActs],
+      observaciones: mergedObs,
+    })
+    .eq('id', dst.id)
+
+  if (errUpd) return { error: errUpd.message }
+
+  if (deleteSource && src.estado !== 'cumplido') {
+    const { error: errDel } = await supabase
+      .from('bitacora_clase')
+      .delete()
+      .eq('curso_id', sourceCursoId)
+      .eq('fecha', sourceFecha)
+      .eq('profesor_id', user.id)
+      .neq('estado', 'cumplido')
+
+    if (errDel) return { error: errDel.message }
+  }
+
+  revalidatePath('/dashboard/agenda')
+  return {}
+}
