@@ -8,9 +8,7 @@ import { activarHorario, asignarTutoriaDirecta, eliminarReserva, type DuracionTu
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PasarListaModal } from '@/components/agenda/PasarListaModal'
-import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
-import { DragDropConfirmModal, type DropMode } from '@/components/agenda/DragDropConfirmModal'
-import { copiarPlanificacion, moverPlanificacion, fusionarPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, type AccionDrag, type ColisionDrag } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,7 +40,6 @@ interface Clase {
   hora_inicio: string
   hora_fin: string
   tipo: string
-  centro_computo: boolean
   cursos: { id: string; asignatura: string } | null
   anuncios_tutoria_curso?: { estudiante_id: string; fecha: string; estudiantes: { nombre: string } }[]
 }
@@ -217,15 +214,11 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [durSaving,   setDurSaving]   = useState(false)
   const [popover,     setPopover]     = useState<string | null>(null) // `${horarioId}|${dateStr}`
 
-  // Planificación / pase de lista / replanificación desde agenda
+  // Planificación / pase de lista desde agenda
   type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista' }
   const [claseModal,    setClaseModal]    = useState<ClaseModal | null>(null)
   const [clasePicker,   setClasePicker]   = useState<{ clase: Clase; fecha: string } | null>(null)
   const clasePickerRef = useRef<HTMLDivElement>(null)
-
-  // Replanificar
-  type ClaseReplanificar = { cursoId: string; asignatura: string; fecha: string; tema: string; bitacoraId: string }
-  const [replanificar,  setReplanificar]  = useState<ClaseReplanificar | null>(null)
 
   // Cerrar clase picker al hacer click fuera
   useEffect(() => {
@@ -249,27 +242,23 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
   const [, startTransition] = useTransition()
 
-  // Bitácoras de la semana visible (para badges en bloques de clase)
-  const [bitacoraMap, setBitacoraMap] = useState<Map<string, { estado: string; tema: string }>>(new Map())
+  // Bitácoras de la semana visible (para badges y arrastrar y soltar)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [bitacoraMap, setBitacoraMap] = useState<Map<string, any>>(new Map())
 
-  // Drag & drop de planificaciones
-  const dragRef = useRef<{ clase: Clase; fecha: string; tema: string } | null>(null)
-  const [dragSourceKey, setDragSourceKey] = useState<string | null>(null)
-  const [dragTargetKey, setDragTargetKey] = useState<string | null>(null)
-  interface PendingDrop {
-    source: { clase: Clase; fecha: string; tema: string }
-    dest: { clase: Clase; fecha: string }
-    destHasPlan: boolean
-    destTema?: string
-  }
-  const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null)
+  // DnD Planificación
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [dragPayload, setDragPayload] = useState<any | null>(null)
+  const [dndTarget, setDndTarget] = useState<{ cursoId: string; fecha: string; hasPlan: boolean } | null>(null)
+  const [isDraggingOver, setIsDraggingOver] = useState<string | null>(null)
+  const [isDndSaving, setIsDndSaving] = useState(false)
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
   const timeSlots = useMemo(() => getDynamicSlots(horarios, clases, eventos, weekDates), [horarios, clases, eventos, weekDates])
 
-  // Cargar bitácoras de la semana visible para mostrar badges
+  // Cargar bitácoras de la semana visible para mostrar badges y dnd
   useEffect(() => {
     const fechaMin = dateToStr(weekDates[0])
     const fechaMax = dateToStr(weekDates[weekDates.length - 1])
@@ -278,20 +267,20 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(supabase as any)
       .from('bitacora_clase')
-      .select('curso_id, fecha, estado, tema')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones')
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then(({ data }: { data: any[] | null }) => {
-        const m = new Map<string, { estado: string; tema: string }>()
-        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, { estado: b.estado, tema: b.tema ?? '' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const m = new Map<string, any>()
+        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, b)
         setBitacoraMap(m)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset, clases.length])
   const slotStart = timeSlots.length ? toMin(timeSlots[0]) : DEFAULT_START
-
 
   // Map: reserva by horario_id|fecha
   const reservaMap = useMemo(() => {
@@ -441,6 +430,43 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     router.refresh()
   }
 
+  // ── Drag and Drop ──────────────────────────────────────────────────────────
+  
+  async function handleDndSubmit(accion: AccionDrag, colision: ColisionDrag) {
+    if (!dndTarget || !dragPayload) return
+    setIsDndSaving(true)
+    
+    // Preparar el server action
+    const sourceId = dragPayload.id
+    
+    const { error } = await gestionarDragPlanificacion(
+      sourceId,
+      dndTarget.cursoId,
+      dndTarget.fecha,
+      accion,
+      colision,
+      {
+        tema: dragPayload.tema,
+        actividades_json: dragPayload.actividades_json,
+        observaciones: dragPayload.observaciones
+      }
+    )
+
+    setIsDndSaving(false)
+    setDndTarget(null)
+    setDragPayload(null)
+
+    if (!error) {
+      // Forzar recarga de los datos en el front
+      setBitacoraMap(new Map())
+      setWeekOffset(prev => prev)
+      router.refresh()
+    } else {
+      alert("Error moviendo planificación: " + error)
+    }
+  }
+
+
   // ── Stats ──────────────────────────────────────────────────────────────────
 
   const nDisp    = horarios.filter(h => isSlotActiveOnDate(h, today)).length
@@ -462,38 +488,6 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
             <span className="text-sm text-gray-300 font-medium">{fmtRange(weekDates)}</span>
-            {/* Saltar a cualquier fecha (útil para editar asistencias pasadas) */}
-            <input
-              type="date"
-              title="Ir a la semana de esta fecha"
-              onChange={e => {
-                if (!e.target.value) return
-                const target = new Date(e.target.value + 'T12:00:00')
-                const base = new Date(); base.setHours(12, 0, 0, 0)
-                const diff = Math.round((target.getTime() - base.getTime()) / (7 * 24 * 60 * 60 * 1000))
-                setWeekOffset(diff)
-                e.target.value = ''
-              }}
-              className="text-xs bg-transparent border border-gray-700 rounded px-1.5 py-1 text-gray-400 hover:border-gray-500 focus:outline-none focus:border-gray-400 cursor-pointer w-8 focus:w-auto transition-all"
-            />
-            <a
-              href={`/dashboard/agenda/imprimir?fecha=${dateToStr(weekDates[0])}&modo=semana`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-ghost text-xs px-2 py-1"
-              title="Exportar semana como PDF"
-            >
-              PDF semana
-            </a>
-            <a
-              href={`/dashboard/agenda/imprimir?fecha=${today}&modo=dia`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-ghost text-xs px-2 py-1"
-              title="Exportar día de hoy como PDF"
-            >
-              PDF día
-            </a>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg">
@@ -593,79 +587,61 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   {dayClases.map(c => {
                     const pos       = blockPos(c.hora_inicio, c.hora_fin)
                     const isTutoria = c.tipo === 'tutoria_curso'
-                    const voyHoy    = c.anuncios_tutoria_curso?.filter(a => a.fecha === ds) ?? []
-                    const voy       = voyHoy.length
+                    const voy       = c.anuncios_tutoria_curso?.length ?? 0
                     const cursoId   = c.cursos?.id
                     const bitKey    = `${cursoId}|${ds}`
                     const bitEstado = cursoId ? bitacoraMap.get(bitKey)?.estado : undefined
                     const isOpen    = clasePicker?.clase.id === c.id && clasePicker?.fecha === ds
 
                     return (
-                      <div key={c.id}
-                        className={`absolute left-0.5 right-0.5 z-30 transition-all${dragSourceKey === bitKey ? ' opacity-40 scale-95' : ''}${dragTargetKey === bitKey ? ' ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-950' : ''}`}
-                        style={{ top: pos.top + 1, height: pos.height - 2, cursor: bitEstado === 'planificado' ? 'grab' : undefined }}
-                        draggable={bitEstado === 'planificado'}
-                        onDragStart={(e) => {
-                          if (bitEstado !== 'planificado') return
-                          const tema = bitacoraMap.get(bitKey)?.tema ?? ''
-                          dragRef.current = { clase: c, fecha: ds, tema }
-                          setDragSourceKey(bitKey)
-                          e.dataTransfer.effectAllowed = 'copyMove'
-                        }}
-                        onDragEnd={() => {
-                          dragRef.current = null
-                          setDragSourceKey(null)
-                          setDragTargetKey(null)
-                        }}
-                        onDragOver={(e) => {
-                          const src = dragRef.current
-                          if (!src || !c.cursos?.id) return
-                          if (src.clase.id === c.id && src.fecha === ds) return
-                          e.preventDefault()
-                          e.dataTransfer.dropEffect = 'copy'
-                          setDragTargetKey(bitKey)
-                        }}
-                        onDragLeave={(e) => {
-                          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                            setDragTargetKey(null)
-                          }
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          const src = dragRef.current
-                          if (!src || !c.cursos?.id) return
-                          if (src.clase.id === c.id && src.fecha === ds) return
-                          const destHasPlan = !!(bitacoraMap.get(bitKey)?.estado)
-                          const destTema = bitacoraMap.get(bitKey)?.tema
-                          setPendingDrop({ source: src, dest: { clase: c, fecha: ds }, destHasPlan, destTema: destTema || undefined })
-                          setDragSourceKey(null)
-                          setDragTargetKey(null)
-                          dragRef.current = null
-                        }}
-                      >
+                      <div key={c.id} className="absolute left-0.5 right-0.5 z-30"
+                        style={{ top: pos.top + 1, height: pos.height - 2 }}>
 
                         {/* Bloque principal */}
                         <button
+                          draggable={Boolean(bitEstado)}
+                          onDragStart={(e) => {
+                            if (!bitEstado) return
+                            const payload = bitacoraMap.get(bitKey)
+                            setDragPayload(payload)
+                            e.dataTransfer.setData('sourceId', payload.id)
+                            e.dataTransfer.effectAllowed = 'copyMove'
+                          }}
+                          onDragOver={(e) => {
+                            if (!cursoId) return // Only allow drop on valid courses
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                            setIsDraggingOver(`${cursoId}|${ds}`)
+                          }}
+                          onDragLeave={() => setIsDraggingOver(null)}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            setIsDraggingOver(null)
+                            if (!cursoId || !dragPayload) return
+                            // Check if dropping on itself
+                            if (dragPayload.id === bitacoraMap.get(bitKey)?.id) return
+
+                            setDndTarget({
+                              cursoId,
+                              fecha: ds,
+                              hasPlan: Boolean(bitEstado)
+                            })
+                          }}
                           onClick={e => {
                             e.stopPropagation()
                             setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                           }}
-                          className={`relative group w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden
-                            ${isTutoria
-                              ? voy > 0
-                                ? 'bg-orange-600/35 border-orange-400/70 hover:bg-orange-600/45'
-                                : 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
-                              : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
+                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden
+                            ${isDraggingOver === `${cursoId}|${ds}` ? 'ring-2 ring-brand-400 bg-brand-500/20' : ''}
+                            ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
+                                        : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
                           <p className={`text-[11px] font-semibold leading-tight truncate
                             ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
                             {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
                           </p>
                           {pos.height >= SLOT_H && (
-                            <p className="text-[10px] leading-none mt-0.5">
-                              <span className="opacity-60">{fmt(c.hora_inicio)}–{fmt(c.hora_fin)}</span>
-                              {voy > 0 && (
-                                <span className="ml-1 text-orange-300 font-medium">· {voy} {voy === 1 ? 'asiste' : 'asisten'}</span>
-                              )}
+                            <p className="text-[10px] opacity-60 leading-none mt-0.5">
+                              {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
                             </p>
                           )}
                           {/* Badge de estado de planificación */}
@@ -674,70 +650,18 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
                             </p>
                           )}
-                          {/* Drag handle (visible en hover cuando está planificado) */}
-                          {bitEstado === 'planificado' && (
-                            <span className="absolute top-0.5 right-1 text-[10px] text-blue-400/50 group-hover:text-blue-400/80 select-none pointer-events-none">⠿</span>
-                          )}
                         </button>
 
                         {/* Picker de acción */}
                         {isOpen && (
                           <div ref={clasePickerRef}
-                            className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[180px]"
+                            className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[160px]"
                             onClick={e => e.stopPropagation()}>
-
-                            {/* Estudiantes que confirmaron asistencia hoy */}
-                            {isTutoria && voyHoy.length > 0 && (
-                              <div className="px-3 py-2 mb-1 border-b border-gray-700">
-                                <p className="text-[11px] text-orange-300 font-medium mb-1">
-                                  Confirman asistencia ({voyHoy.length})
-                                </p>
-                                <ul className="space-y-0.5">
-                                  {voyHoy.map((a, i) => (
-                                    <li key={i} className="text-[11px] text-gray-300 truncate">
-                                      · {a.estudiantes?.nombre ?? '—'}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
                             <button
                               onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'planificar' }) }}
                               className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
                               <span>📋</span><span>Planificar clase</span>
                             </button>
-                            {bitEstado === 'planificado' && c.cursos?.id && (
-                              <button
-                                onClick={() => {
-                                  const bit = bitacoraMap.get(`${c.cursos!.id}|${ds}`)
-                                  setClasePicker(null)
-                                  setReplanificar({
-                                    cursoId: c.cursos!.id,
-                                    asignatura: c.cursos!.asignatura,
-                                    fecha: ds,
-                                    tema: bit?.tema ?? '',
-                                    bitacoraId: '',
-                                  })
-                                }}
-                                className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
-                                <span>↻</span><span>Replanificar</span>
-                              </button>
-                            )}
-                            {bitEstado === 'planificado' && c.cursos?.id && (
-                              <button
-                                onClick={async () => {
-                                  setClasePicker(null)
-                                  const res = await eliminarPlanificacion({ cursoId: c.cursos!.id, fecha: ds })
-                                  if (!res.error) {
-                                    setBitacoraMap(prev => { const next = new Map(prev); next.delete(bitKey); return next })
-                                    router.refresh()
-                                  }
-                                }}
-                                className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-900/20 transition-colors flex items-center gap-2">
-                                <span>🗑</span><span>Eliminar plan</span>
-                              </button>
-                            )}
                             {c.cursos?.id && (
                               <button
                                 onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'lista' }) }}
@@ -1062,18 +986,15 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           fecha={claseModal.fecha}
           horaInicio={claseModal.clase.hora_inicio}
           horaFin={claseModal.clase.hora_fin}
-          centroComputo={claseModal.clase.centro_computo}
-          clases={clases}
           onClose={() => setClaseModal(null)}
           onSaved={() => {
             setClaseModal(null)
             // Refrescar badges de bitácora
             setBitacoraMap(prev => {
               const next = new Map(prev)
-              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado', tema: '' })
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado' })
               return next
             })
-            router.refresh()
           }}
         />
       )}
@@ -1091,85 +1012,54 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
             setClaseModal(null)
             setBitacoraMap(prev => {
               const next = new Map(prev)
-              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'cumplido', tema: '' })
+              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'cumplido' })
               return next
             })
             router.refresh()
           }}
         />
       )}
+      {/* ── DnD Decision Modal ────────────────────────────────────── */}
+      {dndTarget && dragPayload && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) { setDndTarget(null); setDragPayload(null) } }}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl">
+            <h3 className="text-lg font-semibold text-white mb-2">Mover Planificación</h3>
+            <p className="text-sm text-gray-400 mb-6 font-medium bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+              "{dragPayload.tema}"
+            </p>
+            
+            <div className="space-y-3">
+              {dndTarget.hasPlan ? (
+                <>
+                  <p className="text-xs font-semibold text-orange-400 tracking-wider uppercase mb-2 mt-4 text-left px-1">La clase destino tiene plan</p>
+                  
+                  <button onClick={() => handleDndSubmit('mover', 'reemplazar')} disabled={isDndSaving}
+                    className="w-full btn-primary py-2.5">Mover y Reemplazar</button>
+                  <button onClick={() => handleDndSubmit('copiar', 'reemplazar')} disabled={isDndSaving}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5">Copiar y Reemplazar</button>
+                  <button onClick={() => handleDndSubmit('mover', 'combinar')} disabled={isDndSaving}
+                    className="w-full btn-primary py-2.5">Mover y Combinar</button>
+                  <button onClick={() => handleDndSubmit('mover', 'cascada')} disabled={isDndSaving}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20">Mover en Cascada 🌊</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold text-sky-400 tracking-wider uppercase mb-2 mt-4 text-left px-1">Clase de destino libre</p>
+                  <button onClick={() => handleDndSubmit('mover', 'vacio')} disabled={isDndSaving}
+                    className="w-full btn-primary py-2.5">Mover (cambiar de día)</button>
+                  <button onClick={() => handleDndSubmit('copiar', 'vacio')} disabled={isDndSaving}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5">Copiar (repetir plan)</button>
+                </>
+              )}
+            </div>
 
-      {/* ── Replanificar modal ────────────────────────────────────── */}
-      {replanificar && (
-        <ReplanificarModal
-          cursoId={replanificar.cursoId}
-          asignatura={replanificar.asignatura}
-          origenFecha={replanificar.fecha}
-          origenTema={replanificar.tema}
-          onClose={() => setReplanificar(null)}
-          onDone={() => {
-            setReplanificar(null)
-            router.refresh()
-          }}
-        />
-      )}
-
-      {/* ── Drag & drop confirm modal ─────────────────────────────── */}
-      {pendingDrop && pendingDrop.source.clase.cursos && pendingDrop.dest.clase.cursos && (
-        <DragDropConfirmModal
-          source={{
-            asignatura: pendingDrop.source.clase.cursos.asignatura,
-            fecha: pendingDrop.source.fecha,
-            tema: pendingDrop.source.tema,
-          }}
-          dest={{
-            asignatura: pendingDrop.dest.clase.cursos.asignatura,
-            fecha: pendingDrop.dest.fecha,
-            hasPlan: pendingDrop.destHasPlan,
-            tema: pendingDrop.destTema,
-          }}
-          onConfirm={async (mode: DropMode) => {
-            const src = pendingDrop.source
-            const dst = pendingDrop.dest
-            const srcCursoId = src.clase.cursos!.id
-            const dstCursoId = dst.clase.cursos!.id
-            let result: { error?: string }
-
-            if (mode.action === 'copiar') {
-              result = await copiarPlanificacion({ sourceCursoId: srcCursoId, sourceFecha: src.fecha, destCursoId: dstCursoId, destFecha: dst.fecha })
-            } else if (mode.action === 'mover') {
-              result = await moverPlanificacion({ sourceCursoId: srcCursoId, sourceFecha: src.fecha, destCursoId: dstCursoId, destFecha: dst.fecha })
-            } else if (mode.action === 'fusionar') {
-              result = await fusionarPlanificacion({ sourceCursoId: srcCursoId, sourceFecha: src.fecha, destCursoId: dstCursoId, destFecha: dst.fecha, deleteSource: mode.deleteSource })
-            } else {
-              // reemplazar: usa mover (deleteSource=true) o copiar (deleteSource=false), ambos hacen upsert
-              if (mode.deleteSource) {
-                result = await moverPlanificacion({ sourceCursoId: srcCursoId, sourceFecha: src.fecha, destCursoId: dstCursoId, destFecha: dst.fecha })
-              } else {
-                result = await copiarPlanificacion({ sourceCursoId: srcCursoId, sourceFecha: src.fecha, destCursoId: dstCursoId, destFecha: dst.fecha })
-              }
-            }
-
-            if (result.error) return { error: result.error }
-
-            setPendingDrop(null)
-            // Update optimistic state
-            setBitacoraMap(prev => {
-              const next = new Map(prev)
-              const dstKey = `${dstCursoId}|${dst.fecha}`
-              const srcKey = `${srcCursoId}|${src.fecha}`
-              next.set(dstKey, { estado: 'planificado', tema: src.tema })
-              if (mode.action === 'mover' || ('deleteSource' in mode && mode.deleteSource)) {
-                next.delete(srcKey)
-              }
-              return next
-            })
-            router.refresh()
-            return {}
-          }}
-          onClose={() => setPendingDrop(null)}
-        />
+            <button onClick={() => { setDndTarget(null); setDragPayload(null) }} disabled={isDndSaving} 
+              className="mt-5 text-sm text-gray-500 hover:text-gray-300 font-medium px-4 py-2">Cancelar</button>
+          </div>
+        </div>
       )}
     </>
   )
 }
+

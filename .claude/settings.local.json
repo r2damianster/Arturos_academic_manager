@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npx tsc:*)",
+      "Bash(grep -v \"^$\")",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "Bash(curl:*)",
+      "Bash(npx supabase:*)",
+      "Bash(ollama run:*)",
+      "Bash(grep -v '^$')",
+      "Bash(node -e ':*)",
+      "Read(//c/Users/User/.supabase/**)",
+      "Read(//c/Users/User/**)"
+    ]
+  }
+}
