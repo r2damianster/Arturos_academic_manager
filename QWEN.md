@@ -127,7 +127,8 @@ supabase/
 ## Bugs pendientes
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar: `DIA_TO_DOW` usa tildes (`'miércoles'`). Si DB almacena sin tilde, lookup falla. Fix: `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup.
 - **Desconexión bitácora**: `guardarBitacoraData()` (cursos) guarda `actividades` texto; `guardarPlanificacion()` (agenda) guarda `actividades_json`. Incompatibles en `bitacora_clase`. Pendiente unificar.
-- **Arrastrar y Soltar inconsistente (Agenda)**: A pesar de implementar la API nativa de DND (`draggable="true"`, manejo en componente React de `AgendaClient`), los navegadores u overlays de Vercel suprimen el arrastre, disparando el evento de cliqueo tradicional (menú viejo Copiar/Mover). Requiere revisión a profundidad; tal vez se deba abandonar HTML5 DND por una librería externa como `@dnd-kit/core`.
+- **Arrastrar y Soltar inconsistente (Agenda)**: A pesar de implementar la API nativa de DND (`draggable="true"`), los navegadores u overlays de Vercel suprimen el arrastre, disparando el evento de cliqueo tradicional (menú viejo Copiar/Mover). Requiere revisión a profundidad; tal vez se deba abandonar HTML5 DND por una librería externa como `@dnd-kit/core`.
+- **Modo solo lectura de planes cumplidos**: La visualización y copia de planificaciones que ya se encuentran con estado "cumplido" desde la agenda no funciona o presenta fallos. Queda pendiente revisión.
 
 ## Changelog
 Ver `CHANGELOG.md` para historial detallado de features y fixes.

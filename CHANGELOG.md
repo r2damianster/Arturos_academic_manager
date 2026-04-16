@@ -6,6 +6,7 @@
   - Lógica extensiva en backend (`bitacora.ts`) para desplazar `actividades_json` progresivamente en cascada a futuros bloques de clases.
   - Corrección superficial (`pointer-events-none`, `<div>` role) para prevenir que la UI bloquee el arrastre en distintos navegadores.
   - **BUG PENDIENTE / A REVISAR**: A pesar de los cambios de DOM (`draggable="true"` en div en vez de button), en algunos entornos (notablemente de producción Vercel) el drag and drop falla o sigue siendo interceptado, provocando que no se pueda arrastrar el bloque o que los clics simplemente disparen el Modal viejo de edición/replanificación. Requiere una depuración exhaustiva del stack de eventos (touch/mouse/pointer) o reestructuración a un DnD estandarizado (`dnd-kit`).
+  - **BUG PENDIENTE / A REVISAR**: La vista de "solo lectura" y la opción de copiar planificaciones "cumplidas" desde la agenda se implementó, pero presenta un fallo reportado y no funciona como se espera. Pendiente de arreglo.
 
 Formato: `[fecha] tipo: descripción`
 
