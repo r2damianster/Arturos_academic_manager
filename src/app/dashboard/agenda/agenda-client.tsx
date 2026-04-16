@@ -598,13 +598,16 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>
 
                         {/* Bloque principal */}
-                        <button
+                        <div
+                          role="button"
+                          tabIndex={0}
                           draggable={Boolean(bitEstado)}
                           onDragStart={(e) => {
                             if (!bitEstado) return
                             const payload = bitacoraMap.get(bitKey)
                             setDragPayload(payload)
                             e.dataTransfer.setData('sourceId', payload.id)
+                            e.dataTransfer.setData('text/plain', payload.id) // Required for cross-browser
                             e.dataTransfer.effectAllowed = 'copyMove'
                           }}
                           onDragOver={(e) => {
@@ -631,10 +634,18 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             e.stopPropagation()
                             setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                           }}
-                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setClasePicker(isOpen ? null : { clase: c, fecha: ds })
+                            }
+                          }}
+                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-brand-400
                             ${isDraggingOver === `${cursoId}|${ds}` ? 'ring-2 ring-brand-400 bg-brand-500/20' : ''}
-                            ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35'
-                                        : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'}`}>
+                            ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35 cursor-pointer'
+                                        : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35 cursor-pointer'}
+                            ${bitEstado ? 'cursor-grab active:cursor-grabbing' : ''}`}>
                           <p className={`text-[11px] font-semibold leading-tight truncate
                             ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
                             {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
@@ -650,7 +661,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
                             </p>
                           )}
-                        </button>
+                        </div>
 
                         {/* Picker de acción */}
                         {isOpen && (
