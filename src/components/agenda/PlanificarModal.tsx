@@ -22,6 +22,7 @@ interface PlanificarModalProps {
   onClose: () => void
   onSaved: () => void
   clases?: ClaseParaCopiar[]
+  readOnly?: boolean
 }
 
 interface BitacoraExistente {
@@ -91,7 +92,7 @@ function emptyActividad(): ActividadPlanificada {
 }
 
 export function PlanificarModal({
-  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = []
+  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = [], readOnly = false
 }: PlanificarModalProps) {
   const supabase = createClient()
 
@@ -257,7 +258,7 @@ export function PlanificarModal({
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs bg-blue-600/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
-                {existing?.estado === 'cumplido' ? '✓ Cumplido' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
+                {readOnly ? '✓ Plan cumplido' : existing?.estado === 'cumplido' ? '✓ Cumplido' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -291,9 +292,10 @@ export function PlanificarModal({
                   type="text"
                   value={tema}
                   onChange={e => setTema(e.target.value)}
-                  className="input"
+                  className={`input ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
                   placeholder="Ej: Introducción a las derivadas parciales"
-                  autoFocus
+                  autoFocus={!readOnly}
+                  disabled={readOnly}
                 />
               </div>
 
@@ -301,17 +303,19 @@ export function PlanificarModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Actividades y recursos</label>
-                  <button type="button" onClick={addActividad}
-                    className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
-                    <span className="text-base leading-none">+</span> Agregar fila
-                  </button>
+                  {!readOnly && (
+                    <button type="button" onClick={addActividad}
+                      className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+                      <span className="text-base leading-none">+</span> Agregar fila
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1">
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Actividad</span>
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Recurso</span>
-                    <span className="w-6" />
+                    {!readOnly && <span className="w-6" />}
                   </div>
 
                   {actividades.map((act, i) => (
@@ -320,21 +324,25 @@ export function PlanificarModal({
                         type="text"
                         value={act.actividad}
                         onChange={e => updateActividad(i, 'actividad', e.target.value)}
-                        className="input text-sm py-1.5"
+                        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
                         placeholder="Ej: Exposición grupal"
+                        disabled={readOnly}
                       />
                       <input
                         type="text"
                         value={act.recurso}
                         onChange={e => updateActividad(i, 'recurso', e.target.value)}
-                        className="input text-sm py-1.5"
+                        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
                         placeholder="Ej: Presentación PPT"
+                        disabled={readOnly}
                       />
-                      <button type="button" onClick={() => removeActividad(i)}
-                        className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
-                        disabled={actividades.length === 1}>
-                        ✕
-                      </button>
+                      {!readOnly && (
+                        <button type="button" onClick={() => removeActividad(i)}
+                          className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
+                          disabled={actividades.length === 1}>
+                          ✕
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -347,8 +355,9 @@ export function PlanificarModal({
                   value={observaciones}
                   onChange={e => setObservaciones(e.target.value)}
                   rows={2}
-                  className="input resize-none"
+                  className={`input resize-none ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
                   placeholder="Notas adicionales para esta clase..."
+                  disabled={readOnly}
                 />
               </div>
 
@@ -357,12 +366,12 @@ export function PlanificarModal({
                 <div className="border border-gray-700 rounded-xl overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => { setCopyOpen(o => !o); setCopyError(null) }}
+                    onClick={() => { setCopyOpen(o => !o); setCopyError(null); if(readOnly) setCopyMode('copiar') }}
                     className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
                   >
                     <span className="flex items-center gap-2">
                       <span className="text-base">⎘</span>
-                      Copiar / Mover plan a otra clase
+                      {readOnly ? 'Copiar plan a otra clase' : 'Copiar / Mover plan a otra clase'}
                     </span>
                     <span className="text-gray-500 text-xs">{copyOpen ? '▲' : '▼'}</span>
                   </button>
@@ -383,17 +392,19 @@ export function PlanificarModal({
                         >
                           Copiar
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setCopyMode('mover')}
-                          className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-                            copyMode === 'mover'
-                              ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
-                              : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-                          }`}
-                        >
-                          Mover (elimina original)
-                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => setCopyMode('mover')}
+                            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
+                              copyMode === 'mover'
+                                ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
+                                : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                            }`}
+                          >
+                            Mover (elimina original)
+                          </button>
+                        )}
                       </div>
 
                       {copyMode === 'mover' && (
@@ -490,10 +501,16 @@ export function PlanificarModal({
 
             {/* Footer */}
             <div className="flex gap-3 p-5 border-t border-gray-800 flex-shrink-0">
-              <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
-              <button type="submit" disabled={saving} className="btn-primary flex-1">
-                {saving ? 'Guardando...' : existing ? 'Actualizar planificación' : 'Guardar planificación'}
-              </button>
+              {readOnly ? (
+                <button type="button" onClick={onClose} className="btn-primary w-full">Cerrar</button>
+              ) : (
+                <>
+                  <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+                  <button type="submit" disabled={saving} className="btn-primary flex-1">
+                    {saving ? 'Guardando...' : existing ? 'Actualizar planificación' : 'Guardar planificación'}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         )}

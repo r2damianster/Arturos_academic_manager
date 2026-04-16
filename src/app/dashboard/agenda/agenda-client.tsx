@@ -215,7 +215,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [popover,     setPopover]     = useState<string | null>(null) // `${horarioId}|${dateStr}`
 
   // Planificación / pase de lista desde agenda
-  type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista' }
+  type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista'; readOnly?: boolean }
   const [claseModal,    setClaseModal]    = useState<ClaseModal | null>(null)
   const [clasePicker,   setClasePicker]   = useState<{ clase: Clase; fecha: string } | null>(null)
   const clasePickerRef = useRef<HTMLDivElement>(null)
@@ -680,11 +680,11 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-1.5 min-w-[160px]"
                             onClick={e => e.stopPropagation()}>
                             <button
-                              onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'planificar' }) }}
+                              onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'planificar', readOnly: bitEstado === 'cumplido' }) }}
                               className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
-                              <span>📋</span><span>Planificar clase</span>
+                              <span>📋</span><span>{bitEstado === 'cumplido' ? 'Ver plan cumplido' : 'Planificar clase'}</span>
                             </button>
-                            {c.cursos?.id && (
+                            {c.cursos?.id && bitEstado !== 'cumplido' && (
                               <button
                                 onClick={() => { setClasePicker(null); setClaseModal({ clase: c, fecha: ds, mode: 'lista' }) }}
                                 className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-gray-800 transition-colors flex items-center gap-2">
@@ -1008,6 +1008,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           fecha={claseModal.fecha}
           horaInicio={claseModal.clase.hora_inicio}
           horaFin={claseModal.clase.hora_fin}
+          readOnly={claseModal.readOnly}
           onClose={() => setClaseModal(null)}
           onSaved={() => {
             setClaseModal(null)
