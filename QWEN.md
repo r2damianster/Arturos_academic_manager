@@ -124,11 +124,13 @@ supabase/
 - `moverPlanificacion(...)` — igual que copiar + DELETE del original
 - `replanificarClase(...)` — merge o shift en cascada
 
-## Bugs pendientes
+## Bugs pendientes (Actualizado 2026-04-16)
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar: `DIA_TO_DOW` usa tildes (`'miércoles'`). Si DB almacena sin tilde, lookup falla. Fix: `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup.
-- **Desconexión bitácora**: `guardarBitacoraData()` (cursos) guarda `actividades` texto; `guardarPlanificacion()` (agenda) guarda `actividades_json`. Incompatibles en `bitacora_clase`. Pendiente unificar.
+- **Desconexión bitácora**: `guardarBitacoraData()` (cursos) guarda `actividades` texto; `guardarPlanificacion()` (agenda) guarda `actividades_json`. Incompatibles en `bitacora_clase`. Pendiente unificar en una sola función.
 - **Arrastrar y Soltar inconsistente (Agenda)**: A pesar de implementar la API nativa de DND (`draggable="true"`), los navegadores u overlays de Vercel suprimen el arrastre, disparando el evento de cliqueo tradicional (menú viejo Copiar/Mover). Requiere revisión a profundidad; tal vez se deba abandonar HTML5 DND por una librería externa como `@dnd-kit/core`.
-- **Modo solo lectura de planes cumplidos**: La visualización y copia de planificaciones que ya se encuentran con estado "cumplido" desde la agenda no funciona o presenta fallos. Queda pendiente revisión.
+- **Visualización de planes cumplidos (estado="cumplido")**: La opción de ver como solo lectura y copiar planes "cumplidos" desde la agenda está parcialmente implementada pero no funciona completamente. **Causa probable**: El `PlanificarModal` recibe `readOnly=true` pero los controles pueden no estar correctamente deshabilitados. El query en agenda-client.tsx:269 trae los datos correctamente sin filtro de estado, por lo que el problema es en la presentación/UX del componente.
+- **Edición de asistencia en fechas pasadas**: Desconocido si hay restricción. **Causa probable**: `registrarAsistenciaMasiva()` (asistencia.ts:45) usa `upsert` que teóricamente permite editar pasado. Verificar si hay validación de fecha en PaseListaClient o restricción RLS en tabla `asistencia`.
+- **Pestaña "Planificación" no visible en móvil**: Navegación móvil (`mobile-nav.tsx:13-35`) NO incluye `/dashboard/planificacion`, pero sidebar desktop SÍ. **Causa**: array `navItems` inconsistente entre ambos componentes. **Localización**: src/components/layout/mobile-nav.tsx — falta agregar item Planificación. **Nota**: Ruta existe y funciona en desktop.
 
 ## Changelog
 Ver `CHANGELOG.md` para historial detallado de features y fixes.

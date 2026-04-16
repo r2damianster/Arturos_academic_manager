@@ -119,10 +119,48 @@ Ejecutar en orden para inicializar la base de datos:
 11. `20260411_get_occupied_slots.sql` — RPC para portal estudiante
 12. `20260411_planificacion_clase.sql` — Planificación de clases en agenda
 13. `20260413_replanificar_clases.sql` — Replanificación de clases (merge + shift en cascada)
+14. `20260414_add_auth_user_id_estudiantes.sql` — Columna auth_user_id en tabla estudiantes
+
+⚠️ **Queries pendientes de verificación** (ver sección "Causas potenciales de bugs" abajo)
 
 ---
 
-## Setup local
+## Bugs reportados y causas potenciales (Actualizado 2026-04-16)
+
+### 1. Planes cumplidos no se visualizan correctamente
+**Descripción**: No se pueden ver/editar planes que ya tienen estado `'cumplido'` (asistencia tomada)  
+**Localización**: `/dashboard/agenda` → PlanificarModal  
+**Causa probable**: 
+- Query en `agenda-client.tsx:269` trae todas las bitácoras SIN filtro de estado → datos disponibles ✓
+- `PlanificarModal.tsx` recibe prop `readOnly=true` pero controles no están deshabilitados correctamente
+- Posible que la validación de `readOnly` en bitácora.ts esté rechazando updates incluso para modo lectura
+- **Acción**: Revisar si hay validación que bloquea upsert cuando `bitacoraMap.estado='cumplido'` en agenda-client.tsx
+
+### 2. Asistencia no se puede editar después de tomada
+**Descripción**: Una vez registrada asistencia de una fecha, no se puede modificar (ni participación, ni estado)  
+**Localización**: `/dashboard/cursos/[id]/pase-lista` → PaseListaClient  
+**Causa probable**:
+- `registrarAsistenciaMasiva()` (asistencia.ts:45) usa `upsert` → debería permitir editar ✓
+- Posible validación de fecha en PaseListaClient que rechaza fechas pasadas
+- Posible política RLS en tabla `asistencia` que bloquea updates si fecha < hoy
+- **Acción**: Verificar:
+  1. Si hay `.lte('fecha', new Date())` o similar en PaseListaClient
+  2. Si RLS en tabla `asistencia` tiene restricción de fecha
+
+### 3. Pestaña "Planificación" no visible en móvil
+**Descripción**: En teléfono, la navegación no muestra opción "Planificación"  
+**Localización**: `src/components/layout/mobile-nav.tsx:13-35`  
+**Causa**: Inconsistencia entre arrays de navegación
+- `sidebar.tsx` navItems → INCLUYE `/dashboard/planificacion`
+- `mobile-nav.tsx` navItems → NO INCLUYE `/dashboard/planificacion`
+- La ruta existe y funciona en desktop ✓
+- **Acción**: Agregar item Planificación al array navItems en mobile-nav.tsx
+
+### Queries/RLS que podrían estar afectando:
+1. **Tabla `bitacora_clase`**: Verificar RLS permite `SELECT` con `estado='cumplido'`
+2. **Tabla `asistencia`**: Verificar RLS permite `UPDATE` incluso si `fecha < TODAY()`
+3. **Tabla `horarios_clases`**: En PlanificarModal, si query de horarios_clases no trae datos → lookup de `DIA_TO_DOW` falla
+4. **Triggers pendientes**: ¿Hay algún trigger que marca automáticamente `estado='cumplido'` y luego bloquea cambios?
 
 ```bash
 # 1. Clonar e instalar
