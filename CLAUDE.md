@@ -89,6 +89,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ## Bugs pendientes
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar con `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup, o hacer fetch cliente de `horarios_clases` al abrir el panel.
 - **Desconexión bitácora**: `guardarBitacoraData()` (cursos/pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar en una sola función.
+- **Arrastrar y Soltar inconsistente (Agenda)**: A pesar de implementar la API nativa de DND (`draggable="true"`), hay bugs de interceptación de puntero en Vercel u overlays reactivos que suprimen el arrastre e invocan el click antiguo. Requiere revisión profunda del stack de eventos o reestructuración a `dnd-kit`.
 
 ## Convenciones críticas
 - `getUser()` en servidor, **nunca** `getSession()`
