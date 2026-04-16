@@ -601,14 +601,22 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                         <div
                           role="button"
                           tabIndex={0}
-                          draggable={Boolean(bitEstado)}
+                          draggable={bitEstado ? true : false}
                           onDragStart={(e) => {
                             if (!bitEstado) return
+                            e.stopPropagation()
                             const payload = bitacoraMap.get(bitKey)
-                            setDragPayload(payload)
-                            e.dataTransfer.setData('sourceId', payload.id)
-                            e.dataTransfer.setData('text/plain', payload.id) // Required for cross-browser
+                            
+                            // Essential for HTML5 DnD cross-browser
+                            const dragId = String(payload.id)
+                            e.dataTransfer.setData('sourceId', dragId)
+                            e.dataTransfer.setData('text/plain', dragId)
                             e.dataTransfer.effectAllowed = 'copyMove'
+
+                            // Delay state update to prevent React from tearing down the DOM before drag starts
+                            requestAnimationFrame(() => {
+                              setDragPayload(payload)
+                            })
                           }}
                           onDragOver={(e) => {
                             if (!cursoId) return // Only allow drop on valid courses
@@ -619,6 +627,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                           onDragLeave={() => setIsDraggingOver(null)}
                           onDrop={(e) => {
                             e.preventDefault()
+                            e.stopPropagation()
                             setIsDraggingOver(null)
                             if (!cursoId || !dragPayload) return
                             // Check if dropping on itself
@@ -641,26 +650,28 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                             }
                           }}
-                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-brand-400
+                          className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-brand-400 select-none touch-none
                             ${isDraggingOver === `${cursoId}|${ds}` ? 'ring-2 ring-brand-400 bg-brand-500/20' : ''}
                             ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35 cursor-pointer'
                                         : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35 cursor-pointer'}
-                            ${bitEstado ? 'cursor-grab active:cursor-grabbing' : ''}`}>
-                          <p className={`text-[11px] font-semibold leading-tight truncate
-                            ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
-                            {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
-                          </p>
-                          {pos.height >= SLOT_H && (
-                            <p className="text-[10px] opacity-60 leading-none mt-0.5">
-                              {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+                            ${bitEstado ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] transform transition-transform shadow-sm' : ''}`}>
+                          <div className={`pointer-events-none`}>
+                            <p className={`text-[11px] font-semibold leading-tight truncate
+                              ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
+                              {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
                             </p>
-                          )}
-                          {/* Badge de estado de planificación */}
-                          {bitEstado && pos.height >= SLOT_H * 1.5 && (
-                            <p className={`text-[10px] font-medium mt-0.5 ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
-                              {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
-                            </p>
-                          )}
+                            {pos.height >= SLOT_H && (
+                              <p className="text-[10px] opacity-60 leading-none mt-0.5">
+                                {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+                              </p>
+                            )}
+                            {/* Badge de estado de planificación */}
+                            {bitEstado && pos.height >= SLOT_H * 1.5 && (
+                              <p className={`text-[10px] font-medium mt-0.5 ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
+                                {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
+                              </p>
+                            )}
+                          </div>
                         </div>
 
                         {/* Picker de acción */}
