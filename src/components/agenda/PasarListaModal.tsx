@@ -219,7 +219,12 @@ export function PasarListaModal({
     }
 
     if (planResult.id) {
-      await confirmarCumplido(planResult.id, {})
+      const cumplResult = await confirmarCumplido(planResult.id, {})
+      if (cumplResult.error) {
+        setError(`Error al marcar clase como cumplida: ${cumplResult.error}`)
+        setSaving(false)
+        return
+      }
     }
 
     const result = await registrarAsistenciaMasiva(

@@ -132,9 +132,12 @@ Ejecutar en orden para inicializar la base de datos:
 **Localización**: `/dashboard/agenda` → PlanificarModal  
 **Causa probable**: 
 - Query en `agenda-client.tsx:269` trae todas las bitácoras SIN filtro de estado → datos disponibles ✓
-- `PlanificarModal.tsx` recibe prop `readOnly=true` pero controles no están deshabilitados correctamente
-- Posible que la validación de `readOnly` en bitácora.ts esté rechazando updates incluso para modo lectura
-- **Acción**: Revisar si hay validación que bloquea upsert cuando `bitacoraMap.estado='cumplido'` en agenda-client.tsx
+- `PlanificarModal.tsx` recibe prop `readOnly=true` y controles ESTÁN deshabilitados correctamente ✓
+- `confirmarCumplido()` en `PasarListaModal.tsx:222` marca estado como 'cumplido' ✓
+- **Causa posible 1**: RLS de tabla `bitacora_clase` está bloqueando SELECTs cuando estado='cumplido'
+- **Causa posible 2**: El plan NO está siendo guardado con estado='cumplido' (fallar silencioso en confirmarCumplido)
+- **Acción principal**: Revisar RLS en tabla `bitacora_clase` → ¿permite SELECT cuando estado='cumplido'?
+- **Acción secundaria**: Agregar validación/error handling en PasarListaModal.confirmarCumplido para confirmar éxito
 
 ### 2. Asistencia no se puede editar después de tomada
 **Descripción**: Una vez registrada asistencia de una fecha, no se puede modificar (ni participación, ni estado)  
