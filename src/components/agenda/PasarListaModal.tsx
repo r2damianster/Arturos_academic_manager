@@ -206,14 +206,20 @@ export function PasarListaModal({
     setSaving(true)
     setError(null)
 
-    const bitacoraId = bitacora?.id ?? null
-    if (bitacoraId) {
-      const actsFiltradas = actividades.filter(a => a.actividad.trim())
-      await confirmarCumplido(bitacoraId, {
-        tema: tema.trim(),
-        actividades_json: actsFiltradas,
-        observaciones: observaciones.trim() || null,
-      })
+    const actsFiltradas = actividades.filter(a => a.actividad.trim())
+    const planResult = await guardarPlanificacion(cursoId, fecha, {
+      tema: tema.trim(),
+      actividades_json: actsFiltradas,
+      observaciones: observaciones.trim() || null,
+    })
+    if (planResult.error) {
+      setError(planResult.error)
+      setSaving(false)
+      return
+    }
+
+    if (planResult.id) {
+      await confirmarCumplido(planResult.id, {})
     }
 
     const result = await registrarAsistenciaMasiva(
@@ -227,7 +233,7 @@ export function PasarListaModal({
         participacion:    r.participacion,
         observacion_part: r.observacion || null,
       })),
-      bitacoraId
+      planResult.id || bitacora?.id || null
     )
 
     setSaving(false)
