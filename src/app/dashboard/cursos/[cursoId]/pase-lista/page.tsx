@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { PaseListaClient } from '@/components/pase-lista/pase-lista-client'
+import { PaseListaWrapper } from '@/components/pase-lista/pase-lista-wrapper'
 import type { Tables } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -188,10 +188,10 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
           </Link>
         </div>
       ) : (
-        <PaseListaClient
+        <PaseListaWrapper
           cursoId={cursoId}
+          asignatura={curso.asignatura}
           estudiantes={estudiantes}
-          fecha={hoy}
           horasSesion={horasSesion}
           perfiles={perfiles}
           horariosTutoria={horariosTutoria}
