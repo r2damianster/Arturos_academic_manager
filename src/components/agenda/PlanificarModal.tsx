@@ -157,12 +157,18 @@ export function PlanificarModal({
 
   const fetchExisting = useCallback(async () => {
     setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setLoading(false)
+      return
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
       .select('id, tema, actividades_json, observaciones, estado')
       .eq('curso_id', cursoId)
       .eq('fecha', fecha)
+      .eq('profesor_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -280,6 +286,13 @@ export function PlanificarModal({
         {loading ? (
           <div className="flex items-center justify-center p-10">
             <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : readOnly && !existing ? (
+          <div className="flex items-center justify-center p-10">
+            <div className="text-center">
+              <div className="text-gray-400 text-sm mb-2">No se encontró planificación guardada para esta clase.</div>
+              <div className="text-gray-500 text-xs">La asistencia fue registrada sin plan detallado.</div>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
