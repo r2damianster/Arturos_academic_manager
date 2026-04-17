@@ -260,24 +260,31 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
   // Cargar bitácoras de la semana visible para mostrar badges y dnd
   useEffect(() => {
-    const fechaMin = dateToStr(weekDates[0])
-    const fechaMax = dateToStr(weekDates[weekDates.length - 1])
-    const cursoIds = [...new Set(clases.map(c => c.cursos?.id).filter(Boolean))]
-    if (cursoIds.length === 0) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase as any)
-      .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones')
-      .in('curso_id', cursoIds)
-      .gte('fecha', fechaMin)
-      .lte('fecha', fechaMax)
+    const loadBitacoras = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const fechaMin = dateToStr(weekDates[0])
+      const fechaMax = dateToStr(weekDates[weekDates.length - 1])
+      const cursoIds = [...new Set(clases.map(c => c.cursos?.id).filter(Boolean))]
+      if (cursoIds.length === 0) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then(({ data }: { data: any[] | null }) => {
+      ;(supabase as any)
+        .from('bitacora_clase')
+        .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones')
+        .eq('profesor_id', user.id)
+        .in('curso_id', cursoIds)
+        .gte('fecha', fechaMin)
+        .lte('fecha', fechaMax)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const m = new Map<string, any>()
-        for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, b)
-        setBitacoraMap(m)
-      })
+        .then(({ data }: { data: any[] | null }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const m = new Map<string, any>()
+          for (const b of (data ?? [])) m.set(`${b.curso_id}|${b.fecha}`, b)
+          setBitacoraMap(m)
+        })
+    }
+    loadBitacoras()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset, clases.length])
   const slotStart = timeSlots.length ? toMin(timeSlots[0]) : DEFAULT_START
