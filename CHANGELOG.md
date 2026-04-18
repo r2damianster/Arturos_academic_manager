@@ -4,6 +4,7 @@
 - **Fix:** Agenda y Planificación ahora cargan solo las bitácoras del profesor correcto (`profesor_id`) para evitar RLS y permitir ver los planes cumplidos.
 - **Fix:** En `/dashboard/agenda`, `PlanificarModal` ya no muestra el panel de copiar/mover plan cuando se accede desde la agenda.
 - **Enhancement:** En `/dashboard/planificacion`, los bloques planificados son arrastrables y el drop abre un modal de confirmación para copiar o mover la planificación.
+- **Fix:** Los planes cumplidos en planificación ahora son visibles, arrastrables y permiten copiar a otras fechas desde el modal de planificación.
 
 ## 2026-04-15
 - **Arrastrar y Soltar de Planificación (Agenda)**: Implementación de DnD para bloques de clases en la agenda.
