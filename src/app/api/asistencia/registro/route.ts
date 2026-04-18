@@ -65,8 +65,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  }
-
   let bitacora = null
   if (bitRes?.data) {
     bitacora = {
