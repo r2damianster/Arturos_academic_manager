@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { EstadoEstudianteButton } from '@/components/cursos/estado-estudiante-button'
 import type { Tables } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -161,6 +162,16 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
             )}
           </div>
           <p className="text-gray-400 text-sm">{estudiante.email}</p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className={`text-[11px] font-semibold uppercase tracking-[0.18em] px-2 py-1 rounded-full ${
+              estudiante.estado === 'retirado'
+                ? 'bg-red-950/70 text-red-300 border border-red-800'
+                : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
+            }`}>
+              {estudiante.estado === 'retirado' ? 'Retirado' : 'Activo'}
+            </span>
+            <EstadoEstudianteButton estudianteId={estudiante.id} cursoId={estudiante.curso_id} currentEstado={estudiante.estado ?? 'activo'} />
+          </div>
           {curso && (
             <p className="text-gray-500 text-xs mt-1">{curso.asignatura} · {curso.codigo} · {curso.periodo}</p>
           )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva, type RegistroAsistenciaInput } from '@/lib/actions/asistencia'
 import { guardarBitacoraData } from '@/lib/actions/bitacora'
 import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
@@ -78,7 +78,43 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
   const [registros, setRegistros] = useState<Record<string, RegistroLocal>>({})
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [isLoadingFecha, setIsLoadingFecha] = useState(false)
+  const [existingRecords, setExistingRecords] = useState<number | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    let active = true
+
+    async function loadRegistroFecha() {
+      setIsLoadingFecha(true)
+      setExistingRecords(null)
+      try {
+        const res = await fetch(`/api/asistencia/registro?cursoId=${cursoId}&fecha=${fecha}`, {
+          cache: 'no-store',
+        })
+        const data = await res.json()
+        if (!active) return
+        if (res.ok && data?.registros) {
+          setRegistros(data.registros)
+          setExistingRecords(Object.keys(data.registros).length)
+        } else {
+          setRegistros({})
+          setExistingRecords(0)
+        }
+      } catch {
+        if (!active) return
+        setRegistros({})
+        setExistingRecords(0)
+      } finally {
+        if (active) setIsLoadingFecha(false)
+      }
+    }
+
+    loadRegistroFecha()
+    return () => {
+      active = false
+    }
+  }, [cursoId, fecha])
 
   // Per-student tutoría assignment state
   const [tutOpen, setTutOpen]   = useState<string | null>(null)  // student id
@@ -296,6 +332,18 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         <button onClick={() => setPaso('bitacora')} className="text-xs text-gray-500 hover:text-gray-300">← Bitácora</button>
         <span className="text-xs text-gray-500">Paso 2 de 3</span>
       </div>
+
+      {(isLoadingFecha || existingRecords != null) && (
+        <div className="rounded-xl border border-gray-800 bg-gray-950/60 px-4 py-3 text-sm text-gray-300">
+          {isLoadingFecha ? (
+            <span>Cargando asistencia para {fecha}...</span>
+          ) : existingRecords && existingRecords > 0 ? (
+            <span>{existingRecords} registro(s) existente(s) cargados para {fecha}. Puedes editar y guardar.</span>
+          ) : (
+            <span>No se encontraron registros para {fecha}. Completa la asistencia y guarda.</span>
+          )}
+        </div>
+      )}
 
       {/* Barra de progreso */}
       <div className="flex items-center gap-3">

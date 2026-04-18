@@ -27,7 +27,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
 
   const [cursoRes, estudiantesRes, asistenciaHistRes, calificacionesRes, trabajosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email, tutoria, auth_user_id').eq('curso_id', cursoId).order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, tutoria, auth_user_id, estado').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('asistencia').select('estudiante_id, estado, observacion_part, fecha').eq('curso_id', cursoId).order('fecha', { ascending: false }),
     db.from('calificaciones').select('estudiante_id, acd1, ta1, pe1, ex1, acd2, ta2, pe2, ex2').eq('curso_id', cursoId),
     db.from('trabajos_asignados')

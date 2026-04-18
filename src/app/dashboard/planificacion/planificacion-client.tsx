@@ -87,6 +87,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const supabase = createClient()
 
   const [weekOffset, setWeekOffset] = useState(0)
+  const [isMounted, setIsMounted] = useState(false)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showTutoriasCurso, setShowTutoriasCurso] = useState(false)
@@ -171,9 +172,13 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   }
 
   useEffect(() => {
-    loadBitacoras()
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (isMounted) loadBitacoras()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekOffset, clases.length])
+  }, [weekOffset, clases.length, isMounted])
 
   // Calcular cuántas clases hay sin planificar esta semana
   const sinPlanificar = useMemo(() => {
@@ -215,10 +220,33 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
     if (entry.estado === 'cumplido') {
       return (
-        <div className="w-full min-h-[52px] p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30">
+        <button
+          draggable
+          onDragStart={e => {
+            e.dataTransfer.effectAllowed = 'move'
+            const sourceKey = `${cursoId}|${fecha}`
+            const entry = bitacoraMap.get(sourceKey)
+            if (!entry) return
+            setDragSource({
+              id: entry.id,
+              cursoId,
+              fecha,
+              tema: entry.tema,
+              actividades_json: entry.actividades_json,
+              observaciones: entry.observaciones,
+              asignatura: clase.cursos?.asignatura ?? '',
+            })
+          }}
+          onDragEnd={() => setDragSource(null)}
+          onClick={() => setPlanificarModal({ clase, fecha })}
+          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30 hover:bg-emerald-900/30 transition-colors"
+        >
           <div className="text-emerald-400 text-xs font-medium">✓ Cumplido</div>
           <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
-        </div>
+          {entry.tema && (
+            <div className="text-gray-300 text-[10px] mt-0.5 leading-tight">{truncarTema(entry.tema)}</div>
+          )}
+        </button>
       )
     }
 
@@ -365,7 +393,9 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     )
   }
 
-  // ─── Main render ─────────────────────────────────────────────────────────────
+  if (!isMounted) {
+    return <div className="space-y-4 animate-pulse"><div className="h-10 bg-gray-800 rounded-lg w-full"></div><div className="h-40 bg-gray-900 rounded-xl w-full"></div></div>
+  }
 
   if (clases.length === 0) {
     return (
@@ -512,18 +542,21 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                     const isCompletedTarget = targetEntry?.estado === 'cumplido'
                     const sameSource = dragSource?.cursoId === curso.id && dragSource?.fecha === fecha
                     const isEmptyTarget = !targetEntry
+                    const isDraggingCompleted = dragSource && bitacoraMap.get(`${dragSource.cursoId}|${dragSource.fecha}`)?.estado === 'cumplido'
 
                     return (
                       <div
                         key={fecha}
                         className={`p-1.5 ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
                         onDragOver={e => {
-                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          if (!dragSource || sameSource) return
+                          if (isCompletedTarget) return
                           e.preventDefault()
                           setDragOverKey(targetKey)
                         }}
                         onDragEnter={e => {
-                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          if (!dragSource || sameSource) return
+                          if (isCompletedTarget) return
                           e.preventDefault()
                           setDragOverKey(targetKey)
                         }}
@@ -531,14 +564,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                           if (dragOverKey === targetKey) setDragOverKey(null)
                         }}
                         onDrop={e => {
-                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          if (!dragSource || sameSource) return
+                          if (isCompletedTarget) return
                           e.preventDefault()
                           setDragTarget({
                             cursoId: curso.id,
                             fecha,
-                            hasPlan: false,
+                            hasPlan: !isEmptyTarget,
                             asignatura: curso.asignatura,
-                            tema: undefined,
+                            tema: targetEntry?.tema,
                           })
                           setDragConfirmOpen(true)
                           setDragOverKey(null)
@@ -577,7 +611,11 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           fecha={planificarModal.fecha}
           horaInicio={planificarModal.clase.hora_inicio}
           horaFin={planificarModal.clase.hora_fin}
-          allowCopyMove={false}
+          allowCopyMove={(() => {
+            const key = `${planificarModal.clase.cursos?.id ?? planificarModal.clase.curso_id}|${planificarModal.fecha}`
+            const entry = bitacoraMap.get(key)
+            return entry?.estado === 'cumplido'
+          })()}
           onClose={() => setPlanificarModal(null)}
           onSaved={() => {
             setPlanificarModal(null)

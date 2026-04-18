@@ -14,7 +14,7 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
 
   const [cursoRes, estudiantesRes, registrosRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).order('nombre'),
+    db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('asistencia').select('*').eq('curso_id', cursoId).order('fecha'),
   ])
 

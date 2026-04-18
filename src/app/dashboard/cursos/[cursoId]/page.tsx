@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { TutoriaToggle } from '@/components/cursos/tutoria-toggle'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
+import { EstadoEstudianteButton } from '@/components/cursos/estado-estudiante-button'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
-type Estudiante = Tables<'estudiantes'>
+type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tutoria' | 'estado'>
 
 export default async function CursoDetailPage({ params }: { params: Promise<{ cursoId: string }> }) {
   const { cursoId } = await params
@@ -24,6 +25,8 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   if (!curso) notFound()
 
   const estudiantes: Estudiante[] = estudiantesRes.data ?? []
+  const activos = estudiantes.filter(est => est.estado !== 'retirado')
+  const retirados = estudiantes.filter(est => est.estado === 'retirado')
   const clases = clasesRes.data ?? []
 
   const semanaRes = await db.rpc('calcular_semana', { p_curso_id: cursoId })
@@ -67,8 +70,11 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
           <HorariosEditor cursoId={cursoId} initialClases={clases as any} />
         </div>
         <div className="text-right">
-          <p className="text-3xl font-bold text-white">{estudiantes.length}</p>
-          <p className="text-xs text-gray-500">estudiantes</p>
+          <p className="text-3xl font-bold text-white">{activos.length}</p>
+          <p className="text-xs text-gray-500">estudiantes activos</p>
+          {retirados.length > 0 && (
+            <p className="text-xs text-gray-500">+ {retirados.length} retirado(s)</p>
+          )}
         </div>
       </div>
 
@@ -84,30 +90,32 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
         ))}
       </div>
 
-      {/* Lista de estudiantes */}
+      {/* Estudiantes activos */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-white">Estudiantes</h2>
+          <div>
+            <h2 className="font-semibold text-white">Estudiantes activos</h2>
+            <p className="text-xs text-gray-500">Solo los estudiantes activos aparecen en la lista y en la toma de asistencia.</p>
+          </div>
           <Link href={`/dashboard/cursos/${cursoId}/estudiantes/importar`}
             className="text-sm text-brand-400 hover:text-brand-300">
             + Importar
           </Link>
         </div>
 
-        {estudiantes.length === 0 ? (
+        {activos.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500 mb-3">No hay estudiantes en este curso</p>
+            <p className="text-gray-500 mb-3">No hay estudiantes activos en este curso</p>
             <Link href={`/dashboard/cursos/${cursoId}/estudiantes/importar`} className="btn-primary text-sm">
               Importar estudiantes
             </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-800">
-            {estudiantes.map(est => (
+            {activos.map(est => (
               <div key={est.id} className="flex items-center justify-between py-3 group">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center
-                                  text-gray-400 text-sm font-medium flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 text-sm font-medium flex-shrink-0">
                     {est.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -120,13 +128,48 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
                 </div>
                 <div className="flex items-center gap-3">
                   {est.tutoria && <span className="badge-azul">Tutoría</span>}
-                  <TutoriaToggle estudianteId={est.id} tutoria={est.tutoria} />
+                  <EstadoEstudianteButton estudianteId={est.id} cursoId={cursoId} currentEstado={est.estado} />
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {retirados.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-white">Estudiantes retirados</h2>
+              <p className="text-xs text-gray-500">Los estudiantes retirados se conservan en el curso y pueden reintegrarse.</p>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-800">
+            {retirados.map(est => (
+              <div key={est.id} className="flex items-center justify-between py-3 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 text-sm font-medium flex-shrink-0">
+                    {est.nombre.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <Link href={`/dashboard/estudiantes/${est.id}`}
+                      className="font-medium text-gray-200 hover:text-white transition-colors text-sm">
+                      {est.nombre}
+                    </Link>
+                    <p className="text-xs text-gray-500">{est.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.12em] text-gray-300 bg-gray-900 border border-gray-700 rounded-full px-2 py-1">
+                    Retirado
+                  </span>
+                  <EstadoEstudianteButton estudianteId={est.id} cursoId={cursoId} currentEstado={est.estado} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

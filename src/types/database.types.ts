@@ -183,6 +183,8 @@ export type Database = {
           email: string
           tutoria: boolean
           auth_user_id: string | null
+          estado: string
+          retirado_at: string | null
           created_at: string
         }
         Insert: {
@@ -193,6 +195,8 @@ export type Database = {
           email: string
           tutoria?: boolean
           auth_user_id?: string | null
+          estado?: string
+          retirado_at?: string | null
           created_at?: string
         }
         Update: {
@@ -200,6 +204,8 @@ export type Database = {
           email?: string
           tutoria?: boolean
           auth_user_id?: string | null
+          estado?: string
+          retirado_at?: string | null
         }
         Relationships: [
           {
