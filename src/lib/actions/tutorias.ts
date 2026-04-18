@@ -200,3 +200,26 @@ export async function eliminarReserva(reservaId: number): Promise<{ error?: stri
   revalidatePath('/dashboard/agenda')
   return {}
 }
+
+export async function marcarAsistenciaReserva(reservaId: number, asistio: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const now = new Date().toISOString()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const { error } = await db
+    .from('reservas')
+    .update({ 
+      estado: 'completada', 
+      asistio, 
+      completada_at: now 
+    })
+    .eq('id', reservaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard/tutorias')
+  return {}
+}

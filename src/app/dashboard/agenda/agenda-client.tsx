@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { crearEvento, actualizarEvento, eliminarEvento } from '@/lib/actions/eventos'
-import { activarHorario, asignarTutoriaDirecta, eliminarReserva, type DuracionTutoria } from '@/lib/actions/tutorias'
+import { activarHorario, asignarTutoriaDirecta, eliminarReserva, marcarAsistenciaReserva, type DuracionTutoria } from '@/lib/actions/tutorias'
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PasarListaModal } from '@/components/agenda/PasarListaModal'
@@ -397,6 +397,14 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     })
   }
 
+  function handleMarcarAsistencia(reservaId: number, asistio: boolean) {
+    setPopover(null)
+    setReservas(prev => prev.map(r => r.id === reservaId ? { ...r, estado: 'completada', asistio } : r))
+    startTransition(async () => {
+      await marcarAsistenciaReserva(reservaId, asistio)
+    })
+  }
+
   function openEvEdit(ev: Evento) {
     setSelEvento(null)
     setEditingEvento(ev.id)
@@ -767,11 +775,21 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             {reserva.email && <p className="text-xs text-gray-500">{reserva.email}</p>}
                             {reserva.notas && <p className="text-xs text-gray-400 mt-1 italic">"{reserva.notas}"</p>}
                             <div className="flex gap-2 mt-2">
+                              <button onClick={() => handleMarcarAsistencia(reserva.id, true)}
+                                className="flex-1 py-1.5 rounded-lg bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50 transition-colors text-xs font-medium">
+                                ✓ Asistió
+                              </button>
+                              <button onClick={() => handleMarcarAsistencia(reserva.id, false)}
+                                className="flex-1 py-1.5 rounded-lg bg-amber-900/30 text-amber-400 hover:bg-amber-900/50 transition-colors text-xs font-medium">
+                                ✗ Faltó
+                              </button>
+                            </div>
+                            <div className="flex gap-2 mt-2">
                               <button onClick={() => handleEliminarReserva(reserva.id)}
-                                className="flex-1 py-1.5 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors text-xs font-medium">
+                                className="flex-1 py-1.5 rounded-lg border border-red-900/50 text-red-500 hover:bg-red-900/20 transition-colors text-xs font-medium">
                                 Cancelar reserva
                               </button>
-                              <button onClick={() => setPopover(null)} className="text-xs text-gray-600 hover:text-gray-400 px-2">Cerrar</button>
+                              <button onClick={() => setPopover(null)} className="text-xs text-gray-500 hover:text-gray-300 px-2">Cerrar</button>
                             </div>
                           </div>
                         )}
