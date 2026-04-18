@@ -1016,6 +1016,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           horaInicio={claseModal.clase.hora_inicio}
           horaFin={claseModal.clase.hora_fin}
           readOnly={claseModal.readOnly}
+          allowCopyMove={false}
           onClose={() => setClaseModal(null)}
           onSaved={() => {
             setClaseModal(null)

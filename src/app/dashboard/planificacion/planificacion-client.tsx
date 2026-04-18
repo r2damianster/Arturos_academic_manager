@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
+import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
+import { gestionarDragPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -26,9 +28,11 @@ interface Clase {
 }
 
 interface BitacoraEntry {
+  id: string
   estado: string
   tema: string
   actividades_json: { actividad: string; recurso: string }[]
+  observaciones: string | null
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -96,6 +100,25 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     fecha: string
     tema: string
   } | null>(null)
+  const [dragSource, setDragSource] = useState<{
+    id: string
+    cursoId: string
+    fecha: string
+    tema: string
+    actividades_json: { actividad: string; recurso: string }[]
+    observaciones: string | null
+    asignatura: string
+  } | null>(null)
+  const [dragTarget, setDragTarget] = useState<{
+    cursoId: string
+    fecha: string
+    hasPlan: boolean
+    asignatura: string
+    tema?: string
+  } | null>(null)
+  const [dragConfirmOpen, setDragConfirmOpen] = useState(false)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
+  const [dragError, setDragError] = useState<string | null>(null)
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
 
@@ -128,18 +151,20 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
-      .select('curso_id, fecha, estado, tema, actividades_json')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
-    for (const b of (data ?? []) as { curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown }[]) {
+    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null }[]) {
       m.set(`${b.curso_id}|${b.fecha}`, {
+        id: b.id,
         estado: b.estado,
         tema: b.tema ?? '',
         actividades_json: Array.isArray(b.actividades_json) ? b.actividades_json as BitacoraEntry['actividades_json'] : [],
+        observaciones: b.observaciones ?? null,
       })
     }
     setBitacoraMap(m)
@@ -199,6 +224,23 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
     return (
       <button
+        draggable
+        onDragStart={e => {
+          e.dataTransfer.effectAllowed = 'move'
+          const sourceKey = `${cursoId}|${fecha}`
+          const entry = bitacoraMap.get(sourceKey)
+          if (!entry) return
+          setDragSource({
+            id: entry.id,
+            cursoId,
+            fecha,
+            tema: entry.tema,
+            actividades_json: entry.actividades_json,
+            observaciones: entry.observaciones,
+            asignatura: clase.cursos?.asignatura ?? '',
+          })
+        }}
+        onDragEnd={() => setDragSource(null)}
         onClick={() => setPlanificarModal({ clase, fecha })}
         className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-sky-900/20 border border-sky-500/30 hover:bg-sky-900/30 transition-colors"
       >
@@ -465,9 +507,43 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                     const dayName = DIAS_LONG[date.getDay()]
                     const clase = getClaseForDay(grupoClases, dayName)
                     const fecha = dateToStr(date)
+                    const targetKey = `${curso.id}|${fecha}`
+                    const targetEntry = bitacoraMap.get(targetKey)
+                    const isCompletedTarget = targetEntry?.estado === 'cumplido'
+                    const sameSource = dragSource?.cursoId === curso.id && dragSource?.fecha === fecha
+                    const isEmptyTarget = !targetEntry
 
                     return (
-                      <div key={fecha} className="p-1.5">
+                      <div
+                        key={fecha}
+                        className={`p-1.5 ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
+                        onDragOver={e => {
+                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          e.preventDefault()
+                          setDragOverKey(targetKey)
+                        }}
+                        onDragEnter={e => {
+                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          e.preventDefault()
+                          setDragOverKey(targetKey)
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverKey === targetKey) setDragOverKey(null)
+                        }}
+                        onDrop={e => {
+                          if (!dragSource || sameSource || !isEmptyTarget || isCompletedTarget) return
+                          e.preventDefault()
+                          setDragTarget({
+                            cursoId: curso.id,
+                            fecha,
+                            hasPlan: false,
+                            asignatura: curso.asignatura,
+                            tema: undefined,
+                          })
+                          setDragConfirmOpen(true)
+                          setDragOverKey(null)
+                        }}
+                      >
                         {clase
                           ? renderCellContent(clase, fecha, curso.id)
                           : <div className="min-h-[52px] rounded-lg bg-gray-800/30" />
@@ -501,6 +577,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           fecha={planificarModal.fecha}
           horaInicio={planificarModal.clase.hora_inicio}
           horaFin={planificarModal.clase.hora_fin}
+          allowCopyMove={false}
           onClose={() => setPlanificarModal(null)}
           onSaved={() => {
             setPlanificarModal(null)
@@ -519,6 +596,53 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           onDone={() => {
             setReplanificarModal(null)
             loadBitacoras()
+          }}
+        />
+      )}
+
+      {dragConfirmOpen && dragSource && dragTarget && (
+        <DragDropConfirmModal
+          source={{ asignatura: dragSource.asignatura, fecha: dragSource.fecha, tema: dragSource.tema }}
+          dest={{
+            asignatura: dragTarget.asignatura,
+            fecha: dragTarget.fecha,
+            hasPlan: dragTarget.hasPlan,
+            tema: dragTarget.tema,
+          }}
+          onConfirm={async mode => {
+            setDragError(null)
+            const colision = dragTarget.hasPlan ? 'reemplazar' : 'vacio'
+            if (mode.action !== 'copiar' && mode.action !== 'mover') {
+              return { error: 'Acción inválida' }
+            }
+            const result = await gestionarDragPlanificacion(
+              dragSource.id,
+              dragTarget.cursoId,
+              dragTarget.fecha,
+              mode.action,
+              colision,
+              {
+                tema: dragSource.tema,
+                actividades_json: dragSource.actividades_json,
+                observaciones: dragSource.observaciones,
+              }
+            )
+            if (result.error) {
+              setDragError(result.error)
+              return { error: result.error }
+            }
+            setDragConfirmOpen(false)
+            setDragSource(null)
+            setDragTarget(null)
+            loadBitacoras()
+            return {}
+          }}
+          onClose={() => {
+            setDragConfirmOpen(false)
+            setDragSource(null)
+            setDragTarget(null)
+            setDragOverKey(null)
+            setDragError(null)
           }}
         />
       )}

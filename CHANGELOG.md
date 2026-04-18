@@ -1,5 +1,10 @@
 # Changelog — gestor-universitario-next
 
+## 2026-04-17
+- **Fix:** Agenda y Planificación ahora cargan solo las bitácoras del profesor correcto (`profesor_id`) para evitar RLS y permitir ver los planes cumplidos.
+- **Fix:** En `/dashboard/agenda`, `PlanificarModal` ya no muestra el panel de copiar/mover plan cuando se accede desde la agenda.
+- **Enhancement:** En `/dashboard/planificacion`, los bloques planificados son arrastrables y el drop abre un modal de confirmación para copiar o mover la planificación.
+
 ## 2026-04-15
 - **Arrastrar y Soltar de Planificación (Agenda)**: Implementación de DnD para bloques de clases en la agenda.
   - Interfaz de validación tipo Modal interactivo en caso de colisión (Reemplazar, Combinar, Cascada).

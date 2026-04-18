@@ -23,6 +23,7 @@ interface PlanificarModalProps {
   onSaved: () => void
   clases?: ClaseParaCopiar[]
   readOnly?: boolean
+  allowCopyMove?: boolean
 }
 
 interface BitacoraExistente {
@@ -92,7 +93,7 @@ function emptyActividad(): ActividadPlanificada {
 }
 
 export function PlanificarModal({
-  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = [], readOnly = false
+  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = [], readOnly = false, allowCopyMove = true
 }: PlanificarModalProps) {
   const supabase = createClient()
 
@@ -375,7 +376,7 @@ export function PlanificarModal({
               </div>
 
               {/* Sub-panel Copiar / Mover — solo visible si ya existe un plan guardado */}
-              {existing && (
+              {existing && allowCopyMove && (
                 <div className="border border-gray-700 rounded-xl overflow-hidden">
                   <button
                     type="button"
