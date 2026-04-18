@@ -97,14 +97,26 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         if (res.ok && data?.registros) {
           setRegistros(data.registros)
           setExistingRecords(Object.keys(data.registros).length)
+          if (data.bitacora) {
+            setBitacora({
+              tema: data.bitacora.tema || '',
+              actividades: data.bitacora.actividades || '',
+              materiales: data.bitacora.materiales || '',
+              observaciones: data.bitacora.observaciones || ''
+            })
+          } else {
+            setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
+          }
         } else {
           setRegistros({})
           setExistingRecords(0)
+          setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
         }
       } catch {
         if (!active) return
         setRegistros({})
         setExistingRecords(0)
+        setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
       } finally {
         if (active) setIsLoadingFecha(false)
       }

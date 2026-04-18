@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [asisRes, partRes] = await Promise.all([
+  const [asisRes, partRes, bitRes] = await Promise.all([
     db.from('asistencia')
       .select('estudiante_id, estado, atraso, horas, observacion_part')
       .eq('curso_id', cursoId)
@@ -23,6 +23,13 @@ export async function GET(req: NextRequest) {
       .select('estudiante_id, nivel')
       .eq('curso_id', cursoId)
       .eq('fecha', fecha),
+    db.from('bitacora_clase')
+      .select('tema, actividades_json, observaciones')
+      .eq('curso_id', cursoId)
+      .eq('fecha', fecha)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (asisRes.error) {
@@ -55,5 +62,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ registros })
+  }
+
+  let bitacora = null
+  if (bitRes?.data) {
+    bitacora = {
+      tema: bitRes.data.tema ?? '',
+      actividades: bitRes.data.actividades_json ? JSON.stringify(bitRes.data.actividades_json) : '', // Actividades usually mapped separately but here we pass as text if needed
+      observaciones: bitRes.data.observaciones ?? '',
+    }
+  }
+
+  return NextResponse.json({ registros, bitacora })
 }
