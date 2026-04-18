@@ -117,7 +117,10 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     asignatura: string
     tema?: string
   } | null>(null)
-  const [dragConfirmOpen, setDragConfirmOpen] = useState(false)
+  const [dragModalPayload, setDragModalPayload] = useState<{
+    source: NonNullable<typeof dragSource>
+    target: NonNullable<typeof dragTarget>
+  } | null>(null)
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [dragError, setDragError] = useState<string | null>(null)
 
@@ -567,14 +570,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                           if (!dragSource || sameSource) return
                           if (isCompletedTarget) return
                           e.preventDefault()
-                          setDragTarget({
+                          const targetData = {
                             cursoId: curso.id,
                             fecha,
                             hasPlan: !isEmptyTarget,
                             asignatura: curso.asignatura,
                             tema: targetEntry?.tema,
-                          })
-                          setDragConfirmOpen(true)
+                          }
+                          setDragTarget(targetData)
+                          setDragModalPayload({ source: dragSource, target: targetData })
                           setDragOverKey(null)
                         }}
                       >
@@ -638,45 +642,45 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
         />
       )}
 
-      {dragConfirmOpen && dragSource && dragTarget && (
+      {dragModalPayload && (
         <DragDropConfirmModal
-          source={{ asignatura: dragSource.asignatura, fecha: dragSource.fecha, tema: dragSource.tema }}
+          source={{ asignatura: dragModalPayload.source.asignatura, fecha: dragModalPayload.source.fecha, tema: dragModalPayload.source.tema }}
           dest={{
-            asignatura: dragTarget.asignatura,
-            fecha: dragTarget.fecha,
-            hasPlan: dragTarget.hasPlan,
-            tema: dragTarget.tema,
+            asignatura: dragModalPayload.target.asignatura,
+            fecha: dragModalPayload.target.fecha,
+            hasPlan: dragModalPayload.target.hasPlan,
+            tema: dragModalPayload.target.tema,
           }}
           onConfirm={async mode => {
             setDragError(null)
-            const colision = dragTarget.hasPlan ? 'reemplazar' : 'vacio'
+            const colision = dragModalPayload.target.hasPlan ? 'reemplazar' : 'vacio'
             if (mode.action !== 'copiar' && mode.action !== 'mover') {
               return { error: 'Acción inválida' }
             }
             const result = await gestionarDragPlanificacion(
-              dragSource.id,
-              dragTarget.cursoId,
-              dragTarget.fecha,
+              dragModalPayload.source.id,
+              dragModalPayload.target.cursoId,
+              dragModalPayload.target.fecha,
               mode.action,
               colision,
               {
-                tema: dragSource.tema,
-                actividades_json: dragSource.actividades_json,
-                observaciones: dragSource.observaciones,
+                tema: dragModalPayload.source.tema,
+                actividades_json: dragModalPayload.source.actividades_json,
+                observaciones: dragModalPayload.source.observaciones,
               }
             )
             if (result.error) {
               setDragError(result.error)
               return { error: result.error }
             }
-            setDragConfirmOpen(false)
+            setDragModalPayload(null)
             setDragSource(null)
             setDragTarget(null)
             loadBitacoras()
             return {}
           }}
           onClose={() => {
-            setDragConfirmOpen(false)
+            setDragModalPayload(null)
             setDragSource(null)
             setDragTarget(null)
             setDragOverKey(null)
