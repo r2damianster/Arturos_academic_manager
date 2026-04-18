@@ -116,6 +116,10 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
   async function loadBitacoras() {
     if (weekDates.length === 0) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
     const fechaMin = dateToStr(weekDates[0])
     const fechaMax = dateToStr(weekDates[weekDates.length - 1])
     const cursoIds = [...new Set(clases.map(c => c.cursos?.id).filter(Boolean))]
@@ -125,6 +129,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     const { data } = await (supabase as any)
       .from('bitacora_clase')
       .select('curso_id, fecha, estado, tema, actividades_json')
+      .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
