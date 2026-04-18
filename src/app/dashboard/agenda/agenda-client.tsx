@@ -684,8 +684,16 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               {c.centro_computo && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>}
                             </div>
                             {pos.height >= SLOT_H && (
-                              <p className="text-[10px] opacity-60 leading-none mt-0.5 mb-0.5">
-                                {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
+                              <p 
+                                className="text-[10px] opacity-60 leading-none mt-0.5 mb-0.5"
+                                title={voy > 0 ? `Estudiantes confirmados:\n${c.anuncios_tutoria_curso?.map(a => '• ' + a.estudiantes?.nombre).join('\n')}` : undefined}
+                              >
+                                {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}
+                                {voy > 0 && (
+                                  <span className="ml-1 cursor-help hover:text-white transition-colors underline decoration-dotted underline-offset-2">
+                                    · {voy} van
+                                  </span>
+                                )}
                               </p>
                             )}
                             {/* Badge de estado de planificación */}
