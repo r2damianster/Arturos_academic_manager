@@ -208,6 +208,14 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   function renderCellContent(clase: Clase, fecha: string, cursoId: string) {
     const key = `${cursoId}|${fecha}`
     const entry = bitacoraMap.get(key)
+    const isTutoria = clase.tipo === 'tutoria_curso'
+
+    const renderBadges = () => (
+      <div className="flex flex-wrap gap-1 mt-0.5">
+        {isTutoria && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">👨‍🏫 Tutoría</span>}
+        {clase.centro_computo && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>}
+      </div>
+    )
 
     if (!entry) {
       return (
@@ -216,6 +224,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-900/30 transition-colors"
         >
           <div className="text-yellow-400 text-xs font-medium">⚠ Sin planificar</div>
+          {renderBadges()}
           <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
         </button>
       )
@@ -245,6 +254,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30 hover:bg-emerald-900/30 transition-colors"
         >
           <div className="text-emerald-400 text-xs font-medium">✓ Cumplido</div>
+          {renderBadges()}
           <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
           {entry.tema && (
             <div className="text-gray-300 text-[10px] mt-0.5 leading-tight">{truncarTema(entry.tema)}</div>
@@ -276,6 +286,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
         className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-sky-900/20 border border-sky-500/30 hover:bg-sky-900/30 transition-colors"
       >
         <div className="text-sky-400 text-xs font-medium">Planificado</div>
+        {renderBadges()}
         <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
         {entry.tema && (
           <div className="text-gray-300 text-[10px] mt-0.5 leading-tight">{truncarTema(entry.tema)}</div>

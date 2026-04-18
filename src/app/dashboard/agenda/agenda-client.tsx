@@ -40,6 +40,7 @@ interface Clase {
   hora_inicio: string
   hora_fin: string
   tipo: string
+  centro_computo: boolean
   cursos: { id: string; asignatura: string } | null
   anuncios_tutoria_curso?: { estudiante_id: string; fecha: string; estudiantes: { nombre: string } }[]
 }
@@ -200,6 +201,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [horarios,   setHorarios]   = useState<HorarioTutoria[]>(initH)
   const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
+  const [mostrarTutoriasVacias, setMostrarTutoriasVacias] = useState(false)
 
   // Personal event form
   const [showEvForm,    setShowEvForm]    = useState(false)
@@ -505,6 +507,9 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               <span className="text-blue-400 font-semibold">{nPending}</span>
               <span className="text-gray-500 ml-1">reservas activas</span>
             </span>
+            <button onClick={() => setMostrarTutoriasVacias(v => !v)} className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${mostrarTutoriasVacias ? 'bg-orange-900/30 text-orange-400 border-orange-500/50' : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700'}`}>
+              Tutorías vacías: {mostrarTutoriasVacias ? 'Visibles' : 'Ocultas'}
+            </button>
             <button onClick={() => setShowAssign(true)} className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 px-3 py-1.5 rounded-lg text-gray-300 transition-colors">
               Asignar tutoría
             </button>
@@ -573,7 +578,14 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               const diaNombre = DIAS_LONG[date.getDay()]
 
               // Classes for this day
-              const dayClases = clases.filter(c => c.dia_semana === diaNombre)
+              const dayClases = clases.filter(c => {
+                if (c.dia_semana !== diaNombre) return false
+                if (c.tipo === 'tutoria_curso') {
+                  const voy = c.anuncios_tutoria_curso?.length ?? 0
+                  if (voy === 0 && !mostrarTutoriasVacias) return false
+                }
+                return true
+              })
               // Tutorías horarios for this day
               const dayHorarios = horarios.filter(h => h.dia_semana === diaNombre)
               // Personal events with time for this day
@@ -667,14 +679,18 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
                               {c.cursos?.asignatura ?? (isTutoria ? 'Tutoría grupal' : 'Clase')}
                             </p>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {isTutoria && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">👨‍🏫 Tutoría</span>}
+                              {c.centro_computo && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>}
+                            </div>
                             {pos.height >= SLOT_H && (
-                              <p className="text-[10px] opacity-60 leading-none mt-0.5">
+                              <p className="text-[10px] opacity-60 leading-none mt-0.5 mb-0.5">
                                 {fmt(c.hora_inicio)}–{fmt(c.hora_fin)}{voy > 0 ? ` · ${voy} van` : ''}
                               </p>
                             )}
                             {/* Badge de estado de planificación */}
                             {bitEstado && pos.height >= SLOT_H * 1.5 && (
-                              <p className={`text-[10px] font-medium mt-0.5 ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
+                              <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
                                 {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
                               </p>
                             )}
