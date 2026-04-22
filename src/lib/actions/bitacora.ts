@@ -584,9 +584,6 @@ export async function fusionarPlanificacion(params: {
 export type AccionDrag = 'mover' | 'copiar'
 export type ColisionDrag = 'reemplazar' | 'combinar' | 'cascada' | 'vacio'
 
-/**
- * Gestiona el Arrastrar y Soltar (Drag and Drop) de una planificaciÃ³n.
- */
 export async function gestionarDragPlanificacion(
   sourceBitacoraId: string | null,
   targetCursoId: string,
@@ -598,11 +595,11 @@ export async function gestionarDragPlanificacion(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  // 1. Manejar el origen: Si es mover y el destino no es vacÃ­o (o si lo es), borramos el origen
   if (accion === 'mover' && sourceBitacoraId) {
-    if (sourceBitacoraId !== 'temp') { // si no es un fake id
+    if (sourceBitacoraId !== 'temp') {
       const { error: errDel } = await db.from('bitacora_clase').delete().eq('id', sourceBitacoraId).eq('profesor_id', user.id)
       if (errDel) return { error: errDel.message }
     }
@@ -627,104 +624,75 @@ export async function gestionarDragPlanificacion(
        tema: payload.tema,
        actividades_json: payload.actividades_json,
        observaciones: payload.observaciones || null,
-       estado: 'planificado' // Siempre se copia/mueve como "planificado"
+       estado: 'planificado',
     })
     if (error) return { error: error.message }
   } else {
-    // Si ya existe
     if (colision === 'reemplazar') {
        const { error } = await db.from('bitacora_clase').update({
            tema: payload.tema,
            actividades_json: payload.actividades_json,
            observaciones: payload.observaciones || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado'
+           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
        }).eq('id', existing.id)
        if (error) return { error: error.message }
     } else if (colision === 'combinar') {
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
        const prevActs = Array.isArray(existing.actividades_json) ? existing.actividades_json : []
        const newActs = Array.isArray(payload.actividades_json) ? payload.actividades_json : []
-       const comboActividades = [...prevActs, ...newActs].filter(a => a.actividad?.trim() !== '')
-
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       const comboActividades = [...prevActs, ...newActs].filter((a: any) => a.actividad?.trim() !== '')
        const comboTema = `${existing.tema} + ${payload.tema}`
        const comboObs = [existing.observaciones, payload.observaciones].filter(Boolean).join('\n')
-
        const { error } = await db.from('bitacora_clase').update({
            tema: comboTema,
            actividades_json: comboActividades,
            observaciones: comboObs || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado'
+           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
        }).eq('id', existing.id)
        if (error) return { error: error.message }
     } else if (colision === 'cascada') {
-       // a) Sobrescribir el destino con el Payload entrante
        const { error: errUpdate } = await db.from('bitacora_clase').update({
            tema: payload.tema,
            actividades_json: payload.actividades_json,
            observaciones: payload.observaciones || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado'
+           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
        }).eq('id', existing.id)
        if (errUpdate) return { error: errUpdate.message }
 
-       // b) Obtener el horario base (dÃ­as de la semana que tiene clase)
        const { data: clases } = await db.from('clases').select('dia_semana').eq('curso_id', targetCursoId)
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
        const checkDays = new Set((clases || []).map((c: any) => c.dia_semana.toLowerCase()))
-
        const diaMap: Record<string, number> = {
-         'domingo': 0, 'lunes': 1, 'martes': 2, 'miÃ©rcoles': 3, 'jueves': 4, 'viernes': 5, 'sÃ¡bado': 6
+         'domingo': 0, 'lunes': 1, 'martes': 2, 'miércoles': 3, 'jueves': 4, 'viernes': 5, 'sábado': 6,
        }
        const allowedDows = new Set([...checkDays].map(d => diaMap[d as string]))
 
        if (allowedDows.size > 0) {
-         let currentPayload = {
-           tema: existing.tema,
-           actividades_json: existing.actividades_json,
-           observaciones: existing.observaciones
-         }
-
-         let d = new Date(targetFecha + 'T12:00:00Z') // Use noon UTC to avoid timezone issues
-         
-         // Desplazamos recursivamente
+         let currentPayload = { tema: existing.tema, actividades_json: existing.actividades_json, observaciones: existing.observaciones }
+         let d = new Date(targetFecha + 'T12:00:00Z')
          while (true) {
             d.setDate(d.getDate() + 1)
-            while (!allowedDows.has(d.getDay())) {
-              d.setDate(d.getDate() + 1)
-            }
-            
+            while (!allowedDows.has(d.getDay())) d.setDate(d.getDate() + 1)
             const nextDateStr = d.toISOString().split('T')[0]
-
             const { data: stepExisting } = await db.from('bitacora_clase')
               .select('id, tema, actividades_json, observaciones, estado')
-              .eq('curso_id', targetCursoId)
-              .eq('fecha', nextDateStr)
-              .eq('profesor_id', user.id)
-              .maybeSingle()
-
+              .eq('curso_id', targetCursoId).eq('fecha', nextDateStr).eq('profesor_id', user.id).maybeSingle()
             if (!stepExisting) {
                await db.from('bitacora_clase').insert({
-                 profesor_id: user.id,
-                 curso_id: targetCursoId,
-                 fecha: nextDateStr,
-                 semana: targetSemana ?? null,
-                 tema: currentPayload.tema,
+                 profesor_id: user.id, curso_id: targetCursoId, fecha: nextDateStr,
+                 semana: targetSemana ?? null, tema: currentPayload.tema,
                  actividades_json: currentPayload.actividades_json,
-                 observaciones: currentPayload.observaciones || null,
-                 estado: 'planificado'
+                 observaciones: currentPayload.observaciones || null, estado: 'planificado',
                })
                break
             } else {
-               const nextPayload = {
-                 tema: stepExisting.tema,
-                 actividades_json: stepExisting.actividades_json,
-                 observaciones: stepExisting.observaciones
-               }
-
+               const nextPayload = { tema: stepExisting.tema, actividades_json: stepExisting.actividades_json, observaciones: stepExisting.observaciones }
                await db.from('bitacora_clase').update({
-                 tema: currentPayload.tema,
-                 actividades_json: currentPayload.actividades_json,
+                 tema: currentPayload.tema, actividades_json: currentPayload.actividades_json,
                  observaciones: currentPayload.observaciones || null,
-                 estado: stepExisting.estado === 'cumplido' ? 'cumplido' : 'planificado'
+                 estado: stepExisting.estado === 'cumplido' ? 'cumplido' : 'planificado',
                }).eq('id', stepExisting.id)
-
                currentPayload = nextPayload
             }
          }
@@ -733,5 +701,64 @@ export async function gestionarDragPlanificacion(
   }
 
   revalidatePath('/dashboard/agenda')
+  return {}
+}
+
+// ─── Modo Clase ───────────────────────────────────────────────────────────────
+
+export async function iniciarClase(bitacoraId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ hora_inicio_real: new Date().toISOString() })
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/modo-clase')
+  return {}
+}
+
+export async function actualizarActividadesEnVivo(
+  bitacoraId: string,
+  actividades_json: ActividadPlanificada[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ actividades_json: actividades_json as unknown as import('@/types/database.types').Json })
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
+export async function finalizarClase(
+  bitacoraId: string,
+  observaciones?: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const update: Record<string, unknown> = { estado: 'cumplido' }
+  if (observaciones !== undefined) update.observaciones = observaciones
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update(update)
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard/modo-clase')
   return {}
 }

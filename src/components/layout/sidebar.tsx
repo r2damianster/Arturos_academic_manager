@@ -63,6 +63,27 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    href: '/dashboard/modo-clase',
+    label: 'Modo Clase',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/herramientas',
+    label: 'Herramientas',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M11.049 2.927c.3-1.102 1.603-1.102 1.902 0a1.724 1.724 0 002.573 1.066c.966-.587 2.067.47 1.48 1.437a1.724 1.724 0 001.065 2.572c1.102.3 1.102 1.603 0 1.902a1.724 1.724 0 00-1.065 2.573c.587.966-.47 2.067-1.437 1.48a1.724 1.724 0 00-2.573 1.065c-.3 1.102-1.603 1.102-1.902 0a1.724 1.724 0 00-2.572-1.065c-.967.587-2.067-.47-1.48-1.437a1.724 1.724 0 00-1.066-2.573c-1.102-.3-1.102-1.603 0-1.902a1.724 1.724 0 001.066-2.572c-.587-.966.47-2.067 1.437-1.48a1.724 1.724 0 002.572-1.066z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
 ]
 
 export function Sidebar({ nombreProfesor, esAdmin = false }: { nombreProfesor: string; esAdmin?: boolean }) {

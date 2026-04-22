@@ -676,6 +676,7 @@ export type Database = {
           observaciones: string | null
           estado: string | null
           actividades_json: Json | null
+          hora_inicio_real: string | null
           created_at: string
         }
         Insert: {
@@ -690,6 +691,7 @@ export type Database = {
           observaciones?: string | null
           estado?: string | null
           actividades_json?: Json | null
+          hora_inicio_real?: string | null
           created_at?: string
         }
         Update: {
@@ -699,6 +701,7 @@ export type Database = {
           observaciones?: string | null
           estado?: string | null
           actividades_json?: Json | null
+          hora_inicio_real?: string | null
         }
         Relationships: []
       }

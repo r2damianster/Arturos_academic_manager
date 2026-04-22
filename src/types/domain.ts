@@ -16,9 +16,16 @@ export type BitacoraClase   = BitacoraClaseRow & {
   actividades_json?: ActividadPlanificada[] | null
 }
 
+export type ActividadTipo = 'actividad' | 'ruleta' | 'agrupacion'
+
 export type ActividadPlanificada = {
+  id?: string
   actividad: string
   recurso: string
+  tipo?: ActividadTipo
+  completada?: boolean
+  duracion_min?: number
+  notas?: string
 }
 export type HorarioClase    = Database['public']['Tables']['horarios_clases']['Row']
 export type AnuncioTutoria  = Database['public']['Tables']['anuncios_tutoria_curso']['Row']
