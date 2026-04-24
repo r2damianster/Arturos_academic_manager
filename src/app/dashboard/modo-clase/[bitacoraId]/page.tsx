@@ -27,9 +27,9 @@ export default async function ModoClaseActivaPage({
   const [estudiantesRes, asistenciaRes] = await Promise.all([
     db
       .from('estudiantes')
-      .select('id, nombre, apellido')
+      .select('id, nombre')
       .eq('curso_id', bitacora.curso_id)
-      .order('apellido'),
+      .order('nombre'),
     db
       .from('asistencia')
       .select('estudiante_id, estado, atraso')
@@ -37,7 +37,7 @@ export default async function ModoClaseActivaPage({
       .eq('fecha', bitacora.fecha),
   ])
 
-  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; apellido: string }[]
+  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string }[]
   const asistenciaInicial = (asistenciaRes.data ?? []) as { estudiante_id: string; estado: string; atraso: boolean }[]
   const actividades: ActividadPlanificada[] = (bitacora.actividades_json as ActividadPlanificada[] | null) ?? []
 

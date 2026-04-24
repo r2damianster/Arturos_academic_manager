@@ -6,7 +6,7 @@ import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 
 type Curso = { id: string; asignatura: string; codigo: string }
-type Student = { id: string; nombre: string; apellido: string }
+type Student = { id: string; nombre: string }
 
 type Tab = 'ruleta' | 'agrupacion'
 
@@ -34,9 +34,9 @@ export function HerramientasClient({
     const supabase = createClient()
     const { data } = await supabase
       .from('estudiantes')
-      .select('id, nombre, apellido')
+      .select('id, nombre')
       .eq('curso_id', newCursoId)
-      .order('apellido')
+      .order('nombre')
     setStudents((data as Student[]) ?? [])
     setLoading(false)
   }

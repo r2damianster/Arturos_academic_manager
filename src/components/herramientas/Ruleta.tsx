@@ -5,7 +5,6 @@ import { useState, useRef, useCallback } from 'react'
 type Student = {
   id: string
   nombre: string
-  apellido: string
 }
 
 const SEGMENT_COLORS = [
@@ -85,9 +84,7 @@ export function Ruleta({ students }: { students: Student[] }) {
   }
 
   const displayName = (s: Student) =>
-    `${s.apellido} ${s.nombre}`.length > 14
-      ? `${s.apellido.split(' ')[0]} ${s.nombre.split(' ')[0]}`
-      : `${s.apellido} ${s.nombre}`
+    s.nombre.length > 14 ? s.nombre.split(' ').slice(0, 2).join(' ') : s.nombre
 
   return (
     <div className="flex flex-col items-center gap-5">
@@ -146,7 +143,7 @@ export function Ruleta({ students }: { students: Student[] }) {
         <div className="text-center animate-fade-in">
           <p className="text-gray-400 text-sm mb-1">Seleccionado</p>
           <p className="text-white text-2xl font-bold">
-            {winner.nombre} {winner.apellido}
+            {winner.nombre}
           </p>
         </div>
       )}

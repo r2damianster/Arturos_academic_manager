@@ -8,7 +8,7 @@ import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 
-type Student = { id: string; nombre: string; apellido: string }
+type Student = { id: string; nombre: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 
 type Props = {
@@ -483,7 +483,7 @@ export function ModoClaseClient({
                 return (
                   <div key={s.id} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-800/50">
                     <span className="flex-1 text-sm text-gray-300 truncate">
-                      {s.apellido}, {s.nombre}
+                      {s.nombre}
                     </span>
                     <div className="flex gap-1 flex-shrink-0">
                       <button

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-type Student = { id: string; nombre: string; apellido: string }
+type Student = { id: string; nombre: string }
 
 const GROUP_COLORS = [
   'bg-indigo-900/50 border-indigo-700 text-indigo-300',
@@ -89,7 +89,7 @@ export function Agrupacion({ students }: { students: Student[] }) {
               <ul className="space-y-1.5">
                 {group.map(s => (
                   <li key={s.id} className="text-sm font-medium text-gray-100">
-                    {s.apellido}, {s.nombre}
+                    {s.nombre}
                   </li>
                 ))}
               </ul>
