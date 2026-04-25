@@ -105,6 +105,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
     { href: `/dashboard/cursos/${cursoId}/asistencia`,             label: 'Asistencia',          icon: '📊', desc: 'Reporte completo' },
     { href: `/dashboard/cursos/${cursoId}/calificaciones`,         label: 'Calificaciones',      icon: '📝', desc: 'Notas por parcial' },
     { href: `/dashboard/cursos/${cursoId}/trabajos`,               label: 'Trabajos',            icon: '📋', desc: 'Asignar y monitorear' },
+    { href: `/dashboard/cursos/${cursoId}/encuesta`,               label: 'Encuesta',            icon: '📋', desc: 'Perfil del grupo' },
     { href: `/dashboard/cursos/${cursoId}/estudiantes/importar`,   label: 'Agregar Estudiantes', icon: '📥', desc: 'Carga masiva' },
   ]
 
@@ -173,7 +174,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
       </div>
 
       {/* Módulos de navegación */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {modules.map(m => (
           <Link key={m.href} href={m.href}
             className="card hover:border-gray-700 transition-colors text-center group p-4">
