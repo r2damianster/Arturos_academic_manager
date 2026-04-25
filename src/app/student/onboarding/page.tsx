@@ -103,8 +103,10 @@ type FormState = {
   carrera_inicio_deseada: number | null
   carrera_actual_deseada: number | null
   // Step 3
+  dispositivo_movil: string
   nivel_tecnologia: number | null
   // Step 4
+  libros_anio: string
   gusto_escritura: number | null
   uso_ia_comprension: number | null
   uso_ia_resumen: number | null
@@ -127,7 +129,9 @@ const initialFormState: FormState = {
   es_foraneo: null,
   carrera_inicio_deseada: null,
   carrera_actual_deseada: null,
+  dispositivo_movil: '',
   nivel_tecnologia: null,
+  libros_anio: '',
   gusto_escritura: null,
   uso_ia_comprension: null,
   uso_ia_resumen: null,
@@ -270,7 +274,9 @@ export default function OnboardingPage() {
     fd.set('es_foraneo', formState.es_foraneo !== null ? formState.es_foraneo.toString() : '')
     fd.set('carrera_inicio_deseada', formState.carrera_inicio_deseada?.toString() ?? '')
     fd.set('carrera_actual_deseada', formState.carrera_actual_deseada?.toString() ?? '')
+    fd.set('dispositivo_movil', formState.dispositivo_movil)
     fd.set('nivel_tecnologia', formState.nivel_tecnologia?.toString() ?? '')
+    fd.set('libros_anio', formState.libros_anio)
     fd.set('gusto_escritura', formState.gusto_escritura?.toString() ?? '')
     for (const { key } of IA_KEYS) {
       const k = key as keyof FormState
@@ -633,7 +639,12 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="label">Teléfono móvil <span className="text-gray-500">(opcional)</span></label>
-                <select name="dispositivo_movil" className="input">
+                <select
+                  name="dispositivo_movil"
+                  className="input"
+                  value={formState.dispositivo_movil}
+                  onChange={e => setField('dispositivo_movil', e.target.value)}
+                >
                   <option value="">Seleccionar</option>
                   <option value="android">Android</option>
                   <option value="ios">iPhone (iOS)</option>
@@ -684,7 +695,16 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="label">¿Cuántos libros lees al año (aprox.)? <span className="text-gray-500">(opcional)</span></label>
-                <input type="number" name="libros_anio" className="input" min={0} max={200} placeholder="0" />
+                <input
+                  type="number"
+                  name="libros_anio"
+                  className="input"
+                  min={0}
+                  max={200}
+                  placeholder="0"
+                  value={formState.libros_anio}
+                  onChange={e => setField('libros_anio', e.target.value)}
+                />
               </div>
 
               <LikertRow

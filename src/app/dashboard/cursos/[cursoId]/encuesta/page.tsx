@@ -30,7 +30,7 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
 
   const [cursoRes, estudiantesRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, auth_user_id, nota_incidencia').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
   ])
 
   if (!cursoRes.data) notFound()
@@ -96,25 +96,36 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
   })).sort((a, b) => (b.prom ?? 0) - (a.prom ?? 0))
   const promIAGlobal = avg(iaPromedios.map(f => f.prom))
 
+  // Mapa auth_user_id → estudiante completo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const authToEst: Record<string, any> = {}
+  for (const e of estudiantes) if (e.auth_user_id) authToEst[e.auth_user_id] = e
+
   // ── tabla individual ──────────────────────────────────────────────────────
-  const filas: FilaEncuesta[] = encuestas.map(e => ({
-    nombre:         authToNombre[e.auth_user_id] ?? '—',
-    carrera:        e.carrera ?? '—',
-    modalidad:      e.modalidad_carrera ?? '—',
-    trabaja:        !!e.trabaja,
-    laptop:         !!e.tiene_laptop,
-    pc:             !!e.tiene_pc_escritorio,
-    sinPC:          !!e.sin_computadora,
-    foraneo:        !!e.es_foraneo,
-    dispositivo:    e.dispositivo_movil ?? null,
-    nivel_tech:     e.nivel_tecnologia ?? null,
-    ia_prom:        avg(iaFields.map(f => e[f.key])),
-    carrera_inicio: e.carrera_inicio_deseada ?? null,
-    carrera_actual: e.carrera_actual_deseada ?? null,
-    gusto_escritura: e.gusto_escritura ?? null,
-    libros:         e.libros_anio ?? null,
-    problemas:      e.problemas_reportados ?? null,
-  })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  const filas: FilaEncuesta[] = encuestas.map(e => {
+    const est = authToEst[e.auth_user_id]
+    return {
+      estudianteId:   est?.id ?? '',
+      authUserId:     e.auth_user_id,
+      nombre:         authToNombre[e.auth_user_id] ?? '—',
+      carrera:        e.carrera ?? '—',
+      modalidad:      e.modalidad_carrera ?? '—',
+      trabaja:        !!e.trabaja,
+      laptop:         !!e.tiene_laptop,
+      pc:             !!e.tiene_pc_escritorio,
+      sinPC:          !!e.sin_computadora,
+      foraneo:        !!e.es_foraneo,
+      dispositivo:    e.dispositivo_movil ?? null,
+      nivel_tech:     e.nivel_tecnologia ?? null,
+      ia_prom:        avg(iaFields.map(f => e[f.key])),
+      carrera_inicio: e.carrera_inicio_deseada ?? null,
+      carrera_actual: e.carrera_actual_deseada ?? null,
+      gusto_escritura: e.gusto_escritura ?? null,
+      libros:         e.libros_anio ?? null,
+      problemas:      e.problemas_reportados ?? null,
+      nota_incidencia: est?.nota_incidencia ?? null,
+    }
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
   const conProblemas = filas.filter(f => f.problemas).length
 
@@ -376,7 +387,7 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
                 </span>
               )}
             </h2>
-            <EncuestaTablaCliente filas={filas} />
+            <EncuestaTablaCliente filas={filas} cursoId={cursoId} />
           </div>
         </>
       )}
