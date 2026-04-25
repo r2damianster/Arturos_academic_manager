@@ -158,6 +158,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       if (h.estado !== 'disponible') continue
       if (h.disponible_hasta && targetStr > h.disponible_hasta) continue
       const hRes = reservas.filter(r => r.horario_id === h.id && r.fecha === targetStr)
+      if (hRes.length === 0) continue
       const nombres = hRes.map(r => `${r.estudiante_nombre} (${r.estado})`).join(' · ')
       result.push({
         id: `tutoria-${h.id}`,
