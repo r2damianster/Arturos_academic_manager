@@ -36,7 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Sidebar nombreProfesor={nombre} esAdmin={esAdmin} />
       </div>
 
-      <div className="md:ml-[260px] flex flex-col min-h-screen">
+      <div className="md:ml-16 flex flex-col min-h-screen">
         {/* Top bar */}
         <div className="h-14 bg-gray-900/80 backdrop-blur border-b border-gray-800 flex items-center sticky top-0 z-30">
           {/* Mobile hamburger */}
