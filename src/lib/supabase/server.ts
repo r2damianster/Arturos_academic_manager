@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import type { CookieOptions } from '@supabase/ssr'
 
@@ -27,6 +28,16 @@ export async function createClient() {
         },
       },
     }
+  )
+}
+
+// Cliente con service role — bypasea RLS completamente.
+// Usar SOLO para lecturas cross-usuario donde RLS bloquea legítimamente al profesor
+// (ej: leer encuesta_estudiante de sus propios alumnos).
+export function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 

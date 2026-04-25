@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
@@ -39,15 +39,18 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
 
-  // Encuesta via auth_user_id
-  const authIds = todosEstudiantes.map(e => e.auth_user_id).filter(Boolean)
-  const encuestasRes = authIds.length > 0
-    ? await db.from('encuesta_estudiante').select('auth_user_id').in('auth_user_id', authIds)
-    : { data: [] }
-  const encuestaSet = new Set<string>(
+  // Encuesta via auth_user_id — usa admin client para bypassear RLS de encuesta_estudiante
+  const authIds = todosEstudiantes.map(e => e.auth_user_id).filter(Boolean) as string[]
+  let encuestaSet = new Set<string>()
+  if (authIds.length > 0) {
+    const adminDb = createAdminClient()
+    const { data: encuestasData } = await adminDb
+      .from('encuesta_estudiante')
+      .select('auth_user_id')
+      .in('auth_user_id', authIds)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (encuestasRes.data ?? []).map((e: any) => e.auth_user_id as string)
-  )
+    encuestaSet = new Set<string>((encuestasData ?? []).map((e: any) => e.auth_user_id as string))
+  }
 
   // Semana actual
   const semanaRes = await db.rpc('calcular_semana', { p_curso_id: cursoId })
@@ -99,7 +102,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   const totalConEncuesta = activos.filter(e => e.tieneEncuesta).length
 
   const modules = [
-    { href: `/dashboard/cursos/${cursoId}/pase-lista`,             label: 'Bitácora y Lista',   icon: '✅', desc: 'Tomar asistencia' },
+    { href: `/dashboard/cursos/${cursoId}/pase-lista`,             label: 'Bitácora y Lista',   icon: '✅', desc: 'Tomar y editar por fecha' },
     { href: `/dashboard/cursos/${cursoId}/asistencia`,             label: 'Asistencia',          icon: '📊', desc: 'Reporte completo' },
     { href: `/dashboard/cursos/${cursoId}/calificaciones`,         label: 'Calificaciones',      icon: '📝', desc: 'Notas por parcial' },
     { href: `/dashboard/cursos/${cursoId}/trabajos`,               label: 'Trabajos',            icon: '📋', desc: 'Asignar y monitorear' },

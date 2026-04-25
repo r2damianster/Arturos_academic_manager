@@ -52,7 +52,11 @@ export function PaseListaWrapper({
           className="input"
         />
         <p className="text-xs text-gray-500 mt-2">
-          {fechaSeleccionada === hoy ? '(hoy)' : fechaSeleccionada < hoy ? '(fecha pasada)' : '(fecha futura)'}
+          {fechaSeleccionada === hoy
+            ? '(hoy) — Cambia la fecha para editar asistencia de días anteriores'
+            : fechaSeleccionada < hoy
+            ? '(fecha pasada) — Los registros existentes se cargarán automáticamente'
+            : '(fecha futura)'}
         </p>
       </div>
 
