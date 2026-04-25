@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function clearProblemas(authUserId: string, cursoId: string) {
@@ -8,25 +8,13 @@ export async function clearProblemas(authUserId: string, cursoId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  // Verify the student belongs to this professor
+  // SECURITY DEFINER function validates ownership and clears the field
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-  const { data: est } = await db
-    .from('estudiantes')
-    .select('id')
-    .eq('auth_user_id', authUserId)
-    .eq('profesor_id', user.id)
-    .maybeSingle()
-  if (!est) return { error: 'Sin permiso' }
+  const { error } = await (supabase as any).rpc('clear_problemas_estudiante', {
+    p_auth_user_id: authUserId,
+  })
 
-  // encuesta_estudiante only allows student UPDATE via RLS → use admin client
-  const admin = createAdminClient()
-  const { error: updateError } = await admin
-    .from('encuesta_estudiante')
-    .update({ problemas_reportados: null })
-    .eq('auth_user_id', authUserId)
-
-  if (updateError) return { error: updateError.message }
+  if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/encuesta`)
   return null
