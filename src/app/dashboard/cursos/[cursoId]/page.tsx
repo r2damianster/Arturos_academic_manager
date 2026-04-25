@@ -1,4 +1,4 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
@@ -39,21 +39,16 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
 
-  // Encuesta via auth_user_id — usa admin client para bypassear RLS de encuesta_estudiante
+  // Encuesta via auth_user_id — RLS permite al profesor leer encuestas de sus estudiantes
   const authIds = todosEstudiantes.map(e => e.auth_user_id).filter(Boolean) as string[]
   let encuestaSet = new Set<string>()
-  if (authIds.length > 0 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const adminDb = createAdminClient()
-      const { data: encuestasData } = await adminDb
-        .from('encuesta_estudiante')
-        .select('auth_user_id')
-        .in('auth_user_id', authIds)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      encuestaSet = new Set<string>((encuestasData ?? []).map((e: any) => e.auth_user_id as string))
-    } catch {
-      // Si falla (ej: key no configurada en el entorno), continúa sin datos de encuesta
-    }
+  if (authIds.length > 0) {
+    const { data: encuestasData } = await db
+      .from('encuesta_estudiante')
+      .select('auth_user_id')
+      .in('auth_user_id', authIds)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    encuestaSet = new Set<string>((encuestasData ?? []).map((e: any) => e.auth_user_id as string))
   }
 
   // Semana actual
