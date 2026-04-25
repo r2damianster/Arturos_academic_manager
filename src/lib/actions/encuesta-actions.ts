@@ -21,10 +21,12 @@ export async function clearProblemas(authUserId: string, cursoId: string) {
 
   // encuesta_estudiante only allows student UPDATE via RLS → use admin client
   const admin = createAdminClient()
-  await admin
+  const { error: updateError } = await admin
     .from('encuesta_estudiante')
     .update({ problemas_reportados: null })
     .eq('auth_user_id', authUserId)
+
+  if (updateError) return { error: updateError.message }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/encuesta`)
   return null

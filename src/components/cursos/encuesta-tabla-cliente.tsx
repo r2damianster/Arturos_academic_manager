@@ -72,13 +72,19 @@ function ProblemasCell({ fila, cursoId }: { fila: FilaEncuesta; cursoId: string 
   const [expanded, setExpanded] = useState(false)
   const [clearing, startClear] = useTransition()
   const [cleared, setCleared] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
 
   if (cleared || !fila.problemas) return null
 
   function handleClear() {
+    setClearError(null)
     startClear(async () => {
-      await clearProblemas(fila.authUserId, cursoId)
-      setCleared(true)
+      const result = await clearProblemas(fila.authUserId, cursoId)
+      if (result?.error) {
+        setClearError(result.error)
+      } else {
+        setCleared(true)
+      }
     })
   }
 
@@ -105,6 +111,7 @@ function ProblemasCell({ fila, cursoId }: { fila: FilaEncuesta; cursoId: string 
       >
         {clearing ? 'Borrando...' : '✕ Limpiar entrada'}
       </button>
+      {clearError && <p className="text-[10px] text-red-400 mt-0.5">{clearError}</p>}
     </div>
   )
 }
