@@ -141,6 +141,33 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **`TodayPanel.tsx`**: panel "Hoy" con flechas `< >` para navegar por días. Filtra clases normales, tutorías con reservas y eventos del día seleccionado. Clases `tutoria_curso` solo aparecen si hay confirmaciones ("Asistiré"). Toggle "Ver todos" muestra ítems sin actividad en opacidad reducida. Estado colapsable en `localStorage('today-panel-open')`.
 - **`AgendaSection.tsx`**: wrapper colapsable sobre `AgendaClient`. Estado en `localStorage('agenda-section-open')`.
 
+## Features recientes (2026-04-25 — sesión 6)
+
+### Encuesta del grupo — expansión completa
+- **Nuevas secciones**: dispositivo móvil (distribución Android/iOS/Ambos), elección de carrera (`carrera_inicio_deseada` vs `carrera_actual_deseada` con flecha de tendencia ↑↓), lectura (`libros_anio` promedio + `gusto_escritura` Likert 1-5).
+- **`EncuestaTablaCliente`** (`src/components/cursos/encuesta-tabla-cliente.tsx`): filtro por nombre, columnas nuevas (dispositivo, carrera_actual, escritura), botón "✕ Limpiar entrada" por estudiante, fila expandible ▼ para agregar nota del profesor.
+- **Nota del profesor** (`nota_incidencia TEXT` en tabla `estudiantes`): el profesor puede escribir/editar una nota de incidencia por estudiante. Se muestra en azul 📝 en la tabla.
+- **`clearProblemas`** (`src/lib/actions/encuesta-actions.ts`): usa RPC SECURITY DEFINER `clear_problemas_estudiante` — NO usa admin client (ver convención abajo).
+- **`saveNotaIncidencia`**: actualiza `estudiantes.nota_incidencia` con cliente normal (RLS del profesor).
+
+### Bug fix — onboarding estudiantil
+- `dispositivo_movil` y `libros_anio` eran inputs sin estado controlado en el form multi-step. Al cambiar de paso desaparecen del DOM → `new FormData()` no los capturaba → llegaban `null` a la BD. Fix: ambos campos agregados a `FormState` y con `fd.set()` en `handleSubmit`.
+
+### SQL aplicado en Supabase (sesión 6)
+```sql
+ALTER TABLE public.estudiantes ADD COLUMN IF NOT EXISTS nota_incidencia TEXT;
+
+CREATE OR REPLACE FUNCTION clear_problemas_estudiante(p_auth_user_id UUID)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.estudiantes
+    WHERE auth_user_id = p_auth_user_id AND profesor_id = auth.uid())
+  THEN RAISE EXCEPTION 'Sin permiso'; END IF;
+  UPDATE public.encuesta_estudiante SET problemas_reportados = NULL
+  WHERE auth_user_id = p_auth_user_id;
+END; $$;
+```
+
 ## Features recientes (2026-04-25 — sesión 4)
 
 ### Reorganización de cursos
@@ -189,8 +216,20 @@ Orden actual (sesión 5): **Panel → Planificación → Modo Clase → Mis Curs
 - `getUser()` en servidor, **nunca** `getSession()`
 - Inserts siempre incluyen `profesor_id: user.id` (nunca del formData)
 - RLS activo — no filtrar manualmente por `profesor_id` en SELECTs del profesor
-- Antes de usar `createAdminClient()`, verificar si el problema es una política RLS faltante
 - `encuesta_estudiante` tiene RLS desde 2026-04-25 con política para profesor y estudiante
+
+### SECURITY DEFINER RPC > createAdminClient — CRÍTICO
+Cuando el profesor necesita **escribir/actualizar** datos de una tabla que pertenece al estudiante (ej: `encuesta_estudiante`), usar una función PostgreSQL `SECURITY DEFINER` en vez de `createAdminClient()`:
+- `createAdminClient()` requiere `SUPABASE_SERVICE_ROLE_KEY` en Vercel → da "Invalid API Key" si falla
+- SECURITY DEFINER corre en el servidor PostgreSQL con privilegios elevados, sin depender de env vars
+- La función valida la propiedad internamente (`profesor_id = auth.uid()`) antes de escribir
+- Llamar con `db.rpc('nombre_funcion', { param: valor })`
+
+Ejemplo aplicado: `clear_problemas_estudiante(p_auth_user_id UUID)` — borra `problemas_reportados` en `encuesta_estudiante` validando que el estudiante pertenece al profesor.
+
+### Formularios multi-step (onboarding estudiantil)
+Inputs en pasos no activos desaparecen del DOM → `new FormData()` no los captura al enviar.
+**Regla**: todo campo que deba persistir entre pasos debe estar en `FormState` y ser inyectado con `fd.set()` en `handleSubmit`. Aplica especialmente a `<select>` e `<input type="number">` opcionales.
 
 ### Calificaciones y asistencia
 - Calificaciones: upsert por `(estudiante_id, curso_id)`, nunca insert duplicado
