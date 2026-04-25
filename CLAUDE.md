@@ -89,7 +89,8 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ## Bugs pendientes
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar con `.normalize('NFD').replace(/[\u0300-\u036f]/g,'')` en el lookup, o hacer fetch cliente de `horarios_clases` al abrir el panel.
 - **Desconexión bitácora**: `guardarBitacoraData()` (cursos/pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar en una sola función.
-- **Pestaña "Planificación" no visible en móvil**: El menú móvil (`mobile-nav.tsx` línea 13-35) NO incluye la navegación a `/dashboard/planificacion`, mientras que el sidebar desktop SÍ la incluye. **Causa**:  inconsistencia en la definición de `navItems` entre `sidebar.tsx` y `mobile-nav.tsx`. **Localización**: src/components/layout/mobile-nav.tsx: falta agregar el item de Planificación en el array `navItems`. **Nota**: La ruta `/dashboard/planificacion` existe y funciona correctamente en desktop.
+## Convención crítica — navegación
+**`sidebar.tsx` y `mobile-nav.tsx` tienen arrays `navItems` independientes.** Siempre que se agregue o reordene un ítem en uno, hacerlo en el otro también. Bug raíz resuelto (2026-04-25): Tutorías, Modo Clase y Herramientas faltaban en mobile-nav.
 
 ## Convenciones críticas
 - `getUser()` en servidor, **nunca** `getSession()`
