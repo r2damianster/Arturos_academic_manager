@@ -104,6 +104,7 @@ const COLORS: Record<string, { border: string; badge: string }> = {
 export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Props) {
   const [dayOffset, setDayOffset] = useState(0)
   const [open, setOpen]           = useState(true)
+  const [mostrarTodos, setMostrarTodos] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('today-panel-open')
@@ -132,13 +133,13 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
 
   // Build items for target day
   const items = useMemo(() => {
-    const result: { id: string; hora: string | null; horaFin: string | null; titulo: string; detalle: string | null; tipo: string; colorKey: string }[] = []
+    const result: { id: string; hora: string | null; horaFin: string | null; titulo: string; detalle: string | null; tipo: string; colorKey: string; tenue?: boolean }[] = []
 
     for (const c of clases) {
       if (normalizeDia(c.dia_semana) !== targetDow) continue
       const confirmaciones = (c.anuncios_tutoria_curso ?? []).filter(a => a.fecha === targetStr).length
       const esTutoriaCurso = c.tipo === 'tutoria_curso'
-      if (esTutoriaCurso && confirmaciones === 0) continue
+      if (esTutoriaCurso && confirmaciones === 0 && !mostrarTodos) continue
       const detalles = [
         c.centro_computo ? 'Centro cómputo' : null,
         confirmaciones > 0 ? `${confirmaciones} confirmó asistencia` : null,
@@ -151,6 +152,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
         detalle: detalles || null,
         tipo:     'clase',
         colorKey: esTutoriaCurso ? 'teal' : 'blue',
+        tenue:   esTutoriaCurso && confirmaciones === 0,
       })
     }
 
@@ -159,7 +161,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       if (h.estado !== 'disponible') continue
       if (h.disponible_hasta && targetStr > h.disponible_hasta) continue
       const hRes = reservas.filter(r => r.horario_id === h.id && r.fecha === targetStr)
-      if (hRes.length === 0) continue
+      if (hRes.length === 0 && !mostrarTodos) continue
       const nombres = hRes.map(r => `${r.estudiante_nombre} (${r.estado})`).join(' · ')
       result.push({
         id: `tutoria-${h.id}`,
@@ -167,6 +169,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
         horaFin: h.hora_fin?.slice(0, 5)   ?? null,
         titulo:  hRes.length > 0 ? `Tutoría · ${hRes.length} reserva${hRes.length > 1 ? 's' : ''}` : 'Tutoría disponible',
         detalle: nombres || null,
+        tenue:   hRes.length === 0,
         tipo:     'tutoria',
         colorKey: hRes.length > 0 ? 'emerald' : 'gray',
       })
@@ -214,8 +217,19 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
           </svg>
         </button>
 
+        {/* Toggle mostrar todos */}
+        <label className="flex items-center gap-1.5 cursor-pointer select-none ml-auto">
+          <div
+            onClick={() => setMostrarTodos(v => !v)}
+            className={`w-8 h-4 rounded-full transition-colors duration-200 flex-shrink-0 ${mostrarTodos ? 'bg-brand-600' : 'bg-gray-700'}`}
+          >
+            <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-transform duration-200 ${mostrarTodos ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+          <span className="text-xs text-gray-500 whitespace-nowrap">Ver todos</span>
+        </label>
+
         {/* Day navigation */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setDayOffset(o => o - 1)}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
@@ -254,7 +268,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
             items.map(item => {
               const clr = COLORS[item.colorKey] ?? COLORS.gray
               return (
-                <div key={item.id} className={`flex items-start gap-3 pl-3 border-l-2 ${clr.border} py-1.5`}>
+                <div key={item.id} className={`flex items-start gap-3 pl-3 border-l-2 ${clr.border} py-1.5 ${item.tenue ? 'opacity-40' : ''}`}>
                   <div className="w-[88px] flex-shrink-0 pt-0.5">
                     {item.hora ? (
                       <span className="text-xs font-mono text-gray-500">
