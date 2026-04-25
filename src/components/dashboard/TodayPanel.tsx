@@ -138,6 +138,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       if (normalizeDia(c.dia_semana) !== targetDow) continue
       const confirmaciones = (c.anuncios_tutoria_curso ?? []).filter(a => a.fecha === targetStr).length
       const esTutoriaCurso = c.tipo === 'tutoria_curso'
+      if (esTutoriaCurso && confirmaciones === 0) continue
       const detalles = [
         c.centro_computo ? 'Centro cómputo' : null,
         confirmaciones > 0 ? `${confirmaciones} confirmó asistencia` : null,
