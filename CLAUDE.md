@@ -129,6 +129,18 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 - **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
 
+## Features recientes (2026-04-25 — sesión 5)
+
+### Dashboard unificado (Panel)
+- **Sidebar hover** (`sidebar.tsx`, `layout.tsx`): sidebar desktop colapsa a `w-16` (solo iconos) en reposo y expande a `w-[260px]` al hover. CSS puro con clase `group` + `group-hover`. Layout ajustado a `md:ml-16`.
+- **Fusión dashboard + agenda**: `/dashboard/page.tsx` ahora incluye `AgendaClient` completo con todos sus controles (tutorías, eventos, planificación, pase de lista). `/dashboard/agenda/page.tsx` redirige a `/dashboard`.
+- **Sidebar limpiado**: eliminados "Agenda" y "Tutorías" del nav. "Inicio" renombrado a "Panel". Orden actual: Panel → Planificación → Modo Clase → Mis Cursos → Herramientas. Cambio replicado en `sidebar.tsx` y `mobile-nav.tsx`.
+
+### Nuevos componentes (`src/components/dashboard/`)
+- **`SummaryPanel.tsx`**: panel colapsable con 3 stats + lista de cursos + botón Tomar Lista. Estado en `localStorage('summary-panel-open')`.
+- **`TodayPanel.tsx`**: panel "Hoy" con flechas `< >` para navegar por días. Filtra clases normales, tutorías con reservas y eventos del día seleccionado. Clases `tutoria_curso` solo aparecen si hay confirmaciones ("Asistiré"). Toggle "Ver todos" muestra ítems sin actividad en opacidad reducida. Estado colapsable en `localStorage('today-panel-open')`.
+- **`AgendaSection.tsx`**: wrapper colapsable sobre `AgendaClient`. Estado en `localStorage('agenda-section-open')`.
+
 ## Features recientes (2026-04-25 — sesión 4)
 
 ### Reorganización de cursos
@@ -168,6 +180,10 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ### Navegación — CRÍTICO
 **`sidebar.tsx` y `mobile-nav.tsx` tienen arrays `navItems` completamente independientes.**
 Al agregar, eliminar o reordenar un ítem en uno → replicarlo en el otro. Sin esto, los ítems sólo aparecen en desktop o sólo en móvil.
+
+Orden actual (sesión 5): **Panel → Planificación → Modo Clase → Mis Cursos → Herramientas** (Agenda y Tutorías eliminados — la agenda vive dentro del Panel).
+
+**Sidebar desktop hover**: `w-16` en reposo → `w-[260px]` al hover. Labels con `opacity-0 group-hover:opacity-100`. El layout usa `md:ml-16`, no `md:ml-[260px]`.
 
 ### Supabase
 - `getUser()` en servidor, **nunca** `getSession()`
