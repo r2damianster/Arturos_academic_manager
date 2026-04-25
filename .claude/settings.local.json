@@ -13,7 +13,16 @@
       "Bash(grep -v '^$')",
       "Bash(node -e ':*)",
       "Read(//c/Users/User/.supabase/**)",
-      "Read(//c/Users/User/**)"
+      "Read(//c/Users/User/**)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(npx vercel *)",
+      "Bash(git commit *)",
+      "Bash(git -C \"c:/Users/User/Documents/Desarrollo Web/gestor-universitario-next\" log --oneline -8)"
     ]
   }
 }

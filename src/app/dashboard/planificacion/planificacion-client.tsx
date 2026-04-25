@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
@@ -33,6 +34,7 @@ interface BitacoraEntry {
   tema: string
   actividades_json: { actividad: string; recurso: string }[]
   observaciones: string | null
+  hora_inicio_real: string | null
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -155,20 +157,21 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
-    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null }[]) {
+    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null }[]) {
       m.set(`${b.curso_id}|${b.fecha}`, {
         id: b.id,
         estado: b.estado,
         tema: b.tema ?? '',
         actividades_json: Array.isArray(b.actividades_json) ? b.actividades_json as BitacoraEntry['actividades_json'] : [],
         observaciones: b.observaciones ?? null,
+        hora_inicio_real: b.hora_inicio_real ?? null,
       })
     }
     setBitacoraMap(m)
@@ -420,8 +423,86 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     )
   }
 
+  const hoyStr = dateToStr(new Date())
+  const hoyDayName = DIAS_LONG[new Date().getDay()]
+  const clasesDeHoy = clases.filter(c => c.dia_semana === hoyDayName)
+
   return (
     <div className="space-y-4">
+      {/* Sección Hoy */}
+      {weekOffset === 0 && clasesDeHoy.length > 0 && (
+        <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+            <span className="text-sm font-semibold text-white">Hoy</span>
+            <Link
+              href="/dashboard/herramientas"
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Herramientas sin clase →
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-800">
+            {clasesDeHoy.map(clase => {
+              const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
+              const sinPlan = !entry
+              const cumplida = entry?.estado === 'cumplido'
+              const enProgreso = !cumplida && !!entry?.hora_inicio_real
+              const planificada = !cumplida && !enProgreso && !!entry
+
+              const btnLabel = cumplida ? 'Ver resumen' : enProgreso ? 'Continuar clase' : 'Iniciar clase'
+              const btnColor = cumplida
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : enProgreso
+                ? 'bg-amber-600 hover:bg-amber-500'
+                : 'bg-brand-600 hover:bg-brand-500'
+
+              return (
+                <div key={clase.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm text-gray-100 truncate">{clase.cursos?.asignatura ?? 'Curso'}</span>
+                      {clase.centro_computo && (
+                        <span className="px-1.5 py-0 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-500">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</span>
+                      {entry?.tema && <span className="text-xs text-gray-400 truncate">· {truncarTema(entry.tema, 6)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {sinPlan && (
+                      <button
+                        onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
+                        className="text-xs text-yellow-400 hover:text-yellow-300 border border-yellow-600/30 px-3 py-1.5 rounded-lg hover:bg-yellow-900/20 transition-colors"
+                      >
+                        + Planificar
+                      </button>
+                    )}
+                    {planificada && (
+                      <button
+                        onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
+                        className="text-xs text-gray-400 hover:text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                      >
+                        Editar plan
+                      </button>
+                    )}
+                    {entry && (
+                      <Link
+                        href={`/dashboard/modo-clase/${entry.id}`}
+                        className={`${btnColor} text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap`}
+                      >
+                        {btnLabel}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Header navegación */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">

@@ -9,6 +9,7 @@ interface NavItem {
   label: string
   icon: React.ReactNode
   match?: string
+  matchAlso?: string
 }
 
 const navItems: NavItem[] = [
@@ -25,17 +26,8 @@ const navItems: NavItem[] = [
   },
   {
     href: '/dashboard/planificacion',
-    label: 'Planificación',
-    icon: (
-      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 7l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
-    href: '/dashboard/modo-clase',
-    label: 'Modo Clase',
+    label: 'Clases',
+    matchAlso: '/dashboard/modo-clase',
     icon: (
       <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -71,6 +63,7 @@ export function Sidebar({ nombreProfesor, esAdmin = false }: { nombreProfesor: s
 
   function isActive(item: NavItem) {
     if (item.match) return pathname === item.match
+    if (item.matchAlso && pathname.startsWith(item.matchAlso)) return true
     return pathname.startsWith(item.href)
   }
 

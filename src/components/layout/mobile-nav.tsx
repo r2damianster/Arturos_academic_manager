@@ -10,7 +10,7 @@ interface MobileNavProps {
   esAdmin?: boolean
 }
 
-const navItems = [
+const navItems: { href: string; label: string; match?: string; matchAlso?: string; icon: React.ReactNode }[] = [
   {
     href: '/dashboard',
     label: 'Panel',
@@ -19,12 +19,8 @@ const navItems = [
   },
   {
     href: '/dashboard/planificacion',
-    label: 'Planificación',
-    icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 7l2 2 4-4" /></svg>,
-  },
-  {
-    href: '/dashboard/modo-clase',
-    label: 'Modo Clase',
+    label: 'Clases',
+    matchAlso: '/dashboard/modo-clase',
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" /></svg>,
   },
   {
@@ -58,8 +54,9 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  function isActive(href: string, match?: string) {
+  function isActive(href: string, match?: string, matchAlso?: string) {
     if (match) return pathname === match
+    if (matchAlso && pathname.startsWith(matchAlso)) return true
     return pathname.startsWith(href)
   }
 
@@ -118,7 +115,7 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
               onClick={() => setOpen(false)}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive(item.href, 'match' in item ? (item as { match?: string }).match : undefined)
+                isActive(item.href, item.match, item.matchAlso)
                   ? 'bg-brand-600/20 text-brand-400 border border-brand-600/30'
                   : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
               )}
