@@ -37,6 +37,7 @@ export function AsistenciaGridClient({
   const [pageSize, setPageSize] = useState(6)
   const [windowStart, setWindowStart] = useState(() => Math.max(0, fechas.length - 6))
   const [moodleOpen, setMoodleOpen] = useState(false)
+  const [moodleFecha, setMoodleFecha] = useState<string>('')
 
   // Ajustar pageSize según ancho de pantalla
   useEffect(() => {
@@ -104,46 +105,54 @@ export function AsistenciaGridClient({
         )}
       </div>
 
-      {/* Panel Moodle expandible */}
+      {/* Panel Moodle — selector de fecha primero, luego descarga */}
       {moodleOpen && (
-        <div className="card space-y-3 border border-gray-700">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Exportar asistencia</p>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-600 bg-brand-600/10 text-brand-400 text-xs font-medium">
-              Moodle <span className="text-brand-500">CSV</span>
-            </div>
+        <div className="flex items-start gap-3 p-3 rounded-xl border border-gray-700 bg-gray-800/60 flex-wrap">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-brand-600 bg-brand-600/10 text-brand-400 text-xs font-medium flex-shrink-0 self-center">
+            Moodle <span className="text-brand-500">CSV</span>
           </div>
-          <p className="text-xs text-gray-500">
-            Un archivo por hora. Atrasos = Ausente en hora 1, Presente en horas siguientes.
-          </p>
-          <div className="divide-y divide-gray-800 max-h-64 overflow-y-auto">
-            {fechas.map(fecha => {
-              const horas = getHorasFecha(fecha, horasPorDia)
-              const attendanceMap: Record<string, string> = {}
-              for (const est of estudiantes) {
-                attendanceMap[est.id] = mapaAsistencia[est.id]?.[fecha]?.estado ?? 'Ausente'
-              }
-              return (
-                <div key={fecha} className="py-2.5 flex items-center gap-3 flex-wrap">
-                  <span className="text-xs text-gray-400 min-w-[90px]">{fmtCorto(fecha)}</span>
-                  <div className="flex gap-1.5">
-                    {Array.from({ length: horas }, (_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          const csv = buildMoodleCSV(estudiantes, attendanceMap, i)
-                          downloadCSV(csv, `asistencia_${cursoCodigo}_${fecha}_hora${i + 1}.csv`)
-                        }}
-                        className="px-2 py-1 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors"
-                      >
-                        ⬇ Hora {i + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+
+          <select
+            value={moodleFecha}
+            onChange={e => setMoodleFecha(e.target.value)}
+            className="input text-sm py-1.5 flex-1 min-w-[160px]"
+          >
+            <option value="">Seleccionar sesión…</option>
+            {[...fechas].reverse().map(f => (
+              <option key={f} value={f}>
+                {new Date(f + 'T12:00:00').toLocaleDateString('es-ES', {
+                  weekday: 'short', day: 'numeric', month: 'short',
+                })}
+              </option>
+            ))}
+          </select>
+
+          {moodleFecha && (() => {
+            const horas = getHorasFecha(moodleFecha, horasPorDia)
+            const attendanceMap: Record<string, string> = {}
+            for (const est of estudiantes) {
+              attendanceMap[est.id] = mapaAsistencia[est.id]?.[moodleFecha]?.estado ?? 'Ausente'
+            }
+            return (
+              <div className="flex gap-1.5 flex-wrap self-center">
+                {Array.from({ length: horas }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      const csv = buildMoodleCSV(estudiantes, attendanceMap, i)
+                      downloadCSV(csv, `asistencia_${cursoCodigo}_${moodleFecha}_hora${i + 1}.csv`)
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-600 bg-gray-700 hover:bg-gray-600 text-xs text-gray-200 transition-colors"
+                  >
+                    ⬇ Hora {i + 1}
+                    {horas > 1 && (
+                      <span className="text-gray-500 ml-0.5">{i === 0 ? '·A' : '·P'}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       )}
 
