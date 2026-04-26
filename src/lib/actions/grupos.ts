@@ -52,6 +52,61 @@ export async function crearGrupos(
   return {}
 }
 
+// ── Crear grupos + asignar integrantes en un paso ────────────
+
+export async function crearGruposConIntegrantes(
+  bitacoraId: string | null,
+  grupos: { nombre: string; orden: number; estudianteIds: string[] }[],
+  tipo: 'aleatoria' | 'manual' | 'afinidad',
+  categoria: string | null,
+  cursoId: string,
+): Promise<{ error?: string }> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // Limpiar grupos previos
+  if (bitacoraId) {
+    await db.from('grupos_clase').delete().eq('bitacora_id', bitacoraId).eq('profesor_id', user.id)
+  } else {
+    await db.from('grupos_clase').delete().eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null)
+  }
+
+  // Insertar grupos y obtener IDs
+  const { data: creados, error: errGrupos } = await db.from('grupos_clase').insert(
+    grupos.map(g => ({
+      bitacora_id: bitacoraId,
+      curso_id: cursoId,
+      profesor_id: user.id,
+      nombre: g.nombre,
+      categoria,
+      tipo,
+      orden: g.orden,
+      abierto: tipo === 'afinidad',
+    }))
+  ).select('id, nombre, orden')
+
+  if (errGrupos || !creados) return { error: errGrupos?.message ?? 'Error creando grupos' }
+
+  // Insertar integrantes
+  const integrantes = creados.flatMap(g => {
+    const src = grupos.find(src => src.nombre === g.nombre && src.orden === g.orden)
+    return (src?.estudianteIds ?? []).map(estudianteId => ({
+      grupo_id: g.id,
+      estudiante_id: estudianteId,
+      asignado_por: 'profesor' as const,
+    }))
+  })
+
+  if (integrantes.length > 0) {
+    const { error: errInt } = await db.from('grupo_integrantes').insert(integrantes)
+    if (errInt) return { error: errInt.message }
+  }
+
+  revalidatePath('/dashboard/modo-clase')
+  return {}
+}
+
 // ── Profesor: asignar estudiante a un grupo ───────────────────
 
 export async function asignarEstudianteAGrupo(

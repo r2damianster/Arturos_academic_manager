@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { crearGrupos } from '@/lib/actions/grupos'
+import { crearGrupos, crearGruposConIntegrantes } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
 
 type Student = { id: string; nombre: string; estado?: string | null }
@@ -296,6 +296,9 @@ export function Agrupacion({
               activeStudents={activeStudents}
               configProps={configProps}
               nombresGrupos={nombresGrupos}
+              cursoId={cursoId}
+              bitacoraId={bitacoraId}
+              categoriaActual={categorias.find(c => c.id === categoriaId)?.nombre ?? null}
             />
           )}
           {tab === 'manual' && (
@@ -335,13 +338,18 @@ export function Agrupacion({
 // ── Tab Aleatoria ─────────────────────────────────────────────
 
 function TabAleatoria({
-  activeStudents, configProps, nombresGrupos,
+  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual,
 }: {
   activeStudents: Student[]
   configProps: Parameters<typeof GrupoConfig>[0]
   nombresGrupos: string[]
+  cursoId: string
+  bitacoraId?: string | null
+  categoriaActual: string | null
 }) {
   const [grupos, setGrupos] = useState<{ nombre: string; members: Student[] }[] | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [saved, setSaved] = useState(false)
 
   function generar() {
     const shuffled = shuffle(activeStudents)
@@ -351,18 +359,42 @@ function TabAleatoria({
       members: shuffled.filter((_, j) => j % n === i),
     }))
     setGrupos(result)
+    setSaved(false)
+  }
+
+  function guardar() {
+    if (!grupos) return
+    startTransition(async () => {
+      const result = await crearGruposConIntegrantes(
+        bitacoraId ?? null,
+        grupos.map((g, i) => ({ nombre: g.nombre, orden: i, estudianteIds: g.members.map(m => m.id) })),
+        'aleatoria',
+        categoriaActual,
+        cursoId,
+      )
+      if (!result.error) setSaved(true)
+    })
   }
 
   return (
     <div className="space-y-5">
       <GrupoConfig {...configProps} />
 
-      <button
-        onClick={generar}
-        className="btn-primary px-6 py-2.5"
-      >
-        {grupos ? 'Re-mezclar' : 'Generar grupos'}
-      </button>
+      <div className="flex gap-2 flex-wrap items-center">
+        <button onClick={generar} className="btn-primary px-6 py-2.5">
+          {grupos ? 'Re-mezclar' : 'Generar grupos'}
+        </button>
+        {grupos && !saved && (
+          <button
+            onClick={guardar}
+            disabled={isPending}
+            className="px-6 py-2.5 rounded-xl border border-emerald-600 text-emerald-400 hover:bg-emerald-900/30 text-sm font-medium transition-colors disabled:opacity-40"
+          >
+            {isPending ? 'Guardando…' : '💾 Guardar grupos'}
+          </button>
+        )}
+        {saved && <span className="text-sm text-emerald-400">✓ Grupos guardados — ve al tab Grupos →</span>}
+      </div>
 
       {grupos && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -433,11 +465,16 @@ function TabManual({
   }
 
   function guardar() {
-    const grupos = nombresGrupos.map((nombre, i) => ({ nombre, orden: i }))
     startTransition(async () => {
-      const result = await crearGrupos(
+      const result = await crearGruposConIntegrantes(
         bitacoraId ?? null,
-        grupos,
+        nombresGrupos.map((nombre, i) => ({
+          nombre,
+          orden: i,
+          estudianteIds: Object.entries(manualMap)
+            .filter(([, g]) => g === nombre)
+            .map(([id]) => id),
+        })),
         'manual',
         categoriaActual,
         cursoId,
