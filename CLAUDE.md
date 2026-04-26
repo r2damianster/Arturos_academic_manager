@@ -135,6 +135,15 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 
 ## Features recientes (2026-04-26)
 
+### Ruleta mejorada (`src/components/herramientas/Ruleta.tsx`)
+- **Texto horizontal** en los segmentos — eliminada la rotación del `<text>` SVG; nombres aparecen rectos, posicionados al 76% del radio (pegados al borde exterior).
+- **Ticker animado** encima de la ruleta — caja fija que cicla nombres aleatoriamente mientras gira (inicia ~50ms/nombre, desacelera gradualmente hasta ~300ms, efecto slot machine). Al parar muestra el ganador en la misma caja.
+- **Formato de nombre ecuatoriano** (`formatStudentName`): 4 palabras → `Nombre1 Apellido1` (words[0]+words[2]); 3 palabras → words[0]+words[1]; 1-2 palabras → words[0].
+- **Panel de exclusión** — lista lateral con checkbox por estudiante para incluir/excluir de la rueda. Botones "Incluir todos" / "Excluir todos". El ganador aparece marcado ★.
+- **Excluir ganador automáticamente** — checkbox opcional; cada ganador se excluye solo para la próxima tirada.
+- **Modo Lista libre** — tab que muestra un `<textarea>` (un elemento por línea) en lugar de estudiantes. Permite escribir `Grupo 1`, `Grupo 2`, etc. Si no hay curso seleccionado, arranca directamente en modo libre.
+- **Rueda más grande**: 340px (antes 280px). Tamaño de fuente dinámico según cantidad de elementos.
+
 ### Tarjetas de cursos simplificadas (`/dashboard/cursos`)
 - **Eliminada** la barra decorativa `"Pase de lista → Asistencia → Calificaciones →"` del pie de cada tarjeta — no eran links reales, sólo texto inútil dentro del `<Link>` del card.
 - **Grid** cambiado de `md:grid-cols-2` fijo a `md:grid-cols-2 lg:grid-cols-3` — se ven más cursos sin scroll en pantallas grandes.
