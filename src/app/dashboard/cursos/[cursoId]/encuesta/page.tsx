@@ -3,6 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { EncuestaTablaCliente } from '@/components/cursos/encuesta-tabla-cliente'
 import type { FilaEncuesta } from '@/components/cursos/encuesta-tabla-cliente'
+import type { Tables } from '@/types/database.types'
+
+type EncuestaRow = Tables<'encuesta_estudiante'>
+type EstudianteRow = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'auth_user_id'> & { nota_incidencia: string | null }
+type IaKey = 'uso_ia_comprension' | 'uso_ia_resumen' | 'uso_ia_ideas' | 'uso_ia_redaccion' | 'uso_ia_tareas' | 'uso_ia_verificacion' | 'uso_ia_critico' | 'uso_ia_traduccion' | 'uso_ia_idiomas'
 
 function avg(values: (number | null)[]): number | null {
   const nums = values.filter((v): v is number => v !== null)
@@ -35,15 +40,13 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
 
   if (!cursoRes.data) notFound()
   const curso = cursoRes.data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const estudiantes: any[] = estudiantesRes.data ?? []
-  const authIds = estudiantes.map((e: any) => e.auth_user_id).filter(Boolean) as string[]
+  const estudiantes: EstudianteRow[] = estudiantesRes.data ?? []
+  const authIds = estudiantes.map(e => e.auth_user_id).filter(Boolean) as string[]
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let encuestas: any[] = []
+  let encuestas: EncuestaRow[] = []
   if (authIds.length > 0) {
     const { data } = await db.from('encuesta_estudiante').select('*').in('auth_user_id', authIds)
-    encuestas = data ?? []
+    encuestas = (data ?? []) as EncuestaRow[]
   }
 
   const authToNombre: Record<string, string> = {}
@@ -79,7 +82,7 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
   const labelMovil: Record<string, string> = { android: 'Android', ios: 'iPhone (iOS)', ambos: 'Ambos', ninguno: 'Sin teléfono' }
 
   // ── uso de IA ────────────────────────────────────────────────────────────
-  const iaFields = [
+  const iaFields: { key: IaKey; label: string }[] = [
     { key: 'uso_ia_comprension',  label: 'Comprender textos' },
     { key: 'uso_ia_resumen',      label: 'Resumir contenido' },
     { key: 'uso_ia_ideas',        label: 'Generar ideas' },
@@ -96,9 +99,7 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
   })).sort((a, b) => (b.prom ?? 0) - (a.prom ?? 0))
   const promIAGlobal = avg(iaPromedios.map(f => f.prom))
 
-  // Mapa auth_user_id → estudiante completo
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const authToEst: Record<string, any> = {}
+  const authToEst: Record<string, EstudianteRow> = {}
   for (const e of estudiantes) if (e.auth_user_id) authToEst[e.auth_user_id] = e
 
   // ── tabla individual ──────────────────────────────────────────────────────

@@ -24,14 +24,37 @@ export async function guardarBitacoraData(
 
   const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
 
-  const { error } = await supabase.from('bitacora_clase').insert({
-    ...data,
-    profesor_id: user.id,
-    curso_id: cursoId,
-    semana: semanaData ?? null,
-  })
+  // Si ya existe una bitácora para este curso+fecha (creada por guardarPlanificacion),
+  // actualizar solo los campos de texto sin pisar actividades_json ni estado.
+  const { data: existing } = await supabase
+    .from('bitacora_clase')
+    .select('id')
+    .eq('curso_id', cursoId)
+    .eq('fecha', data.fecha)
+    .eq('profesor_id', user.id)
+    .maybeSingle()
 
-  if (error) return { error: error.message }
+  if (existing) {
+    const { error } = await supabase
+      .from('bitacora_clase')
+      .update({
+        tema: data.tema,
+        actividades: data.actividades ?? null,
+        materiales: data.materiales ?? null,
+        observaciones: data.observaciones ?? null,
+      })
+      .eq('id', existing.id)
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await supabase.from('bitacora_clase').insert({
+      ...data,
+      profesor_id: user.id,
+      curso_id: cursoId,
+      semana: semanaData ?? null,
+    })
+    if (error) return { error: error.message }
+  }
+
   revalidatePath(`/dashboard/cursos/${cursoId}/bitacora`)
   return {}
 }

@@ -728,6 +728,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           fecha={planificarModal.fecha}
           horaInicio={planificarModal.clase.hora_inicio}
           horaFin={planificarModal.clase.hora_fin}
+          clases={clases}
           allowCopyMove={(() => {
             const key = `${planificarModal.clase.cursos?.id ?? planificarModal.clase.curso_id}|${planificarModal.fecha}`
             const entry = bitacoraMap.get(key)
