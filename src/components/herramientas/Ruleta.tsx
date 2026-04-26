@@ -1,168 +1,341 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 
-type Student = {
-  id: string
-  nombre: string
-}
+type Student = { id: string; nombre: string }
+type Item = { id: string; label: string }
+type Mode = 'estudiantes' | 'libre'
 
-const SEGMENT_COLORS = [
+const COLORS = [
   '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
   '#ec4899', '#f43f5e', '#ef4444', '#f97316',
   '#f59e0b', '#eab308', '#84cc16', '#22c55e',
   '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
 ]
 
-function getColor(index: number) {
-  return SEGMENT_COLORS[index % SEGMENT_COLORS.length]
+const getColor = (i: number) => COLORS[i % COLORS.length]
+
+function shortLabel(label: string, n: number, libre: boolean): string {
+  if (libre) {
+    const max = n <= 8 ? 16 : n <= 15 ? 11 : n <= 25 ? 8 : 6
+    return label.length <= max ? label : label.slice(0, max - 1) + '…'
+  }
+  const first = label.split(' ')[0]
+  const max = n <= 8 ? 12 : n <= 15 ? 9 : n <= 25 ? 7 : 5
+  return first.length <= max ? first : first.slice(0, max - 1) + '…'
+}
+
+function calcFontSize(n: number): number {
+  if (n <= 6) return 11
+  if (n <= 10) return 9.5
+  if (n <= 16) return 8
+  if (n <= 25) return 7
+  return 6
+}
+
+const SIZE = 340
+const CX = SIZE / 2
+const CY = SIZE / 2
+const R = SIZE / 2 - 5
+
+function polar(angle: number, r: number) {
+  return {
+    x: CX + r * Math.cos(angle - Math.PI / 2),
+    y: CY + r * Math.sin(angle - Math.PI / 2),
+  }
+}
+
+function segPath(i: number, segAngle: number): string {
+  const a0 = i * segAngle
+  const a1 = a0 + segAngle
+  const s = polar(a0, R)
+  const e = polar(a1, R)
+  const large = segAngle > Math.PI ? 1 : 0
+  return `M ${CX} ${CY} L ${s.x} ${s.y} A ${R} ${R} 0 ${large} 1 ${e.x} ${e.y} Z`
 }
 
 export function Ruleta({ students }: { students: Student[] }) {
+  const hasStudents = students.length > 0
+  const [mode, setMode] = useState<Mode>('libre')
+  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const [freeText, setFreeText] = useState('Grupo 1\nGrupo 2\nGrupo 3')
   const [spinning, setSpinning] = useState(false)
-  const [winner, setWinner] = useState<Student | null>(null)
+  const [winner, setWinner] = useState<Item | null>(null)
   const [rotation, setRotation] = useState(0)
+  const [autoExclude, setAutoExclude] = useState(false)
   const spinRef = useRef(0)
 
+  useEffect(() => {
+    setExcluded(new Set())
+    setWinner(null)
+    setMode(students.length > 0 ? 'estudiantes' : 'libre')
+    spinRef.current = 0
+    setRotation(0)
+  }, [students])
+
+  const activeItems = useMemo((): Item[] => {
+    if (mode === 'libre') {
+      return freeText
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map((label, i) => ({ id: String(i), label }))
+    }
+    return students
+      .filter(s => !excluded.has(s.id))
+      .map(s => ({ id: s.id, label: s.nombre }))
+  }, [mode, freeText, students, excluded])
+
   const handleSpin = useCallback(() => {
-    if (spinning || students.length === 0) return
-
-    const winnerIndex = Math.floor(Math.random() * students.length)
-    const segmentAngle = 360 / students.length
-    // Queremos que el winner quede en la parte superior (0 grados = top)
-    // El puntero esta en el top, así que necesitamos rotar el segmento del winner a 0
-    const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2)
-    // Giros completos adicionales para efecto de spin
-    const extraSpins = 5 * 360
-    const finalRotation = spinRef.current + extraSpins + targetAngle - (spinRef.current % 360)
-
-    spinRef.current = finalRotation
-    setRotation(finalRotation)
+    if (spinning || activeItems.length < 2) return
+    const idx = Math.floor(Math.random() * activeItems.length)
+    const segDeg = 360 / activeItems.length
+    const target = 360 - (idx * segDeg + segDeg / 2)
+    const final = spinRef.current + 5 * 360 + target - (spinRef.current % 360)
+    spinRef.current = final
+    setRotation(final)
     setSpinning(true)
     setWinner(null)
-
     setTimeout(() => {
       setSpinning(false)
-      setWinner(students[winnerIndex])
+      const w = activeItems[idx]
+      setWinner(w)
+      if (autoExclude && mode === 'estudiantes') {
+        setExcluded(prev => new Set([...prev, w.id]))
+      }
     }, 3200)
-  }, [spinning, students])
+  }, [spinning, activeItems, autoExclude, mode])
 
-  if (students.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
-        No hay estudiantes en este curso
-      </div>
-    )
+  const toggleExclude = (id: string) => {
+    setWinner(null)
+    setExcluded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
   }
 
-  const size = 280
-  const cx = size / 2
-  const cy = size / 2
-  const r = size / 2 - 4
-  const segmentAngle = (2 * Math.PI) / students.length
-
-  function polarToCartesian(angle: number, radius: number) {
-    return {
-      x: cx + radius * Math.cos(angle - Math.PI / 2),
-      y: cy + radius * Math.sin(angle - Math.PI / 2),
-    }
-  }
-
-  function buildSegmentPath(index: number) {
-    const startAngle = index * segmentAngle
-    const endAngle = startAngle + segmentAngle
-    const start = polarToCartesian(startAngle, r)
-    const end = polarToCartesian(endAngle, r)
-    const largeArc = segmentAngle > Math.PI ? 1 : 0
-    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`
-  }
-
-  function getTextPosition(index: number) {
-    const midAngle = index * segmentAngle + segmentAngle / 2
-    const textRadius = r * 0.65
-    return polarToCartesian(midAngle, textRadius)
-  }
-
-  const displayName = (s: Student) =>
-    s.nombre.length > 14 ? s.nombre.split(' ').slice(0, 2).join(' ') : s.nombre
+  const n = activeItems.length
+  const segAngle = n > 0 ? (2 * Math.PI) / n : 0
+  const fs = calcFontSize(n)
 
   return (
-    <div className="flex flex-col items-center gap-5">
-      {/* Ruleta SVG */}
-      <div className="relative">
-        {/* Puntero superior */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10">
-          <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[18px] border-l-transparent border-r-transparent border-t-white drop-shadow-lg" />
+    <div className="flex flex-col lg:flex-row gap-6 items-start">
+      {/* Wheel column */}
+      <div className="flex flex-col items-center gap-3 flex-shrink-0">
+        <div className="relative" style={{ width: SIZE, height: SIZE }}>
+          {/* Pointer */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10">
+            <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[22px] border-l-transparent border-r-transparent border-t-white drop-shadow-lg" />
+          </div>
+
+          {n >= 2 ? (
+            <div
+              style={{
+                transform: `rotate(${rotation}deg)`,
+                transition: spinning
+                  ? 'transform 3.2s cubic-bezier(0.17, 0.67, 0.12, 1)'
+                  : 'none',
+                willChange: 'transform',
+              }}
+            >
+              <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+                {activeItems.map((item, i) => {
+                  const mid = i * segAngle + segAngle / 2
+                  const midDeg = (mid * 180) / Math.PI
+                  const tp = polar(mid, R * 0.62)
+                  return (
+                    <g key={item.id}>
+                      <path
+                        d={segPath(i, segAngle)}
+                        fill={getColor(i)}
+                        stroke="#1f2937"
+                        strokeWidth="1.5"
+                      />
+                      <text
+                        x={tp.x}
+                        y={tp.y}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={fs}
+                        fill="white"
+                        fontWeight="700"
+                        transform={`rotate(${midDeg}, ${tp.x}, ${tp.y})`}
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        {shortLabel(item.label, n, mode === 'libre')}
+                      </text>
+                    </g>
+                  )
+                })}
+                <circle cx={CX} cy={CY} r={16} fill="#111827" stroke="#374151" strokeWidth="2" />
+              </svg>
+            </div>
+          ) : (
+            <div
+              className="w-full h-full rounded-full bg-gray-800/50 border-2 border-dashed border-gray-700 flex items-center justify-center"
+            >
+              <p className="text-gray-500 text-sm text-center px-8">
+                {mode === 'libre'
+                  ? 'Escribe al menos 2 elementos'
+                  : n === 0
+                  ? 'Todos excluidos — activa alguno'
+                  : 'Necesitas al menos 2 participantes'}
+              </p>
+            </div>
+          )}
         </div>
 
-        <div
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: spinning ? 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 1)' : 'none',
-            willChange: 'transform',
-          }}
-        >
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            {students.map((student, i) => {
-              const textPos = getTextPosition(i)
-              const midAngle = i * segmentAngle + segmentAngle / 2
-              const textAngleDeg = (midAngle * 180) / Math.PI
+        {/* Winner */}
+        <div className="h-14 flex flex-col items-center justify-center">
+          {spinning ? (
+            <p className="text-indigo-400 text-sm animate-pulse font-medium">Girando…</p>
+          ) : winner ? (
+            <div className="text-center">
+              <p className="text-gray-500 text-xs uppercase tracking-widest mb-0.5">Seleccionado</p>
+              <p className="text-white text-xl font-bold leading-tight">{winner.label}</p>
+            </div>
+          ) : null}
+        </div>
 
-              return (
-                <g key={student.id}>
-                  <path
-                    d={buildSegmentPath(i)}
-                    fill={getColor(i)}
-                    stroke="#1f2937"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x={textPos.x}
-                    y={textPos.y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={students.length > 12 ? '7' : '9'}
-                    fill="white"
-                    fontWeight="600"
-                    transform={`rotate(${textAngleDeg}, ${textPos.x}, ${textPos.y})`}
-                    style={{ userSelect: 'none', pointerEvents: 'none' }}
-                  >
-                    {displayName(student)}
-                  </text>
-                </g>
-              )
-            })}
-            {/* Centro */}
-            <circle cx={cx} cy={cy} r={14} fill="#111827" stroke="#374151" strokeWidth="2" />
-          </svg>
+        {/* Spin button */}
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={handleSpin}
+            disabled={spinning || n < 2}
+            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-lg transition-colors shadow-lg shadow-indigo-900/40"
+          >
+            {spinning ? 'Girando…' : winner ? '¡Otra vez!' : 'Girar'}
+          </button>
+
+          {mode === 'estudiantes' && hasStudents && (
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none mt-1">
+              <input
+                type="checkbox"
+                checked={autoExclude}
+                onChange={e => setAutoExclude(e.target.checked)}
+                className="rounded accent-indigo-500"
+              />
+              Excluir ganador automáticamente
+            </label>
+          )}
         </div>
       </div>
 
-      {/* Ganador */}
-      {winner && !spinning && (
-        <div className="text-center animate-fade-in">
-          <p className="text-gray-400 text-sm mb-1">Seleccionado</p>
-          <p className="text-white text-2xl font-bold">
-            {winner.nombre}
-          </p>
-        </div>
-      )}
-      {spinning && (
-        <div className="text-gray-400 text-sm animate-pulse">Girando...</div>
-      )}
-      {!winner && !spinning && (
-        <div className="h-10" />
-      )}
+      {/* Controls column */}
+      <div className="flex-1 min-w-0 space-y-3">
+        {/* Mode tabs */}
+        {hasStudents && (
+          <div className="flex gap-1 bg-gray-800 p-1 rounded-lg w-fit">
+            {(['estudiantes', 'libre'] as Mode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setWinner(null) }}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  mode === m
+                    ? 'bg-gray-700 text-white'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                {m === 'estudiantes' ? 'Estudiantes' : 'Lista libre'}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Botones */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleSpin}
-          disabled={spinning}
-          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
-        >
-          {spinning ? 'Girando...' : winner ? 'Volver a girar' : 'Girar'}
-        </button>
+        {mode === 'estudiantes' ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-400">
+                <span className="text-white font-medium">{n}</span> activos
+                {excluded.size > 0 && (
+                  <span className="text-gray-600"> · {excluded.size} excluidos</span>
+                )}
+              </span>
+              <div className="flex gap-3">
+                {excluded.size > 0 && (
+                  <button
+                    onClick={() => { setExcluded(new Set()); setWinner(null) }}
+                    className="text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Incluir todos
+                  </button>
+                )}
+                {excluded.size < students.length && (
+                  <button
+                    onClick={() => { setExcluded(new Set(students.map(s => s.id))); setWinner(null) }}
+                    className="text-gray-500 hover:text-gray-400 transition-colors"
+                  >
+                    Excluir todos
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+              {students.map(s => {
+                const isExcluded = excluded.has(s.id)
+                const isWinner = winner?.id === s.id && !isExcluded
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleExclude(s.id)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm text-left transition-all ${
+                      isExcluded
+                        ? 'bg-gray-800/30 text-gray-600'
+                        : isWinner
+                        ? 'bg-indigo-900/60 text-indigo-200 ring-1 ring-indigo-500/40'
+                        : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+                    }`}
+                  >
+                    <span className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                      isExcluded
+                        ? 'border-gray-600 bg-transparent'
+                        : 'border-indigo-500 bg-indigo-500'
+                    }`}>
+                      {!isExcluded && (
+                        <svg viewBox="0 0 12 12" className="w-2.5 h-2.5">
+                          <path
+                            d="M2 6 L5 9 L10 3"
+                            stroke="white"
+                            strokeWidth="1.8"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={isExcluded ? 'line-through' : ''}>{s.nombre}</span>
+                    {isWinner && (
+                      <span className="ml-auto text-indigo-400 text-xs">★ ganador</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400 block">
+              Elementos para la ruleta{' '}
+              <span className="text-gray-600">(uno por línea)</span>
+            </label>
+            <textarea
+              value={freeText}
+              onChange={e => { setFreeText(e.target.value); setWinner(null) }}
+              placeholder={'Grupo 1\nGrupo 2\nGrupo 3\n...'}
+              rows={10}
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono leading-relaxed"
+            />
+            <p className="text-xs text-gray-500">
+              {n} {n === 1 ? 'elemento' : 'elementos'}
+              {n < 2 && n > 0 && (
+                <span className="text-amber-600 ml-2">— necesitas al menos 2</span>
+              )}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
