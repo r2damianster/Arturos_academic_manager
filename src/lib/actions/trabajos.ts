@@ -33,6 +33,7 @@ export async function asignarTrabajoMasivo(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
+  revalidatePath(`/dashboard/cursos/${cursoId}`)
   return {}
 }
 
@@ -65,7 +66,8 @@ export async function asignarTrabajo(
 export async function actualizarEstadoTrabajo(
   trabajoId: string,
   estudianteId: string,
-  estado: string
+  estado: string,
+  cursoId?: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -79,6 +81,7 @@ export async function actualizarEstadoTrabajo(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/estudiantes/${estudianteId}`)
+  if (cursoId) revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
   return {}
 }
 

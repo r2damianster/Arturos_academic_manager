@@ -142,6 +142,8 @@ export async function asignarTutoriaDirecta(params: {
     // Email failure is non-blocking
   }
 
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/tutorias')
   return { ok: true, reservaId: reserva?.id }
 }
 
@@ -164,6 +166,7 @@ export async function anunciarAsistenciaTutoria(params: {
     })
   if (error && error.code !== '23505') // ignore duplicate key
     return { error: error.message }
+  revalidatePath('/dashboard')
   return { ok: true }
 }
 
@@ -182,6 +185,7 @@ export async function cancelarAnuncioTutoria(params: {
     .eq('estudiante_id',    params.estudianteId)
     .eq('fecha',            params.fecha)
   if (error) return { error: error.message }
+  revalidatePath('/dashboard')
   return { ok: true }
 }
 
@@ -197,7 +201,8 @@ export async function eliminarReserva(reservaId: number): Promise<{ error?: stri
     .eq('id', reservaId)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/tutorias')
   return {}
 }
 
@@ -219,7 +224,7 @@ export async function marcarAsistenciaReserva(reservaId: number, asistio: boolea
     .eq('id', reservaId)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
   revalidatePath('/dashboard/tutorias')
   return {}
 }

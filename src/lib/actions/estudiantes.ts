@@ -56,6 +56,7 @@ export async function importarEstudiantesMasivo(
   if (error) return { error: error.message }
 
   revalidatePath(`/dashboard/cursos/${cursoId}`)
+  revalidatePath('/dashboard')
   return { count: data?.length ?? rows.length }
 }
 
@@ -78,6 +79,8 @@ export async function setEstadoEstudiante(
 
   if (error) return { error: error.message }
   revalidatePath(`/dashboard/cursos/${cursoId}`)
+  revalidatePath(`/dashboard/estudiantes/${estudianteId}`)
+  revalidatePath('/dashboard')
   return {}
 }
 

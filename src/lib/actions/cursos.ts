@@ -57,6 +57,7 @@ export async function crearCurso(_prev: unknown, formData: FormData): Promise<vo
   if (error) return
 
   revalidatePath('/dashboard/cursos')
+  revalidatePath('/dashboard')
   redirect('/dashboard/cursos')
 }
 
@@ -87,6 +88,7 @@ export async function crearCursoAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/dashboard/cursos')
+  revalidatePath('/dashboard')
   redirect('/dashboard/cursos')
 }
 

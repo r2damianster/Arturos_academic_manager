@@ -6,6 +6,15 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { ActividadPlanificada } from '@/types/domain'
 
+// Revalida todas las vistas que dependen de bitácora/planificación
+function revalidateBitacoraViews(cursoId?: string) {
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/planificacion')
+  if (cursoId) {
+    revalidatePath(`/dashboard/cursos/${cursoId}/bitacora`)
+  }
+}
+
 const BitacoraSchema = z.object({
   tema:          z.string().min(1, 'El tema es obligatorio'),
   actividades:   z.string().optional(),
@@ -130,7 +139,7 @@ export async function guardarPlanificacion(
       .eq('id', existing.id)
 
     if (error) return { error: error.message }
-    revalidatePath('/dashboard/agenda')
+    revalidateBitacoraViews()
     return { id: existing.id }
   }
 
@@ -151,7 +160,7 @@ export async function guardarPlanificacion(
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return { id: created.id }
 }
 
@@ -179,7 +188,7 @@ export async function confirmarCumplido(
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -257,7 +266,7 @@ export async function replanificarClase(params: {
         .update({ fecha: destinoFecha })
         .eq('id', origen.id)
       if (error) return { error: error.message }
-      revalidatePath('/dashboard/agenda')
+      revalidateBitacoraViews()
       return { success: true, modo: 'merge' }
     }
 
@@ -288,7 +297,7 @@ export async function replanificarClase(params: {
 
     if (errDel) return { error: errDel.message }
 
-    revalidatePath('/dashboard/agenda')
+    revalidateBitacoraViews()
     return { success: true, modo: 'merge', mergedOriginId: origen.id }
   }
 
@@ -301,7 +310,7 @@ export async function replanificarClase(params: {
       .update({ fecha: destinoFecha })
       .eq('id', origen.id)
     if (error) return { error: error.message }
-    revalidatePath('/dashboard/agenda')
+    revalidateBitacoraViews()
     return { success: true, modo: 'shift' }
   }
 
@@ -396,7 +405,7 @@ export async function replanificarClase(params: {
 
   if (errMove) return { error: errMove.message }
 
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return { success: true, modo: 'shift', shiftedIds }
 }
 
@@ -491,7 +500,7 @@ export async function moverPlanificacion(params: {
     .eq('fecha', params.sourceFecha)
     .eq('profesor_id', user.id)
 
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return result
 }
 
@@ -519,7 +528,7 @@ export async function eliminarPlanificacion(params: {
     .neq('estado', 'cumplido')
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -600,7 +609,7 @@ export async function fusionarPlanificacion(params: {
     if (errDel) return { error: errDel.message }
   }
 
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -723,7 +732,7 @@ export async function gestionarDragPlanificacion(
     }
   }
 
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -741,7 +750,7 @@ export async function iniciarClase(bitacoraId: string): Promise<{ error?: string
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/modo-clase')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -757,7 +766,7 @@ export async function detenerClase(bitacoraId: string): Promise<{ error?: string
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/planificacion')
+  revalidateBitacoraViews()
   return {}
 }
 
@@ -797,7 +806,7 @@ export async function finalizarClase(
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-  revalidatePath('/dashboard/agenda')
+  revalidateBitacoraViews()
   revalidatePath('/dashboard/modo-clase')
   return {}
 }

@@ -26,5 +26,6 @@ export async function upsertCalificaciones(
 
   if (error) return { error: error.message }
   revalidatePath(`/dashboard/cursos/${cursoId}/calificaciones`)
+  revalidatePath(`/dashboard/cursos/${cursoId}`)
   return {}
 }
