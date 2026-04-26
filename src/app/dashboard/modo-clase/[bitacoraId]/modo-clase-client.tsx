@@ -239,12 +239,12 @@ export function ModoClaseClient({
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
           <Link
             href="/dashboard/planificacion"
-            className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors p-1"
-            title="Salir sin finalizar"
+            className="flex-shrink-0 flex items-center gap-1.5 text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-500 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
+            <span>Salir</span>
           </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
