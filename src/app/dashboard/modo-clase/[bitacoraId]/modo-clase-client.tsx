@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, finalizarClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
@@ -213,6 +214,9 @@ export function ModoClaseClient({
 
   const marcados = Object.values(asistencia).filter(Boolean).length
 
+  // ── Tab móvil ─────────────────────────────────────────────────────────────
+  const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia'>('actividades')
+
   // ── Finalizar ──────────────────────────────────────────────────────────────
   const [confirmando, setConfirmando] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
@@ -231,63 +235,88 @@ export function ModoClaseClient({
   return (
     <div className="flex flex-col h-[calc(100vh-0px)] overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
+      <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-3 md:px-6 py-3 flex items-center justify-between gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <Link
+            href="/dashboard/planificacion"
+            className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors p-1"
+            title="Salir sin finalizar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-bold text-white truncate">{cursoNombre}</h1>
-              <span className="text-gray-500 text-sm">{cursoCodigo}</span>
+              <h1 className="font-bold text-white text-sm md:text-base truncate">{cursoNombre}</h1>
+              <span className="text-gray-500 text-xs hidden md:inline">{cursoCodigo}</span>
             </div>
-            <p className="text-xs text-gray-500">{formatFecha(fecha)} · {tema}</p>
+            <p className="text-xs text-gray-500 truncate hidden md:block">{formatFecha(fecha)} · {tema}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
           {horaInicio ? (
             <div className="text-center">
-              <p className="text-xs text-gray-500 leading-none mb-0.5">Tiempo</p>
-              <p className="font-mono text-lg font-bold text-white">{formatElapsed(elapsed)}</p>
+              <p className="text-xs text-gray-500 leading-none mb-0.5 hidden md:block">Tiempo</p>
+              <p className="font-mono text-base md:text-lg font-bold text-white">{formatElapsed(elapsed)}</p>
             </div>
           ) : (
             <button
               onClick={handleIniciar}
               disabled={iniciando}
-              className="btn-primary px-5 py-2 text-sm"
+              className="btn-primary px-3 md:px-5 py-1.5 md:py-2 text-xs md:text-sm"
             >
               {iniciando ? 'Iniciando…' : 'Iniciar clase'}
             </button>
           )}
 
           {confirmando ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">¿Finalizar la clase?</span>
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <span className="text-xs md:text-sm text-gray-400 hidden md:inline">¿Finalizar?</span>
               <button
                 onClick={handleFinalizar}
                 disabled={finalizando}
-                className="bg-red-600 hover:bg-red-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                className="bg-red-600 hover:bg-red-500 text-white text-xs md:text-sm font-medium px-2.5 md:px-3 py-1.5 rounded-lg transition-colors"
               >
-                {finalizando ? 'Guardando…' : 'Sí, finalizar'}
+                {finalizando ? 'Guardando…' : 'Sí'}
               </button>
-              <button onClick={() => setConfirmando(false)} className="btn-ghost text-sm px-3 py-1.5">
-                Cancelar
+              <button onClick={() => setConfirmando(false)} className="btn-ghost text-xs md:text-sm px-2 md:px-3 py-1.5">
+                No
               </button>
             </div>
           ) : (
             <button
               onClick={() => setConfirmando(true)}
-              className="bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800 text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors"
             >
-              Finalizar clase
+              Finalizar
             </button>
           )}
         </div>
       </header>
 
-      {/* Body — dos columnas */}
+      {/* Tabs — solo móvil */}
+      <div className="flex-shrink-0 flex md:hidden border-b border-gray-800">
+        <button
+          onClick={() => setMobileTab('actividades')}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === 'actividades' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          Actividades {actividades.length > 0 && `(${completadas}/${actividades.length})`}
+        </button>
+        <button
+          onClick={() => setMobileTab('asistencia')}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === 'asistencia' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          Asistencia ({marcados}/{students.length})
+        </button>
+      </div>
+
+      {/* Body — dos columnas en desktop, tab en móvil */}
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── Columna izquierda: Actividades ── */}
-        <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-800">
+        <div className={`flex-1 flex-col overflow-hidden border-r border-gray-800 ${mobileTab === 'actividades' ? 'flex' : 'hidden md:flex'}`}>
           {/* Barra de progreso */}
           {actividades.length > 0 && (
             <div className="flex-shrink-0 px-6 pt-4 pb-2">
@@ -468,7 +497,7 @@ export function ModoClaseClient({
         </div>
 
         {/* ── Columna derecha: Asistencia ── */}
-        <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden">
+        <div className={`w-full md:w-80 flex-shrink-0 flex-col overflow-hidden ${mobileTab === 'asistencia' ? 'flex' : 'hidden md:flex'}`}>
           <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
             <h2 className="font-semibold text-gray-200 text-sm">Asistencia en vivo</h2>
             <span className="text-xs text-gray-500">{marcados}/{students.length}</span>
