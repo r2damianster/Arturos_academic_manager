@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { ClaseEnProgresoBar } from '@/components/layout/ClaseEnProgresoBar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -28,6 +29,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const nombre = profesor.nombre ?? user.email ?? 'Profesor'
   const email  = profesor.email  ?? user.email ?? ''
 
+  const hoy = new Date().toISOString().split('T')[0]
+  const { data: claseActiva } = await db
+    .from('bitacora_clase')
+    .select('id, hora_inicio_real, tema, cursos(asignatura, codigo)')
+    .eq('profesor_id', user.id)
+    .not('hora_inicio_real', 'is', null)
+    .neq('estado', 'cumplido')
+    .eq('fecha', hoy)
+    .limit(1)
+    .maybeSingle()
+
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Sidebar — desktop only (the Sidebar component uses fixed positioning) */}
@@ -37,15 +49,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       <div className="md:ml-16 flex flex-col min-h-screen">
         {/* Top bar */}
-        <div className="h-14 bg-gray-900/80 backdrop-blur border-b border-gray-800 flex items-center sticky top-0 z-30">
-          {/* Mobile hamburger */}
-          <div className="md:hidden">
-            <MobileNav nombreProfesor={nombre} />
+        <div className="bg-gray-900/80 backdrop-blur border-b border-gray-800 sticky top-0 z-30">
+          <div className="h-14 flex items-center">
+            <div className="md:hidden">
+              <MobileNav nombreProfesor={nombre} />
+            </div>
+            <div className="flex-1">
+              <Header nombreProfesor={nombre} email={email} />
+            </div>
           </div>
-          {/* Desktop spacer + Header (user info + signout) */}
-          <div className="flex-1">
-            <Header nombreProfesor={nombre} email={email} />
-          </div>
+          {claseActiva?.hora_inicio_real && (
+            <ClaseEnProgresoBar
+              bitacoraId={claseActiva.id}
+              cursoNombre={claseActiva.cursos?.asignatura ?? 'Clase'}
+              cursoCodigo={claseActiva.cursos?.codigo ?? ''}
+              tema={claseActiva.tema ?? ''}
+              horaInicioReal={claseActiva.hora_inicio_real}
+            />
+          )}
         </div>
 
         <main className="flex-1 p-4 md:p-6">
