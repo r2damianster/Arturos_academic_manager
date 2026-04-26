@@ -121,6 +121,40 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   redirect('/dashboard/cursos')
 }
 
+const DetallesCursoSchema = z.object({
+  asignatura:   z.string().min(3).max(100),
+  codigo:       z.string().min(2).max(30),
+  periodo:      z.string().min(3).max(20),
+  fecha_inicio: z.string().optional(),
+  fecha_fin:    z.string().optional(),
+})
+
+export async function actualizarDetallesCurso(cursoId: string, formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const parsed = DetallesCursoSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: 'Datos inválidos' }
+
+  const { error } = await supabase.from('cursos')
+    .update({
+      asignatura:   parsed.data.asignatura,
+      codigo:       parsed.data.codigo,
+      periodo:      parsed.data.periodo,
+      fecha_inicio: parsed.data.fecha_inicio || null,
+      fecha_fin:    parsed.data.fecha_fin || null,
+    })
+    .eq('id', cursoId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/cursos')
+  revalidatePath(`/dashboard/cursos/${cursoId}`)
+  return {}
+}
+
 export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string, tipo?: string, centro_computo?: boolean }[]): Promise<{ok: boolean, error?: string}> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
