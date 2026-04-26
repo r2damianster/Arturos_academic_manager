@@ -795,18 +795,12 @@ export function ModoClaseClient({
                       🎡 {toolOpen === 'ruleta' ? 'Cerrar ruleta' : 'Abrir ruleta'}
                     </button>
                   )}
-                  {(slide.tipo === 'agrupacion' || !slide.tipo) && (
-                    <button
-                      onClick={() => setToolOpen(toolOpen === 'agrupacion' ? null : 'agrupacion')}
-                      className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
-                        toolOpen === 'agrupacion'
-                          ? 'bg-emerald-900/50 border-emerald-600 text-emerald-300'
-                          : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      👥 {toolOpen === 'agrupacion' ? 'Cerrar grupos' : 'Crear grupos'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => { setTabDerecha('grupos'); setMobileAndDerecha('grupos') }}
+                    className="text-sm px-3 py-1.5 rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-emerald-400 hover:border-emerald-700 transition-colors"
+                  >
+                    👥 Ver grupos →
+                  </button>
                   <button
                     onClick={() => setEditando(slideIdx)}
                     className="text-sm px-3 py-1.5 rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-white transition-colors"
@@ -819,11 +813,6 @@ export function ModoClaseClient({
                 {toolOpen === 'ruleta' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <Ruleta students={students} />
-                  </div>
-                )}
-                {toolOpen === 'agrupacion' && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Agrupacion students={students} cursoId={cursoId} bitacoraId={bitacoraId} categorias={categorias} />
                   </div>
                 )}
               </div>
