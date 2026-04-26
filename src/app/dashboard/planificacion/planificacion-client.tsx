@@ -369,10 +369,21 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                   </td>
                   <td className="py-2 px-3">
                     {entry?.estado === 'cumplido' && (
-                      <span className="text-gray-600 text-[10px]">Clase tomada</span>
+                      <Link
+                        href={`/dashboard/modo-clase/${entry.id}`}
+                        className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
+                      >
+                        Ver resumen
+                      </Link>
                     )}
                     {entry?.estado === 'planificado' && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/dashboard/modo-clase/${entry.id}`}
+                          className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                        >
+                          ▶ Iniciar clase
+                        </Link>
                         <button
                           onClick={() => setPlanificarModal({ clase, fecha })}
                           className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-2 py-0.5 rounded hover:bg-sky-900/20 transition-colors"
@@ -432,14 +443,8 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       {/* Sección Hoy */}
       {weekOffset === 0 && clasesDeHoy.length > 0 && (
         <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-gray-800">
             <span className="text-sm font-semibold text-white">Hoy</span>
-            <Link
-              href="/dashboard/herramientas"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              Herramientas sin clase →
-            </Link>
           </div>
           <div className="divide-y divide-gray-800">
             {clasesDeHoy.map(clase => {
@@ -698,6 +703,31 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           })}
         </div>
       )}
+
+      {/* Herramientas */}
+      <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Herramientas de clase</p>
+        <div className="flex gap-3 flex-wrap">
+          <Link
+            href="/dashboard/herramientas"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm text-gray-200 transition-colors"
+          >
+            <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Ruleta de estudiantes
+          </Link>
+          <Link
+            href="/dashboard/herramientas"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm text-gray-200 transition-colors"
+          >
+            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Agrupación aleatoria
+          </Link>
+        </div>
+      </div>
 
       {/* Modales */}
       {planificarModal && (
