@@ -49,7 +49,8 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 ## Rutas (`src/app/`)
 ```
 /dashboard/                        → Panel principal del profesor
-/dashboard/cursos                  → CRUD cursos + subida de Excel
+/dashboard/cursos                  → Lista de cursos + botón "+ Nuevo Curso" en header
+/dashboard/cursos/nuevo            → Formulario crear curso (accesible desde /cursos, no desde sidebar)
 /dashboard/cursos/[cursoId]        → Detalle curso: métricas, módulos, tabla estudiantes
 /dashboard/cursos/[cursoId]/encuesta → Perfil del grupo: datos socioeconómicos, uso IA
 /dashboard/cursos/[cursoId]/asistencia → Reporte de asistencia (tabla cruzada)
@@ -57,12 +58,15 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 /dashboard/cursos/[cursoId]/trabajos → Asignación y seguimiento de trabajos
 /dashboard/cursos/[cursoId]/pase-lista → Bitácora + asistencia (con date picker para editar pasadas)
 /dashboard/estudiantes             → Ficha individual de estudiante
-/dashboard/agenda                  → Calendario semanal (clases + eventos + tutorías + planificación)
+/dashboard/agenda                  → redirige a /dashboard (agenda integrada en el Panel)
 /dashboard/tutorias                → Horarios disponibles + reservas
-/dashboard/modo-clase/[bitacoraId] → Vista de clase en tiempo real (herramientas: ruleta, agrupación)
+/dashboard/modo-clase              → redirige a /dashboard/planificacion
+/dashboard/modo-clase/[bitacoraId] → Vista de clase en tiempo real (herramientas: ruleta, agrupación, tabs móvil)
 /dashboard/herramientas            → Ruleta y agrupación de estudiantes
-/dashboard/planificacion           → Vista de planificación
-/dashboard/config                  → Perfil del profesor
+/dashboard/planificacion           → Mis Clases: panel "Hoy" con acciones directas + grid semanal + "▶ Iniciar clase" en celdas
+/dashboard/config                  → Página "Administración": perfil del profesor + tabs admin (si rol=admin)
+/dashboard/config?tab=admin        → Tab "Panel Admin": gestión de usuarios y permisos
+/dashboard/admin                   → redirige a /dashboard/config?tab=admin
 /student/                          → Portal del estudiante (onboarding, calendario, perfil)
 /student/tutorias                  → Reserva de tutorías (estudiante)
 /tutoria-action/                   → Confirmación pública por email token
@@ -128,6 +132,58 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 - **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
+
+## Features recientes (2026-04-26)
+
+### Tarjetas de cursos simplificadas (`/dashboard/cursos`)
+- **Eliminada** la barra decorativa `"Pase de lista → Asistencia → Calificaciones →"` del pie de cada tarjeta — no eran links reales, sólo texto inútil dentro del `<Link>` del card.
+- **Grid** cambiado de `md:grid-cols-2` fijo a `md:grid-cols-2 lg:grid-cols-3` — se ven más cursos sin scroll en pantallas grandes.
+- **Gap** reducido de `gap-4` a `gap-3` para mayor densidad visual.
+- Archivo: `src/app/dashboard/cursos/client.tsx`
+
+---
+
+## Features recientes (2026-04-25 — sesión 8)
+
+### Fusión Planificación + Modo Clase → "Mis Clases"
+- **Sidebar**: ítem "Clases" único (href: `/dashboard/planificacion`, matchAlso: `/dashboard/modo-clase`) reemplaza a "Planificación" y "Modo Clase" separados. Campo `matchAlso?: string` añadido a la interfaz `NavItem`.
+- **`/dashboard/modo-clase/page.tsx`**: redirige a `/dashboard/planificacion` (página de listado eliminada).
+- **`planificacion-client.tsx`**: título cambiado a "Mis Clases". Sección "Hoy" (visible solo cuando `weekOffset===0`) con botones contextuales por estado de bitácora: "+ Planificar" (sin bitácora), "Editar plan" + "▶ Iniciar clase" (planificada), "Continuar clase" (en progreso), "Ver resumen" (cumplida).
+- **Celdas del grid semanal**: celdas "Planificado" son `<div>` con dos zonas — clic en info abre `PlanificarModal`, botón "▶ Iniciar clase" enlaza directo a `/dashboard/modo-clase/[entry.id]`. Celdas "Cumplido" tienen link "Ver resumen".
+- **Tabla de detalle expandida**: columna Acciones con "▶ Iniciar clase" (azul) para planificadas y "Ver resumen" para cumplidas.
+- **Herramientas al pie**: dos botones visibles "Ruleta de estudiantes" y "Agrupación aleatoria" → `/dashboard/herramientas`.
+- **`BitacoraEntry`**: campo `hora_inicio_real: string | null` añadido al tipo local y a la query.
+
+### Mejoras en `modo-clase-client.tsx`
+- **Botón "← Salir"**: navega a `/dashboard/planificacion` sin modificar estado en BD (clase queda en progreso).
+- **Botón "⏸ Pausar / ▶ Reanudar"**: pausa/reanuda el cronómetro local. Al reanudar, ajusta hora de inicio virtual para continuar desde donde pausó. No persiste en BD.
+- **Botón "Detener" (naranja)**: con confirmación, llama `detenerClase()` → limpia `hora_inicio_real` en BD → clase vuelve a estado "planificado". Redirige a `/dashboard/planificacion`.
+- **Mobile responsive**: tabs "Actividades" / "Asistencia" en móvil (`md:hidden`), dos columnas en desktop. Estado `mobileTab` controla panel activo. Header simplificado en móvil.
+
+### Nueva server action: `detenerClase`
+- **Archivo**: `src/lib/actions/bitacora.ts`
+- **Firma**: `export async function detenerClase(bitacoraId: string): Promise<{ error?: string }>`
+- **Lógica**: UPDATE `bitacora_clase` SET `hora_inicio_real = NULL` + `revalidatePath('/dashboard/planificacion')`
+
+### Limpieza sidebar/mobile-nav
+- Ítems "Nuevo Curso" y "Administración" del footer de `sidebar.tsx` eliminados (redundantes).
+- Prop `esAdmin` eliminada de `mobile-nav.tsx`.
+
+---
+
+## Features recientes (2026-04-25 — sesión 7)
+
+### Consolidación de navegación — sidebar simplificado
+- **"Nuevo Curso"** eliminado del footer del sidebar → botón `+ Nuevo Curso` integrado en el header de `/dashboard/cursos`
+- **"Perfil"** eliminado del sidebar → renombrado a **"Administración"** (único ítem del footer)
+- **"Administración"** (link separado para admins) eliminado → fusionado en `/dashboard/config`
+- **`/dashboard/config`** es ahora la página "Administración":
+  - Todos los usuarios: formulario de perfil
+  - Rol admin: tabs **Perfil** | **Panel Admin** (`?tab=admin`)
+- **`/dashboard/admin`** → redirige a `/dashboard/config?tab=admin`
+- **`Sidebar` y `MobileNav`** ya no aceptan prop `esAdmin` — eliminada del layout también
+
+---
 
 ## Features recientes (2026-04-25 — sesión 5)
 
@@ -208,7 +264,11 @@ END; $$;
 **`sidebar.tsx` y `mobile-nav.tsx` tienen arrays `navItems` completamente independientes.**
 Al agregar, eliminar o reordenar un ítem en uno → replicarlo en el otro. Sin esto, los ítems sólo aparecen en desktop o sólo en móvil.
 
-Orden actual (sesión 5): **Panel → Planificación → Modo Clase → Mis Cursos → Herramientas** (Agenda y Tutorías eliminados — la agenda vive dentro del Panel).
+**Orden actual (sesión 7, 2026-04-25):**
+- `navItems` (main): **Panel → Clases → Mis Cursos → Herramientas**
+- Footer / bottom del nav: **Administración** → `/dashboard/config`
+
+`Sidebar` y `MobileNav` ya **no reciben `esAdmin`** como prop (eliminado en sesión 7). El rol admin lo maneja la propia página `/dashboard/config` leyendo la BD.
 
 **Sidebar desktop hover**: `w-16` en reposo → `w-[260px]` al hover. Labels con `opacity-0 group-hover:opacity-100`. El layout usa `md:ml-16`, no `md:ml-[260px]`.
 
