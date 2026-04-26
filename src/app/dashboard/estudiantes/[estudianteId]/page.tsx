@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { EstadoEstudianteButton } from '@/components/cursos/estado-estudiante-button'
+import { AsistenciaGrid } from '@/components/cursos/asistencia-grid'
 import type { Tables } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -72,7 +73,7 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
         .order('fecha', { ascending: false })
         .limit(20),
       db.from('encuesta_estudiante')
-        .select('modalidad_carrera, situacion_vivienda, es_foraneo')
+        .select('*')
         .eq('auth_user_id', estudiante.auth_user_id)
         .maybeSingle()
     ])
@@ -134,6 +135,29 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nombresNota: string[] = (curso?.nombres_tareas as any) ?? ['ACD', 'TA', 'PE', 'EX']
 
+  // ── Encuesta completa ─────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enc: any = encuestaData ?? null
+
+  const USO_IA_FIELDS: [string, string][] = [
+    ['uso_ia_comprension', 'Comprensión'],
+    ['uso_ia_resumen',     'Resumen'],
+    ['uso_ia_ideas',       'Generación de ideas'],
+    ['uso_ia_redaccion',   'Redacción'],
+    ['uso_ia_tareas',      'Tareas'],
+    ['uso_ia_verificacion','Verificación'],
+    ['uso_ia_critico',     'Pensamiento crítico'],
+    ['uso_ia_traduccion',  'Traducción'],
+    ['uso_ia_idiomas',     'Aprendizaje de idiomas'],
+  ]
+
+  const usoIaValues = USO_IA_FIELDS.map(([k]) => enc?.[k]).filter((v: unknown) => v != null) as number[]
+  const usoIaPromedio = usoIaValues.length > 0
+    ? (usoIaValues.reduce((a: number, b: number) => a + b, 0) / usoIaValues.length).toFixed(1)
+    : null
+
+  const notaIncidencia: string | null = (estudiante as any).nota_incidencia ?? null
+
   return (
     <div className="max-w-4xl mx-auto space-y-5 pb-10">
 
@@ -162,6 +186,9 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
             )}
           </div>
           <p className="text-gray-400 text-sm">{estudiante.email}</p>
+          {notaIncidencia && (
+            <p className="text-xs text-blue-400 mt-1 italic">📝 {notaIncidencia}</p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <span className={`text-[11px] font-semibold uppercase tracking-[0.18em] px-2 py-1 rounded-full ${
               estudiante.estado === 'retirado'
@@ -257,17 +284,23 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
                 <dt className="text-gray-500">Laptop</dt>
                 <dd>{perfil.laptop ? <span className="badge-verde">Sí</span> : <span className="badge-rojo">No</span>}</dd>
               </div>
-              {encuestaData?.modalidad_carrera && (
-                <div className="flex justify-between"><dt className="text-gray-500">Modalidad</dt><dd className="text-gray-200">{encuestaData.modalidad_carrera}</dd></div>
+              {enc?.modalidad_carrera && (
+                <div className="flex justify-between"><dt className="text-gray-500">Modalidad</dt><dd className="text-gray-200">{enc.modalidad_carrera}</dd></div>
               )}
-              {encuestaData?.situacion_vivienda && (
-                <div className="flex justify-between"><dt className="text-gray-500">Vivienda</dt><dd className="text-gray-200">{encuestaData.situacion_vivienda}</dd></div>
+              {enc?.situacion_vivienda && (
+                <div className="flex justify-between"><dt className="text-gray-500">Vivienda</dt><dd className="text-gray-200">{enc.situacion_vivienda}</dd></div>
               )}
-              {encuestaData?.es_foraneo !== undefined && encuestaData?.es_foraneo !== null && (
+              {enc?.es_foraneo !== undefined && enc?.es_foraneo !== null && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Foráneo</dt>
-                  <dd>{encuestaData.es_foraneo ? <span className="badge-amarillo">Sí</span> : <span className="badge-verde">No</span>}</dd>
+                  <dd>{enc.es_foraneo ? <span className="badge-amarillo">Sí</span> : <span className="badge-verde">No</span>}</dd>
                 </div>
+              )}
+              {enc?.nivel_tecnologia && (
+                <div className="flex justify-between"><dt className="text-gray-500">Nivel tecnológico</dt><dd className="text-gray-200">{enc.nivel_tecnologia}</dd></div>
+              )}
+              {enc?.dispositivo_movil && (
+                <div className="flex justify-between"><dt className="text-gray-500">Dispositivo móvil</dt><dd className="text-gray-200 capitalize">{enc.dispositivo_movil}</dd></div>
               )}
             </dl>
           </div>
@@ -331,6 +364,104 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
         </div>
       </div>
 
+      {/* Encuesta — datos adicionales */}
+      {enc && (
+        <div className="card space-y-4">
+          <h2 className="font-semibold text-white">Encuesta del estudiante</h2>
+
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
+            {/* Hábitos */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Hábitos y lectura</p>
+              <dl className="space-y-2">
+                {enc.libros_anio != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Libros / año</dt>
+                    <dd className="text-gray-200 font-medium">{enc.libros_anio}</dd>
+                  </div>
+                )}
+                {enc.gusto_escritura != null && (
+                  <div className="flex justify-between items-center">
+                    <dt className="text-gray-500">Gusto por escribir</dt>
+                    <dd className="flex gap-0.5">
+                      {[1,2,3,4,5].map(n => (
+                        <div key={n} className={`w-3 h-3 rounded-sm ${n <= enc.gusto_escritura ? 'bg-brand-500' : 'bg-gray-700'}`} />
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {enc.trabaja && enc.tipo_trabajo && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Tipo de trabajo</dt>
+                    <dd className="text-gray-200">{enc.tipo_trabajo}</dd>
+                  </div>
+                )}
+                {enc.horas_trabajo_diarias != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Horas trabajo/día</dt>
+                    <dd className="text-gray-200">{enc.horas_trabajo_diarias}h</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+
+            {/* Tecnología */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Tecnología</p>
+              <dl className="space-y-2">
+                {enc.nivel_estudio && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Nivel de estudio</dt>
+                    <dd className="text-gray-200">{enc.nivel_estudio}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {enc.tiene_laptop && <span className="badge-verde">Laptop</span>}
+                {enc.tiene_pc_escritorio && <span className="badge-azul">PC escritorio</span>}
+                {enc.comparte_pc && <span className="badge-amarillo">Comparte PC</span>}
+                {enc.sin_computadora && <span className="badge-rojo">Sin computadora</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Uso de IA */}
+          {usoIaPromedio != null && (
+            <div className="pt-3 border-t border-gray-800">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Uso de IA (autopercepción)</p>
+                <span className="text-xs text-brand-400 font-semibold">Prom. {usoIaPromedio}/5</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6">
+                {USO_IA_FIELDS.map(([key, label]) => {
+                  const val: number | null = enc[key] ?? null
+                  if (val == null) return null
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 flex-1 truncate">{label}</span>
+                      <div className="flex gap-0.5">
+                        {[1,2,3,4,5].map(n => (
+                          <div key={n} className={`w-3 h-3 rounded-sm ${n <= val ? 'bg-brand-500' : 'bg-gray-800'}`} />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-gray-500 w-4 text-right">{val}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Problemas reportados */}
+          {enc.problemas_reportados && (
+            <div className="pt-3 border-t border-gray-800">
+              <p className="text-xs font-medium text-yellow-400 mb-1">Problemas reportados</p>
+              <p className="text-xs text-gray-400 italic leading-relaxed">&ldquo;{enc.problemas_reportados}&rdquo;</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tutorías */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
@@ -380,34 +511,14 @@ export default async function FichaEstudiantePage({ params }: { params: Promise<
       </div>
 
       {/* Asistencia historial */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-white">Historial de asistencia</h2>
-          {totalSesiones > 0 && (
-            <span className="text-xs text-gray-500">{presentes}P · {atrasos}At · {ausentes}Au de {totalSesiones}</span>
-          )}
-        </div>
-        {totalSesiones === 0 ? (
-          <p className="text-gray-500 text-sm">Sin registros de asistencia.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {asistencia.map(reg => (
-              <div
-                key={reg.id}
-                title={`${reg.fecha} — ${reg.estado}${reg.atraso ? ' (Atraso)' : ''}`}
-                className={`w-7 h-7 rounded flex items-center justify-center text-xs cursor-default
-                  ${reg.estado === 'Presente'
-                    ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-800'
-                    : reg.estado === 'Atraso'
-                    ? 'bg-yellow-900/60 text-yellow-400 border border-yellow-800'
-                    : 'bg-red-900/60 text-red-400 border border-red-800'}`}
-              >
-                {reg.estado === 'Presente' ? '●' : reg.estado === 'Atraso' ? '◑' : '○'}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <AsistenciaGrid
+        asistencia={asistencia}
+        participacion={participacion}
+        presentes={presentes}
+        atrasos={atrasos}
+        ausentes={ausentes}
+        totalSesiones={totalSesiones}
+      />
 
       {/* Participación */}
       {participacion.length > 0 && (
