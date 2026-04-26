@@ -9,7 +9,7 @@ import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 
-type Student = { id: string; nombre: string }
+type Student = { id: string; nombre: string; email: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 
 type Props = {
@@ -23,6 +23,7 @@ type Props = {
   actividadesIniciales: ActividadPlanificada[]
   students: Student[]
   asistenciaInicial: { estudiante_id: string; estado: string; atraso: boolean }[]
+  horasClase: number
 }
 
 function formatElapsed(secs: number) {
@@ -121,12 +122,46 @@ function ActividadForm({ initial, onSave, onCancel }: ActividadFormProps) {
   )
 }
 
+// ─── Helpers Moodle CSV ───────────────────────────────────────────────────────
+
+function buildMoodleCSV(
+  students: Student[],
+  attendance: Record<string, EstadoA>,
+  hourIndex: number
+): string {
+  const lines = ['username,status']
+  for (const s of students) {
+    const estado = attendance[s.id]
+    let status: string
+    if (estado === 'Presente') {
+      status = 'P'
+    } else if (estado === 'Atraso') {
+      // Atraso: ausente en la primera hora, presente en las siguientes
+      status = hourIndex === 0 ? 'A' : 'P'
+    } else {
+      status = 'A'
+    }
+    lines.push(`${s.email},${status}`)
+  }
+  return lines.join('\n')
+}
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ModoClaseClient({
   bitacoraId, cursoId, cursoNombre, cursoCodigo,
   fecha, tema, horaInicioReal: horaInicialProp,
-  actividadesIniciales, students, asistenciaInicial,
+  actividadesIniciales, students, asistenciaInicial, horasClase,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -236,6 +271,7 @@ export function ModoClaseClient({
   const [finalizando, setFinalizando] = useState(false)
   const [confirmandoDetener, setConfirmandoDetener] = useState(false)
   const [deteniendo, setDeteniendo] = useState(false)
+  const [claseGuardada, setClaseGuardada] = useState(false)
 
   async function handleFinalizar() {
     setFinalizando(true)
@@ -244,7 +280,9 @@ export function ModoClaseClient({
       await actualizarActividadesEnVivo(bitacoraId, actividades)
     }
     await finalizarClase(bitacoraId)
-    router.push('/dashboard/agenda')
+    setFinalizando(false)
+    setConfirmando(false)
+    setClaseGuardada(true)
   }
 
   async function handleDetener() {
@@ -256,6 +294,62 @@ export function ModoClaseClient({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-[calc(100vh-0px)] overflow-hidden">
+      {/* Overlay post-clase: descarga Moodle CSV */}
+      {claseGuardada && (
+        <div className="fixed inset-0 bg-gray-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+            <div className="text-center space-y-1">
+              <div className="text-4xl mb-2">✓</div>
+              <h2 className="text-xl font-bold text-white">Clase finalizada</h2>
+              <p className="text-sm text-gray-400">Asistencia guardada correctamente</p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-300">
+                Descargar para Moodle
+                <span className="ml-1 text-gray-500 font-normal">
+                  ({horasClase} hora{horasClase > 1 ? 's' : ''} de clase)
+                </span>
+              </p>
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: horasClase }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      const csv = buildMoodleCSV(students, asistencia, i)
+                      downloadCSV(csv, `asistencia_${cursoCodigo}_${fecha}_hora${i + 1}.csv`)
+                    }}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-700 bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 transition-colors text-left"
+                  >
+                    <span className="text-lg leading-none flex-shrink-0">⬇</span>
+                    <span className="flex-1">
+                      Hora {i + 1}
+                      {horasClase > 1 && (
+                        <span className="text-gray-500 ml-2 text-xs">
+                          {i === 0 ? '(atrasos → Ausente)' : '(atrasos → Presente)'}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs text-gray-600 flex-shrink-0">
+                      {cursoCodigo}_{fecha}_hora{i + 1}.csv
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600">
+                Formato CSV: email del estudiante + estado (P = Presente, A = Ausente)
+              </p>
+            </div>
+
+            <button
+              onClick={() => router.push('/dashboard/planificacion')}
+              className="w-full btn-primary py-2.5 text-sm"
+            >
+              Ir a Mis Clases →
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-3 md:px-6 py-3 flex items-center justify-between gap-2 md:gap-4">
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
