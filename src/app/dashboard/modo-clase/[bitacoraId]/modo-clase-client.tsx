@@ -294,7 +294,7 @@ export function ModoClaseClient({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-[calc(100vh-0px)] overflow-hidden">
-      {/* Overlay post-clase: descarga Moodle CSV */}
+      {/* Overlay post-clase: exportar asistencia */}
       {claseGuardada && (
         <div className="fixed inset-0 bg-gray-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
@@ -305,12 +305,20 @@ export function ModoClaseClient({
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-300">
-                Descargar para Moodle
-                <span className="ml-1 text-gray-500 font-normal">
-                  ({horasClase} hora{horasClase > 1 ? 's' : ''} de clase)
-                </span>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                Exportar asistencia
               </p>
+
+              {/* Selector de plataforma */}
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-600 bg-brand-600/10 text-brand-400 text-sm font-medium">
+                  <span>Moodle</span>
+                  <span className="text-xs bg-brand-700/40 px-1.5 py-0.5 rounded text-brand-300">CSV</span>
+                </div>
+                {/* Aquí irán otras plataformas en el futuro */}
+              </div>
+
+              {/* Archivos a descargar */}
               <div className="flex flex-col gap-2">
                 {Array.from({ length: horasClase }, (_, i) => (
                   <button
@@ -321,23 +329,23 @@ export function ModoClaseClient({
                     }}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-700 bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 transition-colors text-left"
                   >
-                    <span className="text-lg leading-none flex-shrink-0">⬇</span>
+                    <span className="text-base leading-none flex-shrink-0">⬇</span>
                     <span className="flex-1">
                       Hora {i + 1}
                       {horasClase > 1 && (
                         <span className="text-gray-500 ml-2 text-xs">
-                          {i === 0 ? '(atrasos → Ausente)' : '(atrasos → Presente)'}
+                          {i === 0 ? '· atrasos = Ausente' : '· atrasos = Presente'}
                         </span>
                       )}
                     </span>
-                    <span className="text-xs text-gray-600 flex-shrink-0">
-                      {cursoCodigo}_{fecha}_hora{i + 1}.csv
+                    <span className="text-xs text-gray-600 flex-shrink-0 hidden sm:block">
+                      hora{i + 1}.csv
                     </span>
                   </button>
                 ))}
               </div>
               <p className="text-xs text-gray-600">
-                Formato CSV: email del estudiante + estado (P = Presente, A = Ausente)
+                Columnas: email · estado (P / A) — una fila por estudiante, un archivo por hora
               </p>
             </div>
 
