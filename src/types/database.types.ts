@@ -764,6 +764,105 @@ export type Database = {
           }
         ]
       }
+      grupo_categorias: {
+        Row: {
+          id: string
+          nombre: string
+          valores: string[]
+          orden: number
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          valores?: string[]
+          orden?: number
+        }
+        Update: {
+          nombre?: string
+          valores?: string[]
+          orden?: number
+        }
+        Relationships: []
+      }
+      grupos_clase: {
+        Row: {
+          id: string
+          bitacora_id: string | null
+          curso_id: string | null
+          profesor_id: string
+          nombre: string
+          categoria: string | null
+          tipo: 'aleatoria' | 'manual' | 'afinidad'
+          orden: number
+          abierto: boolean
+          max_integrantes: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          bitacora_id?: string | null
+          curso_id?: string | null
+          profesor_id: string
+          nombre: string
+          categoria?: string | null
+          tipo: 'aleatoria' | 'manual' | 'afinidad'
+          orden?: number
+          abierto?: boolean
+          max_integrantes?: number | null
+          created_at?: string
+        }
+        Update: {
+          nombre?: string
+          categoria?: string | null
+          tipo?: 'aleatoria' | 'manual' | 'afinidad'
+          orden?: number
+          abierto?: boolean
+          max_integrantes?: number | null
+        }
+        Relationships: []
+      }
+      grupo_integrantes: {
+        Row: {
+          id: string
+          grupo_id: string
+          estudiante_id: string
+          asignado_por: 'profesor' | 'estudiante'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          grupo_id: string
+          estudiante_id: string
+          asignado_por?: 'profesor' | 'estudiante'
+          created_at?: string
+        }
+        Update: {
+          asignado_por?: 'profesor' | 'estudiante'
+        }
+        Relationships: []
+      }
+      grupo_participacion: {
+        Row: {
+          id: string
+          grupo_id: string | null
+          estudiante_id: string
+          bitacora_id: string
+          nota: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          grupo_id?: string | null
+          estudiante_id: string
+          bitacora_id: string
+          nota?: number | null
+          created_at?: string
+        }
+        Update: {
+          nota?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

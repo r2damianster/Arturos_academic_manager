@@ -6,18 +6,20 @@ import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 
 type Curso = { id: string; asignatura: string; codigo: string }
-type Student = { id: string; nombre: string }
-
+type Student = { id: string; nombre: string; estado: string | null }
+type Categoria = { id: string; nombre: string; valores: string[]; orden: number }
 type Tab = 'ruleta' | 'agrupacion'
 
 export function HerramientasClient({
   cursos,
   estudiantesIniciales,
   cursoIdInicial,
+  categorias,
 }: {
   cursos: Curso[]
   estudiantesIniciales: Student[]
   cursoIdInicial: string | null
+  categorias: Categoria[]
 }) {
   const [cursoId, setCursoId] = useState(cursoIdInicial ?? '')
   const [students, setStudents] = useState<Student[]>(estudiantesIniciales)
@@ -34,7 +36,7 @@ export function HerramientasClient({
     const supabase = createClient()
     const { data } = await supabase
       .from('estudiantes')
-      .select('id, nombre')
+      .select('id, nombre, estado')
       .eq('curso_id', newCursoId)
       .order('nombre')
     setStudents((data as Student[]) ?? [])
@@ -70,9 +72,7 @@ export function HerramientasClient({
             key={t}
             onClick={() => setTab(t)}
             className={`px-5 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t
-                ? 'bg-gray-700 text-white'
-                : 'text-gray-400 hover:text-gray-200'
+              tab === t ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             {t === 'ruleta' ? 'Ruleta' : 'Agrupación'}
@@ -89,7 +89,11 @@ export function HerramientasClient({
         ) : tab === 'ruleta' ? (
           <Ruleta students={students} />
         ) : (
-          <Agrupacion students={students} />
+          <Agrupacion
+            students={students}
+            cursoId={cursoId}
+            categorias={categorias}
+          />
         )}
       </div>
     </div>

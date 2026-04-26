@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
+import { guardarParticipacion } from '@/lib/actions/grupos'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
@@ -12,6 +13,14 @@ import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 
 type Student = { id: string; nombre: string; email: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
+type GrupoIntegrante = { id: string; estudiante_id: string; estudiantes: { id: string; nombre: string } | null }
+type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; grupo_integrantes: GrupoIntegrante[] }
+type Categoria = { id: string; nombre: string; valores: string[] }
+
+const GRUPO_DOT_COLORS = [
+  'bg-indigo-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
+  'bg-violet-500', 'bg-cyan-500', 'bg-pink-500', 'bg-lime-500',
+]
 
 type Props = {
   bitacoraId: string
@@ -26,6 +35,8 @@ type Props = {
   students: Student[]
   asistenciaInicial: { estudiante_id: string; estado: string; atraso: boolean }[]
   horasClase: number
+  gruposIniciales: GrupoItem[]
+  categorias: Categoria[]
 }
 
 function formatElapsed(secs: number) {
@@ -52,6 +63,208 @@ const TIPO_COLORS: Record<ActividadTipo, string> = {
   actividad: 'badge-azul',
   ruleta: 'badge-amarillo',
   agrupacion: 'badge-verde',
+}
+
+// ─── Ruleta de grupos (mini slot machine) ────────────────────────────────────
+
+function RuletaGrupos({
+  grupos, excluidos, onExcluirChange, autoExcluir, onAutoExcluirChange, onSeleccionar,
+}: {
+  grupos: GrupoItem[]
+  excluidos: Set<string>
+  onExcluirChange: (s: Set<string>) => void
+  autoExcluir: boolean
+  onAutoExcluirChange: (v: boolean) => void
+  onSeleccionar: (id: string) => void
+}) {
+  const [girando, setGirando] = useState(false)
+  const [ticker, setTicker] = useState('')
+  const [ganadorId, setGanadorId] = useState<string | null>(null)
+
+  const activos = grupos.filter(g => !excluidos.has(g.id))
+
+  function girar() {
+    if (girando || activos.length === 0) return
+    setGirando(true)
+    setGanadorId(null)
+
+    let count = 0
+    const total = 22
+    const id = setInterval(() => {
+      const r = activos[Math.floor(Math.random() * activos.length)]
+      setTicker(r.nombre)
+      count++
+      if (count >= total) {
+        clearInterval(id)
+        const winner = activos[Math.floor(Math.random() * activos.length)]
+        setTicker(winner.nombre)
+        setGanadorId(winner.id)
+        setGirando(false)
+        if (autoExcluir) onExcluirChange(new Set([...excluidos, winner.id]))
+        onSeleccionar(winner.id)
+      }
+    }, 75)
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Display */}
+      <div
+        className={`h-14 flex items-center justify-center rounded-xl border text-lg font-bold transition-colors ${
+          ganadorId
+            ? 'border-indigo-600 bg-indigo-900/30 text-indigo-200'
+            : 'border-gray-700 bg-gray-800/60 text-gray-400'
+        }`}
+      >
+        {ticker || (activos.length === 0 ? 'Todos excluidos' : '— girar —')}
+      </div>
+
+      {/* Controles */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={girar}
+          disabled={girando || activos.length === 0}
+          className="btn-primary flex-1 py-2 text-sm disabled:opacity-40"
+        >
+          {girando ? 'Girando…' : '🎡 Girar ruleta'}
+        </button>
+        <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none shrink-0">
+          <input
+            type="checkbox"
+            checked={autoExcluir}
+            onChange={e => onAutoExcluirChange(e.target.checked)}
+            className="accent-indigo-500"
+          />
+          Auto-excluir
+        </label>
+      </div>
+
+      {/* Chips de grupos */}
+      <div className="flex flex-wrap gap-1.5">
+        {grupos.map(g => {
+          const excluido = excluidos.has(g.id)
+          const esGanador = ganadorId === g.id
+          return (
+            <button
+              key={g.id}
+              onClick={() => {
+                const next = new Set(excluidos)
+                if (next.has(g.id)) next.delete(g.id)
+                else next.add(g.id)
+                onExcluirChange(next)
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                excluido
+                  ? 'bg-gray-800 text-gray-600 line-through'
+                  : esGanador
+                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {g.nombre}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Vista de foco de un grupo ────────────────────────────────────────────────
+
+function VistGrupo({
+  grupo, students, asistencia, onAsistencia,
+  participacion, onParticipacion, onGuardar, onVolver, isSaved, isPending,
+}: {
+  grupo: GrupoItem
+  students: Student[]
+  asistencia: Record<string, EstadoA>
+  onAsistencia: (id: string, estado: 'Presente' | 'Ausente' | 'Atraso') => void
+  participacion: Record<string, number | null>
+  onParticipacion: (id: string, nota: number | null) => void
+  onGuardar: () => void
+  onVolver: () => void
+  isSaved: boolean
+  isPending: boolean
+}) {
+  const miembros = grupo.grupo_integrantes
+    .map(gi => students.find(s => s.id === gi.estudiante_id))
+    .filter(Boolean) as Student[]
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <button onClick={onVolver} className="text-xs text-gray-500 hover:text-gray-300 transition-colors mb-0.5 block">
+            ← Grupos
+          </button>
+          <h3 className="font-bold text-white text-base">{grupo.nombre}</h3>
+        </div>
+        {isSaved && (
+          <span className="text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-700/50 px-2 py-1 rounded-lg">
+            ✓ Guardado
+          </span>
+        )}
+      </div>
+
+      {/* Lista de miembros */}
+      <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+        {miembros.length === 0 ? (
+          <p className="text-xs text-gray-500 text-center py-4">Sin integrantes asignados</p>
+        ) : (
+          miembros.map(s => {
+            const estado = asistencia[s.id]
+            return (
+              <div key={s.id} className="p-2.5 rounded-lg bg-gray-800/60 border border-gray-700/50 space-y-2">
+                <p className="text-sm text-gray-200 font-medium">{s.nombre}</p>
+                <div className="flex items-center gap-2">
+                  {/* P/A/F */}
+                  <div className="flex gap-1">
+                    {(['Presente', 'Atraso', 'Ausente'] as const).map(e => (
+                      <button
+                        key={e}
+                        onClick={() => onAsistencia(s.id, e)}
+                        className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
+                          estado === e
+                            ? e === 'Presente' ? 'bg-emerald-600 text-white'
+                              : e === 'Atraso' ? 'bg-amber-600 text-white'
+                              : 'bg-red-600 text-white'
+                            : 'bg-gray-700 text-gray-500 hover:bg-gray-600'
+                        }`}
+                      >
+                        {e === 'Presente' ? 'P' : e === 'Atraso' ? 'A' : 'F'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Nota participación */}
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    value={participacion[s.id] ?? ''}
+                    onChange={e => onParticipacion(s.id, e.target.value ? Number(e.target.value) : null)}
+                    placeholder="/10"
+                    className="input w-16 text-xs text-center"
+                  />
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Guardar */}
+      <button
+        onClick={onGuardar}
+        disabled={isPending || isSaved}
+        className="w-full btn-primary py-2.5 text-sm disabled:opacity-40"
+      >
+        {isPending ? 'Guardando…' : isSaved ? '✓ Guardado' : `Guardar ${grupo.nombre}`}
+      </button>
+    </div>
+  )
 }
 
 // ─── Subcomponente: Form agregar/editar actividad ────────────────────────────
@@ -130,6 +343,7 @@ export function ModoClaseClient({
   bitacoraId, cursoId, cursoNombre, cursoCodigo,
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
+  gruposIniciales, categorias,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -231,8 +445,38 @@ export function ModoClaseClient({
 
   const marcados = Object.values(asistencia).filter(Boolean).length
 
+  // ── Grupos ─────────────────────────────────────────────────────────────────
+  const [grupos] = useState<GrupoItem[]>(gruposIniciales)
+  const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos'>('asistencia')
+  const [grupoActivoId, setGrupoActivoId] = useState<string | null>(null)
+  const [participacion, setParticipacion] = useState<Record<string, number | null>>({})
+  const [gruposExcluidos, setGruposExcluidos] = useState<Set<string>>(new Set())
+  const [autoExcluirGrupo, setAutoExcluirGrupo] = useState(true)
+  const [savedGrupos, setSavedGrupos] = useState<Set<string>>(new Set())
+  const [savingGrupo, startSavingGrupo] = useTransition()
+
+  async function guardarGrupo() {
+    if (!grupoActivoId) return
+    const grupo = grupos.find(g => g.id === grupoActivoId)
+    if (!grupo) return
+    const notas = grupo.grupo_integrantes.map(gi => ({
+      estudianteId: gi.estudiante_id,
+      grupoId: grupoActivoId,
+      nota: participacion[gi.estudiante_id] ?? null,
+    }))
+    startSavingGrupo(async () => {
+      const result = await guardarParticipacion(bitacoraId, notas)
+      if (!result.error) setSavedGrupos(prev => new Set([...prev, grupoActivoId]))
+    })
+  }
+
   // ── Tab móvil ─────────────────────────────────────────────────────────────
-  const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia'>('actividades')
+  const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia' | 'grupos'>('actividades')
+
+  function setMobileAndDerecha(tab: 'actividades' | 'asistencia' | 'grupos') {
+    setMobileTab(tab)
+    if (tab === 'asistencia' || tab === 'grupos') setTabDerecha(tab)
+  }
 
   // ── Finalizar / Detener ────────────────────────────────────────────────────
   const [confirmando, setConfirmando] = useState(false)
@@ -433,16 +677,22 @@ export function ModoClaseClient({
       {/* Tabs — solo móvil */}
       <div className="flex-shrink-0 flex md:hidden border-b border-gray-800">
         <button
-          onClick={() => setMobileTab('actividades')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === 'actividades' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => setMobileAndDerecha('actividades')}
+          className={`flex-1 py-2.5 text-xs font-medium transition-colors ${mobileTab === 'actividades' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
         >
           Actividades {actividades.length > 0 && `(${completadas}/${actividades.length})`}
         </button>
         <button
-          onClick={() => setMobileTab('asistencia')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === 'asistencia' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => setMobileAndDerecha('asistencia')}
+          className={`flex-1 py-2.5 text-xs font-medium transition-colors ${mobileTab === 'asistencia' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
         >
           Asistencia ({marcados}/{students.length})
+        </button>
+        <button
+          onClick={() => setMobileAndDerecha('grupos')}
+          className={`flex-1 py-2.5 text-xs font-medium transition-colors ${mobileTab === 'grupos' ? 'text-brand-400 border-b-2 border-brand-500 bg-brand-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          Grupos {grupos.length > 0 && `(${grupos.length})`}
         </button>
       </div>
 
@@ -573,7 +823,7 @@ export function ModoClaseClient({
                 )}
                 {toolOpen === 'agrupacion' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Agrupacion students={students} />
+                    <Agrupacion students={students} cursoId={cursoId} bitacoraId={bitacoraId} categorias={categorias} />
                   </div>
                 )}
               </div>
@@ -630,13 +880,26 @@ export function ModoClaseClient({
           </div>
         </div>
 
-        {/* ── Columna derecha: Asistencia ── */}
-        <div className={`w-full md:w-80 flex-shrink-0 flex-col overflow-hidden ${mobileTab === 'asistencia' ? 'flex' : 'hidden md:flex'}`}>
-          <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-200 text-sm">Asistencia en vivo</h2>
-            <span className="text-xs text-gray-500">{marcados}/{students.length}</span>
+        {/* ── Columna derecha: Asistencia / Grupos ── */}
+        <div className={`w-full md:w-80 flex-shrink-0 flex-col overflow-hidden ${mobileTab !== 'actividades' ? 'flex' : 'hidden md:flex'}`}>
+          {/* Tabs de la columna derecha */}
+          <div className="flex-shrink-0 flex border-b border-gray-800">
+            <button
+              onClick={() => setTabDerecha('asistencia')}
+              className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${tabDerecha === 'asistencia' ? 'text-gray-200 border-b-2 border-gray-400' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Asistencia ({marcados}/{students.length})
+            </button>
+            <button
+              onClick={() => setTabDerecha('grupos')}
+              className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${tabDerecha === 'grupos' ? 'text-gray-200 border-b-2 border-gray-400' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Grupos {grupos.length > 0 && `(${grupos.length})`}
+            </button>
           </div>
 
+          {/* Panel Asistencia */}
+          {tabDerecha === 'asistencia' && (<>
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
             {students.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>
@@ -725,6 +988,78 @@ export function ModoClaseClient({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+          </>)}
+
+          {/* Panel Grupos */}
+          {tabDerecha === 'grupos' && (
+            <div className="flex-1 flex flex-col overflow-hidden p-3 gap-4">
+              {grupos.length === 0 ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-gray-500 text-center py-4">
+                    No hay grupos para esta sesión.
+                    Créalos en la pestaña Agrupación de la actividad, o ve a Herramientas antes de la clase.
+                  </p>
+                  <Agrupacion
+                    students={students}
+                    cursoId={cursoId}
+                    bitacoraId={bitacoraId}
+                    categorias={categorias}
+                  />
+                </div>
+              ) : grupoActivoId !== null ? (
+                <VistGrupo
+                  grupo={grupos.find(g => g.id === grupoActivoId)!}
+                  students={students}
+                  asistencia={asistencia}
+                  onAsistencia={marcarAsistencia}
+                  participacion={participacion}
+                  onParticipacion={(id, nota) => setParticipacion(prev => ({ ...prev, [id]: nota }))}
+                  onGuardar={guardarGrupo}
+                  onVolver={() => setGrupoActivoId(null)}
+                  isSaved={savedGrupos.has(grupoActivoId)}
+                  isPending={savingGrupo}
+                />
+              ) : (
+                <div className="space-y-4 overflow-y-auto flex-1">
+                  {/* Ruleta de grupos */}
+                  <RuletaGrupos
+                    grupos={grupos}
+                    excluidos={gruposExcluidos}
+                    onExcluirChange={setGruposExcluidos}
+                    autoExcluir={autoExcluirGrupo}
+                    onAutoExcluirChange={setAutoExcluirGrupo}
+                    onSeleccionar={setGrupoActivoId}
+                  />
+
+                  {/* Lista de grupos para acceso directo */}
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">Acceso directo</p>
+                    <div className="space-y-1.5">
+                      {grupos.map((g, i) => {
+                        const saved = savedGrupos.has(g.id)
+                        return (
+                          <button
+                            key={g.id}
+                            onClick={() => setGrupoActivoId(g.id)}
+                            className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-xl border transition-colors ${
+                              saved
+                                ? 'border-emerald-700/50 bg-emerald-900/10'
+                                : 'border-gray-700 hover:border-gray-600 bg-gray-800/30'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${GRUPO_DOT_COLORS[i % GRUPO_DOT_COLORS.length]}`} />
+                            <span className="flex-1 text-sm font-medium text-gray-200">{g.nombre}</span>
+                            <span className="text-xs text-gray-500">{g.grupo_integrantes.length} est.</span>
+                            {saved && <span className="text-emerald-400 text-xs">✓</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

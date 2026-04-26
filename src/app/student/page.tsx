@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
+import { MisGrupos } from '@/components/student/MisGrupos'
+import { getGruposAbiertosParaEstudiante } from '@/lib/actions/grupos'
 
 type Estudiante = Tables<'estudiantes'>
 type Curso = Tables<'cursos'>
@@ -38,11 +40,12 @@ export default async function StudentPage() {
   const cursoIds = estudiantes.map(e => e.curso_id)
 
   // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
-  const [cursosRes, trabajosRes, asistenciaRes, reservasRes] = await Promise.all([
+  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData] = await Promise.all([
     db.from('cursos').select('*').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
     db.from('asistencia').select('estado, estudiante_id').in('estudiante_id', estudianteIds),
     db.from('reservas').select('*, horarios!inner(profesor_id)').eq('auth_user_id', user.id).eq('estado', 'completada').order('fecha', { ascending: false }),
+    getGruposAbiertosParaEstudiante(cursoIds),
   ])
 
   const cursos: Curso[] = cursosRes.data ?? []
@@ -88,6 +91,17 @@ export default async function StudentPage() {
           <span className="text-sm font-medium text-gray-200 group-hover:text-white">Mi Perfil</span>
         </Link>
       </div>
+
+      {/* Grupos de clase (afinidad) */}
+      {gruposData.grupos.length > 0 && (
+        <MisGrupos
+          cursoIds={cursoIds}
+          cursosMap={Object.fromEntries(cursos.map(c => [c.id, c.asignatura]))}
+          gruposIniciales={gruposData.grupos}
+          misMembresiasIniciales={gruposData.misMembresias}
+          estudiantesByCurso={gruposData.estudiantesByCurso}
+        />
+      )}
 
       {/* Encuestas — only show if survey completed (always true here since layout redirects otherwise) */}
       <div className="card space-y-3">

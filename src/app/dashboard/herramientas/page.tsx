@@ -8,20 +8,20 @@ export default async function HerramientasPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: cursos } = await db
-    .from('cursos')
-    .select('id, asignatura, codigo')
-    .eq('profesor_id', user.id)
-    .order('asignatura')
+  const [{ data: cursos }, { data: categorias }] = await Promise.all([
+    db.from('cursos').select('id, asignatura, codigo').eq('profesor_id', user.id).order('asignatura'),
+    db.from('grupo_categorias').select('id, nombre, valores, orden').order('orden'),
+  ])
 
   const cursosData = (cursos ?? []) as { id: string; asignatura: string; codigo: string }[]
+  const categoriasData = (categorias ?? []) as { id: string; nombre: string; valores: string[]; orden: number }[]
   const primerCurso = cursosData[0] ?? null
 
-  let estudiantesIniciales: { id: string; nombre: string }[] = []
+  let estudiantesIniciales: { id: string; nombre: string; estado: string | null }[] = []
   if (primerCurso) {
     const { data } = await db
       .from('estudiantes')
-      .select('id, nombre')
+      .select('id, nombre, estado')
       .eq('curso_id', primerCurso.id)
       .order('nombre')
     estudiantesIniciales = data ?? []
@@ -31,13 +31,14 @@ export default async function HerramientasPage() {
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Herramientas</h1>
-        <p className="text-gray-400 text-sm mt-1">Ruleta y agrupación aleatoria para usar en cualquier momento</p>
+        <p className="text-gray-400 text-sm mt-1">Ruleta y agrupación para usar en cualquier momento</p>
       </div>
 
       <HerramientasClient
         cursos={cursosData}
         estudiantesIniciales={estudiantesIniciales}
         cursoIdInicial={primerCurso?.id ?? null}
+        categorias={categoriasData}
       />
     </main>
   )
