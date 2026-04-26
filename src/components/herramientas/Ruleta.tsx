@@ -15,22 +15,31 @@ const COLORS = [
 
 const getColor = (i: number) => COLORS[i % COLORS.length]
 
+// Ecuador: Nombre1 [Nombre2] Apellido1 [Apellido2]
+// 4 words → Nombre1 + Apellido1 (words[0] + words[2])
+// 3 words → Nombre1 + Apellido1 (words[0] + words[1])
+// 1-2 words → words[0]
+function formatStudentName(nombre: string): string {
+  const words = nombre.trim().split(/\s+/)
+  if (words.length >= 4) return `${words[0]} ${words[2]}`
+  if (words.length === 3) return `${words[0]} ${words[1]}`
+  return words[0]
+}
+
 function shortLabel(label: string, n: number, libre: boolean): string {
-  if (libre) {
-    const max = n <= 8 ? 16 : n <= 15 ? 11 : n <= 25 ? 8 : 6
-    return label.length <= max ? label : label.slice(0, max - 1) + '…'
-  }
-  const first = label.split(' ')[0]
-  const max = n <= 8 ? 12 : n <= 15 ? 9 : n <= 25 ? 7 : 5
-  return first.length <= max ? first : first.slice(0, max - 1) + '…'
+  const base = libre ? label : formatStudentName(label)
+  const max = libre
+    ? (n <= 8 ? 16 : n <= 15 ? 12 : n <= 25 ? 9 : 7)
+    : (n <= 8 ? 14 : n <= 15 ? 11 : n <= 25 ? 8 : 6)
+  return base.length <= max ? base : base.slice(0, max - 1) + '…'
 }
 
 function calcFontSize(n: number): number {
-  if (n <= 6) return 11
-  if (n <= 10) return 9.5
-  if (n <= 16) return 8
-  if (n <= 25) return 7
-  return 6
+  if (n <= 6) return 10
+  if (n <= 10) return 9
+  if (n <= 16) return 7.5
+  if (n <= 25) return 6.5
+  return 5.5
 }
 
 const SIZE = 340
@@ -63,11 +72,14 @@ export function Ruleta({ students }: { students: Student[] }) {
   const [winner, setWinner] = useState<Item | null>(null)
   const [rotation, setRotation] = useState(0)
   const [autoExclude, setAutoExclude] = useState(false)
+  const [ticker, setTicker] = useState<string | null>(null)
   const spinRef = useRef(0)
+  const tickerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setExcluded(new Set())
     setWinner(null)
+    setTicker(null)
     setMode(students.length > 0 ? 'estudiantes' : 'libre')
     spinRef.current = 0
     setRotation(0)
@@ -88,6 +100,7 @@ export function Ruleta({ students }: { students: Student[] }) {
 
   const handleSpin = useCallback(() => {
     if (spinning || activeItems.length < 2) return
+
     const idx = Math.floor(Math.random() * activeItems.length)
     const segDeg = 360 / activeItems.length
     const target = 360 - (idx * segDeg + segDeg / 2)
@@ -96,9 +109,25 @@ export function Ruleta({ students }: { students: Student[] }) {
     setRotation(final)
     setSpinning(true)
     setWinner(null)
+
+    // Ticker: empieza rápido, desacelera gradualmente
+    let isRunning = true
+    let delay = 50
+    const tick = () => {
+      if (!isRunning) return
+      setTicker(activeItems[Math.floor(Math.random() * activeItems.length)].label)
+      delay = Math.min(delay * 1.06, 300)
+      tickerRef.current = setTimeout(tick, delay)
+    }
+    tick()
+
     setTimeout(() => {
+      isRunning = false
+      if (tickerRef.current) clearTimeout(tickerRef.current)
+      tickerRef.current = null
       setSpinning(false)
       const w = activeItems[idx]
+      setTicker(null)
       setWinner(w)
       if (autoExclude && mode === 'estudiantes') {
         setExcluded(prev => new Set([...prev, w.id]))
@@ -123,6 +152,27 @@ export function Ruleta({ students }: { students: Student[] }) {
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       {/* Wheel column */}
       <div className="flex flex-col items-center gap-3 flex-shrink-0">
+
+        {/* Ticker encima de la ruleta */}
+        <div
+          className="flex items-center justify-center rounded-xl border border-gray-700 bg-gray-800/80 px-4 py-2"
+          style={{ width: SIZE, minHeight: 52 }}
+        >
+          {ticker ? (
+            <p className="text-white font-bold text-lg text-center truncate">{ticker}</p>
+          ) : winner && !spinning ? (
+            <div className="text-center">
+              <p className="text-gray-500 text-xs uppercase tracking-widest leading-none mb-0.5">
+                Seleccionado
+              </p>
+              <p className="text-indigo-300 font-bold text-lg leading-tight">{winner.label}</p>
+            </div>
+          ) : (
+            <p className="text-gray-600 text-sm">Gira para seleccionar</p>
+          )}
+        </div>
+
+        {/* Ruleta */}
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
           {/* Pointer */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10">
@@ -142,8 +192,8 @@ export function Ruleta({ students }: { students: Student[] }) {
               <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
                 {activeItems.map((item, i) => {
                   const mid = i * segAngle + segAngle / 2
-                  const midDeg = (mid * 180) / Math.PI
-                  const tp = polar(mid, R * 0.62)
+                  // Texto horizontal (sin rotación), pegado al borde exterior
+                  const tp = polar(mid, R * 0.76)
                   return (
                     <g key={item.id}>
                       <path
@@ -160,7 +210,6 @@ export function Ruleta({ students }: { students: Student[] }) {
                         fontSize={fs}
                         fill="white"
                         fontWeight="700"
-                        transform={`rotate(${midDeg}, ${tp.x}, ${tp.y})`}
                         style={{ userSelect: 'none', pointerEvents: 'none' }}
                       >
                         {shortLabel(item.label, n, mode === 'libre')}
@@ -172,9 +221,7 @@ export function Ruleta({ students }: { students: Student[] }) {
               </svg>
             </div>
           ) : (
-            <div
-              className="w-full h-full rounded-full bg-gray-800/50 border-2 border-dashed border-gray-700 flex items-center justify-center"
-            >
+            <div className="w-full h-full rounded-full bg-gray-800/50 border-2 border-dashed border-gray-700 flex items-center justify-center">
               <p className="text-gray-500 text-sm text-center px-8">
                 {mode === 'libre'
                   ? 'Escribe al menos 2 elementos'
@@ -184,18 +231,6 @@ export function Ruleta({ students }: { students: Student[] }) {
               </p>
             </div>
           )}
-        </div>
-
-        {/* Winner */}
-        <div className="h-14 flex flex-col items-center justify-center">
-          {spinning ? (
-            <p className="text-indigo-400 text-sm animate-pulse font-medium">Girando…</p>
-          ) : winner ? (
-            <div className="text-center">
-              <p className="text-gray-500 text-xs uppercase tracking-widest mb-0.5">Seleccionado</p>
-              <p className="text-white text-xl font-bold leading-tight">{winner.label}</p>
-            </div>
-          ) : null}
         </div>
 
         {/* Spin button */}
@@ -230,7 +265,7 @@ export function Ruleta({ students }: { students: Student[] }) {
             {(['estudiantes', 'libre'] as Mode[]).map(m => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setWinner(null) }}
+                onClick={() => { setMode(m); setWinner(null); setTicker(null) }}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   mode === m
                     ? 'bg-gray-700 text-white'
@@ -306,7 +341,9 @@ export function Ruleta({ students }: { students: Student[] }) {
                         </svg>
                       )}
                     </span>
-                    <span className={isExcluded ? 'line-through' : ''}>{s.nombre}</span>
+                    <span className={isExcluded ? 'line-through' : ''}>
+                      {s.nombre}
+                    </span>
                     {isWinner && (
                       <span className="ml-auto text-indigo-400 text-xs">★ ganador</span>
                     )}
@@ -323,7 +360,7 @@ export function Ruleta({ students }: { students: Student[] }) {
             </label>
             <textarea
               value={freeText}
-              onChange={e => { setFreeText(e.target.value); setWinner(null) }}
+              onChange={e => { setFreeText(e.target.value); setWinner(null); setTicker(null) }}
               placeholder={'Grupo 1\nGrupo 2\nGrupo 3\n...'}
               rows={10}
               className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono leading-relaxed"
