@@ -133,7 +133,38 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 - **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
 
-## Features recientes (2026-04-26)
+## Features recientes (2026-04-26 — sesión 9)
+
+### Exportación de asistencia para Moodle CSV
+- **Utilidad compartida** `src/lib/moodle-csv.ts`: funciones `buildMoodleCSV`, `downloadCSV`, `calcularHorasDesdeHorario` — lógica reutilizable por todos los puntos de descarga.
+- **Lógica de expansión por horas**: Presente → P en todas las horas de la sesión; Ausente → A en todas; Atraso → hora 1 = A, horas 2+ = P.
+- **Número de horas**: calculado desde `horarios_clases.hora_inicio/hora_fin` del día de la sesión mediante `calcularHorasDesdeHorario`.
+- **Identificador Moodle**: `estudiantes.email` (campo añadido a las queries que cargan la lista).
+- **Formato CSV**: 2 columnas `username,status`; un archivo por hora de clase (ej: "Asistencia_Hora1_2026-04-26.csv").
+
+### Puntos de descarga Moodle
+- **Finalizar clase** (`modo-clase-client.tsx`): overlay post-finalización muestra chip "Moodle CSV" + N botones de descarga (uno por hora). Prop `horasClase` + `estadoClase` pasados desde el RSC.
+- **Ver resumen** (clase cumplida): panel fijo al pie de la columna de asistencia cuando `estadoClase === 'cumplido'`.
+- **Reporte de asistencia** (`/cursos/[cursoId]/asistencia`): botón "Exportar para Moodle" → `<select>` de sesiones ordenado más reciente primero → al elegir fecha aparecen los N botones de hora.
+
+### UX del selector de plataforma
+- Chip `[Moodle CSV]` identifica la plataforma. Diseño extensible para agregar Classroom, Blackboard u otras en el futuro añadiendo chips adicionales.
+
+### Reporte de asistencia paginado — `AsistenciaGridClient`
+- **Nuevo componente**: `src/components/cursos/asistencia-grid-client.tsx` — sustituye la tabla estática anterior.
+- **Ventana deslizante**: 3 columnas en mobile (< 640px) / 5 en tablet (< 1024px) / 6 en desktop.
+- **Orden por defecto**: arranca mostrando las fechas más recientes.
+- **Navegación**: botones `‹ ›` para desplazarse entre ventanas de fechas. Label de rango visible ("12 Abr – 30 Abr") + indicador de página (2/4).
+- **Porcentaje de asistencia**: siempre calculado sobre TODAS las sesiones (no solo las visibles en la ventana actual).
+
+### Archivos modificados
+- `src/app/dashboard/modo-clase/[bitacoraId]/page.tsx`: añade `email` a la query de estudiantes, calcula `horasClase` desde `horarios_clases`, pasa `estadoClase` al cliente.
+- `src/app/dashboard/modo-clase/[bitacoraId]/modo-clase-client.tsx`: nuevos props `estadoClase` y `horasClase`, integra utilidad compartida.
+- `src/app/dashboard/cursos/[cursoId]/asistencia/page.tsx`: RSC simplificado que delega toda la tabla al `AsistenciaGridClient`.
+
+---
+
+## Features recientes (2026-04-26 — sesión 8)
 
 ### Ruleta mejorada (`src/components/herramientas/Ruleta.tsx`)
 - **Texto horizontal** en los segmentos — eliminada la rotación del `<text>` SVG; nombres aparecen rectos, posicionados al 76% del radio (pegados al borde exterior).
@@ -266,6 +297,7 @@ END; $$;
 ## Bugs pendientes
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar con `.normalize('NFD').replace(/[̀-ͯ]/g,'')` en el lookup.
 - **Desconexión bitácora**: `guardarBitacoraData()` (pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar.
+- **`moodle-export-panel.tsx` sin uso**: `src/components/cursos/moodle-export-panel.tsx` fue creado pero su funcionalidad quedó integrada directamente en `AsistenciaGridClient`. Candidato a eliminar para evitar confusión.
 
 ## Convenciones críticas
 
