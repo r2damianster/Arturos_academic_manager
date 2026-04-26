@@ -70,6 +70,7 @@ export default async function ModoClaseActivaPage({
       cursoCodigo={bitacora.cursos?.codigo ?? ''}
       fecha={bitacora.fecha}
       tema={bitacora.tema}
+      estadoClase={bitacora.estado}
       horaInicioReal={bitacora.hora_inicio_real ?? null}
       actividadesIniciales={actividades}
       students={students}

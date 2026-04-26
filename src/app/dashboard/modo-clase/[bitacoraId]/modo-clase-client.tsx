@@ -8,6 +8,7 @@ import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
+import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 
 type Student = { id: string; nombre: string; email: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -19,6 +20,7 @@ type Props = {
   cursoCodigo: string
   fecha: string
   tema: string
+  estadoClase: string
   horaInicioReal: string | null
   actividadesIniciales: ActividadPlanificada[]
   students: Student[]
@@ -122,45 +124,11 @@ function ActividadForm({ initial, onSave, onCancel }: ActividadFormProps) {
   )
 }
 
-// ─── Helpers Moodle CSV ───────────────────────────────────────────────────────
-
-function buildMoodleCSV(
-  students: Student[],
-  attendance: Record<string, EstadoA>,
-  hourIndex: number
-): string {
-  const lines = ['username,status']
-  for (const s of students) {
-    const estado = attendance[s.id]
-    let status: string
-    if (estado === 'Presente') {
-      status = 'P'
-    } else if (estado === 'Atraso') {
-      // Atraso: ausente en la primera hora, presente en las siguientes
-      status = hourIndex === 0 ? 'A' : 'P'
-    } else {
-      status = 'A'
-    }
-    lines.push(`${s.email},${status}`)
-  }
-  return lines.join('\n')
-}
-
-function downloadCSV(content: string, filename: string) {
-  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ModoClaseClient({
   bitacoraId, cursoId, cursoNombre, cursoCodigo,
-  fecha, tema, horaInicioReal: horaInicialProp,
+  fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
 }: Props) {
   const router = useRouter()
@@ -721,6 +689,44 @@ export function ModoClaseClient({
             <span className="text-amber-600">A = Atraso</span>
             <span className="text-red-600">F = Falta</span>
           </div>
+
+          {/* Export Moodle — visible cuando la clase ya está cumplida (Ver resumen) */}
+          {estadoClase === 'cumplido' && (
+            <div className="flex-shrink-0 border-t border-gray-800 px-4 py-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                Exportar asistencia
+              </p>
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-600 bg-brand-600/10 text-brand-400 text-xs font-medium">
+                  Moodle <span className="text-brand-500">CSV</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {Array.from({ length: horasClase }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      const attendanceMap: Record<string, string> = {}
+                      for (const s of students) {
+                        attendanceMap[s.id] = asistencia[s.id] ?? 'Ausente'
+                      }
+                      const csv = buildMoodleCSV(students, attendanceMap, i)
+                      downloadCSV(csv, `asistencia_${cursoCodigo}_${fecha}_hora${i + 1}.csv`)
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors text-left"
+                  >
+                    <span>⬇</span>
+                    <span className="flex-1">Hora {i + 1}</span>
+                    {horasClase > 1 && (
+                      <span className="text-gray-600 text-[10px]">
+                        {i === 0 ? 'atrasos=A' : 'atrasos=P'}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
