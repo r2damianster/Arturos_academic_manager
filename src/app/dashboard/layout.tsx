@@ -27,13 +27,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const nombre = profesor.nombre ?? user.email ?? 'Profesor'
   const email  = profesor.email  ?? user.email ?? ''
-  const esAdmin: boolean = profesor.rol === 'admin'
 
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Sidebar — desktop only (the Sidebar component uses fixed positioning) */}
       <div className="hidden md:block" aria-hidden="false">
-        <Sidebar nombreProfesor={nombre} esAdmin={esAdmin} />
+        <Sidebar nombreProfesor={nombre} />
       </div>
 
       <div className="md:ml-16 flex flex-col min-h-screen">
@@ -41,7 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="h-14 bg-gray-900/80 backdrop-blur border-b border-gray-800 flex items-center sticky top-0 z-30">
           {/* Mobile hamburger */}
           <div className="md:hidden">
-            <MobileNav nombreProfesor={nombre} esAdmin={esAdmin} />
+            <MobileNav nombreProfesor={nombre} />
           </div>
           {/* Desktop spacer + Header (user info + signout) */}
           <div className="flex-1">

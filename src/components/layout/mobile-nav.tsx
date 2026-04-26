@@ -7,7 +7,6 @@ import { clsx } from 'clsx'
 
 interface MobileNavProps {
   nombreProfesor: string
-  esAdmin?: boolean
 }
 
 const navItems: { href: string; label: string; match?: string; matchAlso?: string; icon: React.ReactNode }[] = [
@@ -35,12 +34,12 @@ const navItems: { href: string; label: string; match?: string; matchAlso?: strin
   },
   {
     href: '/dashboard/config',
-    label: 'Perfil',
+    label: 'Administración',
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
   },
 ]
 
-export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
+export function MobileNav({ nombreProfesor }: MobileNavProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -124,40 +123,6 @@ export function MobileNav({ nombreProfesor, esAdmin = false }: MobileNavProps) {
               {item.label}
             </Link>
           ))}
-
-          <Link
-            href="/dashboard/cursos/nuevo"
-            onClick={() => setOpen(false)}
-            className={clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-              pathname === '/dashboard/cursos/nuevo'
-                ? 'bg-brand-600/20 text-brand-400 border border-brand-600/30'
-                : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
-            )}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Curso
-          </Link>
-
-          {esAdmin && (
-            <Link
-              href="/dashboard/admin"
-              onClick={() => setOpen(false)}
-              className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                pathname === '/dashboard/admin'
-                  ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                  : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
-              )}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Administración
-            </Link>
-          )}
         </nav>
       </div>
     </>
