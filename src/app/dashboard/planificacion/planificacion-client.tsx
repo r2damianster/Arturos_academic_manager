@@ -233,68 +233,59 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       )
     }
 
+    const dragHandlers = {
+      draggable: true as const,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.effectAllowed = 'move'
+        const e2 = bitacoraMap.get(`${cursoId}|${fecha}`)
+        if (!e2) return
+        setDragSource({ id: e2.id, cursoId, fecha, tema: e2.tema, actividades_json: e2.actividades_json, observaciones: e2.observaciones, asignatura: clase.cursos?.asignatura ?? '' })
+      },
+      onDragEnd: () => setDragSource(null),
+    }
+
     if (entry.estado === 'cumplido') {
       return (
-        <button
-          draggable
-          onDragStart={e => {
-            e.dataTransfer.effectAllowed = 'move'
-            const sourceKey = `${cursoId}|${fecha}`
-            const entry = bitacoraMap.get(sourceKey)
-            if (!entry) return
-            setDragSource({
-              id: entry.id,
-              cursoId,
-              fecha,
-              tema: entry.tema,
-              actividades_json: entry.actividades_json,
-              observaciones: entry.observaciones,
-              asignatura: clase.cursos?.asignatura ?? '',
-            })
-          }}
-          onDragEnd={() => setDragSource(null)}
-          onClick={() => setPlanificarModal({ clase, fecha })}
-          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30 hover:bg-emerald-900/30 transition-colors"
+        <div
+          {...dragHandlers}
+          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30 flex flex-col gap-1"
         >
-          <div className="text-emerald-400 text-xs font-medium">✓ Cumplido</div>
-          {renderBadges()}
-          <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
-          {entry.tema && (
-            <div className="text-gray-300 text-[10px] mt-0.5 leading-tight">{truncarTema(entry.tema)}</div>
-          )}
-        </button>
+          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
+            <div className="text-emerald-400 text-xs font-medium">✓ Cumplido</div>
+            {renderBadges()}
+            <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+            {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
+          </button>
+          <Link
+            href={`/dashboard/modo-clase/${entry.id}`}
+            onClick={e => e.stopPropagation()}
+            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded text-center hover:bg-gray-800 transition-colors"
+          >
+            Ver resumen
+          </Link>
+        </div>
       )
     }
 
     return (
-      <button
-        draggable
-        onDragStart={e => {
-          e.dataTransfer.effectAllowed = 'move'
-          const sourceKey = `${cursoId}|${fecha}`
-          const entry = bitacoraMap.get(sourceKey)
-          if (!entry) return
-          setDragSource({
-            id: entry.id,
-            cursoId,
-            fecha,
-            tema: entry.tema,
-            actividades_json: entry.actividades_json,
-            observaciones: entry.observaciones,
-            asignatura: clase.cursos?.asignatura ?? '',
-          })
-        }}
-        onDragEnd={() => setDragSource(null)}
-        onClick={() => setPlanificarModal({ clase, fecha })}
-        className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-sky-900/20 border border-sky-500/30 hover:bg-sky-900/30 transition-colors"
+      <div
+        {...dragHandlers}
+        className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-sky-900/20 border border-sky-500/30 flex flex-col gap-1"
       >
-        <div className="text-sky-400 text-xs font-medium">Planificado</div>
-        {renderBadges()}
-        <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
-        {entry.tema && (
-          <div className="text-gray-300 text-[10px] mt-0.5 leading-tight">{truncarTema(entry.tema)}</div>
-        )}
-      </button>
+        <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
+          <div className="text-sky-400 text-xs font-medium">Planificado</div>
+          {renderBadges()}
+          <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+          {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
+        </button>
+        <Link
+          href={`/dashboard/modo-clase/${entry.id}`}
+          onClick={e => e.stopPropagation()}
+          className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+        >
+          ▶ Iniciar clase
+        </Link>
+      </div>
     )
   }
 
