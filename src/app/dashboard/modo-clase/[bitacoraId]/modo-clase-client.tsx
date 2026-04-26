@@ -134,17 +134,31 @@ export function ModoClaseClient({
   // ── Timer ──────────────────────────────────────────────────────────────────
   const [horaInicio, setHoraInicio] = useState(horaInicialProp)
   const [elapsed, setElapsed] = useState(0)
+  const [pausado, setPausado] = useState(false)
+  const [elapsedAlPausar, setElapsedAlPausar] = useState(0)
   const [iniciando, setIniciando] = useState(false)
 
   useEffect(() => {
-    if (!horaInicio) return
+    if (!horaInicio || pausado) return
     const start = new Date(horaInicio).getTime()
     setElapsed(Math.floor((Date.now() - start) / 1000))
     const id = setInterval(() => {
       setElapsed(Math.floor((Date.now() - start) / 1000))
     }, 1000)
     return () => clearInterval(id)
-  }, [horaInicio])
+  }, [horaInicio, pausado])
+
+  function handlePausar() {
+    setElapsedAlPausar(elapsed)
+    setPausado(true)
+  }
+
+  function handleReanudar() {
+    // Ajustar hora de inicio para que el contador continúe desde donde pausó
+    const nuevaHora = new Date(Date.now() - elapsedAlPausar * 1000).toISOString()
+    setHoraInicio(nuevaHora)
+    setPausado(false)
+  }
 
   async function handleIniciar() {
     setIniciando(true)
@@ -257,9 +271,29 @@ export function ModoClaseClient({
 
         <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
           {horaInicio ? (
-            <div className="text-center">
-              <p className="text-xs text-gray-500 leading-none mb-0.5 hidden md:block">Tiempo</p>
-              <p className="font-mono text-base md:text-lg font-bold text-white">{formatElapsed(elapsed)}</p>
+            <div className="flex items-center gap-2">
+              <div className="text-center">
+                <p className="text-xs text-gray-500 leading-none mb-0.5 hidden md:block">Tiempo</p>
+                <p className={`font-mono text-base md:text-lg font-bold ${pausado ? 'text-amber-400' : 'text-white'}`}>
+                  {formatElapsed(pausado ? elapsedAlPausar : elapsed)}
+                  {pausado && <span className="text-xs ml-1 text-amber-500">⏸</span>}
+                </p>
+              </div>
+              {pausado ? (
+                <button
+                  onClick={handleReanudar}
+                  className="flex items-center gap-1 text-xs text-emerald-400 border border-emerald-700 hover:bg-emerald-900/30 px-2 py-1.5 rounded-lg transition-colors"
+                >
+                  ▶ Reanudar
+                </button>
+              ) : (
+                <button
+                  onClick={handlePausar}
+                  className="flex items-center gap-1 text-xs text-amber-400 border border-amber-700 hover:bg-amber-900/30 px-2 py-1.5 rounded-lg transition-colors"
+                >
+                  ⏸ Pausar
+                </button>
+              )}
             </div>
           ) : (
             <button
