@@ -195,17 +195,29 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {cursosFiltrados.map(curso => (
-              <div key={curso.id} className="card relative group/card hover:border-gray-700 transition-colors">
+              <div key={curso.id} className="card hover:border-gray-700 transition-colors">
+                {/* Fila superior: código · periodo · lápiz */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">
+                    {curso.codigo}
+                  </span>
+                  <span className="text-xs text-gray-500">{curso.periodo}</span>
+                  <button
+                    onClick={() => setCursoEditando(curso)}
+                    className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-all"
+                    title="Editar curso"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
+                    </svg>
+                  </button>
+                </div>
+
                 {/* Área clicable principal */}
                 <Link href={`/dashboard/cursos/${curso.id}`} className="block group">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0 pr-8">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">
-                          {curso.codigo}
-                        </span>
-                        <span className="text-xs text-gray-500">{curso.periodo}</span>
-                      </div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-200 group-hover:text-white transition-colors truncate">
                         {curso.asignatura}
                       </h3>
@@ -235,17 +247,6 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
                   </div>
                 </Link>
 
-                {/* Botón editar — siempre visible (funciona en móvil y desktop) */}
-                <button
-                  onClick={() => setCursoEditando(curso)}
-                  className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-all"
-                  title="Editar curso"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
-                  </svg>
-                </button>
               </div>
             ))}
           </div>
