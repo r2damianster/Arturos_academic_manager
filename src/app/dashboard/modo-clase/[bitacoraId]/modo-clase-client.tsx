@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
-import { guardarParticipacion } from '@/lib/actions/grupos'
+import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
@@ -446,7 +446,12 @@ export function ModoClaseClient({
   const marcados = Object.values(asistencia).filter(Boolean).length
 
   // ── Grupos ─────────────────────────────────────────────────────────────────
-  const [grupos] = useState<GrupoItem[]>(gruposIniciales)
+  const [grupos, setGrupos] = useState<GrupoItem[]>(gruposIniciales)
+
+  async function refreshGrupos() {
+    const data = await getGruposDeSesion(bitacoraId)
+    setGrupos(data.grupos as GrupoItem[])
+  }
   const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos'>('asistencia')
   const [grupoActivoId, setGrupoActivoId] = useState<string | null>(null)
   const [participacion, setParticipacion] = useState<Record<string, number | null>>({})
@@ -475,7 +480,16 @@ export function ModoClaseClient({
 
   function setMobileAndDerecha(tab: 'actividades' | 'asistencia' | 'grupos') {
     setMobileTab(tab)
-    if (tab === 'asistencia' || tab === 'grupos') setTabDerecha(tab)
+    if (tab === 'asistencia' || tab === 'grupos') {
+      setTabDerecha(tab)
+      if (tab === 'grupos') refreshGrupos()
+    }
+  }
+
+  function switchToGrupos() {
+    setTabDerecha('grupos')
+    setMobileTab('grupos')
+    refreshGrupos()
   }
 
   // ── Finalizar / Detener ────────────────────────────────────────────────────
@@ -795,12 +809,18 @@ export function ModoClaseClient({
                       🎡 {toolOpen === 'ruleta' ? 'Cerrar ruleta' : 'Abrir ruleta'}
                     </button>
                   )}
-                  <button
-                    onClick={() => { setTabDerecha('grupos'); setMobileAndDerecha('grupos') }}
-                    className="text-sm px-3 py-1.5 rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-emerald-400 hover:border-emerald-700 transition-colors"
-                  >
-                    👥 Ver grupos →
-                  </button>
+                  {(slide.tipo === 'agrupacion' || !slide.tipo) && (
+                    <button
+                      onClick={() => setToolOpen(toolOpen === 'agrupacion' ? null : 'agrupacion')}
+                      className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                        toolOpen === 'agrupacion'
+                          ? 'bg-emerald-900/50 border-emerald-600 text-emerald-300'
+                          : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      👥 {toolOpen === 'agrupacion' ? 'Cerrar grupos' : 'Crear grupos'}
+                    </button>
+                  )}
                   <button
                     onClick={() => setEditando(slideIdx)}
                     className="text-sm px-3 py-1.5 rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-white transition-colors"
@@ -813,6 +833,17 @@ export function ModoClaseClient({
                 {toolOpen === 'ruleta' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <Ruleta students={students} />
+                  </div>
+                )}
+                {toolOpen === 'agrupacion' && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                    <Agrupacion students={students} cursoId={cursoId} bitacoraId={bitacoraId} categorias={categorias} />
+                    <button
+                      onClick={() => { setToolOpen(null); switchToGrupos() }}
+                      className="mt-3 w-full text-sm text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded-lg py-1.5 transition-colors"
+                    >
+                      ✓ Listo — ir a tomar asistencia por grupos →
+                    </button>
                   </div>
                 )}
               </div>
@@ -985,17 +1016,21 @@ export function ModoClaseClient({
           {tabDerecha === 'grupos' && (
             <div className="flex-1 flex flex-col overflow-hidden p-3 gap-4">
               {grupos.length === 0 ? (
-                <div className="space-y-4">
-                  <p className="text-xs text-gray-500 text-center py-4">
-                    No hay grupos para esta sesión.
-                    Créalos en la pestaña Agrupación de la actividad, o ve a Herramientas antes de la clase.
+                <div className="flex flex-col items-center justify-center h-full gap-4 py-8 text-center">
+                  <p className="text-3xl">👥</p>
+                  <p className="text-sm text-gray-300 font-medium">No hay grupos creados</p>
+                  <p className="text-xs text-gray-500 max-w-[200px]">
+                    Usa el botón <span className="text-white font-medium">Crear grupos</span> en la actividad de la columna izquierda.
                   </p>
-                  <Agrupacion
-                    students={students}
-                    cursoId={cursoId}
-                    bitacoraId={bitacoraId}
-                    categorias={categorias}
-                  />
+                  <button
+                    onClick={() => { setMobileTab('actividades'); setToolOpen('agrupacion') }}
+                    className="text-sm px-4 py-2 rounded-lg border border-emerald-700 text-emerald-400 hover:bg-emerald-900/30 transition-colors"
+                  >
+                    ← Crear grupos ahora
+                  </button>
+                  <button onClick={refreshGrupos} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                    ↻ Recargar
+                  </button>
                 </div>
               ) : grupoActivoId !== null ? (
                 <VistGrupo
