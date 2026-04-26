@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { iniciarClase, actualizarActividadesEnVivo, finalizarClase } from '@/lib/actions/bitacora'
+import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
@@ -231,9 +231,11 @@ export function ModoClaseClient({
   // ── Tab móvil ─────────────────────────────────────────────────────────────
   const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia'>('actividades')
 
-  // ── Finalizar ──────────────────────────────────────────────────────────────
+  // ── Finalizar / Detener ────────────────────────────────────────────────────
   const [confirmando, setConfirmando] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
+  const [confirmandoDetener, setConfirmandoDetener] = useState(false)
+  const [deteniendo, setDeteniendo] = useState(false)
 
   async function handleFinalizar() {
     setFinalizando(true)
@@ -243,6 +245,12 @@ export function ModoClaseClient({
     }
     await finalizarClase(bitacoraId)
     router.push('/dashboard/agenda')
+  }
+
+  async function handleDetener() {
+    setDeteniendo(true)
+    await detenerClase(bitacoraId)
+    router.push('/dashboard/planificacion')
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -305,9 +313,23 @@ export function ModoClaseClient({
             </button>
           )}
 
-          {confirmando ? (
+          {confirmandoDetener ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400 hidden md:inline">¿Detener sin guardar?</span>
+              <button
+                onClick={handleDetener}
+                disabled={deteniendo}
+                className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                {deteniendo ? 'Deteniendo…' : 'Sí, detener'}
+              </button>
+              <button onClick={() => setConfirmandoDetener(false)} className="btn-ghost text-xs px-2 py-1.5">
+                No
+              </button>
+            </div>
+          ) : confirmando ? (
             <div className="flex items-center gap-1.5 md:gap-2">
-              <span className="text-xs md:text-sm text-gray-400 hidden md:inline">¿Finalizar?</span>
+              <span className="text-xs md:text-sm text-gray-400 hidden md:inline">¿Finalizar y guardar?</span>
               <button
                 onClick={handleFinalizar}
                 disabled={finalizando}
@@ -320,12 +342,20 @@ export function ModoClaseClient({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirmando(true)}
-              className="bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800 text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors"
-            >
-              Finalizar
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setConfirmandoDetener(true)}
+                className="bg-orange-900/40 hover:bg-orange-800/60 text-orange-400 border border-orange-800 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                Detener
+              </button>
+              <button
+                onClick={() => setConfirmando(true)}
+                className="bg-red-900/40 hover:bg-red-800/60 text-red-400 border border-red-800 text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors"
+              >
+                Finalizar
+              </button>
+            </div>
           )}
         </div>
       </header>

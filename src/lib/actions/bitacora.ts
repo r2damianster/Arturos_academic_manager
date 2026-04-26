@@ -722,6 +722,22 @@ export async function iniciarClase(bitacoraId: string): Promise<{ error?: string
   return {}
 }
 
+export async function detenerClase(bitacoraId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ hora_inicio_real: null })
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/planificacion')
+  return {}
+}
+
 export async function actualizarActividadesEnVivo(
   bitacoraId: string,
   actividades_json: ActividadPlanificada[]
