@@ -172,24 +172,62 @@ function RuletaGrupos({
 
 // ─── Vista de foco de un grupo ────────────────────────────────────────────────
 
+const NIVEL_LABELS = ['', 'Baja', 'Media', 'Alta']
+
 function VistGrupo({
-  grupo, students, asistencia, onAsistencia,
-  participacion, onParticipacion, onGuardar, onVolver, isSaved, isPending,
+  grupo, students, asistencia, onAsistencia, cursoId, fecha, onVolver, isSaved, onSaved,
 }: {
   grupo: GrupoItem
   students: Student[]
   asistencia: Record<string, EstadoA>
   onAsistencia: (id: string, estado: 'Presente' | 'Ausente' | 'Atraso') => void
-  participacion: Record<string, number | null>
-  onParticipacion: (id: string, nota: number | null) => void
-  onGuardar: () => void
+  cursoId: string
+  fecha: string
   onVolver: () => void
   isSaved: boolean
-  isPending: boolean
+  onSaved: () => void
 }) {
+  const [partActivo, setPartActivo] = useState<Set<string>>(new Set())
+  const [partMap, setPartMap] = useState<Record<string, { nivel: number | null; obs: string }>>({})
+  const [isPending, startTransition] = useTransition()
+
   const miembros = grupo.grupo_integrantes
     .map(gi => students.find(s => s.id === gi.estudiante_id))
     .filter(Boolean) as Student[]
+
+  function togglePart(id: string) {
+    setPartActivo(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function setNivel(id: string, nivel: number) {
+    setPartMap(prev => ({ ...prev, [id]: { ...prev[id], nivel, obs: prev[id]?.obs ?? '' } }))
+  }
+
+  function setObs(id: string, obs: string) {
+    setPartMap(prev => ({ ...prev, [id]: { nivel: prev[id]?.nivel ?? null, obs } }))
+  }
+
+  function guardar() {
+    startTransition(async () => {
+      const datos = miembros
+        .filter(s => partActivo.has(s.id))
+        .map(s => ({
+          estudianteId: s.id,
+          nivel: partMap[s.id]?.nivel ?? null,
+          observacion: partMap[s.id]?.obs || null,
+        }))
+      if (datos.length > 0) {
+        const { registrarParticipacion } = await import('@/lib/actions/asistencia')
+        await registrarParticipacion(cursoId, fecha, datos)
+      }
+      onSaved()
+    })
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -215,53 +253,68 @@ function VistGrupo({
         ) : (
           miembros.map(s => {
             const estado = asistencia[s.id]
+            const conPart = partActivo.has(s.id)
             return (
               <div key={s.id} className="p-2.5 rounded-lg bg-gray-800/60 border border-gray-700/50 space-y-2">
-                <p className="text-sm text-gray-200 font-medium">{s.nombre}</p>
                 <div className="flex items-center gap-2">
+                  <p className="text-sm text-gray-200 font-medium flex-1 truncate">{s.nombre}</p>
                   {/* P/A/F */}
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     {(['Presente', 'Atraso', 'Ausente'] as const).map(e => (
-                      <button
-                        key={e}
-                        onClick={() => onAsistencia(s.id, e)}
+                      <button key={e} onClick={() => onAsistencia(s.id, e)}
                         className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
                           estado === e
                             ? e === 'Presente' ? 'bg-emerald-600 text-white'
                               : e === 'Atraso' ? 'bg-amber-600 text-white'
                               : 'bg-red-600 text-white'
                             : 'bg-gray-700 text-gray-500 hover:bg-gray-600'
-                        }`}
-                      >
+                        }`}>
                         {e === 'Presente' ? 'P' : e === 'Atraso' ? 'A' : 'F'}
                       </button>
                     ))}
                   </div>
-                  {/* Nota participación */}
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={0.5}
-                    value={participacion[s.id] ?? ''}
-                    onChange={e => onParticipacion(s.id, e.target.value ? Number(e.target.value) : null)}
-                    placeholder="/10"
-                    className="input w-16 text-xs text-center"
-                  />
                 </div>
+                {/* Checkbox participación */}
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                  <input type="checkbox" checked={conPart} onChange={() => togglePart(s.id)} className="accent-indigo-500" />
+                  Calificar participación
+                </label>
+                {conPart && (
+                  <div className="pl-4 space-y-1.5">
+                    <div className="flex gap-1">
+                      {[1, 2, 3].map(n => (
+                        <button key={n} onClick={() => setNivel(s.id, n)}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                            partMap[s.id]?.nivel === n
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                          }`}>
+                          {NIVEL_LABELS[n]}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={partMap[s.id]?.obs ?? ''}
+                      onChange={e => setObs(s.id, e.target.value)}
+                      placeholder="Observación (opcional)"
+                      className="input text-xs w-full"
+                    />
+                  </div>
+                )}
               </div>
             )
           })
         )}
       </div>
 
-      {/* Guardar */}
+      {/* Guardar participación */}
       <button
-        onClick={onGuardar}
-        disabled={isPending || isSaved}
+        onClick={guardar}
+        disabled={isPending || isSaved || partActivo.size === 0}
         className="w-full btn-primary py-2.5 text-sm disabled:opacity-40"
       >
-        {isPending ? 'Guardando…' : isSaved ? '✓ Guardado' : `Guardar ${grupo.nombre}`}
+        {isPending ? 'Guardando…' : isSaved ? '✓ Participación guardada' : `Guardar participación (${partActivo.size})`}
       </button>
     </div>
   )
@@ -447,33 +500,16 @@ export function ModoClaseClient({
 
   // ── Grupos ─────────────────────────────────────────────────────────────────
   const [grupos, setGrupos] = useState<GrupoItem[]>(gruposIniciales)
+  const [grupoActivoId, setGrupoActivoId] = useState<string | null>(null)
+  const [gruposExcluidos, setGruposExcluidos] = useState<Set<string>>(new Set())
+  const [autoExcluirGrupo, setAutoExcluirGrupo] = useState(true)
+  const [savedGrupos, setSavedGrupos] = useState<Set<string>>(new Set())
 
   async function refreshGrupos() {
     const data = await getGruposDeSesion(bitacoraId)
     setGrupos(data.grupos as GrupoItem[])
   }
   const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos'>('asistencia')
-  const [grupoActivoId, setGrupoActivoId] = useState<string | null>(null)
-  const [participacion, setParticipacion] = useState<Record<string, number | null>>({})
-  const [gruposExcluidos, setGruposExcluidos] = useState<Set<string>>(new Set())
-  const [autoExcluirGrupo, setAutoExcluirGrupo] = useState(true)
-  const [savedGrupos, setSavedGrupos] = useState<Set<string>>(new Set())
-  const [savingGrupo, startSavingGrupo] = useTransition()
-
-  async function guardarGrupo() {
-    if (!grupoActivoId) return
-    const grupo = grupos.find(g => g.id === grupoActivoId)
-    if (!grupo) return
-    const notas = grupo.grupo_integrantes.map(gi => ({
-      estudianteId: gi.estudiante_id,
-      grupoId: grupoActivoId,
-      nota: participacion[gi.estudiante_id] ?? null,
-    }))
-    startSavingGrupo(async () => {
-      const result = await guardarParticipacion(bitacoraId, notas)
-      if (!result.error) setSavedGrupos(prev => new Set([...prev, grupoActivoId]))
-    })
-  }
 
   // ── Tab móvil ─────────────────────────────────────────────────────────────
   const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia' | 'grupos'>('actividades')
@@ -1038,12 +1074,11 @@ export function ModoClaseClient({
                   students={students}
                   asistencia={asistencia}
                   onAsistencia={marcarAsistencia}
-                  participacion={participacion}
-                  onParticipacion={(id, nota) => setParticipacion(prev => ({ ...prev, [id]: nota }))}
-                  onGuardar={guardarGrupo}
+                  cursoId={cursoId}
+                  fecha={fecha}
                   onVolver={() => setGrupoActivoId(null)}
                   isSaved={savedGrupos.has(grupoActivoId)}
-                  isPending={savingGrupo}
+                  onSaved={() => setSavedGrupos(prev => new Set([...prev, grupoActivoId]))}
                 />
               ) : (
                 <div className="space-y-4 overflow-y-auto flex-1">

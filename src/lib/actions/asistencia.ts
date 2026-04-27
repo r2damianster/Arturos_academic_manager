@@ -8,8 +8,9 @@ export type RegistroAsistenciaInput = {
   estado: 'Presente' | 'Ausente' | 'Atraso'
   atraso: boolean
   horas: number
-  participacion?: number | null
-  observacion_part?: string | null
+  participacion?: number | null       // nivel 1-3 para tabla participacion
+  observacion_participacion?: string | null
+  observacion_part?: string | null    // observacion en tabla asistencia
   obs_trabajo?: string | null
   trabajo_id?: string | null
 }
@@ -47,14 +48,15 @@ export async function registrarAsistenciaMasiva(
   if (errAsis) return { error: errAsis.message }
 
   const partRows = registros
-    .filter(r => r.participacion != null)
+    .filter(r => r.participacion != null || r.observacion_participacion)
     .map(r => ({
       profesor_id: user.id,
       curso_id: cursoId,
       estudiante_id: r.estudiante_id,
       fecha,
       semana,
-      nivel: r.participacion,
+      nivel: r.participacion ?? null,
+      observacion: r.observacion_participacion ?? null,
     }))
 
   if (partRows.length > 0) {
@@ -78,4 +80,35 @@ export async function registrarAsistenciaMasiva(
   revalidatePath(`/dashboard/cursos/${cursoId}/asistencia`)
   revalidatePath('/dashboard/agenda')
   return {}
+}
+
+export async function registrarParticipacion(
+  cursoId: string,
+  fecha: string,
+  datos: { estudianteId: string; nivel: number | null; observacion: string | null }[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
+  const semana = semanaData ?? null
+
+  const rows = datos
+    .filter(d => d.nivel != null || d.observacion)
+    .map(d => ({
+      profesor_id: user.id,
+      curso_id: cursoId,
+      estudiante_id: d.estudianteId,
+      fecha,
+      semana,
+      nivel: d.nivel,
+      observacion: d.observacion,
+    }))
+
+  if (rows.length === 0) return {}
+  const { error } = await supabase
+    .from('participacion')
+    .upsert(rows, { onConflict: 'curso_id,estudiante_id,fecha' })
+  return error ? { error: error.message } : {}
 }
