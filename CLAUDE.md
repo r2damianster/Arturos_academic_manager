@@ -39,7 +39,7 @@ git push origin main
 ## Proyecto
 App Next.js 15 para gestión docente universitaria — cursos, asistencia, calificaciones, tutorías, agenda y portal del estudiante.
 
-- **Stack**: Next.js 15 App Router · Supabase (PostgreSQL + RLS + Auth) · TypeScript · Tailwind CSS · shadcn/ui · Zod
+- **Stack**: Next.js 15 App Router · Supabase (PostgreSQL + RLS + Auth) · TypeScript · Tailwind CSS · shadcn/ui · Zod · @dnd-kit/core
 - **Deploy**: Vercel + Supabase Cloud
 - **Tipos DB**: `src/types/database.types.ts` (mantenido manualmente) → aliases en `src/types/domain.ts`
 - **Server Actions**: `src/lib/actions/*.ts` — patrón `'use server'` + Zod + `revalidatePath`
@@ -125,6 +125,8 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260417_add_estado_estudiantes      → Estado activo/retirado en estudiantes
 20260422_add_hora_inicio_real_bitacora → Hora real de inicio de clase en bitácora
 20260425_encuesta_rls_profesor       → RLS para encuesta_estudiante (aplicada via SQL Editor)
+20260426_grupos_clase                → Tablas grupo_categorias, grupos_clase, grupo_integrantes, grupo_participacion + RLS completo
+20260426_grupos_student_rls         → Política adicional para que estudiantes vean conteos de grupos abiertos
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
@@ -132,6 +134,46 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 - **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
+
+## Features recientes (2026-04-26 — sesión 10)
+
+### Sistema de Grupos en Clases
+
+#### DB — supabase/migrations/
+- **FEAT** `20260426_grupos_clase.sql`: tablas `grupo_categorias` (presets: Países, Colores, Planetas, Animales, Personalizado), `grupos_clase`, `grupo_integrantes` (trigger unicidad por sesión), `grupo_participacion` (auxiliar, sin uso activo desde frontend). RLS completo para profesor y estudiante.
+- **FEAT** `20260426_grupos_student_rls.sql`: política `todos_ven_integrantes_grupos_abiertos` — estudiantes ven conteos de grupos abiertos de tipo afinidad.
+
+#### Server Actions — src/lib/actions/
+- **FEAT** `grupos.ts` (nuevo): `crearGrupos`, `crearGruposConIntegrantes` (crea grupos + asigna integrantes en un paso), `asignarEstudianteAGrupo`, `moverEstudiante`, `publicarAfinidad`, `cerrarAfinidad`, `unirseAGrupo`, `salirDeGrupo`, `getGruposAbiertosParaEstudiante`, `getGruposDeSesion`, `getCategorias`.
+- **FEAT** `asistencia.ts`: campo `observacion_participacion` añadido a `RegistroAsistenciaInput`; nueva action `registrarParticipacion(cursoId, fecha, datos[])` — upsert en tabla `participacion` con `nivel` (1-5) y `observacion`.
+
+#### UI — Herramientas
+- **FEAT** `src/components/herramientas/ExclusionPanel.tsx` (nuevo): panel de exclusión reutilizable (checkboxes, "Incluir todos"/"Excluir todos"). Retirados auto-excluidos por defecto.
+- **REWRITE** `src/components/herramientas/Agrupacion.tsx`: 3 tabs [Aleatoria | Manual | Por afinidad]. Selector enlazado N grupos <-> Max/grupo recalculados mutuamente. Categorías cargadas desde `grupo_categorias` en BD. DnD con `@dnd-kit/core`. Tab Aleatoria: "Generar" + "Guardar grupos" via `crearGruposConIntegrantes`. Tab Manual: DnD drag-to-assign + guardar con integrantes. Tab Por afinidad: crea grupos vacíos en BD + polling 10s.
+- **MOD** `src/app/dashboard/herramientas/page.tsx`: carga `grupo_categorias` y `estado` de estudiantes como RSC.
+- **MOD** `src/app/dashboard/herramientas/herramientas-client.tsx`: pasa `cursoId` y `categorias` a `Agrupacion`.
+
+#### UI — Portal Estudiante
+- **FEAT** `src/components/student/MisGrupos.tsx` (nuevo): sección "Grupos de clase". Muestra grupos abiertos de tipo afinidad, conteo de miembros, botones "Unirme"/"Salir". Polling 15s para actualizar cupos.
+- **MOD** `src/app/student/page.tsx`: integra `MisGrupos` cuando hay grupos abiertos del curso del estudiante.
+
+#### UI — Modo Clase
+- **MOD** `src/app/dashboard/modo-clase/[bitacoraId]/page.tsx`: carga `getGruposDeSesion` y `getCategorias`; pasa `grupos` y `categorias` al cliente.
+- **MOD** `src/app/dashboard/modo-clase/[bitacoraId]/modo-clase-client.tsx`:
+  - Tab "Grupos" en columna derecha (desktop) y como 3er tab en barra móvil.
+  - `RuletaGrupos`: slot-machine que sortea entre grupos. Auto-excluir ganador marcado por defecto (desmarcable). Chips clickables para excluir/incluir grupos.
+  - `VistaGrupo`: vista de foco por grupo. P/A/F por estudiante + nivel de participacion 1-5 + observación libre. Guarda en tabla `participacion` via `registrarParticipacion`. Botón activo solo si hay estudiantes marcados.
+  - Botón "Crear grupos" en columna de actividades abre `Agrupacion` inline. Tras guardar llama `refreshGrupos()` al cambiar al tab Grupos.
+
+#### Dependencias añadidas
+- `@dnd-kit/core` ^6.3.1 y `@dnd-kit/utilities` ^3.2.2 en `package.json`.
+
+### Convenciones clave (sesión 10)
+- **`crearGruposConIntegrantes`** es la action principal para modos Aleatoria y Manual. `crearGrupos` solo para Por afinidad.
+- **Participación de grupos** va a tabla `participacion` existente (nivel 1-5, observacion), **NO** a `grupo_participacion`. La tabla `grupo_participacion` existe en BD pero no tiene uso desde el frontend.
+- **Migraciones pendientes de aplicar manualmente en Supabase**: `20260426_grupos_clase.sql` y `20260426_grupos_student_rls.sql`.
+
+---
 
 ## Features recientes (2026-04-26 — sesión 9)
 
