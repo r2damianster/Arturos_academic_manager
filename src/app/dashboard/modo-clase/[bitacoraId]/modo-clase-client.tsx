@@ -172,7 +172,7 @@ function RuletaGrupos({
 
 // ─── Vista de foco de un grupo ────────────────────────────────────────────────
 
-const NIVEL_LABELS = ['', 'Baja', 'Media', 'Alta']
+const NIVEL_LABELS = ['', '1', '2', '3', '4', '5']
 
 function VistGrupo({
   grupo, students, asistencia, onAsistencia, cursoId, fecha, onVolver, isSaved, onSaved,
@@ -282,7 +282,7 @@ function VistGrupo({
                 {conPart && (
                   <div className="pl-4 space-y-1.5">
                     <div className="flex gap-1">
-                      {[1, 2, 3].map(n => (
+                      {[1, 2, 3, 4, 5].map(n => (
                         <button key={n} onClick={() => setNivel(s.id, n)}
                           className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                             partMap[s.id]?.nivel === n
