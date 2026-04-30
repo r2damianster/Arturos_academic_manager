@@ -22,7 +22,21 @@
       "Bash(node -e ' *)",
       "Bash(npx vercel *)",
       "Bash(git commit *)",
-      "Bash(git -C \"c:/Users/User/Documents/Desarrollo Web/gestor-universitario-next\" log --oneline -8)"
+      "Bash(git -C \"c:/Users/User/Documents/Desarrollo Web/gestor-universitario-next\" log --oneline -8)",
+      "Bash(git diff *)",
+      "Bash(cat)",
+      "Bash(python /tmp/update_claude_md.py)",
+      "Bash(python /tmp/update_frontend_agent.py)",
+      "Skill(schedule)",
+      "Skill(schedule:*)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__get_deployment_build_logs",
+      "Bash(python -c ' *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory"
     ]
   }
 }

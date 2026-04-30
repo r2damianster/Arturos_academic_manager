@@ -336,10 +336,26 @@ END; $$;
 ### Portal del estudiante
 - `ChatBot` flotante (`src/components/student/ChatBot.tsx`) — ayuda contextual, FAQ, chips de sugerencias. Estructura lista para conectar Claude API.
 
+## Features próximas sesiones
+
+### Modo planificación extensivo (`/dashboard/planificacion`)
+Vista de largo plazo por curso: todos los planes de 1-2 meses en scroll vertical con las mismas acciones (copiar, mover, editar). Modo comparación: activar un segundo curso para ver dos columnas en paralelo y copiar clases entre ellos. Con dos cursos activos → reducir ventana a 1 mes. Implementar como nuevo tab/toggle en la página existente, no como ruta separada.
+
+### Citar a tutoría desde la lista de estudiantes del curso
+Botón "Citar" junto a "Retirar" en la tabla de estudiantes del curso. Requiere columna `citado_tutoria BOOLEAN DEFAULT false` en tabla `estudiantes`. El portal del estudiante ya renderiza estados — verificar que la consulta incluye ese campo y mostrar "Citado a tutorías" si está activo.
+
+### Recordatorio/confirmación de tutorías fuera del calendario
+Antes existía flujo para que el estudiante confirmara asistencia y el profesor marcara si asistió, accesible fuera del calendario. Ahora solo es posible desde el calendario. Reimplementar como acción rápida en `TodayPanel` o en la vista de reservas del profesor.
+
+### Reordenar actividades en planificación (`PlanificarModal`)
+El campo `actividades_json` almacena actividades como array en `bitacora_clase`. La UI debe permitir drag-to-reorder (ya existe `@dnd-kit/core`). Agregar `DraggablePlanItem` dentro del modal de planificación.
+
 ## Bugs pendientes
 - **"Sin fechas disponibles"** en `PlanificarModal` al copiar plan: `DIA_TO_DOW` usa claves con tilde (`'miércoles'`, `'sábado'`) pero la BD puede tener valores sin tilde. Fix: normalizar con `.normalize('NFD').replace(/[̀-ͯ]/g,'')` en el lookup.
 - **Desconexión bitácora**: `guardarBitacoraData()` (pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar.
 - **`moodle-export-panel.tsx` sin uso**: `src/components/cursos/moodle-export-panel.tsx` fue creado pero su funcionalidad quedó integrada directamente en `AsistenciaGridClient`. Candidato a eliminar para evitar confusión.
+- **Asistencia — nombre truncado**: en la tabla de asistencia mostrar `Primer Apellido + Primer Nombre` (palabras[2]+[0] del nombre completo), no el nombre completo. Afecta `AsistenciaGridClient` y tablas de asistencia en general.
+- **Edición de curso incompleta**: al editar un curso existente no todos los campos son editables. Parificar formulario de edición con el de creación (`/dashboard/cursos/nuevo`).
 
 ## Convenciones críticas
 

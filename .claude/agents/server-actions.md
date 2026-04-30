@@ -20,7 +20,7 @@ src/lib/actions/
   calificaciones.ts → actualizar calificaciones por parcial
   tutorias.ts      → gestión de horarios disponibles y reservas
   trabajos.ts      → asignar/actualizar trabajos
-  bitacora.ts      → registrar entradas de bitácora
+  bitacora.ts      → registrar entradas de bitácora; detenerClase (limpia hora_inicio_real)
   eventos.ts       → CRUD de eventos personales del profesor
   admin.ts         → acciones de administración
 ```
@@ -97,6 +97,33 @@ await supabase.from('estudiantes')
 // RLS ya filtra por profesor_id — no hace falta .eq('profesor_id', user.id) en selects
 // Pero SÍ hay que incluir profesor_id en inserts
 ```
+
+## Acciones de clase (`bitacora.ts`)
+
+### `detenerClase(bitacoraId: string): Promise<{ error?: string }>`
+Limpia `hora_inicio_real` en `bitacora_clase` sin cambiar el estado ni la planificación.
+Efecto: la clase regresa de "en progreso" a "planificado" en la vista de Mis Clases.
+
+```ts
+export async function detenerClase(bitacoraId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ hora_inicio_real: null })
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)   // RLS extra explícito
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/planificacion')
+  return {}
+}
+```
+
+Llamada desde `modo-clase-client.tsx` tras confirmación del usuario (botón "Detener" naranja).
+Diferente de "Finalizar": no cierra la clase, solo la regresa a estado editable.
 
 ## Token optimization
 ```bash

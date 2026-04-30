@@ -55,15 +55,39 @@ export default async function Page() {
 
 ## Rutas del dashboard
 ```
-/dashboard              → resumen
-/dashboard/cursos       → lista de cursos
-/dashboard/estudiantes  → gestión de estudiantes
-/dashboard/pase-lista   → asistencia + participación
-/dashboard/agenda       → calendario semanal
-/dashboard/tutorias     → horarios y reservas
-/dashboard/config       → perfil
-/dashboard/admin        → panel admin
+/dashboard                      → Panel: SummaryPanel + TodayPanel + AgendaSection
+/dashboard/cursos               → lista de cursos + métricas por estudiante
+/dashboard/cursos/[id]/encuesta → perfil del grupo (socioec., IA, dispositivos, lectura)
+/dashboard/planificacion        → "Mis Clases": panel Hoy + grid semanal (ruta canónica de Planificación + Modo Clase)
+/dashboard/modo-clase           → redirige a /dashboard/planificacion
+/dashboard/modo-clase/[id]      → vista clase en tiempo real (cronómetro, Ruleta, Agrupación)
+/dashboard/herramientas         → Ruleta y Agrupación de estudiantes (standalone)
+/dashboard/config               → Administración: perfil + tab Panel Admin si rol=admin
 ```
+
+## Patrones UI recientes
+
+### Celdas del grid semanal (planificacion-client.tsx)
+Las celdas "Planificado" son `<div>` (no `<button>`) con dos zonas interactivas independientes:
+- Zona superior (info del plan): clic abre `PlanificarModal`
+- Botón "▶ Iniciar clase" al pie: `<Link href="/dashboard/modo-clase/[entry.id]">`
+Esto evita el problema de botón anidado dentro de botón.
+
+### Panel "Hoy" en planificacion-client.tsx
+Visible solo cuando `weekOffset === 0`. Muestra clases del día con botones contextuales según estado de `bitacora_clase`:
+- Sin bitácora → "+ Planificar"
+- `hora_inicio_real = null`, plan existe → "Editar plan" + "▶ Iniciar clase"
+- `hora_inicio_real` presente → "Continuar clase"
+- Estado "cumplido" → "Ver resumen"
+
+### Modo Clase — layout responsive
+`modo-clase-client.tsx` usa tabs en móvil (`md:hidden`) para alternar entre panel Actividades y panel Asistencia. En desktop (≥md) ambos paneles aparecen en dos columnas. Estado: `const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia'>('actividades')`.
+
+### Acciones de Modo Clase
+- **"← Salir"** (`<Link href="/dashboard/planificacion">`): no modifica BD; la clase queda en progreso.
+- **"⏸ Pausar / ▶ Reanudar"**: cronómetro local. Al reanudar, ajusta `startTime` virtual = `now - elapsed`. No persiste en BD.
+- **"Detener" (naranja)**: confirmación → llama `detenerClase(bitacoraId)` → limpia `hora_inicio_real` → redirige a `/dashboard/planificacion`.
+- **"Finalizar"**: flujo existente de cierre de clase.
 
 ## Token optimization
 Si el output del dev server o build es grande, comprimirlo con:
