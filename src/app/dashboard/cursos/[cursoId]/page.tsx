@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
+import { EditarCursoPanel } from '@/components/cursos/editar-curso-panel'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -140,6 +141,22 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
             </p>
           )}
           <HorariosEditor cursoId={cursoId} initialClases={clases as any} />
+          <EditarCursoPanel
+            cursoId={cursoId}
+            curso={{
+              asignatura:    curso.asignatura,
+              codigo:        curso.codigo,
+              periodo:       curso.periodo,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              aula:          (curso as any).aula ?? null,
+              fecha_inicio:  curso.fecha_inicio ?? null,
+              fecha_fin:     curso.fecha_fin ?? null,
+              horas_semana:  curso.horas_semana,
+              num_sesiones:  curso.num_sesiones,
+              horas_teoricas: curso.horas_teoricas,
+              num_parciales: curso.num_parciales ?? 2,
+            }}
+          />
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-3xl font-bold text-white">{activos.length}</p>

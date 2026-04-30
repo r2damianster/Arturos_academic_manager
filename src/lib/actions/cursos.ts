@@ -124,11 +124,16 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
 }
 
 const DetallesCursoSchema = z.object({
-  asignatura:   z.string().min(3).max(100),
-  codigo:       z.string().min(2).max(30),
-  periodo:      z.string().min(3).max(20),
-  fecha_inicio: z.string().optional(),
-  fecha_fin:    z.string().optional(),
+  asignatura:    z.string().min(3).max(100),
+  codigo:        z.string().min(2).max(30),
+  periodo:       z.string().min(3).max(20),
+  aula:          z.string().max(100).optional(),
+  fecha_inicio:  z.string().optional(),
+  fecha_fin:     z.string().optional(),
+  horas_semana:  z.coerce.number().int().min(1).max(200).default(64),
+  num_sesiones:  z.coerce.number().int().min(1).max(200).default(32),
+  horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
+  num_parciales: z.coerce.number().int().min(2).max(4).default(2),
 })
 
 export async function actualizarDetallesCurso(cursoId: string, formData: FormData): Promise<{ error?: string }> {
@@ -139,13 +144,19 @@ export async function actualizarDetallesCurso(cursoId: string, formData: FormDat
   const parsed = DetallesCursoSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: 'Datos inválidos' }
 
-  const { error } = await supabase.from('cursos')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from('cursos')
     .update({
-      asignatura:   parsed.data.asignatura,
-      codigo:       parsed.data.codigo,
-      periodo:      parsed.data.periodo,
-      fecha_inicio: parsed.data.fecha_inicio || null,
-      fecha_fin:    parsed.data.fecha_fin || null,
+      asignatura:    parsed.data.asignatura,
+      codigo:        parsed.data.codigo,
+      periodo:       parsed.data.periodo,
+      aula:          parsed.data.aula || null,
+      fecha_inicio:  parsed.data.fecha_inicio || null,
+      fecha_fin:     parsed.data.fecha_fin || null,
+      horas_semana:  parsed.data.horas_semana,
+      num_sesiones:  parsed.data.num_sesiones,
+      horas_teoricas: parsed.data.horas_teoricas,
+      num_parciales: parsed.data.num_parciales,
     })
     .eq('id', cursoId)
     .eq('profesor_id', user.id)

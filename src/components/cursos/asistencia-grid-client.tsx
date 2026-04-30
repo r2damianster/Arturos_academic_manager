@@ -12,6 +12,13 @@ type HorasPorDia = Record<string, number>
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
 const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
+function formatNombreCorto(nombre: string): string {
+  const w = nombre.trim().split(/\s+/)
+  if (w.length >= 4) return `${w[2]} ${w[0]}`
+  if (w.length === 3) return `${w[1]} ${w[0]}`
+  return nombre
+}
+
 function fmtCorto(fecha: string) {
   return new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
@@ -194,7 +201,7 @@ export function AsistenciaGridClient({
                         href={`/dashboard/estudiantes/${est.id}`}
                         className="font-medium text-gray-200 hover:text-white block truncate max-w-[140px]"
                       >
-                        {est.nombre}
+                        {formatNombreCorto(est.nombre)}
                       </Link>
                       <p className="text-xs text-gray-500 truncate max-w-[140px]">{est.email}</p>
                     </td>
