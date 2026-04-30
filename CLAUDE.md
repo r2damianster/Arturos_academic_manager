@@ -351,7 +351,6 @@ Antes existía flujo para que el estudiante confirmara asistencia y el profesor 
 El campo `actividades_json` almacena actividades como array en `bitacora_clase`. La UI debe permitir drag-to-reorder (ya existe `@dnd-kit/core`). Agregar `DraggablePlanItem` dentro del modal de planificación.
 
 ## Bugs pendientes
-- **Desconexión bitácora**: `guardarBitacoraData()` (pase-lista) y `guardarPlanificacion()` (agenda) escriben a `bitacora_clase` en formatos incompatibles (`actividades` texto vs `actividades_json`). Pendiente unificar.
 
 ## Convenciones críticas
 
