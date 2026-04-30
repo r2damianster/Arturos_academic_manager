@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       .eq('curso_id', cursoId)
       .eq('fecha', fecha),
     db.from('bitacora_clase')
-      .select('tema, actividades_json, observaciones')
+      .select('tema, actividades, materiales, actividades_json, observaciones')
       .eq('curso_id', cursoId)
       .eq('fecha', fecha)
       .order('created_at', { ascending: false })
@@ -67,9 +67,19 @@ export async function GET(req: NextRequest) {
 
   let bitacora = null
   if (bitRes?.data) {
+    // Preferir texto libre (actividades) sobre el plan estructurado (actividades_json).
+    // Si solo existe actividades_json (clase planificada pero nunca editada en pase-lista),
+    // formatearlo como lista legible en lugar de serializar el JSON crudo.
+    const actividadesTexto = bitRes.data.actividades ||
+      (Array.isArray(bitRes.data.actividades_json)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ? (bitRes.data.actividades_json as any[]).map((a: any) => `• ${a.actividad ?? a}`).join('\n')
+        : '')
+
     bitacora = {
       tema: bitRes.data.tema ?? '',
-      actividades: bitRes.data.actividades_json ? JSON.stringify(bitRes.data.actividades_json) : '', // Actividades usually mapped separately but here we pass as text if needed
+      actividades: actividadesTexto,
+      materiales: bitRes.data.materiales ?? '',
       observaciones: bitRes.data.observaciones ?? '',
     }
   }
