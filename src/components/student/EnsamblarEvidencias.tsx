@@ -1,0 +1,296 @@
+'use client'
+
+import { useState, useRef, useCallback } from 'react'
+
+interface Archivo {
+  id: string
+  file: File
+}
+
+interface Categoria {
+  id: string
+  nombre: string
+  tipo: 'grupal' | 'individual'
+  archivos: Archivo[]
+}
+
+interface Props {
+  estudiante: string
+  curso: string
+  profesor: string
+}
+
+const CATS_DEFAULT: Omit<Categoria, 'id' | 'archivos'>[] = [
+  { nombre: 'Brisk',    tipo: 'grupal' },
+  { nombre: 'Perusall', tipo: 'grupal' },
+  { nombre: 'Ensayos',  tipo: 'individual' },
+]
+
+let uid = 0
+function newId() { return `id_${++uid}` }
+
+function makeCats(): Categoria[] {
+  return CATS_DEFAULT.map(c => ({ ...c, id: newId(), archivos: [] }))
+}
+
+const TIPOS_ACEPTADOS = 'application/pdf,image/jpeg,image/jpg,image/png,image/webp,image/heic,image/tiff'
+
+export function EnsamblarEvidencias({ estudiante, curso, profesor }: Props) {
+  const [categorias, setCategorias] = useState<Categoria[]>(makeCats)
+  const [generando, setGenerando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [nuevaNombre, setNuevaNombre] = useState('')
+  const [nuevaTipo, setNuevaTipo] = useState<'grupal' | 'individual'>('individual')
+  const [addingCat, setAddingCat] = useState(false)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const totalArchivos = categorias.reduce((s, c) => s + c.archivos.length, 0)
+
+  function addArchivos(catId: string, files: FileList | null) {
+    if (!files) return
+    setCategorias(prev => prev.map(c => {
+      if (c.id !== catId) return c
+      const nuevos: Archivo[] = Array.from(files).map(f => ({ id: newId(), file: f }))
+      return { ...c, archivos: [...c.archivos, ...nuevos] }
+    }))
+  }
+
+  function removeArchivo(catId: string, archivoId: string) {
+    setCategorias(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, archivos: c.archivos.filter(a => a.id !== archivoId) }
+    ))
+  }
+
+  function moveArchivo(catId: string, idx: number, dir: -1 | 1) {
+    setCategorias(prev => prev.map(c => {
+      if (c.id !== catId) return c
+      const arr = [...c.archivos]
+      const target = idx + dir
+      if (target < 0 || target >= arr.length) return c;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]]
+      return { ...c, archivos: arr }
+    }))
+  }
+
+  function removeCategoria(catId: string) {
+    setCategorias(prev => prev.filter(c => c.id !== catId))
+  }
+
+  function addCategoria() {
+    if (!nuevaNombre.trim()) return
+    setCategorias(prev => [...prev, { id: newId(), nombre: nuevaNombre.trim(), tipo: nuevaTipo, archivos: [] }])
+    setNuevaNombre('')
+    setAddingCat(false)
+  }
+
+  const onDrop = useCallback((catId: string, e: React.DragEvent) => {
+    e.preventDefault()
+    addArchivos(catId, e.dataTransfer.files)
+  }, [])
+
+  async function generar() {
+    if (totalArchivos === 0) { setError('Agrega al menos un archivo'); return }
+    setGenerando(true)
+    setError(null)
+
+    const fd = new FormData()
+    const secciones = categorias
+      .filter(c => c.archivos.length > 0)
+      .map(c => {
+        const keys = c.archivos.map(a => a.id)
+        c.archivos.forEach(a => fd.append(a.id, a.file))
+        return { tipo: c.tipo, nombre: c.nombre, archivos: keys }
+      })
+
+    const hoy = new Date().toLocaleDateString('es-EC', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    fd.append('manifest', JSON.stringify({ estudiante, curso, profesor, fecha: hoy, secciones }))
+
+    try {
+      const res = await fetch('/api/student/ensamblar-evidencias', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setError(j.error ?? `Error ${res.status}`)
+        return
+      }
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url
+      a.download = `evidencias_${hoy.replaceAll('/', '-')}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError('Error de conexión al generar el PDF')
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  const grupales    = categorias.filter(c => c.tipo === 'grupal')
+  const individuales = categorias.filter(c => c.tipo === 'individual')
+
+  function renderCategoria(cat: Categoria) {
+    return (
+      <div key={cat.id} className="border border-gray-700/60 rounded-xl overflow-hidden">
+        {/* Header categoría */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800/60">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm">📁</span>
+            <span className="text-sm font-medium text-gray-200">{cat.nombre}</span>
+            <span className="text-[10px] text-gray-600 ml-1">{cat.archivos.length} archivo{cat.archivos.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => inputRefs.current[cat.id]?.click()}
+              className="text-xs px-2.5 py-1 rounded-lg border border-gray-600 text-gray-400 hover:border-brand-500 hover:text-brand-400 transition-colors"
+            >
+              + Archivos
+            </button>
+            <button
+              onClick={() => removeCategoria(cat.id)}
+              className="text-gray-600 hover:text-red-400 transition-colors text-sm"
+              title="Eliminar categoría"
+            >✕</button>
+          </div>
+          <input
+            ref={el => { inputRefs.current[cat.id] = el }}
+            type="file"
+            multiple
+            accept={TIPOS_ACEPTADOS}
+            className="hidden"
+            onChange={e => addArchivos(cat.id, e.target.files)}
+          />
+        </div>
+
+        {/* Drop zone + lista */}
+        <div
+          className="p-3 min-h-[60px] bg-gray-900/40"
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => onDrop(cat.id, e)}
+        >
+          {cat.archivos.length === 0 ? (
+            <p className="text-center text-gray-600 text-xs py-3">
+              Arrastra archivos aquí o usa "+ Archivos"
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {cat.archivos.map((a, idx) => (
+                <li key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-800/50 group">
+                  <span className="text-gray-500 text-[11px] flex-shrink-0">
+                    {a.file.type === 'application/pdf' ? '📄' : '🖼️'}
+                  </span>
+                  <span className="flex-1 text-xs text-gray-300 truncate" title={a.file.name}>
+                    {a.file.name}
+                  </span>
+                  <span className="text-[10px] text-gray-600 flex-shrink-0">
+                    {(a.file.size / 1024).toFixed(0)} KB
+                  </span>
+                  <div className="flex gap-0.5 flex-shrink-0">
+                    <button onClick={() => moveArchivo(cat.id, idx, -1)} disabled={idx === 0}
+                      className="w-5 h-5 flex items-center justify-center text-gray-600 hover:text-gray-300 disabled:opacity-20 text-xs">↑</button>
+                    <button onClick={() => moveArchivo(cat.id, idx, 1)} disabled={idx === cat.archivos.length - 1}
+                      className="w-5 h-5 flex items-center justify-center text-gray-600 hover:text-gray-300 disabled:opacity-20 text-xs">↓</button>
+                    <button onClick={() => removeArchivo(cat.id, a.id)}
+                      className="w-5 h-5 flex items-center justify-center text-red-700 hover:text-red-400 text-xs">✕</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Acción principal */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-400">
+            {totalArchivos === 0
+              ? 'Agrega archivos en las categorías'
+              : `${totalArchivos} archivo${totalArchivos !== 1 ? 's' : ''} listo${totalArchivos !== 1 ? 's' : ''}`
+            }
+          </p>
+        </div>
+        <button
+          onClick={generar}
+          disabled={generando || totalArchivos === 0}
+          className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {generando ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Generando…
+            </>
+          ) : (
+            <>📄 Generar PDF</>
+          )}
+        </button>
+      </div>
+
+      {error && (
+        <div className="flex items-center justify-between px-3 py-2 bg-red-900/20 border border-red-700/40 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
+          <button onClick={() => setError(null)} className="text-red-600 hover:text-red-400 text-xs">✕</button>
+        </div>
+      )}
+
+      {/* Zona: Grupales */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-sky-500" />
+          <h3 className="text-sm font-semibold text-gray-300">Actividades Grupales</h3>
+        </div>
+        <div className="space-y-3 pl-4">
+          {grupales.length === 0
+            ? <p className="text-xs text-gray-600">Sin categorías grupales</p>
+            : grupales.map(renderCategoria)
+          }
+        </div>
+      </div>
+
+      {/* Zona: Individuales */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <h3 className="text-sm font-semibold text-gray-300">Actividades Individuales</h3>
+        </div>
+        <div className="space-y-3 pl-4">
+          {individuales.length === 0
+            ? <p className="text-xs text-gray-600">Sin categorías individuales</p>
+            : individuales.map(renderCategoria)
+          }
+        </div>
+      </div>
+
+      {/* Añadir categoría */}
+      {!addingCat ? (
+        <button
+          onClick={() => setAddingCat(true)}
+          className="w-full py-2.5 border border-dashed border-gray-700 rounded-xl text-xs text-gray-500 hover:border-gray-500 hover:text-gray-400 transition-colors"
+        >
+          + Nueva categoría
+        </button>
+      ) : (
+        <div className="flex gap-2 items-center p-3 border border-gray-700 rounded-xl bg-gray-900/50">
+          <input
+            autoFocus
+            value={nuevaNombre}
+            onChange={e => setNuevaNombre(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addCategoria(); if (e.key === 'Escape') setAddingCat(false) }}
+            placeholder="Nombre (ej: Informes, Videos…)"
+            className="input flex-1 text-sm"
+          />
+          <select value={nuevaTipo} onChange={e => setNuevaTipo(e.target.value as 'grupal' | 'individual')} className="input text-sm w-36">
+            <option value="grupal">Grupal</option>
+            <option value="individual">Individual</option>
+          </select>
+          <button onClick={addCategoria} className="btn-primary text-sm px-3 py-1.5">Añadir</button>
+          <button onClick={() => setAddingCat(false)} className="text-gray-500 hover:text-gray-300 text-sm px-2">✕</button>
+        </div>
+      )}
+    </div>
+  )
+}
