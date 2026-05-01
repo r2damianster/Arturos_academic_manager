@@ -347,20 +347,20 @@ Usuario externo (identificado por email) que cubre al profesor por un período e
 ### Nota de participación y observación en asistencia — modo clase
 En la vista de asistencia del modo clase (`modo-clase-client.tsx`), tanto en la lista general como en la vista de grupos, agregar un toggle/check por estudiante que abra un mini-panel con: nivel de participación (1-5) y campo de observación libre. Ya existe la tabla `participacion` y la action `registrarParticipacion`. Solo falta la UI inline en la columna de asistencia (actualmente solo disponible en la VistaGrupo).
 
-### Pase de lista — todos en Presente por defecto
-Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`. El profesor solo cambia los que llegaron tarde o faltaron. Afecta `pase-lista-client.tsx`: inicializar `registros` con estado `Presente` para todos los estudiantes al cargar.
+### ~~Pase de lista — todos en Presente por defecto~~ ✅ IMPLEMENTADO
+~~Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`.~~
 
-### Modo extensivo — navegación independiente + drag entre cursos
-El Curso B en la vista de comparación debe poder navegar hacia atrás/adelante en el tiempo de forma independiente al Curso A (offset propio). Además, permitir arrastrar un plan del Curso B al Curso A (o viceversa) para copiar directamente entre ellos usando `@dnd-kit/core` ya disponible. `PlanificacionExtensiva.tsx` necesita: `offsetA` y `offsetB` de state independiente, y lógica DnD entre columnas.
+### Modo extensivo — drag entre cursos (pendiente)
+~~Navegación independiente A/B~~ ✅ IMPLEMENTADO. Pendiente: arrastrar un plan del Curso B al Curso A (o viceversa) usando `@dnd-kit/core`.
 
 ### Planificación semanal — navegación por día sin mover semana
-La vista semanal actual mueve toda la semana al navegar. Agregar la posibilidad de navegar por día individual (resaltar el día seleccionado) sin desplazar la ventana de la semana. Útil para ver "hoy" sin perder contexto de la semana actual.
+La vista semanal actual mueve toda la semana al navegar. Agregar navegación por día individual (resaltar el día) sin desplazar la ventana de la semana.
 
-### Panel "Hoy" — ocultable en todas las pantallas
-`TodayPanel` ya es colapsable en el dashboard. Aplicar el mismo patrón (botón ▼/▲ con `localStorage`) en todas las páginas donde aparece el panel de hoy: planificación, agenda, etc.
+### ~~Panel "Hoy" — ocultable en planificación~~ ✅ IMPLEMENTADO
+~~Aplicar el mismo patrón que el dashboard. Ya implementado en `planificacion-client.tsx`.~~
 
-### Planificación — respetar fechas del curso
-La vista de planificación actualmente muestra slots infinitos. Debe limitar la navegación hacia atrás/adelante según `cursos.fecha_inicio` y `cursos.fecha_fin`. Si el curso no tiene fechas, permitir navegación libre. Aplica tanto a vista semanal como a vista extensiva (Por curso).
+### ~~Planificación — respetar fechas del curso~~ ✅ IMPLEMENTADO
+~~Botones ← → ahora respetan `fecha_inicio`/`fecha_fin` de los cursos (disabled al llegar al límite).~~
 
 ### Ensamblador de evidencias (portal estudiante)
 Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo y genera un PDF maestro. Funcionalidad:
@@ -371,10 +371,7 @@ Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo 
 - Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)
 
 ## Bugs pendientes
-- **Planificación sin límite de fechas**: se puede navegar y planificar más allá de `fecha_fin` o antes de `fecha_inicio` del curso. Corregir en `PlanificacionClient` (vista semanal) y `PlanificacionExtensiva` (vista por curso).
 - **Edición de curso**: `EditarCursoPanel` tiene los campos básicos pero el usuario no puede editar horarios desde ahí (están en `HorariosEditor` separado y no es obvio), ni agregar observación, ni editar institución por curso. Ver feature "Edición de curso — completar campos faltantes".
-- **Nombres en asistencia**: `formatNombreCorto` aplicado en `AsistenciaGridClient` y en las listas de `modo-clase-client`. Verificar que también aplica en `pase-lista-client` y en cualquier otra tabla de asistencia del sistema.
-- **Modo extensivo — cursos A y B se mueven juntos**: al cambiar el horizonte de tiempo del Curso B, también afecta al Curso A. Deben tener offsets de tiempo independientes.
 
 ## Convenciones críticas
 
