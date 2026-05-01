@@ -4,6 +4,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion } from '@/lib/actions/bitacora'
 import type { ActividadPlanificada } from '@/types/domain'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface ClaseParaCopiar {
   id: string
@@ -86,10 +95,69 @@ function generarFechasValidas(dowSet: Set<number>, desde: string, n = 14): strin
   return fechas
 }
 
+// ─── Sortable row ──────────────────────────────────────────────────────────────
+
+function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove }: {
+  act: ActividadPlanificada & { id: string }
+  readOnly: boolean
+  onUpdate: (field: keyof ActividadPlanificada, value: string) => void
+  onRemove: () => void
+  canRemove: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: act.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+
+  return (
+    <div ref={setNodeRef} style={style} className="grid grid-cols-[16px_1fr_1fr_auto] gap-2 items-center">
+      {readOnly ? (
+        <span />
+      ) : (
+        <button
+          type="button" {...attributes} {...listeners}
+          className="flex items-center justify-center text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing h-full"
+          tabIndex={-1}
+          aria-label="Arrastrar para reordenar"
+        >
+          <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+            <circle cx="4" cy="2" r="1"/><circle cx="8" cy="2" r="1"/>
+            <circle cx="4" cy="6" r="1"/><circle cx="8" cy="6" r="1"/>
+            <circle cx="4" cy="10" r="1"/><circle cx="8" cy="10" r="1"/>
+          </svg>
+        </button>
+      )}
+      <input
+        type="text" value={act.actividad}
+        onChange={e => onUpdate('actividad', e.target.value)}
+        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
+        placeholder="Ej: Exposición grupal"
+        disabled={readOnly}
+      />
+      <input
+        type="text" value={act.recurso}
+        onChange={e => onUpdate('recurso', e.target.value)}
+        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
+        placeholder="Ej: Presentación PPT"
+        disabled={readOnly}
+      />
+      {!readOnly ? (
+        <button type="button" onClick={onRemove}
+          className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
+          disabled={!canRemove}>
+          ✕
+        </button>
+      ) : <span />}
+    </div>
+  )
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-function emptyActividad(): ActividadPlanificada {
-  return { actividad: '', recurso: '' }
+function emptyActividad(): ActividadPlanificada & { id: string } {
+  return { id: crypto.randomUUID(), actividad: '', recurso: '' }
+}
+
+function withIds(acts: ActividadPlanificada[]): (ActividadPlanificada & { id: string })[] {
+  return acts.map(a => ({ ...a, id: a.id ?? crypto.randomUUID() }))
 }
 
 export function PlanificarModal({
@@ -103,7 +171,7 @@ export function PlanificarModal({
   const [existing, setExisting] = useState<BitacoraExistente | null>(null)
 
   const [tema,          setTema]          = useState('')
-  const [actividades,   setActividades]   = useState<ActividadPlanificada[]>([emptyActividad()])
+  const [actividades,   setActividades]   = useState<(ActividadPlanificada & { id: string })[]>([emptyActividad()])
   const [observaciones, setObservaciones] = useState('')
 
   // Sub-panel "Copiar / Mover a..."
@@ -179,7 +247,7 @@ export function PlanificarModal({
       setTema(data.tema ?? '')
       setActividades(
         Array.isArray(data.actividades_json) && data.actividades_json.length > 0
-          ? data.actividades_json
+          ? withIds(data.actividades_json)
           : [emptyActividad()]
       )
       setObservaciones(data.observaciones ?? '')
@@ -189,18 +257,36 @@ export function PlanificarModal({
 
   useEffect(() => { fetchExisting() }, [fetchExisting])
 
+  // ── DnD sensors ────────────────────────────────────────────────────────────
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setActividades(prev => {
+        const oldIdx = prev.findIndex(a => a.id === active.id)
+        const newIdx = prev.findIndex(a => a.id === over.id)
+        return arrayMove(prev, oldIdx, newIdx)
+      })
+    }
+  }
+
   // ── Actividades helpers ─────────────────────────────────────────────────────
 
   function addActividad() {
     setActividades(prev => [...prev, emptyActividad()])
   }
 
-  function removeActividad(i: number) {
-    setActividades(prev => prev.filter((_, idx) => idx !== i))
+  function removeActividad(id: string) {
+    setActividades(prev => prev.filter(a => a.id !== id))
   }
 
-  function updateActividad(i: number, field: keyof ActividadPlanificada, value: string) {
-    setActividades(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a))
+  function updateActividad(id: string, field: keyof ActividadPlanificada, value: string) {
+    setActividades(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a))
   }
 
   // ── Copy / Move handler ─────────────────────────────────────────────────────
@@ -326,39 +412,27 @@ export function PlanificarModal({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1">
+                  <div className="grid grid-cols-[16px_1fr_1fr_auto] gap-2 px-1">
+                    <span />
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Actividad</span>
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">Recurso</span>
                     {!readOnly && <span className="w-6" />}
                   </div>
 
-                  {actividades.map((act, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
-                      <input
-                        type="text"
-                        value={act.actividad}
-                        onChange={e => updateActividad(i, 'actividad', e.target.value)}
-                        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
-                        placeholder="Ej: Exposición grupal"
-                        disabled={readOnly}
-                      />
-                      <input
-                        type="text"
-                        value={act.recurso}
-                        onChange={e => updateActividad(i, 'recurso', e.target.value)}
-                        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
-                        placeholder="Ej: Presentación PPT"
-                        disabled={readOnly}
-                      />
-                      {!readOnly && (
-                        <button type="button" onClick={() => removeActividad(i)}
-                          className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
-                          disabled={actividades.length === 1}>
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={actividades.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                      {actividades.map(act => (
+                        <SortableActividad
+                          key={act.id}
+                          act={act}
+                          readOnly={readOnly}
+                          onUpdate={(field, value) => updateActividad(act.id, field, value)}
+                          onRemove={() => removeActividad(act.id)}
+                          canRemove={actividades.length > 1}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
 
