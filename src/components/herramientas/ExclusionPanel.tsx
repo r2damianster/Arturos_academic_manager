@@ -1,5 +1,7 @@
 'use client'
 
+import { formatNombreCorto } from '@/lib/format'
+
 type Student = { id: string; nombre: string }
 
 export function ExclusionPanel({
@@ -68,7 +70,7 @@ export function ExclusionPanel({
                 {!isExcluded && <span className="text-[9px] text-indigo-300">✓</span>}
               </span>
               <span className={`truncate ${isExcluded ? 'line-through opacity-40' : ''}`}>
-                {s.nombre}
+                {formatNombreCorto(s.nombre)}
               </span>
             </button>
           )

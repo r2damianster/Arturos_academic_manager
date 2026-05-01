@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
+import { formatNombreCorto } from '@/lib/format'
 import { CSS } from '@dnd-kit/utilities'
 import { crearGrupos, crearGruposConIntegrantes } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
@@ -407,7 +408,7 @@ function TabAleatoria({
                 </p>
                 <ul className="space-y-1.5">
                   {g.members.map(s => (
-                    <li key={s.id} className="text-sm text-gray-100">{s.nombre}</li>
+                    <li key={s.id} className="text-sm text-gray-100">{formatNombreCorto(s.nombre)}</li>
                   ))}
                 </ul>
                 <p className={`text-xs opacity-40 mt-3 ${c.text}`}>

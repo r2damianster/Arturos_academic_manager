@@ -89,28 +89,44 @@ export function PlanificacionExtensiva({ clases }: Props) {
 
   const [cursoAId, setCursoAId] = useState(() => cursos[0]?.id ?? '')
   const [cursoBId, setCursoBId] = useState<string | null>(null)
-  const [meses, setMeses] = useState(2)
+  const [mesesA, setMesesA] = useState(2)
+  const [offsetA, setOffsetA] = useState(0)  // semanas desde hoy
+  const [offsetB, setOffsetB] = useState(0)  // semanas desde hoy (independiente)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [planificarModal, setPlanificarModal] = useState<{ clase: Clase; fecha: string } | null>(null)
   const [replanificarModal, setReplanificarModal] = useState<{ cursoId: string; asignatura: string; fecha: string; tema: string } | null>(null)
 
-  const mesesEfectivos = cursoBId ? 1 : meses
-
-  const { desde, hasta } = useMemo(() => {
+  function offsetToDate(offset: number): Date {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() + offset * 7)
+    return d
+  }
+
+  const { desdeA, hastaA } = useMemo(() => {
+    const d = offsetToDate(offsetA)
     const h = new Date(d)
-    h.setMonth(h.getMonth() + mesesEfectivos)
-    return { desde: d, hasta: h }
-  }, [mesesEfectivos])
+    h.setMonth(h.getMonth() + (cursoBId ? 1 : mesesA))
+    return { desdeA: d, hastaA: h }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offsetA, mesesA, cursoBId])
+
+  const { desdeB, hastaB } = useMemo(() => {
+    if (!cursoBId) return { desdeB: new Date(), hastaB: new Date() }
+    const d = offsetToDate(offsetB)
+    const h = new Date(d)
+    h.setMonth(h.getMonth() + 1)
+    return { desdeB: d, hastaB: h }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offsetB, cursoBId])
 
   const fechasA = useMemo(
-    () => cursoAId ? generarFechasClase(clases, cursoAId, desde, hasta) : [],
-    [clases, cursoAId, desde, hasta]
+    () => cursoAId ? generarFechasClase(clases, cursoAId, desdeA, hastaA) : [],
+    [clases, cursoAId, desdeA, hastaA]
   )
   const fechasB = useMemo(
-    () => cursoBId ? generarFechasClase(clases, cursoBId, desde, hasta) : [],
-    [clases, cursoBId, desde, hasta]
+    () => cursoBId ? generarFechasClase(clases, cursoBId, desdeB, hastaB) : [],
+    [clases, cursoBId, desdeB, hastaB]
   )
 
   async function loadBitacoras() {
@@ -118,13 +134,16 @@ export function PlanificacionExtensiva({ clases }: Props) {
     if (!user || !cursoAId) return
 
     const cursoIds = [cursoAId, cursoBId].filter(Boolean) as string[]
+    // Usar el rango más amplio entre A y B para una sola query
+    const fechaMin = dateToStr(new Date(Math.min(desdeA.getTime(), cursoBId ? desdeB.getTime() : desdeA.getTime())))
+    const fechaMax = dateToStr(new Date(Math.max(hastaA.getTime(), cursoBId ? hastaB.getTime() : hastaA.getTime())))
     const { data } = await supabase
       .from('bitacora_clase')
       .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
-      .gte('fecha', dateToStr(desde))
-      .lte('fecha', dateToStr(hasta))
+      .gte('fecha', fechaMin)
+      .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,7 +163,7 @@ export function PlanificacionExtensiva({ clases }: Props) {
   useEffect(() => {
     if (cursoAId) loadBitacoras()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursoAId, cursoBId, mesesEfectivos])
+  }, [cursoAId, cursoBId, desdeA, hastaA, desdeB, hastaB])
 
   // ── Card ──────────────────────────────────────────────────────────────────
 
@@ -241,7 +260,7 @@ export function PlanificacionExtensiva({ clases }: Props) {
           <label className="label">Curso B — comparar</label>
           <select
             value={cursoBId ?? ''}
-            onChange={e => setCursoBId(e.target.value || null)}
+            onChange={e => { setCursoBId(e.target.value || null); setOffsetB(0) }}
             className="input text-sm"
           >
             <option value="">Sin comparar</option>
@@ -251,28 +270,19 @@ export function PlanificacionExtensiva({ clases }: Props) {
           </select>
         </div>
 
-        {!cursoBId ? (
+        {!cursoBId && (
           <div>
-            <label className="label">Horizonte</label>
+            <label className="label">Horizonte A</label>
             <div className="flex gap-2">
               {[1, 2].map(n => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setMeses(n)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                    meses === n
-                      ? 'border-brand-500 bg-brand-600/20 text-brand-400'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-600'
-                  }`}
+                <button key={n} type="button" onClick={() => setMesesA(n)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${mesesA === n ? 'border-brand-500 bg-brand-600/20 text-brand-400' : 'border-gray-700 text-gray-400 hover:border-gray-600'}`}
                 >
                   {n} {n === 1 ? 'mes' : 'meses'}
                 </button>
               ))}
             </div>
           </div>
-        ) : (
-          <p className="text-xs text-gray-500 self-center pt-4">Modo comparación — 1 mes</p>
         )}
       </div>
 
@@ -281,11 +291,15 @@ export function PlanificacionExtensiva({ clases }: Props) {
 
         {/* Curso A */}
         <div className="space-y-2">
-          {cursoBId && (
-            <h3 className="text-sm font-semibold text-gray-200 pb-2 border-b border-gray-800">
-              {cursoA?.asignatura}
-            </h3>
-          )}
+          <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-200">{cursoA?.asignatura}</h3>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setOffsetA(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+              <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeA.getMonth()]} – ${MESES_S[hastaA.getMonth()]} ${hastaA.getFullYear()}`}</span>
+              <button onClick={() => setOffsetA(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+              {offsetA !== 0 && <button onClick={() => setOffsetA(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
+            </div>
+          </div>
           {fechasA.length === 0 ? (
             <p className="text-gray-500 text-xs text-center py-6">Sin clases en este período.</p>
           ) : (
@@ -309,9 +323,15 @@ export function PlanificacionExtensiva({ clases }: Props) {
         {/* Curso B */}
         {cursoBId && (
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-200 pb-2 border-b border-gray-800">
-              {cursoB?.asignatura}
-            </h3>
+            <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+              <h3 className="text-sm font-semibold text-gray-200">{cursoB?.asignatura}</h3>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setOffsetB(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+                <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeB.getMonth()]} – ${MESES_S[hastaB.getMonth()]} ${hastaB.getFullYear()}`}</span>
+                <button onClick={() => setOffsetB(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+                {offsetB !== 0 && <button onClick={() => setOffsetB(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
+              </div>
+            </div>
             {fechasB.length === 0 ? (
               <p className="text-gray-500 text-xs text-center py-6">Sin clases en este período.</p>
             ) : (

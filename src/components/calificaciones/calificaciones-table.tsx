@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { upsertCalificaciones } from '@/lib/actions/calificaciones'
 import Link from 'next/link'
+import { formatNombreCorto } from '@/lib/format'
 
 type Parcial = 1 | 2 | 3 | 4
 type Prefijo = 'acd' | 'ta' | 'pe' | 'ex'
@@ -112,7 +113,7 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numP
                   <td className="px-4 py-2">
                     <div className="flex items-start gap-1.5">
                       <div className="flex-1 min-w-0">
-                        <Link href={`/dashboard/estudiantes/${est.id}`} className="font-medium text-gray-200 hover:text-white transition-colors">{est.nombre}</Link>
+                        <Link href={`/dashboard/estudiantes/${est.id}`} className="font-medium text-gray-200 hover:text-white transition-colors">{formatNombreCorto(est.nombre)}</Link>
                         <p className="text-xs text-gray-600 truncate">{est.email}</p>
                         {perfiles[est.id] && (() => {
                           const p = perfiles[est.id]

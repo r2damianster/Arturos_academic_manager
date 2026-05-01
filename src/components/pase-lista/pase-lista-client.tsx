@@ -96,8 +96,18 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         const data = await res.json()
         if (!active) return
         if (res.ok && data?.registros) {
-          setRegistros(data.registros)
-          setExistingRecords(Object.keys(data.registros).length)
+          const count = Object.keys(data.registros).length
+          // Nueva sesión sin registros → pre-marcar todos como Presente
+          if (count === 0) {
+            const defaults: Record<string, RegistroLocal> = {}
+            for (const est of estudiantes) {
+              defaults[est.id] = { estado: 'Presente', atraso: false, horas: horasSesion, participacion: null, observacion_part: '', obs_trabajo: '' }
+            }
+            setRegistros(defaults)
+          } else {
+            setRegistros(data.registros)
+          }
+          setExistingRecords(count)
           if (data.bitacora) {
             setBitacora({
               tema: data.bitacora.tema || '',
@@ -109,13 +119,21 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
             setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
           }
         } else {
-          setRegistros({})
+          const defaults: Record<string, RegistroLocal> = {}
+          for (const est of estudiantes) {
+            defaults[est.id] = { estado: 'Presente', atraso: false, horas: horasSesion, participacion: null, observacion_part: '', obs_trabajo: '' }
+          }
+          setRegistros(defaults)
           setExistingRecords(0)
           setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
         }
       } catch {
         if (!active) return
-        setRegistros({})
+        const defaults: Record<string, RegistroLocal> = {}
+        for (const est of estudiantes) {
+          defaults[est.id] = { estado: 'Presente', atraso: false, horas: horasSesion, participacion: null, observacion_part: '', obs_trabajo: '' }
+        }
+        setRegistros(defaults)
         setExistingRecords(0)
         setBitacora({ tema: '', actividades: '', materiales: '', observaciones: '' })
       } finally {

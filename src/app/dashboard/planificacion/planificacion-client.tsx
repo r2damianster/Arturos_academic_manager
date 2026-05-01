@@ -92,6 +92,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>('semana')
   const [weekOffset, setWeekOffset] = useState(0)
   const [isMounted, setIsMounted] = useState(false)
+  const [hoyOpen, setHoyOpen] = useState(true)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showTutoriasCurso, setShowTutoriasCurso] = useState(false)
@@ -129,6 +130,24 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [dragError, setDragError] = useState<string | null>(null)
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
+
+  // Límites de navegación basados en fechas de los cursos
+  const { minOffset, maxOffset } = useMemo(() => {
+    const fechasInicio = clases.map(c => c.cursos?.fecha_inicio).filter(Boolean) as string[]
+    const fechasFin    = clases.map(c => c.cursos?.fecha_fin).filter(Boolean) as string[]
+    if (fechasInicio.length === 0 && fechasFin.length === 0) return { minOffset: -52, maxOffset: 52 }
+    const hoy = new Date(); hoy.setHours(0,0,0,0)
+    let min = -52, max = 52
+    if (fechasInicio.length > 0) {
+      const earliest = new Date(Math.min(...fechasInicio.map(f => new Date(f).getTime())))
+      min = Math.floor((earliest.getTime() - hoy.getTime()) / (7 * 24 * 3600 * 1000)) - 1
+    }
+    if (fechasFin.length > 0) {
+      const latest = new Date(Math.max(...fechasFin.map(f => new Date(f).getTime())))
+      max = Math.ceil((latest.getTime() - hoy.getTime()) / (7 * 24 * 3600 * 1000)) + 1
+    }
+    return { minOffset: min, maxOffset: max }
+  }, [clases])
 
   const clasesVisibles = useMemo(() => {
     return showTutoriasCurso ? clases : clases.filter(c => c.tipo !== 'tutoria_curso')
@@ -436,10 +455,16 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       {/* Sección Hoy */}
       {weekOffset === 0 && clasesDeHoy.length > 0 && (
         <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800">
+          <button
+            onClick={() => setHoyOpen(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-800/40 transition-colors"
+          >
             <span className="text-sm font-semibold text-white">Hoy</span>
-          </div>
-          <div className="divide-y divide-gray-800">
+            <svg className={`w-4 h-4 text-gray-500 transition-transform ${hoyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {hoyOpen && <div className="divide-y divide-gray-800">
             {clasesDeHoy.map(clase => {
               const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
               const sinPlan = !entry
@@ -497,7 +522,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                 </div>
               )
             })}
-          </div>
+          </div>}
         </div>
       )}
 
@@ -530,14 +555,16 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setWeekOffset(w => w - 1)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+            disabled={weekOffset <= minOffset}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             ←
           </button>
           <span className="text-gray-300 text-sm font-medium">{fmtRange(weekDates)}</span>
           <button
             onClick={() => setWeekOffset(w => w + 1)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+            disabled={weekOffset >= maxOffset}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             →
           </button>
