@@ -10,8 +10,15 @@ type EstudianteRaw = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'tu
   auth_user_id?: string | null
 }
 
-export default async function CursoDetailPage({ params }: { params: Promise<{ cursoId: string }> }) {
+export default async function CursoDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ cursoId: string }>
+  searchParams: Promise<{ edit?: string }>
+}) {
   const { cursoId } = await params
+  const { edit } = await searchParams
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
@@ -129,7 +136,30 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
             <span className="text-xs text-gray-500">{curso.periodo}</span>
             {semana && <span className="badge-azul">{semana}</span>}
           </div>
-          <h1 className="text-2xl font-bold text-white">{curso.asignatura}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-white">{curso.asignatura}</h1>
+            <EditarCursoPanel
+              cursoId={cursoId}
+              clases={clases as any}
+              defaultOpen={edit === 'true'}
+              curso={{
+                asignatura:    curso.asignatura,
+                codigo:        curso.codigo,
+                periodo:       curso.periodo,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                aula:          (curso as any).aula ?? null,
+                fecha_inicio:  curso.fecha_inicio ?? null,
+                fecha_fin:     curso.fecha_fin ?? null,
+                horas_semana:  curso.horas_semana,
+                num_sesiones:  curso.num_sesiones,
+                horas_teoricas: curso.horas_teoricas,
+                num_parciales: curso.num_parciales ?? 2,
+                observacion:   curso.observacion ?? null,
+                institucion:   curso.institucion ?? null,
+              }}
+              institucionProfesor={profesorInstitucion}
+            />
+          </div>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(curso as any).aula && (
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,26 +173,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               )}
             </p>
           )}
-          <EditarCursoPanel
-            cursoId={cursoId}
-            clases={clases as any}
-            curso={{
-              asignatura:    curso.asignatura,
-              codigo:        curso.codigo,
-              periodo:       curso.periodo,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              aula:          (curso as any).aula ?? null,
-              fecha_inicio:  curso.fecha_inicio ?? null,
-              fecha_fin:     curso.fecha_fin ?? null,
-              horas_semana:  curso.horas_semana,
-              num_sesiones:  curso.num_sesiones,
-              horas_teoricas: curso.horas_teoricas,
-              num_parciales: curso.num_parciales ?? 2,
-              observacion:   curso.observacion ?? null,
-              institucion:   curso.institucion ?? null,
-            }}
-            institucionProfesor={profesorInstitucion}
-          />
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-3xl font-bold text-white">{activos.length}</p>

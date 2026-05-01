@@ -271,6 +271,19 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     const entry = bitacoraMap.get(key)
     const isTutoria = clase.tipo === 'tutoria_curso'
 
+    const cursoInfo = courseGroups.find(g => g.curso.id === cursoId)?.curso
+    const fechaInicio = cursoInfo?.fecha_inicio
+    const fechaFin = cursoInfo?.fecha_fin
+    const fueraDeRango = (fechaInicio && fecha < fechaInicio) || (fechaFin && fecha > fechaFin)
+
+    if (fueraDeRango) {
+      return (
+        <div className="w-full h-full min-h-[52px] p-2 rounded-lg bg-gray-800/20 border border-gray-700/30 flex items-center justify-center">
+          <span className="text-gray-700 text-[10px] text-center leading-tight">Fuera del<br/>período</span>
+        </div>
+      )
+    }
+
     const renderBadges = () => (
       <div className="flex flex-wrap gap-1 mt-0.5">
         {isTutoria && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">👨‍🏫 Tutoría</span>}

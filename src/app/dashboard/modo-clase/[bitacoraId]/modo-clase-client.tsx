@@ -488,6 +488,7 @@ export function ModoClaseClient({
   // Estado de participación inline
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
+  const [partTodosOpen, setPartTodosOpen] = useState(false)
 
   function togglePart(estudianteId: string) {
     setPartAbierto(prev => {
@@ -522,6 +523,25 @@ export function ModoClaseClient({
         nivel: d?.nivel ?? null,
         observacion: d?.obs?.trim() || null,
       }])
+    })
+  }
+
+  function marcarParticipacionTodos(nivel: number) {
+    const datos = students.map(s => ({
+      estudianteId: s.id,
+      nivel,
+      observacion: partData[s.id]?.obs ?? null,
+    }))
+    setPartData(prev => {
+      const next = { ...prev }
+      students.forEach(s => {
+        next[s.id] = { nivel, obs: prev[s.id]?.obs ?? '' }
+      })
+      return next
+    })
+    setPartTodosOpen(false)
+    startTransition(() => {
+      registrarParticipacion(cursoId, fecha, datos)
     })
   }
 
@@ -997,6 +1017,38 @@ export function ModoClaseClient({
 
           {/* Panel Asistencia */}
           {tabDerecha === 'asistencia' && (<>
+          {/* Participación masiva */}
+          <div className="flex-shrink-0 px-3 pt-2 pb-1 border-b border-gray-800/60">
+            {!partTodosOpen ? (
+              <button
+                onClick={() => setPartTodosOpen(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
+              >
+                ★ Marcar participación a todo el curso
+              </button>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Nivel para todos:</span>
+                  <button onClick={() => setPartTodosOpen(false)} className="text-gray-600 hover:text-gray-400 text-xs">✕</button>
+                </div>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => {
+                    const NIVEL_COLORS = ['','bg-red-600','bg-orange-600','bg-yellow-600','bg-lime-600','bg-emerald-600']
+                    const NIVEL_LABELS = ['','1·Nula','2·Baja','3·Media','4·Alta','5·Excel']
+                    return (
+                      <button key={n} onClick={() => marcarParticipacionTodos(n)}
+                        className={`flex-1 h-7 rounded text-[10px] font-bold text-white transition-colors ${NIVEL_COLORS[n]} hover:opacity-90`}
+                        title={NIVEL_LABELS[n]}
+                      >
+                        {n}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
             {students.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>

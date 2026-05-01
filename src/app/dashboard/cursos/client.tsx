@@ -1,126 +1,14 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
-import { actualizarDetallesCurso } from '@/lib/actions/cursos'
 
 type CursoConEstudiantes = Tables<'cursos'> & { num_estudiantes: number; semana: string | null }
-
-function EditarCursoModal({ curso, onClose }: { curso: CursoConEstudiantes; onClose: () => void }) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    setError(null)
-    startTransition(async () => {
-      const result = await actualizarDetallesCurso(curso.id, fd)
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        onClose()
-      }
-    })
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-white">Editar curso</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-200 transition-colors text-2xl leading-none p-1"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Asignatura</label>
-            <input
-              name="asignatura"
-              defaultValue={curso.asignatura}
-              className="input"
-              required
-              minLength={3}
-              maxLength={100}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Código</label>
-              <input
-                name="codigo"
-                defaultValue={curso.codigo}
-                className="input"
-                required
-                minLength={2}
-                maxLength={30}
-              />
-            </div>
-            <div>
-              <label className="label">Periodo</label>
-              <input
-                name="periodo"
-                defaultValue={curso.periodo ?? ''}
-                className="input"
-                required
-                minLength={3}
-                maxLength={20}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Fecha inicio</label>
-              <input
-                type="date"
-                name="fecha_inicio"
-                defaultValue={curso.fecha_inicio?.slice(0, 10) ?? ''}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="label">Fecha fin</label>
-              <input
-                type="date"
-                name="fecha_fin"
-                defaultValue={curso.fecha_fin?.slice(0, 10) ?? ''}
-                className="input"
-              />
-            </div>
-          </div>
-
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 btn-ghost border border-gray-700">
-              Cancelar
-            </button>
-            <button type="submit" disabled={isPending} className="flex-1 btn-primary">
-              {isPending ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
 
 export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
   const [busqueda, setBusqueda] = useState('')
   const [periodoFiltro, setPeriodoFiltro] = useState('')
-  const [cursoEditando, setCursoEditando] = useState<CursoConEstudiantes | null>(null)
 
   const periodos = useMemo(() => {
     const set = new Set(cursos.map(c => c.periodo).filter(Boolean))
@@ -153,10 +41,6 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
 
   return (
     <>
-      {cursoEditando && (
-        <EditarCursoModal curso={cursoEditando} onClose={() => setCursoEditando(null)} />
-      )}
-
       <div className="space-y-4">
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-3">
@@ -202,8 +86,9 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
                     {curso.codigo}
                   </span>
                   <span className="text-xs text-gray-500">{curso.periodo}</span>
-                  <button
-                    onClick={() => setCursoEditando(curso)}
+                  <Link
+                    href={`/dashboard/cursos/${curso.id}?edit=true`}
+                    onClick={e => e.stopPropagation()}
                     className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-all"
                     title="Editar curso"
                   >
@@ -211,7 +96,7 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
                     </svg>
-                  </button>
+                  </Link>
                 </div>
 
                 {/* Área clicable principal */}

@@ -16,6 +16,7 @@ type Props = {
   cursoId: string
   institucionProfesor?: string | null
   clases?: Clase[]
+  defaultOpen?: boolean
   curso: {
     asignatura: string
     codigo: string
@@ -32,8 +33,8 @@ type Props = {
   }
 }
 
-export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases = [] }: Props) {
-  const [open, setOpen] = useState(false)
+export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases = [], defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen ?? false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [numParciales, setNumParciales] = useState(curso.num_parciales ?? 2)
