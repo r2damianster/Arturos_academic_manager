@@ -344,8 +344,8 @@ Usuario externo (identificado por email) que cubre al profesor por un período e
 ### Edición de curso — completar campos faltantes
 `EditarCursoPanel` debe incluir: edición de horarios inline (actualmente en `HorariosEditor` separado, el usuario no lo encuentra), campo `institución` editable por curso (actualmente solo read-only del profesor), campo `observacion` libre. Evaluar si `institución` va en tabla `cursos` (nueva columna) o se reutiliza la de `profesores`.
 
-### Nota de participación y observación en asistencia — modo clase
-En la vista de asistencia del modo clase (`modo-clase-client.tsx`), tanto en la lista general como en la vista de grupos, agregar un toggle/check por estudiante que abra un mini-panel con: nivel de participación (1-5) y campo de observación libre. Ya existe la tabla `participacion` y la action `registrarParticipacion`. Solo falta la UI inline en la columna de asistencia (actualmente solo disponible en la VistaGrupo).
+### ~~Nota de participación y observación en asistencia — modo clase~~ ✅ IMPLEMENTADO
+~~Botón ★ por estudiante en la lista general de asistencia. Expande panel con niveles 1-5 (coloreados) + campo observación. Guarda con `registrarParticipacion`. El nivel se muestra en el botón una vez marcado.~~
 
 ### ~~Pase de lista — todos en Presente por defecto~~ ✅ IMPLEMENTADO
 ~~Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`.~~

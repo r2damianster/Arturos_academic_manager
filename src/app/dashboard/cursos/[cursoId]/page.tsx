@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { HorariosEditor } from '@/components/cursos/horarios-editor'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
 import { EditarCursoPanel } from '@/components/cursos/editar-curso-panel'
 import type { Tables } from '@/types/database.types'
@@ -144,9 +143,9 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               )}
             </p>
           )}
-          <HorariosEditor cursoId={cursoId} initialClases={clases as any} />
           <EditarCursoPanel
             cursoId={cursoId}
+            clases={clases as any}
             curso={{
               asignatura:    curso.asignatura,
               codigo:        curso.codigo,
@@ -159,6 +158,8 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               num_sesiones:  curso.num_sesiones,
               horas_teoricas: curso.horas_teoricas,
               num_parciales: curso.num_parciales ?? 2,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              observacion:   (curso as any).observacion ?? null,
             }}
             institucion={profesorInstitucion}
           />
