@@ -135,6 +135,36 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
 - **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
 
+## Features recientes (2026-05-01 — sesión 14)
+
+### Edición de curso completa
+- **FEAT** `src/components/cursos/editar-curso-panel.tsx`: `HorariosEditor` embebido dentro del panel (ya no está separado en la página). Campo `observacion` (textarea libre, max 500 chars). Campo `institucion` editable por curso. Botón "Editar datos del curso" con borde visible.
+- **FEAT** `src/lib/actions/cursos.ts`: `DetallesCursoSchema` y `actualizarDetallesCurso` actualizados para incluir `observacion` e `institucion`.
+- **MOD** `src/app/dashboard/cursos/[cursoId]/page.tsx`: `HorariosEditor` removido de la página (ahora vive dentro del panel).
+- **MIGRACIÓN** `supabase/migrations/20260501_add_observacion_cursos.sql` — aplicada en producción.
+- **MIGRACIÓN** `supabase/migrations/20260501_add_institucion_cursos.sql` — aplicada en producción.
+- **MOD** `src/types/database.types.ts`: `observacion: string | null` e `institucion: string | null` en Row/Insert/Update de `cursos`.
+
+### Drag A↔B en modo extensivo
+- **FEAT** `src/components/agenda/PlanificacionExtensiva.tsx`: cards con plan muestran ícono `⠿` (solo visible con Curso B activo). Al soltar sobre el otro curso aparece banner de confirmación amber ("¿Copiar este plan? Copiar / Cancelar"). Usa `copiarPlanificacion` existente (tema + actividades + observaciones). Dependencia: `@dnd-kit/core` (ya instalada).
+
+### Navegación día/semana en vista semanal
+- **FEAT** `src/app/dashboard/planificacion/planificacion-client.tsx`: botones `‹‹` (semana atrás), `‹` (día atrás), `›` (día adelante), `››` (semana adelante). Display central: rango de semana + día seleccionado en azul. Clic en header del grid cambia el día seleccionado. Columna del día activo resaltada en azul tenue. Al cruzar límite de semana con `‹`/`›`, avanza/retrocede la semana automáticamente. Botón "Hoy" resetea semana y día seleccionado.
+
+### Eliminar plan (ambas vistas)
+- **FEAT** `src/app/dashboard/planificacion/planificacion-client.tsx`: botón `🗑` por celda → confirmación inline "¿Eliminar? Sí/No"; advertencia extra para cumplidos.
+- **FEAT** `src/components/agenda/PlanificacionExtensiva.tsx`: mismo patrón por card.
+- **MOD** `src/lib/actions/bitacora.ts` — `eliminarPlanificacion`: removida restricción `.neq('estado', 'cumplido')`; ahora permite borrar planes cumplidos.
+
+### Ensamblador de evidencias PDF (`/student/evidencias`)
+- **FEAT** `src/app/student/evidencias/page.tsx` (nuevo): RSC que obtiene nombre estudiante, asignatura y profesor.
+- **FEAT** `src/components/student/EnsamblarEvidencias.tsx` (nuevo): dos zonas Grupales (Exposiciones en clase, Hojas grupales) e Individuales (Brisk, Perusall, Ensayos). Drag-and-drop de archivos, reordenar con ↑↓, eliminar, añadir categorías personalizadas. Acepta: PDF, JPEG, PNG, WebP, HEIC, TIFF.
+- **FEAT** `src/app/api/student/ensamblar-evidencias/route.ts` (nuevo): `pdf-lib` genera portada oscura con metadatos + páginas divisoras por categoría + footer en cada página. `sharp` convierte imágenes no-JPEG/PNG a JPEG antes de embeber. Responde con PDF descargable (no se almacena en servidor).
+- **MOD** `src/app/student/page.tsx`: card "Armar Evidencias PDF" (col-span-2) como acceso rápido.
+- **Dependencias añadidas**: `pdf-lib`, `sharp`.
+
+---
+
 ## Features recientes (2026-04-26 — sesión 10)
 
 ### Sistema de Grupos en Clases
@@ -341,8 +371,8 @@ END; $$;
 ### Acceso a reemplazante
 Usuario externo (identificado por email) que cubre al profesor por un período específico. Acceso restringido a: planificación, pase de lista, registro de novedades. Prohibido: editar curso, editar tareas asignadas, descargar archivos Moodle CSV. Requiere: tabla `reemplazantes` (profesor_id, email_reemplazante, fecha_inicio, fecha_fin), middleware que detecta rol y oculta/bloquea funciones restringidas. Implementar como rol separado, no como modificación al rol profesor.
 
-### Edición de curso — completar campos faltantes
-`EditarCursoPanel` debe incluir: edición de horarios inline (actualmente en `HorariosEditor` separado, el usuario no lo encuentra), campo `institución` editable por curso (actualmente solo read-only del profesor), campo `observacion` libre. Evaluar si `institución` va en tabla `cursos` (nueva columna) o se reutiliza la de `profesores`.
+### ~~Edición de curso — completar campos faltantes~~ ✅ IMPLEMENTADO
+~~`EditarCursoPanel` debe incluir: edición de horarios inline (actualmente en `HorariosEditor` separado, el usuario no lo encuentra), campo `institución` editable por curso (actualmente solo read-only del profesor), campo `observacion` libre. Evaluar si `institución` va en tabla `cursos` (nueva columna) o se reutiliza la de `profesores`.~~
 
 ### ~~Nota de participación y observación en asistencia — modo clase~~ ✅ IMPLEMENTADO
 ~~Botón ★ por estudiante en la lista general de asistencia. Expande panel con niveles 1-5 (coloreados) + campo observación. Guarda con `registrarParticipacion`. El nivel se muestra en el botón una vez marcado.~~
@@ -350,11 +380,11 @@ Usuario externo (identificado por email) que cubre al profesor por un período e
 ### ~~Pase de lista — todos en Presente por defecto~~ ✅ IMPLEMENTADO
 ~~Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`.~~
 
-### Modo extensivo — drag entre cursos (pendiente)
-~~Navegación independiente A/B~~ ✅ IMPLEMENTADO. Pendiente: arrastrar un plan del Curso B al Curso A (o viceversa) usando `@dnd-kit/core`.
+### ~~Modo extensivo — drag entre cursos~~ ✅ IMPLEMENTADO
+~~Navegación independiente A/B~~ ✅. ~~Arrastrar un plan del Curso B al Curso A (o viceversa) usando `@dnd-kit/core`.~~ ✅
 
-### Planificación semanal — navegación por día sin mover semana
-La vista semanal actual mueve toda la semana al navegar. Agregar navegación por día individual (resaltar el día) sin desplazar la ventana de la semana.
+### ~~Planificación semanal — navegación por día sin mover semana~~ ✅ IMPLEMENTADO
+~~La vista semanal actual mueve toda la semana al navegar. Agregar navegación por día individual (resaltar el día) sin desplazar la ventana de la semana.~~
 
 ### ~~Panel "Hoy" — ocultable en planificación~~ ✅ IMPLEMENTADO
 ~~Aplicar el mismo patrón que el dashboard. Ya implementado en `planificacion-client.tsx`.~~
@@ -362,16 +392,16 @@ La vista semanal actual mueve toda la semana al navegar. Agregar navegación por
 ### ~~Planificación — respetar fechas del curso~~ ✅ IMPLEMENTADO
 ~~Botones ← → ahora respetan `fecha_inicio`/`fecha_fin` de los cursos (disabled al llegar al límite).~~
 
-### Ensamblador de evidencias (portal estudiante)
-Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo y genera un PDF maestro. Funcionalidad:
-- **Drag-and-drop** de archivos (PDFs e imágenes) en zonas categorizadas: Actividades grupales / Actividades individuales, con subcategorías configurables (Brisk, Perusall, Ensayos, u otras que el estudiante defina)
-- **Generación de PDF maestro** via Serverless Function usando `pdf-lib`: página de encabezado con metadatos del curso + fecha, pie de página con nombre del profesor en cada hoja importada
-- **Conversión de imágenes a PDF** con `sharp` antes de ensamblar
-- El PDF resultante se descarga directamente (no se almacena en servidor)
-- Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)
+### ~~Ensamblador de evidencias (portal estudiante)~~ ✅ IMPLEMENTADO
+~~Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo y genera un PDF maestro. Funcionalidad:~~
+~~- **Drag-and-drop** de archivos (PDFs e imágenes) en zonas categorizadas: Actividades grupales / Actividades individuales, con subcategorías configurables (Brisk, Perusall, Ensayos, u otras que el estudiante defina)~~
+~~- **Generación de PDF maestro** via Serverless Function usando `pdf-lib`: página de encabezado con metadatos del curso + fecha, pie de página con nombre del profesor en cada hoja importada~~
+~~- **Conversión de imágenes a PDF** con `sharp` antes de ensamblar~~
+~~- El PDF resultante se descarga directamente (no se almacena en servidor)~~
+~~- Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)~~
 
 ## Bugs pendientes
-- **Edición de curso**: `EditarCursoPanel` tiene los campos básicos pero el usuario no puede editar horarios desde ahí (están en `HorariosEditor` separado y no es obvio), ni agregar observación, ni editar institución por curso. Ver feature "Edición de curso — completar campos faltantes".
+_(Sin bugs pendientes documentados en esta sesión.)_
 
 ## Convenciones críticas
 
