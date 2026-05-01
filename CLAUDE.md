@@ -336,7 +336,56 @@ END; $$;
 ### Portal del estudiante
 - `ChatBot` flotante (`src/components/student/ChatBot.tsx`) — ayuda contextual, FAQ, chips de sugerencias. Estructura lista para conectar Claude API.
 
+## Features próximas sesiones
+
+### Acceso a reemplazante
+Usuario externo (identificado por email) que cubre al profesor por un período específico. Acceso restringido a: planificación, pase de lista, registro de novedades. Prohibido: editar curso, editar tareas asignadas, descargar archivos Moodle CSV. Requiere: tabla `reemplazantes` (profesor_id, email_reemplazante, fecha_inicio, fecha_fin), middleware que detecta rol y oculta/bloquea funciones restringidas. Implementar como rol separado, no como modificación al rol profesor.
+
+### Edición de curso — completar campos faltantes
+`EditarCursoPanel` debe incluir: edición de horarios inline (actualmente en `HorariosEditor` separado, el usuario no lo encuentra), campo `institución` editable por curso (actualmente solo read-only del profesor), campo `observacion` libre. Evaluar si `institución` va en tabla `cursos` (nueva columna) o se reutiliza la de `profesores`.
+
+### Nota de participación y observación en asistencia — modo clase
+En la vista de asistencia del modo clase (`modo-clase-client.tsx`), tanto en la lista general como en la vista de grupos, agregar un toggle/check por estudiante que abra un mini-panel con: nivel de participación (1-5) y campo de observación libre. Ya existe la tabla `participacion` y la action `registrarParticipacion`. Solo falta la UI inline en la columna de asistencia (actualmente solo disponible en la VistaGrupo).
+
+### Pase de lista — todos en Presente por defecto
+Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`. El profesor solo cambia los que llegaron tarde o faltaron. Afecta `pase-lista-client.tsx`: inicializar `registros` con estado `Presente` para todos los estudiantes al cargar.
+
+### Modo extensivo — navegación independiente + drag entre cursos
+El Curso B en la vista de comparación debe poder navegar hacia atrás/adelante en el tiempo de forma independiente al Curso A (offset propio). Además, permitir arrastrar un plan del Curso B al Curso A (o viceversa) para copiar directamente entre ellos usando `@dnd-kit/core` ya disponible. `PlanificacionExtensiva.tsx` necesita: `offsetA` y `offsetB` de state independiente, y lógica DnD entre columnas.
+
+### Planificación semanal — navegación por día sin mover semana
+La vista semanal actual mueve toda la semana al navegar. Agregar la posibilidad de navegar por día individual (resaltar el día seleccionado) sin desplazar la ventana de la semana. Útil para ver "hoy" sin perder contexto de la semana actual.
+
+### Panel "Hoy" — ocultable en todas las pantallas
+`TodayPanel` ya es colapsable en el dashboard. Aplicar el mismo patrón (botón ▼/▲ con `localStorage`) en todas las páginas donde aparece el panel de hoy: planificación, agenda, etc.
+
+### Planificación — respetar fechas del curso
+La vista de planificación actualmente muestra slots infinitos. Debe limitar la navegación hacia atrás/adelante según `cursos.fecha_inicio` y `cursos.fecha_fin`. Si el curso no tiene fechas, permitir navegación libre. Aplica tanto a vista semanal como a vista extensiva (Por curso).
+
+### Ensamblador de evidencias (portal estudiante)
+Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo y genera un PDF maestro. Funcionalidad:
+- **Drag-and-drop** de archivos (PDFs e imágenes) en zonas categorizadas: Actividades grupales / Actividades individuales, con subcategorías configurables (Brisk, Perusall, Ensayos, u otras que el estudiante defina)
+- **Generación de PDF maestro** via Serverless Function usando `pdf-lib`: página de encabezado con metadatos del curso + fecha, pie de página con nombre del profesor en cada hoja importada
+- **Conversión de imágenes a PDF** con `sharp` antes de ensamblar
+- El PDF resultante se descarga directamente (no se almacena en servidor)
+- Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)
+
 ## Bugs pendientes
+- **Planificación sin límite de fechas**: se puede navegar y planificar más allá de `fecha_fin` o antes de `fecha_inicio` del curso. Corregir en `PlanificacionClient` (vista semanal) y `PlanificacionExtensiva` (vista por curso).
+- **Edición de curso**: `EditarCursoPanel` tiene los campos básicos pero el usuario no puede editar horarios desde ahí (están en `HorariosEditor` separado y no es obvio), ni agregar observación, ni editar institución por curso. Ver feature "Edición de curso — completar campos faltantes".
+- **Nombres en asistencia**: `formatNombreCorto` aplicado en `AsistenciaGridClient` y en las listas de `modo-clase-client`. Verificar que también aplica en `pase-lista-client` y en cualquier otra tabla de asistencia del sistema.
+- **Modo extensivo — cursos A y B se mueven juntos**: al cambiar el horizonte de tiempo del Curso B, también afecta al Curso A. Deben tener offsets de tiempo independientes.
+
+## Convenciones críticas
+
+### Supabase — proyecto de producción
+El proyecto de producción (Vercel) es **`hxsnyrutyyavvljxwgku`**. El proyecto local (`.env.local`) apunta a **`vylkasmcveazzaspwgcr`**. **NUNCA** ejecutar migraciones o SQL críticos en el proyecto equivocado. Verificar siempre el project_id antes de usar el MCP.
+
+### Creación de usuarios auth — CRÍTICO
+**Nunca** insertar directamente en `auth.users` via SQL. GoTrue requiere que columnas como `email_change`, `confirmation_token`, `recovery_token`, `reauthentication_token` sean `''` (string vacío), no `NULL`. Un INSERT directo deja estas columnas en NULL y el login falla con "Database error querying schema".
+- **Registro individual**: `supabase.auth.signUp()` desde la app ✓
+- **Carga masiva**: `importarEstudiantesMasivo(cursoId, lista, passwordInicial)` → usa `auth.admin.createUser()` ✓
+- **Emergencia**: `auth.admin.updateUserById()` desde código, nunca SQL directo
 
 ## Convenciones críticas
 
