@@ -17,6 +17,10 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  const profesorRes = await db.from('profesores').select('institucion').eq('id', authUser?.id).maybeSingle()
+  const profesorInstitucion: string | null = profesorRes?.data?.institucion ?? null
+
   const [cursoRes, estudiantesRes, clasesRes, asistenciaRes, trabajosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
@@ -156,6 +160,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               horas_teoricas: curso.horas_teoricas,
               num_parciales: curso.num_parciales ?? 2,
             }}
+            institucion={profesorInstitucion}
           />
         </div>
         <div className="text-right flex-shrink-0">

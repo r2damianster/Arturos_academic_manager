@@ -5,6 +5,7 @@ import { actualizarDetallesCurso } from '@/lib/actions/cursos'
 
 type Props = {
   cursoId: string
+  institucion?: string | null
   curso: {
     asignatura: string
     codigo: string
@@ -19,7 +20,7 @@ type Props = {
   }
 }
 
-export function EditarCursoPanel({ cursoId, curso }: Props) {
+export function EditarCursoPanel({ cursoId, curso, institucion }: Props) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,6 +58,18 @@ export function EditarCursoPanel({ cursoId, curso }: Props) {
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-gray-200 text-sm">Editar curso</h3>
         <button type="button" onClick={() => setOpen(false)} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
+      </div>
+
+      {/* Info contextual */}
+      {institucion && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 rounded-lg text-xs text-gray-400">
+          <span>🏫</span>
+          <span>{institucion}</span>
+        </div>
+      )}
+      <div className="flex items-center gap-2 px-3 py-2 bg-blue-900/20 border border-blue-800/40 rounded-lg text-xs text-blue-300">
+        <span>📅</span>
+        <span>Para editar <strong>horarios de clase</strong>, usa el editor de horarios que aparece arriba en esta misma página.</span>
       </div>
 
       <div>

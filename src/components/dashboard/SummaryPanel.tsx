@@ -51,12 +51,6 @@ export function SummaryPanel({ totalCursos, totalEstudiantes, asistenciaHoy, cur
             </span>
           </div>
         </button>
-        <Link
-          href="/dashboard/pase-lista"
-          className="btn-primary text-sm px-4 py-1.5 flex-shrink-0"
-        >
-          Tomar Lista
-        </Link>
       </div>
 
       {/* Expandable content */}

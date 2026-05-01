@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { SummaryPanel } from '@/components/dashboard/SummaryPanel'
 import { TodayPanel } from '@/components/dashboard/TodayPanel'
 import { AgendaSection } from '@/components/dashboard/AgendaSection'
+import { TutoriasPendientesPanel } from '@/components/dashboard/TutoriasPendientesPanel'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -39,9 +40,27 @@ export default async function DashboardPage() {
   const horarioIds: number[] = horariosBase.map((h: { id: number }) => h.id)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let reservas: any[] = []
+  let reservasPendientes: any[] = []
   if (horarioIds.length > 0) {
-    const { data } = await db.from('reservas').select('*').in('horario_id', horarioIds).order('fecha', { ascending: false })
-    reservas = data ?? []
+    const [allRes, pendRes] = await Promise.all([
+      db.from('reservas').select('*').in('horario_id', horarioIds).order('fecha', { ascending: false }),
+      db.from('reservas')
+        .select('id, fecha, estudiante_nombre, estado, asistio, horario_id, horarios!inner(hora_inicio, hora_fin)')
+        .in('horario_id', horarioIds)
+        .lt('fecha', hoy)
+        .is('asistio', null)
+        .order('fecha', { ascending: false }),
+    ])
+    reservas = allRes.data ?? []
+    reservasPendientes = (pendRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      fecha: r.fecha,
+      estudiante_nombre: r.estudiante_nombre,
+      estado: r.estado,
+      asistio: r.asistio,
+      hora_inicio: r.horarios?.hora_inicio ?? '',
+      hora_fin: r.horarios?.hora_fin ?? '',
+    }))
   }
 
   // Estudiantes del profesor (deduplicados por auth_user_id)
@@ -114,6 +133,7 @@ export default async function DashboardPage() {
         profesorId={user.id}
         profesorNombre={profesorRes.data?.nombre ?? ''}
       />
+      <TutoriasPendientesPanel reservas={reservasPendientes} />
     </div>
   )
 }

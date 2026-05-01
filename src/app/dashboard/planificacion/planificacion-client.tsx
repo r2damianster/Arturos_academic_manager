@@ -514,7 +514,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                 : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            {mode === 'semana' ? '📅 Semana' : '📋 Extensivo'}
+            {mode === 'semana' ? '📅 Semana' : '📋 Por curso'}
           </button>
         ))}
       </div>

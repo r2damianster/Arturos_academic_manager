@@ -10,6 +10,7 @@ import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
+import { formatNombreCorto } from '@/lib/format'
 
 type Student = { id: string; nombre: string; email: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -257,7 +258,7 @@ function VistGrupo({
             return (
               <div key={s.id} className="p-2.5 rounded-lg bg-gray-800/60 border border-gray-700/50 space-y-2">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-200 font-medium flex-1 truncate">{s.nombre}</p>
+                  <p className="text-sm text-gray-200 font-medium flex-1 truncate">{formatNombreCorto(s.nombre)}</p>
                   {/* P/A/F */}
                   <div className="flex gap-1 shrink-0">
                     {(['Presente', 'Atraso', 'Ausente'] as const).map(e => (
@@ -965,7 +966,7 @@ export function ModoClaseClient({
                 return (
                   <div key={s.id} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-800/50">
                     <span className="flex-1 text-sm text-gray-300 truncate">
-                      {s.nombre}
+                      {formatNombreCorto(s.nombre)}
                     </span>
                     <div className="flex gap-1 flex-shrink-0">
                       <button

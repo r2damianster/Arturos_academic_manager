@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva, type RegistroAsistenciaInput } from '@/lib/actions/asistencia'
 import { guardarBitacoraData } from '@/lib/actions/bitacora'
+import { formatNombreCorto } from '@/lib/format'
 import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
 import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lista/page'
@@ -389,7 +390,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center text-3xl font-bold text-gray-400 mx-auto mb-3">
             {actual.nombre.charAt(0).toUpperCase()}
           </div>
-          <h2 className="text-xl font-bold text-white mb-0.5">{actual.nombre}</h2>
+          <h2 className="text-xl font-bold text-white mb-0.5">{formatNombreCorto(actual.nombre)}</h2>
           <p className="text-gray-500 text-sm">{actual.email}</p>
           
           <div className="mt-3 flex justify-center">
