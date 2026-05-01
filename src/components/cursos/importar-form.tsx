@@ -19,6 +19,9 @@ export function ImportarEstudiantesForm({ cursoId }: Props) {
   const [resultado, setResultado] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [passwordInicial, setPasswordInicial] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [erroresAuth, setErroresAuth] = useState<string[]>([])
 
   function parsearTexto(texto: string) {
     const lineas = texto.trim().split('\n').filter(l => l.trim())
@@ -63,12 +66,21 @@ export function ImportarEstudiantesForm({ cursoId }: Props) {
 
     setError(null)
     setResultado(null)
+    setErroresAuth([])
     startTransition(async () => {
-      const res = await importarEstudiantesMasivo(cursoId, validos)
+      const res = await importarEstudiantesMasivo(
+        cursoId,
+        validos,
+        passwordInicial.trim() || undefined
+      )
       if (res.error) {
         setError(res.error)
       } else {
-        setResultado(`${res.count} estudiantes importados correctamente.`)
+        const partes = [`✓ ${res.count} estudiantes importados`]
+        if (res.yaExistian) partes.push(`${res.yaExistian} ya tenían cuenta (vinculados)`)
+        if (passwordInicial.trim()) partes.push('con acceso al portal activado')
+        setResultado(partes.join(' · '))
+        if (res.erroresAuth) setErroresAuth(res.erroresAuth)
         setFilas([])
       }
     })
@@ -149,23 +161,69 @@ export function ImportarEstudiantesForm({ cursoId }: Props) {
             ))}
           </div>
 
+          {/* Contraseña inicial */}
+          <div className="pt-2 border-t border-gray-800">
+            <label className="label">
+              Contraseña inicial del portal
+              <span className="ml-2 text-xs text-gray-500 font-normal">(opcional — activa acceso inmediato)</span>
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={passwordInicial}
+                  onChange={e => setPasswordInicial(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Ej: Ute2026"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-xs"
+                >
+                  {showPass ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
+            </div>
+            {passwordInicial.trim() ? (
+              <p className="text-xs text-emerald-400 mt-1">
+                ✓ Se creará cuenta en el portal con esta contraseña. Los estudiantes podrán cambiarla después.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-600 mt-1">
+                Sin contraseña: solo se agrega al curso. El estudiante deberá crear su cuenta por separado.
+              </p>
+            )}
+          </div>
+
           {error && (
-            <div className="mt-3 bg-red-950 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-lg">
+            <div className="bg-red-950 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
           {resultado && (
-            <div className="mt-3 bg-emerald-950 border border-emerald-800 text-emerald-400 text-sm px-4 py-3 rounded-lg">
+            <div className="bg-emerald-950 border border-emerald-800 text-emerald-400 text-sm px-4 py-3 rounded-lg">
               {resultado}
+            </div>
+          )}
+          {erroresAuth.length > 0 && (
+            <div className="bg-yellow-950 border border-yellow-800 text-yellow-400 text-xs px-4 py-3 rounded-lg space-y-1">
+              <p className="font-semibold">Advertencias en creación de cuentas:</p>
+              {erroresAuth.map((e, i) => <p key={i}>· {e}</p>)}
             </div>
           )}
 
           <button
             onClick={importar}
             disabled={isPending || validos === 0}
-            className="btn-primary w-full mt-4"
+            className="btn-primary w-full mt-2"
           >
-            {isPending ? 'Importando...' : `Importar ${validos} estudiantes`}
+            {isPending
+              ? 'Importando...'
+              : passwordInicial.trim()
+                ? `Importar ${validos} estudiantes + crear cuentas`
+                : `Importar ${validos} estudiantes`
+            }
           </button>
         </div>
       )}
