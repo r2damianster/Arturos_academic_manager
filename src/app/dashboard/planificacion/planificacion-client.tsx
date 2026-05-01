@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
 import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
+import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
 import { gestionarDragPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ interface Props {
 export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) {
   const supabase = createClient()
 
+  const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>('semana')
   const [weekOffset, setWeekOffset] = useState(0)
   const [isMounted, setIsMounted] = useState(false)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
@@ -499,6 +501,30 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
         </div>
       )}
 
+      {/* Toggle vista */}
+      <div className="flex gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
+        {(['semana', 'extensivo'] as const).map(mode => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setViewMode(mode)}
+            className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
+              viewMode === mode
+                ? 'bg-gray-700 text-white'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {mode === 'semana' ? '📅 Semana' : '📋 Extensivo'}
+          </button>
+        ))}
+      </div>
+
+      {/* Modo extensivo */}
+      {viewMode === 'extensivo' && <PlanificacionExtensiva clases={clases} />}
+
+      {/* Vista semanal — solo visible en modo semana */}
+      {viewMode === 'semana' && <>
+
       {/* Header navegación */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -802,6 +828,8 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           }}
         />
       )}
+
+      </> /* fin vista semana */}
     </div>
   )
 }

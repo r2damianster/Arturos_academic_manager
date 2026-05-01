@@ -341,15 +341,6 @@ END; $$;
 ### Modo planificación extensivo (`/dashboard/planificacion`)
 Vista de largo plazo por curso: todos los planes de 1-2 meses en scroll vertical con las mismas acciones (copiar, mover, editar). Modo comparación: activar un segundo curso para ver dos columnas en paralelo y copiar clases entre ellos. Con dos cursos activos → reducir ventana a 1 mes. Implementar como nuevo tab/toggle en la página existente, no como ruta separada.
 
-### Citar a tutoría desde la lista de estudiantes del curso
-Botón "Citar" junto a "Retirar" en la tabla de estudiantes del curso. Requiere columna `citado_tutoria BOOLEAN DEFAULT false` en tabla `estudiantes`. El portal del estudiante ya renderiza estados — verificar que la consulta incluye ese campo y mostrar "Citado a tutorías" si está activo.
-
-### Recordatorio/confirmación de tutorías fuera del calendario
-Antes existía flujo para que el estudiante confirmara asistencia y el profesor marcara si asistió, accesible fuera del calendario. Ahora solo es posible desde el calendario. Reimplementar como acción rápida en `TodayPanel` o en la vista de reservas del profesor.
-
-### Reordenar actividades en planificación (`PlanificarModal`)
-El campo `actividades_json` almacena actividades como array en `bitacora_clase`. La UI debe permitir drag-to-reorder (ya existe `@dnd-kit/core`). Agregar `DraggablePlanItem` dentro del modal de planificación.
-
 ## Bugs pendientes
 
 ## Convenciones críticas
