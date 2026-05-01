@@ -91,6 +91,11 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
   const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>('semana')
   const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const t = new Date(); t.setHours(0, 0, 0, 0)
+    if (t.getDay() === 0) t.setDate(t.getDate() + 1)
+    return dateToStr(t)
+  })
   const [isMounted, setIsMounted] = useState(false)
   const [hoyOpen, setHoyOpen] = useState(true)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
@@ -130,6 +135,26 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [dragError, setDragError] = useState<string | null>(null)
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
+
+  function navDay(delta: 1 | -1) {
+    const cur = new Date(selectedDate + 'T12:00:00')
+    cur.setDate(cur.getDate() + delta)
+    if (cur.getDay() === 0) cur.setDate(cur.getDate() + delta) // saltar domingo
+    const wStart = weekDates[0], wEnd = weekDates[weekDates.length - 1]
+    if (cur < wStart && weekOffset > minOffset) { setWeekOffset(w => w - 1); setSelectedDate(dateToStr(cur)) }
+    else if (cur > wEnd && weekOffset < maxOffset) { setWeekOffset(w => w + 1); setSelectedDate(dateToStr(cur)) }
+    else if (cur >= wStart && cur <= wEnd) setSelectedDate(dateToStr(cur))
+  }
+
+  function navWeek(delta: 1 | -1) {
+    const newOff = weekOffset + delta
+    if (newOff < minOffset || newOff > maxOffset) return
+    const newDates = getWeekDates(newOff)
+    const curDay = new Date(selectedDate + 'T12:00:00').getDay()
+    const match = newDates.find(d => d.getDay() === curDay)
+    setWeekOffset(newOff)
+    setSelectedDate(dateToStr(match ?? newDates[0]))
+  }
 
   // Límites de navegación basados en fechas de los cursos
   const { minOffset, maxOffset } = useMemo(() => {
@@ -552,26 +577,33 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
       {/* Header navegación */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setWeekOffset(w => w - 1)}
-            disabled={weekOffset <= minOffset}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            ←
-          </button>
-          <span className="text-gray-300 text-sm font-medium">{fmtRange(weekDates)}</span>
-          <button
-            onClick={() => setWeekOffset(w => w + 1)}
-            disabled={weekOffset >= maxOffset}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            →
-          </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => navWeek(-1)} disabled={weekOffset <= minOffset}
+            title="Semana anterior"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
+          >‹‹</button>
+          <button onClick={() => navDay(-1)} disabled={weekOffset <= minOffset && selectedDate === dateToStr(weekDates[0])}
+            title="Día anterior"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
+          >‹</button>
+          <div className="text-center min-w-[120px]">
+            <div className="text-gray-300 text-sm font-medium leading-tight">{fmtRange(weekDates)}</div>
+            {(() => { const sd = new Date(selectedDate + 'T12:00:00'); return (
+              <div className="text-brand-400 text-[11px] font-medium">{DIAS_SHORT[sd.getDay()]} {sd.getDate()}</div>
+            )})()}
+          </div>
+          <button onClick={() => navDay(1)} disabled={weekOffset >= maxOffset && selectedDate === dateToStr(weekDates[weekDates.length - 1])}
+            title="Día siguiente"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
+          >›</button>
+          <button onClick={() => navWeek(1)} disabled={weekOffset >= maxOffset}
+            title="Semana siguiente"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
+          >››</button>
           {weekOffset !== 0 && (
             <button
-              onClick={() => setWeekOffset(0)}
-              className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors"
+              onClick={() => { setWeekOffset(0); const t = new Date(); t.setHours(0,0,0,0); if (t.getDay()===0) t.setDate(t.getDate()+1); setSelectedDate(dateToStr(t)) }}
+              className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors ml-1"
             >
               Hoy
             </button>
@@ -611,13 +643,17 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           {/* Header días */}
           <div className="grid border-b border-gray-800" style={{ gridTemplateColumns: 'minmax(180px, 1fr) repeat(6, minmax(0, 1fr))' }}>
             <div className="px-3 py-2.5 text-xs text-gray-600 font-medium">Asignatura</div>
-            {weekDates.map(date => (
-              <div key={date.toISOString()} className="px-2 py-2.5 text-center">
-                <div className="text-xs text-gray-400 font-medium">
-                  {DIAS_SHORT[date.getDay()]} {date.getDate()}
-                </div>
-              </div>
-            ))}
+            {weekDates.map(date => {
+              const isSelDay = dateToStr(date) === selectedDate
+              return (
+                <button key={date.toISOString()} onClick={() => setSelectedDate(dateToStr(date))}
+                  className={`px-2 py-2.5 text-center w-full transition-colors ${isSelDay ? 'bg-brand-900/40 border-b-2 border-brand-500' : 'hover:bg-gray-800/40'}`}>
+                  <div className={`text-xs font-medium ${isSelDay ? 'text-brand-300' : 'text-gray-400'}`}>
+                    {DIAS_SHORT[date.getDay()]} {date.getDate()}
+                  </div>
+                </button>
+              )
+            })}
           </div>
 
           {/* Filas por curso */}
@@ -691,7 +727,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                     return (
                       <div
                         key={fecha}
-                        className={`p-1.5 ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
+                        className={`p-1.5 transition-colors ${fecha === selectedDate ? 'bg-brand-900/10' : ''} ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
                         onDragOver={e => {
                           if (!dragSource || sameSource) return
                           if (isCompletedTarget) return
