@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { EstadoEstudianteButton } from './estado-estudiante-button'
+import { CitarTutoriaButton } from './citar-tutoria-button'
 
 export interface EstudianteConMetricas {
   id: string
@@ -63,18 +64,19 @@ export function EstudiantesMetricsTable({ cursoId, estudiantes, retirados }: Pro
         ) : (
           <div>
             {/* Header — solo desktop */}
-            <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 pb-2 mb-1 border-b border-gray-800 text-[11px] text-gray-500 uppercase tracking-widest">
+            <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 pb-2 mb-1 border-b border-gray-800 text-[11px] text-gray-500 uppercase tracking-widest">
               <span>Estudiante</span>
               <span className="text-center w-24">Asistencia</span>
               <span className="text-center w-20">Trabajos</span>
               <span className="text-center w-14">Encuesta</span>
+              <span className="text-center w-20">Tutoría</span>
               <span className="text-center w-20">Estado</span>
             </div>
 
             <div className="divide-y divide-gray-800">
               {estudiantes.map(est => (
                 <div key={est.id}
-                  className="py-3 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center group">
+                  className="py-3 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 items-center group">
 
                   {/* Nombre + email */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -90,9 +92,9 @@ export function EstudiantesMetricsTable({ cursoId, estudiantes, retirados }: Pro
                     </div>
                   </div>
 
-                  {/* Mobile: solo estado */}
+                  {/* Mobile: citar + estado */}
                   <div className="md:hidden flex items-center gap-2">
-                    {est.tutoria && <span className="badge-azul">T</span>}
+                    <CitarTutoriaButton estudianteId={est.id} cursoId={cursoId} currentTutoria={est.tutoria} />
                     <EstadoEstudianteButton estudianteId={est.id} cursoId={cursoId} currentEstado={est.estado} />
                   </div>
 
@@ -121,9 +123,13 @@ export function EstudiantesMetricsTable({ cursoId, estudiantes, retirados }: Pro
                     }
                   </div>
 
+                  {/* Citar tutoría — desktop */}
+                  <div className="hidden md:flex justify-center w-20">
+                    <CitarTutoriaButton estudianteId={est.id} cursoId={cursoId} currentTutoria={est.tutoria} />
+                  </div>
+
                   {/* Estado — desktop */}
-                  <div className="hidden md:flex items-center justify-end gap-2 w-20">
-                    {est.tutoria && <span className="badge-azul hidden lg:inline">T</span>}
+                  <div className="hidden md:flex justify-end w-20">
                     <EstadoEstudianteButton estudianteId={est.id} cursoId={cursoId} currentEstado={est.estado} />
                   </div>
                 </div>
