@@ -336,11 +336,6 @@ END; $$;
 ### Portal del estudiante
 - `ChatBot` flotante (`src/components/student/ChatBot.tsx`) — ayuda contextual, FAQ, chips de sugerencias. Estructura lista para conectar Claude API.
 
-## Features próximas sesiones
-
-### Modo planificación extensivo (`/dashboard/planificacion`)
-Vista de largo plazo por curso: todos los planes de 1-2 meses en scroll vertical con las mismas acciones (copiar, mover, editar). Modo comparación: activar un segundo curso para ver dos columnas en paralelo y copiar clases entre ellos. Con dos cursos activos → reducir ventana a 1 mes. Implementar como nuevo tab/toggle en la página existente, no como ruta separada.
-
 ## Bugs pendientes
 
 ## Convenciones críticas
