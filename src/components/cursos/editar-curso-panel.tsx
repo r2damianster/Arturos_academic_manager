@@ -54,9 +54,9 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 mt-2 transition-colors"
+        className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
       >
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>

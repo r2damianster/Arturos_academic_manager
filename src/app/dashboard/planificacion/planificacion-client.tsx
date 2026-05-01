@@ -7,7 +7,7 @@ import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
 import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
-import { gestionarDragPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -133,6 +133,8 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   } | null>(null)
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [dragError, setDragError] = useState<string | null>(null)
+  const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
 
@@ -144,6 +146,16 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     if (cur < wStart && weekOffset > minOffset) { setWeekOffset(w => w - 1); setSelectedDate(dateToStr(cur)) }
     else if (cur > wEnd && weekOffset < maxOffset) { setWeekOffset(w => w + 1); setSelectedDate(dateToStr(cur)) }
     else if (cur >= wStart && cur <= wEnd) setSelectedDate(dateToStr(cur))
+  }
+
+  async function handleDeletePlan(cursoId: string, fecha: string) {
+    const key = `${cursoId}|${fecha}`
+    setDeletingKey(key)
+    await eliminarPlanificacion({ cursoId, fecha })
+    setDeletingKey(null)
+    setDeleteConfirmKey(null)
+    // Refrescar mapa local
+    setBitacoraMap(prev => { const m = new Map(prev); m.delete(key); return m })
   }
 
   function navWeek(delta: 1 | -1) {
@@ -290,7 +302,35 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       onDragEnd: () => setDragSource(null),
     }
 
-    if (entry.estado === 'cumplido') {
+    const isDelConfirm = deleteConfirmKey === key
+    const isDeleting   = deletingKey === key
+    const isCumplido   = entry.estado === 'cumplido'
+
+    const deleteBtn = (
+      <div className="flex items-center gap-1">
+        {isDelConfirm ? (
+          <>
+            <span className="text-[10px] text-red-400">{isCumplido ? '⚠ ¿Borrar clase cumplida?' : '¿Eliminar?'}</span>
+            <button onClick={() => handleDeletePlan(cursoId, fecha)} disabled={isDeleting}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
+              {isDeleting ? '…' : 'Sí'}
+            </button>
+            <button onClick={() => setDeleteConfirmKey(null)}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200">
+              No
+            </button>
+          </>
+        ) : (
+          <button onClick={e => { e.stopPropagation(); setDeleteConfirmKey(key) }}
+            className="text-[10px] text-gray-600 hover:text-red-400 transition-colors px-1 py-0.5 rounded hover:bg-red-900/20"
+            title="Eliminar plan">
+            🗑
+          </button>
+        )}
+      </div>
+    )
+
+    if (isCumplido) {
       return (
         <div
           {...dragHandlers}
@@ -302,13 +342,16 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
             <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
             {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
           </button>
-          <Link
-            href={`/dashboard/modo-clase/${entry.id}`}
-            onClick={e => e.stopPropagation()}
-            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded text-center hover:bg-gray-800 transition-colors"
-          >
-            Ver resumen
-          </Link>
+          <div className="flex gap-1 items-center flex-wrap">
+            <Link
+              href={`/dashboard/modo-clase/${entry.id}`}
+              onClick={e => e.stopPropagation()}
+              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded text-center hover:bg-gray-800 transition-colors"
+            >
+              Ver resumen
+            </Link>
+            {deleteBtn}
+          </div>
         </div>
       )
     }
@@ -324,13 +367,16 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
           {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
         </button>
-        <Link
-          href={`/dashboard/modo-clase/${entry.id}`}
-          onClick={e => e.stopPropagation()}
-          className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
-        >
-          ▶ Iniciar clase
-        </Link>
+        <div className="flex gap-1 items-center flex-wrap">
+          <Link
+            href={`/dashboard/modo-clase/${entry.id}`}
+            onClick={e => e.stopPropagation()}
+            className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+          >
+            ▶ Iniciar clase
+          </Link>
+          {deleteBtn}
+        </div>
       </div>
     )
   }

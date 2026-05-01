@@ -525,7 +525,6 @@ export async function eliminarPlanificacion(params: {
     .eq('curso_id', cursoId)
     .eq('fecha', fecha)
     .eq('profesor_id', user.id)
-    .neq('estado', 'cumplido')
 
   if (error) return { error: error.message }
   revalidateBitacoraViews()
