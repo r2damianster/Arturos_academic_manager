@@ -21,9 +21,11 @@ interface Props {
 }
 
 const CATS_DEFAULT: Omit<Categoria, 'id' | 'archivos'>[] = [
-  { nombre: 'Brisk',    tipo: 'grupal' },
-  { nombre: 'Perusall', tipo: 'grupal' },
-  { nombre: 'Ensayos',  tipo: 'individual' },
+  { nombre: 'Exposiciones en clase', tipo: 'grupal' },
+  { nombre: 'Hojas grupales',        tipo: 'grupal' },
+  { nombre: 'Brisk',                 tipo: 'individual' },
+  { nombre: 'Perusall',              tipo: 'individual' },
+  { nombre: 'Ensayos',               tipo: 'individual' },
 ]
 
 let uid = 0
