@@ -48,6 +48,7 @@ export type Database = {
           num_parciales: number | null
           nombres_tareas: Json | null
           observacion: string | null
+          institucion: string | null
           created_at: string
         }
         Insert: {
@@ -63,6 +64,8 @@ export type Database = {
           horas_teoricas?: number
           num_parciales?: number | null
           nombres_tareas?: Json | null
+          observacion?: string | null
+          institucion?: string | null
           created_at?: string
         }
         Update: {
@@ -77,6 +80,7 @@ export type Database = {
           num_parciales?: number | null
           nombres_tareas?: Json | null
           observacion?: string | null
+          institucion?: string | null
         }
         Relationships: [
           {

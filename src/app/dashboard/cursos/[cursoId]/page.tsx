@@ -158,10 +158,10 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ cu
               num_sesiones:  curso.num_sesiones,
               horas_teoricas: curso.horas_teoricas,
               num_parciales: curso.num_parciales ?? 2,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              observacion:   (curso as any).observacion ?? null,
+              observacion:   curso.observacion ?? null,
+              institucion:   curso.institucion ?? null,
             }}
-            institucion={profesorInstitucion}
+            institucionProfesor={profesorInstitucion}
           />
         </div>
         <div className="text-right flex-shrink-0">

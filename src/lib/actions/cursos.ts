@@ -135,6 +135,7 @@ const DetallesCursoSchema = z.object({
   horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
   num_parciales: z.coerce.number().int().min(2).max(4).default(2),
   observacion:   z.string().max(500).optional(),
+  institucion:   z.string().max(200).optional(),
 })
 
 export async function actualizarDetallesCurso(cursoId: string, formData: FormData): Promise<{ error?: string }> {
@@ -159,6 +160,7 @@ export async function actualizarDetallesCurso(cursoId: string, formData: FormDat
       horas_teoricas: parsed.data.horas_teoricas,
       num_parciales: parsed.data.num_parciales,
       observacion:   parsed.data.observacion || null,
+      institucion:   parsed.data.institucion || null,
     })
     .eq('id', cursoId)
     .eq('profesor_id', user.id)

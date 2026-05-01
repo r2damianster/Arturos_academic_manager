@@ -14,7 +14,7 @@ interface Clase {
 
 type Props = {
   cursoId: string
-  institucion?: string | null
+  institucionProfesor?: string | null
   clases?: Clase[]
   curso: {
     asignatura: string
@@ -28,10 +28,11 @@ type Props = {
     horas_teoricas: number
     num_parciales: number | null
     observacion?: string | null
+    institucion?: string | null
   }
 }
 
-export function EditarCursoPanel({ cursoId, curso, institucion, clases = [] }: Props) {
+export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases = [] }: Props) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -80,12 +81,16 @@ export function EditarCursoPanel({ cursoId, curso, institucion, clases = [] }: P
       <hr className="border-gray-700/50" />
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {institucion && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/60 rounded-lg text-xs text-gray-400">
-            <span>🏫</span>
-            <span>{institucion}</span>
-          </div>
-        )}
+        <div>
+          <label className="label">Institución</label>
+          <input
+            name="institucion"
+            className="input"
+            maxLength={200}
+            defaultValue={curso.institucion ?? ''}
+            placeholder={institucionProfesor ?? 'Ej: ULEAM — Facultad de Ciencias Informáticas'}
+          />
+        </div>
 
         <div>
           <label className="label">Nombre de la asignatura</label>
