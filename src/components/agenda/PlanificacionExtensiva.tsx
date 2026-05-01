@@ -1,12 +1,19 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, startTransition } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import {
+  DndContext, DragOverlay, useDraggable, useDroppable,
+  PointerSensor, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
+import { copiarPlanificacion } from '@/lib/actions/bitacora'
 import { PlanificarModal } from './PlanificarModal'
 import { ReplanificarModal } from './ReplanificarModal'
 
-// ─── Types (mirrors planificacion-client) ─────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Curso {
   id: string
@@ -69,6 +76,35 @@ function generarFechasClase(clases: Clase[], cursoId: string, desde: Date, hasta
   return result
 }
 
+// ─── Drag primitives ──────────────────────────────────────────────────────────
+
+function DraggableHandle({ id }: { id: string }) {
+  const { attributes, listeners, setNodeRef } = useDraggable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      title="Arrastrar al otro curso"
+      className="absolute top-1.5 right-1.5 cursor-grab active:cursor-grabbing w-5 h-5 flex items-center justify-center rounded text-gray-600 hover:text-gray-400 hover:bg-gray-700/60 transition-colors text-[11px] select-none z-10"
+    >
+      ⠿
+    </div>
+  )
+}
+
+function DroppableSlot({ id, isOver, children }: { id: string; isOver: boolean; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 rounded-lg transition-all ${isOver ? 'ring-2 ring-brand-400/70 bg-brand-900/10' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -90,11 +126,19 @@ export function PlanificacionExtensiva({ clases }: Props) {
   const [cursoAId, setCursoAId] = useState(() => cursos[0]?.id ?? '')
   const [cursoBId, setCursoBId] = useState<string | null>(null)
   const [mesesA, setMesesA] = useState(2)
-  const [offsetA, setOffsetA] = useState(0)  // semanas desde hoy
-  const [offsetB, setOffsetB] = useState(0)  // semanas desde hoy (independiente)
+  const [offsetA, setOffsetA] = useState(0)
+  const [offsetB, setOffsetB] = useState(0)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [planificarModal, setPlanificarModal] = useState<{ clase: Clase; fecha: string } | null>(null)
   const [replanificarModal, setReplanificarModal] = useState<{ cursoId: string; asignatura: string; fecha: string; tema: string } | null>(null)
+
+  // Drag state
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const [copyingId, setCopyingId] = useState<string | null>(null)
+  const [dragError, setDragError] = useState<string | null>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   function offsetToDate(offset: number): Date {
     const d = new Date()
@@ -129,12 +173,11 @@ export function PlanificacionExtensiva({ clases }: Props) {
     [clases, cursoBId, desdeB, hastaB]
   )
 
-  async function loadBitacoras() {
+  const loadBitacoras = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user || !cursoAId) return
 
     const cursoIds = [cursoAId, cursoBId].filter(Boolean) as string[]
-    // Usar el rango más amplio entre A y B para una sola query
     const fechaMin = dateToStr(new Date(Math.min(desdeA.getTime(), cursoBId ? desdeB.getTime() : desdeA.getTime())))
     const fechaMax = dateToStr(new Date(Math.max(hastaA.getTime(), cursoBId ? hastaB.getTime() : hastaA.getTime())))
     const { data } = await supabase
@@ -158,18 +201,55 @@ export function PlanificacionExtensiva({ clases }: Props) {
       })
     }
     setBitacoraMap(m)
-  }
-
-  useEffect(() => {
-    if (cursoAId) loadBitacoras()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoAId, cursoBId, desdeA, hastaA, desdeB, hastaB])
 
-  // ── Card ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (cursoAId) loadBitacoras()
+  }, [cursoAId, loadBitacoras])
+
+  // ── Drag handlers ─────────────────────────────────────────────────────────
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id))
+    setDragError(null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    setActiveId(null)
+    setOverId(null)
+
+    if (!over || active.id === over.id) return
+
+    const [srcCursoId, srcFecha] = String(active.id).split('__')
+    const [dstCursoId, dstFecha] = String(over.id).split('__')
+
+    if (srcCursoId === dstCursoId && srcFecha === dstFecha) return
+
+    const dstKey = `${dstCursoId}__${dstFecha}`
+    setCopyingId(dstKey)
+
+    startTransition(async () => {
+      const result = await copiarPlanificacion({
+        sourceCursoId: srcCursoId,
+        sourceFecha: srcFecha,
+        destCursoId: dstCursoId,
+        destFecha: dstFecha,
+      })
+      setCopyingId(null)
+      if (result.error) setDragError(result.error)
+      else loadBitacoras()
+    })
+  }
+
+  // ── Card render ───────────────────────────────────────────────────────────
 
   function renderCard(clase: Clase, fecha: string, cursoId: string) {
     const entry = bitacoraMap.get(`${cursoId}|${fecha}`)
     const curso = cursos.find(c => c.id === cursoId)
+    const dragId = `${cursoId}__${fecha}`
+    const isCopying = copyingId === dragId
     const isCumplido = entry?.estado === 'cumplido'
     const isPlanned  = entry?.estado === 'planificado'
 
@@ -185,8 +265,11 @@ export function PlanificacionExtensiva({ clases }: Props) {
     )
 
     return (
-      <div className={`px-3 py-2 rounded-lg border space-y-1.5 ${isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-sky-900/20 border-sky-500/30'}`}>
-        <div className="flex items-start justify-between gap-2">
+      <div className={`relative px-3 py-2 rounded-lg border space-y-1.5 transition-opacity ${
+        isCopying ? 'opacity-50' : ''
+      } ${isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-sky-900/20 border-sky-500/30'}`}>
+        {cursoBId && <DraggableHandle id={dragId} />}
+        <div className="flex items-start justify-between gap-2 pr-5">
           <div className="min-w-0 flex-1">
             <span className={`text-xs font-medium ${isCumplido ? 'text-emerald-400' : 'text-sky-400'}`}>
               {isCumplido ? '✓ Cumplido' : 'Planificado'}
@@ -237,6 +320,21 @@ export function PlanificacionExtensiva({ clases }: Props) {
     )
   }
 
+  // ── Overlay card (shown while dragging) ───────────────────────────────────
+
+  function renderOverlay() {
+    if (!activeId) return null
+    const [cursoId, fecha] = activeId.split('__')
+    const entry = bitacoraMap.get(`${cursoId}|${fecha}`)
+    if (!entry) return null
+    return (
+      <div className="px-3 py-2 rounded-lg border bg-sky-900/80 border-sky-400/60 shadow-xl opacity-90 w-52 pointer-events-none">
+        <p className="text-sky-300 text-xs font-medium">Copiar plan</p>
+        {entry.tema && <p className="text-gray-200 text-xs mt-0.5 leading-tight">{truncar(entry.tema, 6)}</p>}
+      </div>
+    )
+  }
+
   if (cursos.length === 0) return (
     <p className="text-gray-500 text-sm text-center py-8">No hay cursos con horarios configurados.</p>
   )
@@ -244,140 +342,169 @@ export function PlanificacionExtensiva({ clases }: Props) {
   const cursoA = cursos.find(c => c.id === cursoAId)
   const cursoB = cursos.find(c => c.id === cursoBId)
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div className="space-y-4">
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={e => setOverId(e.over ? String(e.over.id) : null)}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => { setActiveId(null); setOverId(null) }}
+    >
+      <div className="space-y-4">
 
-      {/* Controles */}
-      <div className="flex flex-wrap gap-4 items-end p-4 bg-gray-900 border border-gray-800 rounded-xl">
-        <div>
-          <label className="label">Curso A</label>
-          <select value={cursoAId} onChange={e => setCursoAId(e.target.value)} className="input text-sm">
-            {cursos.map(c => <option key={c.id} value={c.id}>{c.asignatura}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="label">Curso B — comparar</label>
-          <select
-            value={cursoBId ?? ''}
-            onChange={e => { setCursoBId(e.target.value || null); setOffsetB(0) }}
-            className="input text-sm"
-          >
-            <option value="">Sin comparar</option>
-            {cursos.filter(c => c.id !== cursoAId).map(c => (
-              <option key={c.id} value={c.id}>{c.asignatura}</option>
-            ))}
-          </select>
-        </div>
-
-        {!cursoBId && (
+        {/* Controles */}
+        <div className="flex flex-wrap gap-4 items-end p-4 bg-gray-900 border border-gray-800 rounded-xl">
           <div>
-            <label className="label">Horizonte A</label>
-            <div className="flex gap-2">
-              {[1, 2].map(n => (
-                <button key={n} type="button" onClick={() => setMesesA(n)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${mesesA === n ? 'border-brand-500 bg-brand-600/20 text-brand-400' : 'border-gray-700 text-gray-400 hover:border-gray-600'}`}
-                >
-                  {n} {n === 1 ? 'mes' : 'meses'}
-                </button>
+            <label className="label">Curso A</label>
+            <select value={cursoAId} onChange={e => setCursoAId(e.target.value)} className="input text-sm">
+              {cursos.map(c => <option key={c.id} value={c.id}>{c.asignatura}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Curso B — comparar</label>
+            <select
+              value={cursoBId ?? ''}
+              onChange={e => { setCursoBId(e.target.value || null); setOffsetB(0) }}
+              className="input text-sm"
+            >
+              <option value="">Sin comparar</option>
+              {cursos.filter(c => c.id !== cursoAId).map(c => (
+                <option key={c.id} value={c.id}>{c.asignatura}</option>
               ))}
-            </div>
+            </select>
           </div>
-        )}
-      </div>
 
-      {/* Columnas */}
-      <div className={`grid gap-6 ${cursoBId ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-
-        {/* Curso A */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-800">
-            <h3 className="text-sm font-semibold text-gray-200">{cursoA?.asignatura}</h3>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setOffsetA(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
-              <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeA.getMonth()]} – ${MESES_S[hastaA.getMonth()]} ${hastaA.getFullYear()}`}</span>
-              <button onClick={() => setOffsetA(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
-              {offsetA !== 0 && <button onClick={() => setOffsetA(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
+          {!cursoBId && (
+            <div>
+              <label className="label">Horizonte A</label>
+              <div className="flex gap-2">
+                {[1, 2].map(n => (
+                  <button key={n} type="button" onClick={() => setMesesA(n)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${mesesA === n ? 'border-brand-500 bg-brand-600/20 text-brand-400' : 'border-gray-700 text-gray-400 hover:border-gray-600'}`}
+                  >
+                    {n} {n === 1 ? 'mes' : 'meses'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          {fechasA.length === 0 ? (
-            <p className="text-gray-500 text-xs text-center py-6">Sin clases en este período.</p>
-          ) : (
-            fechasA.map(({ fecha, clase }) => {
-              const { dia, mes } = fmtFecha(fecha)
-              return (
-                <div key={fecha} className="flex gap-3">
-                  <div className="w-24 flex-shrink-0 pt-2 text-right">
-                    <p className="text-xs text-gray-300 font-medium">{dia}</p>
-                    <p className="text-[10px] text-gray-600">{mes}</p>
-                  </div>
-                  <div className="flex-1">
-                    {renderCard(clase, fecha, cursoAId)}
-                  </div>
-                </div>
-              )
-            })
+          )}
+
+          {cursoBId && (
+            <p className="text-[10px] text-gray-500 self-end pb-1">Arrastra ⠿ para copiar un plan al otro curso</p>
           )}
         </div>
 
-        {/* Curso B */}
-        {cursoBId && (
+        {dragError && (
+          <div className="flex items-center justify-between px-3 py-2 bg-red-900/20 border border-red-700/40 rounded-lg">
+            <p className="text-red-400 text-xs">{dragError}</p>
+            <button onClick={() => setDragError(null)} className="text-red-600 hover:text-red-400 text-xs ml-3">✕</button>
+          </div>
+        )}
+
+        {/* Columnas */}
+        <div className={`grid gap-6 ${cursoBId ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+
+          {/* Curso A */}
           <div className="space-y-2">
             <div className="flex items-center justify-between pb-2 border-b border-gray-800">
-              <h3 className="text-sm font-semibold text-gray-200">{cursoB?.asignatura}</h3>
+              <h3 className="text-sm font-semibold text-gray-200">{cursoA?.asignatura}</h3>
               <div className="flex items-center gap-1">
-                <button onClick={() => setOffsetB(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
-                <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeB.getMonth()]} – ${MESES_S[hastaB.getMonth()]} ${hastaB.getFullYear()}`}</span>
-                <button onClick={() => setOffsetB(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
-                {offsetB !== 0 && <button onClick={() => setOffsetB(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
+                <button onClick={() => setOffsetA(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+                <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeA.getMonth()]} – ${MESES_S[hastaA.getMonth()]} ${hastaA.getFullYear()}`}</span>
+                <button onClick={() => setOffsetA(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+                {offsetA !== 0 && <button onClick={() => setOffsetA(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
               </div>
             </div>
-            {fechasB.length === 0 ? (
+            {fechasA.length === 0 ? (
               <p className="text-gray-500 text-xs text-center py-6">Sin clases en este período.</p>
             ) : (
-              fechasB.map(({ fecha, clase }) => {
+              fechasA.map(({ fecha, clase }) => {
                 const { dia, mes } = fmtFecha(fecha)
+                const dropId = `${cursoAId}__${fecha}`
+                const isOver = overId === dropId && activeId !== null && !activeId.startsWith(cursoAId + '__')
                 return (
                   <div key={fecha} className="flex gap-3">
                     <div className="w-24 flex-shrink-0 pt-2 text-right">
                       <p className="text-xs text-gray-300 font-medium">{dia}</p>
                       <p className="text-[10px] text-gray-600">{mes}</p>
                     </div>
-                    <div className="flex-1">
-                      {renderCard(clase, fecha, cursoBId)}
-                    </div>
+                    <DroppableSlot id={dropId} isOver={isOver}>
+                      {renderCard(clase, fecha, cursoAId)}
+                    </DroppableSlot>
                   </div>
                 )
               })
             )}
           </div>
+
+          {/* Curso B */}
+          {cursoBId && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+                <h3 className="text-sm font-semibold text-gray-200">{cursoB?.asignatura}</h3>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setOffsetB(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+                  <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeB.getMonth()]} – ${MESES_S[hastaB.getMonth()]} ${hastaB.getFullYear()}`}</span>
+                  <button onClick={() => setOffsetB(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+                  {offsetB !== 0 && <button onClick={() => setOffsetB(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
+                </div>
+              </div>
+              {fechasB.length === 0 ? (
+                <p className="text-gray-500 text-xs text-center py-6">Sin clases en este período.</p>
+              ) : (
+                fechasB.map(({ fecha, clase }) => {
+                  const { dia, mes } = fmtFecha(fecha)
+                  const dropId = `${cursoBId}__${fecha}`
+                  const isOver = overId === dropId && activeId !== null && !activeId.startsWith(cursoBId + '__')
+                  return (
+                    <div key={fecha} className="flex gap-3">
+                      <div className="w-24 flex-shrink-0 pt-2 text-right">
+                        <p className="text-xs text-gray-300 font-medium">{dia}</p>
+                        <p className="text-[10px] text-gray-600">{mes}</p>
+                      </div>
+                      <DroppableSlot id={dropId} isOver={isOver}>
+                        {renderCard(clase, fecha, cursoBId)}
+                      </DroppableSlot>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Modales */}
+        {planificarModal && (
+          <PlanificarModal
+            cursoId={planificarModal.clase.cursos?.id ?? planificarModal.clase.curso_id}
+            asignatura={planificarModal.clase.cursos?.asignatura ?? ''}
+            fecha={planificarModal.fecha}
+            horaInicio={planificarModal.clase.hora_inicio}
+            horaFin={planificarModal.clase.hora_fin}
+            clases={clases}
+            onClose={() => setPlanificarModal(null)}
+            onSaved={() => { setPlanificarModal(null); loadBitacoras() }}
+          />
+        )}
+
+        {replanificarModal && (
+          <ReplanificarModal
+            cursoId={replanificarModal.cursoId}
+            asignatura={replanificarModal.asignatura}
+            origenFecha={replanificarModal.fecha}
+            origenTema={replanificarModal.tema}
+            onClose={() => setReplanificarModal(null)}
+            onDone={() => { setReplanificarModal(null); loadBitacoras() }}
+          />
         )}
       </div>
 
-      {/* Modales */}
-      {planificarModal && (
-        <PlanificarModal
-          cursoId={planificarModal.clase.cursos?.id ?? planificarModal.clase.curso_id}
-          asignatura={planificarModal.clase.cursos?.asignatura ?? ''}
-          fecha={planificarModal.fecha}
-          horaInicio={planificarModal.clase.hora_inicio}
-          horaFin={planificarModal.clase.hora_fin}
-          clases={clases}
-          onClose={() => setPlanificarModal(null)}
-          onSaved={() => { setPlanificarModal(null); loadBitacoras() }}
-        />
-      )}
-
-      {replanificarModal && (
-        <ReplanificarModal
-          cursoId={replanificarModal.cursoId}
-          asignatura={replanificarModal.asignatura}
-          origenFecha={replanificarModal.fecha}
-          origenTema={replanificarModal.tema}
-          onClose={() => setReplanificarModal(null)}
-          onDone={() => { setReplanificarModal(null); loadBitacoras() }}
-        />
-      )}
-    </div>
+      <DragOverlay dropAnimation={null}>
+        {renderOverlay()}
+      </DragOverlay>
+    </DndContext>
   )
 }
