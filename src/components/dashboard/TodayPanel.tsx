@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useTransition } from 'react'
+import { marcarAsistenciaReserva } from '@/lib/actions/tutorias'
 
 // ── Raw data types ────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ interface RawReserva {
   fecha: string
   estudiante_nombre: string
   estado: string
+  asistio: boolean | null
 }
 
 interface Props {
@@ -105,6 +107,16 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
   const [dayOffset, setDayOffset] = useState(0)
   const [open, setOpen]           = useState(true)
   const [mostrarTodos, setMostrarTodos] = useState(false)
+  const [asistioMap, setAsistioMap] = useState<Record<number, boolean | null>>({})
+  const [, startTransition] = useTransition()
+
+  function handleAsistencia(reservaId: number, asistio: boolean) {
+    setAsistioMap(prev => ({ ...prev, [reservaId]: asistio }))
+    startTransition(async () => {
+      const res = await marcarAsistenciaReserva(reservaId, asistio)
+      if (res?.error) setAsistioMap(prev => ({ ...prev, [reservaId]: undefined as unknown as boolean | null }))
+    })
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('today-panel-open')
@@ -131,9 +143,12 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
   const labelPrefix = dayOffset === 0 ? 'Hoy' : dayOffset === 1 ? 'Mañana' : dayOffset === -1 ? 'Ayer' : ''
   const labelDia = `${DIAS_LONG[targetDate.getDay()]} ${targetDate.getDate()} de ${MESES_LONG[targetDate.getMonth()]}`
 
+  type ReservaItem = { id: number; nombre: string; estado: string; asistio: boolean | null }
+  type DayItem = { id: string; hora: string | null; horaFin: string | null; titulo: string; detalle: string | null; tipo: string; colorKey: string; tenue?: boolean; reservaList?: ReservaItem[] }
+
   // Build items for target day
   const items = useMemo(() => {
-    const result: { id: string; hora: string | null; horaFin: string | null; titulo: string; detalle: string | null; tipo: string; colorKey: string; tenue?: boolean }[] = []
+    const result: DayItem[] = []
 
     for (const c of clases) {
       if (normalizeDia(c.dia_semana) !== targetDow) continue
@@ -162,16 +177,16 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       if (h.disponible_hasta && targetStr > h.disponible_hasta) continue
       const hRes = reservas.filter(r => r.horario_id === h.id && r.fecha === targetStr)
       if (hRes.length === 0 && !mostrarTodos) continue
-      const nombres = hRes.map(r => `${r.estudiante_nombre} (${r.estado})`).join(' · ')
       result.push({
         id: `tutoria-${h.id}`,
         hora:    h.hora_inicio?.slice(0, 5) ?? null,
         horaFin: h.hora_fin?.slice(0, 5)   ?? null,
         titulo:  hRes.length > 0 ? `Tutoría · ${hRes.length} reserva${hRes.length > 1 ? 's' : ''}` : 'Tutoría disponible',
-        detalle: nombres || null,
+        detalle: hRes.length === 0 ? null : null,
         tenue:   hRes.length === 0,
         tipo:     'tutoria',
         colorKey: hRes.length > 0 ? 'emerald' : 'gray',
+        reservaList: hRes.map(r => ({ id: r.id, nombre: r.estudiante_nombre, estado: r.estado, asistio: r.asistio })),
       })
     }
 
@@ -268,25 +283,57 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
             items.map(item => {
               const clr = COLORS[item.colorKey] ?? COLORS.gray
               return (
-                <div key={item.id} className={`flex items-start gap-3 pl-3 border-l-2 ${clr.border} py-1.5 ${item.tenue ? 'opacity-40' : ''}`}>
-                  <div className="w-[88px] flex-shrink-0 pt-0.5">
-                    {item.hora ? (
-                      <span className="text-xs font-mono text-gray-500">
-                        {item.hora}{item.horaFin ? `–${item.horaFin}` : ''}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-600 italic">todo el día</span>
-                    )}
+                <div key={item.id} className={`pl-3 border-l-2 ${clr.border} py-1.5 ${item.tenue ? 'opacity-40' : ''}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-[88px] flex-shrink-0 pt-0.5">
+                      {item.hora ? (
+                        <span className="text-xs font-mono text-gray-500">
+                          {item.hora}{item.horaFin ? `–${item.horaFin}` : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-600 italic">todo el día</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-200 leading-tight truncate">{item.titulo}</p>
+                      {item.detalle && (
+                        <p className="text-xs text-gray-500 mt-0.5 leading-tight truncate">{item.detalle}</p>
+                      )}
+                    </div>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${clr.badge}`}>
+                      {item.tipo === 'clase' ? 'Clase' : item.tipo === 'tutoria' ? 'Tutoría' : 'Evento'}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-200 leading-tight truncate">{item.titulo}</p>
-                    {item.detalle && (
-                      <p className="text-xs text-gray-500 mt-0.5 leading-tight truncate">{item.detalle}</p>
-                    )}
-                  </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${clr.badge}`}>
-                    {item.tipo === 'clase' ? 'Clase' : item.tipo === 'tutoria' ? 'Tutoría' : 'Evento'}
-                  </span>
+
+                  {/* Reservas con botones de asistencia */}
+                  {item.reservaList && item.reservaList.length > 0 && (
+                    <div className="mt-1.5 ml-[100px] space-y-1">
+                      {item.reservaList.map(r => {
+                        const current = r.id in asistioMap ? asistioMap[r.id] : r.asistio
+                        return (
+                          <div key={r.id} className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-gray-400 truncate">{r.nombre}</span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleAsistencia(r.id, true)}
+                                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${current === true ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-emerald-900/50 hover:text-emerald-400'}`}
+                              >
+                                ✓ Asistió
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAsistencia(r.id, false)}
+                                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${current === false ? 'bg-red-700 text-white' : 'bg-gray-800 text-gray-500 hover:bg-red-900/50 hover:text-red-400'}`}
+                              >
+                                ✗ No asistió
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })
