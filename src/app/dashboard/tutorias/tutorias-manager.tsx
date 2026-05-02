@@ -188,6 +188,8 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const [durPicker, setDurPicker]   = useState<number | null>(null) // horario id
   const [durDateStr, setDurDateStr] = useState<string | null>(null) // clicked date
   const [durSaving, setDurSaving]   = useState(false)
+  const [savingId,  setSavingId]    = useState<number | null>(null) // horario being saved
+  const [durConflicto, setDurConflicto] = useState<string | null>(null) // nombre asignatura con tutoria_curso
 
   // Direct assignment panel
   const [showAssign, setShowAssign] = useState(false)
@@ -279,20 +281,44 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
         }
       })
     } else {
-      // Show duration picker to reactivate
+      // Detect tutoria_curso conflict at this time slot
+      const conflicto = (() => {
+        const start = fmt(h.hora_inicio)
+        const end   = fmt(h.hora_fin)
+        for (const slot of ALL_SLOTS) {
+          if (slot >= start && slot < end) {
+            const c = claseMap.get(`${h.dia_semana}|${slot}`)
+            if (c?.tipo === 'tutoria_curso') return c.cursos?.asignatura ?? 'un curso'
+          }
+        }
+        return null
+      })()
+      setDurConflicto(conflicto)
       setDurPicker(durPicker === h.id ? null : h.id)
       setDurDateStr(dateStr)
     }
   }
 
   async function confirmarDuracion(h: Horario, duracion: Pick<DuracionTutoria, never> | string) {
-    setDurSaving(true); setErr(null)
+    // Optimistic: close picker and turn green immediately
+    setDurPicker(null); setDurDateStr(null); setDurConflicto(null); setErr(null); setDurSaving(true); setSavingId(h.id)
+    setHorarios(prev => prev.map(x =>
+      x.id === h.id ? { ...x, estado: 'disponible', disponible_hasta: null } : x
+    ))
+
     const res = await activarHorario(h.id, duracion as DuracionTutoria)
-    if (res.error) { setErr(res.error); setDurSaving(false); return }
+    setDurSaving(false); setSavingId(null)
+
+    if (res.error) {
+      setErr(res.error)
+      // Rollback to original state
+      setHorarios(prev => prev.map(x => x.id === h.id ? h : x))
+      return
+    }
+    // Sync real disponible_hasta returned by server
     setHorarios(prev => prev.map(x =>
       x.id === h.id ? { ...x, estado: 'disponible', disponible_hasta: res.disponible_hasta ?? null } : x
     ))
-    setDurPicker(null); setDurDateStr(null); setDurSaving(false)
   }
 
   // ── Professor actions on reservas ──────────────────────────────────────────
@@ -465,8 +491,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">¿Por cuánto tiempo deseas abrir este horario?</p>
                 </div>
-                <button onClick={() => { setDurPicker(null); setDurDateStr(null) }} className="text-gray-400 hover:text-white p-2">✕</button>
+                <button onClick={() => { setDurPicker(null); setDurDateStr(null); setDurConflicto(null) }} className="text-gray-400 hover:text-white p-2">✕</button>
               </div>
+              {durConflicto && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-orange-950/50 border border-orange-700/60 rounded-lg">
+                  <span className="text-orange-400 text-sm flex-shrink-0">⚠</span>
+                  <p className="text-xs text-orange-300">
+                    Este horario coincide con una <strong>tutoría de curso</strong> ({durConflicto}).
+                    Los estudiantes verán el botón de reserva individual, pero también tendrán la tutoría grupal a la misma hora.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 {durDateStr && (
                   <button
@@ -670,11 +705,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                         }
 
                         // disponible & active for this date
+                        const isSaving = savingId === h.id
                         return (
                           <td key={dateStr} className="px-0.5 py-0.5">
                             <button
-                              onClick={() => toggleSlot(h, dateStr)}
-                              className="w-full h-5 rounded border border-emerald-800/60 bg-emerald-900/30 hover:bg-emerald-700/50 transition-colors"
+                              onClick={() => !isSaving && toggleSlot(h, dateStr)}
+                              disabled={isSaving}
+                              className={`w-full h-5 rounded border transition-colors ${
+                                isSaving
+                                  ? 'border-emerald-700/40 bg-emerald-900/20 opacity-60 cursor-wait'
+                                  : 'border-emerald-800/60 bg-emerald-900/30 hover:bg-emerald-700/50'
+                              }`}
                             />
                           </td>
                         )

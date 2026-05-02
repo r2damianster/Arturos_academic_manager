@@ -211,7 +211,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
     })
 
     return result
-  }, [clases, eventos, horarios, reservas, targetStr, targetDow])
+  }, [clases, eventos, horarios, reservas, targetStr, targetDow, mostrarTodos])
 
   return (
     <div className="card">

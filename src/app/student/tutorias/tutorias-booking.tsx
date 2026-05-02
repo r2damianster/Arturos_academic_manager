@@ -486,7 +486,39 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Class of another course — invisible
+                        // Tutoring slot active → show disponible/occupied BEFORE hiding for other-course classes
+                        if (slot && activeOnDate && !isOccupied) {
+                          const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <button
+                                onClick={() => {
+                                  if (isSelected) { setSelected(null) } else { setSelected({ horario: slot, date }); setNotas(''); setError(null) }
+                                }}
+                                className={`w-full h-7 rounded border text-[9px] font-medium transition-colors ${
+                                  isSelected
+                                    ? 'bg-emerald-600/80 border-emerald-400 text-white ring-1 ring-emerald-400'
+                                    : 'bg-emerald-900/40 border-emerald-700 text-emerald-300 hover:bg-emerald-700/60'
+                                }`}
+                              >
+                                {fmt(slot.hora_inicio)}
+                              </button>
+                            </td>
+                          )
+                        }
+
+                        // Occupied by another student
+                        if (isOccupied) {
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
+                                <span className="text-violet-500 text-[9px]">Agendado</span>
+                              </div>
+                            </td>
+                          )
+                        }
+
+                        // Class of another course — invisible (no tutoring slot here)
                         if (isOtroCurso) return <td key={dateStr} className="px-1 py-0.5" />
 
                         // Class of student's own course (clase, centro_computo, etc.)
@@ -504,37 +536,7 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Occupied by another student
-                        if (isOccupied) {
-                          return (
-                            <td key={dateStr} className="px-1 py-0.5">
-                              <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
-                                <span className="text-violet-500 text-[9px]">Agendado</span>
-                              </div>
-                            </td>
-                          )
-                        }
-
-                        if (!slot || !activeOnDate) return <td key={dateStr} className="px-1 py-0.5" />
-
-                        // disponible — book button
-                        const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
-                        return (
-                          <td key={dateStr} className="px-1 py-0.5">
-                            <button
-                              onClick={() => {
-                                if (isSelected) { setSelected(null) } else { setSelected({ horario: slot, date }); setNotas(''); setError(null) }
-                              }}
-                              className={`w-full h-7 rounded border text-[9px] font-medium transition-colors ${
-                                isSelected
-                                  ? 'bg-emerald-600/80 border-emerald-400 text-white ring-1 ring-emerald-400'
-                                  : 'bg-emerald-900/40 border-emerald-700 text-emerald-300 hover:bg-emerald-700/60'
-                              }`}
-                            >
-                              {fmt(slot.hora_inicio)}
-                            </button>
-                          </td>
-                        )
+                        return <td key={dateStr} className="px-1 py-0.5" />
                       })}
                     </tr>
                   )
