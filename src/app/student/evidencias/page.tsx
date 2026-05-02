@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { EnsamblarEvidencias } from '@/components/student/EnsamblarEvidencias'
@@ -35,13 +35,16 @@ export default async function EvidenciasPage() {
     .eq('id', estData.curso_id)
     .maybeSingle()
 
+  // participacion y calificaciones no tienen RLS para estudiantes → admin client
+  const admin = createAdminClient() as any
+
   const [profRes, asistenciaRes, participacionRes, calificacionesRes, trabajosRes, reservasRes] = await Promise.all([
     cursoData?.profesor_id
       ? db.from('profesores').select('nombre').eq('id', cursoData.profesor_id).maybeSingle()
       : Promise.resolve({ data: null }),
     db.from('asistencia').select('estado').eq('estudiante_id', estData.id),
-    db.from('participacion').select('nivel').eq('estudiante_id', estData.id),
-    db.from('calificaciones')
+    admin.from('participacion').select('nivel').eq('estudiante_id', estData.id),
+    admin.from('calificaciones')
       .select('acd1,ta1,pe1,ex1,acd2,ta2,pe2,ex2,acd3,ta3,pe3,ex3,acd4,ta4,pe4,ex4')
       .eq('estudiante_id', estData.id)
       .maybeSingle(),
