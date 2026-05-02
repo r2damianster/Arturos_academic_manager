@@ -126,6 +126,29 @@ export async function limpiarHorariosVencidos() {
     .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
     .eq('profesor_id', user.id).eq('estado', 'disponible')
     .not('disponible_hasta', 'is', null).lt('disponible_hasta', hoy)
+
+  // Expirar slots "muertos": próxima ocurrencia del día > disponible_hasta
+  const DIA_TO_DOW: Record<string, number> = {
+    'lunes': 1, 'martes': 2, 'miércoles': 3, 'jueves': 4, 'viernes': 5, 'sábado': 6,
+  }
+  const todayD = new Date(hoy + 'T12:00:00')
+  const deadIds: number[] = slots
+    .filter((s: { id: number; dia_semana: string; disponible_hasta: string | null }) => {
+      if (!s.disponible_hasta) return false
+      const dow = DIA_TO_DOW[s.dia_semana]
+      if (!dow) return false
+      const daysAhead = ((dow - todayD.getDay() + 7) % 7) || 7
+      const next = new Date(todayD)
+      next.setDate(next.getDate() + daysAhead)
+      return next.toISOString().split('T')[0] > s.disponible_hasta
+    })
+    .map((s: { id: number }) => s.id)
+
+  if (deadIds.length > 0) {
+    await db.from('horarios')
+      .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
+      .in('id', deadIds)
+  }
 }
 
 // ─── Deactivate a slot ────────────────────────────────────────────────────────
