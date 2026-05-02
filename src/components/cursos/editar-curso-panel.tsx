@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { actualizarDetallesCurso } from '@/lib/actions/cursos'
+import { actualizarDetallesCurso, limpiarNotasParciales } from '@/lib/actions/cursos'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
 
 interface Clase {
@@ -38,17 +38,40 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [numParciales, setNumParciales] = useState(curso.num_parciales ?? 2)
+  const [pendingFd, setPendingFd] = useState<FormData | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
-    setError('')
     const fd = new FormData(e.currentTarget)
     fd.set('num_parciales', String(numParciales))
+
+    // Si se reduce el número de parciales, pedir confirmación antes de borrar notas
+    const parcialesActuales = curso.num_parciales ?? 2
+    if (numParciales < parcialesActuales) {
+      setPendingFd(fd)
+      return
+    }
+    await guardar(fd)
+  }
+
+  async function guardar(fd: FormData) {
+    setLoading(true)
+    setError('')
     const res = await actualizarDetallesCurso(cursoId, fd)
     setLoading(false)
-    if (res.error) setError(res.error)
-    else setOpen(false)
+    if (res.error) { setError(res.error); return }
+    setOpen(false)
+  }
+
+  async function confirmarReducirYBorrar() {
+    if (!pendingFd) return
+    setLoading(true)
+    setError('')
+    const parcialesActuales = curso.num_parciales ?? 2
+    const limpRes = await limpiarNotasParciales(cursoId, numParciales + 1, parcialesActuales)
+    if (limpRes.error) { setError(limpRes.error); setLoading(false); return }
+    await guardar(pendingFd)
+    setPendingFd(null)
   }
 
   if (!open) {
@@ -146,9 +169,9 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
 
         <div>
           <label className="label">Número de parciales</label>
-          {numParciales < (curso.num_parciales ?? 2) && (
+          {numParciales < (curso.num_parciales ?? 2) && !pendingFd && (
             <div className="mb-2 px-3 py-2 bg-amber-900/20 border border-amber-600/40 rounded-lg text-xs text-amber-300">
-              ⚠ Si hay notas registradas en el Parcial {numParciales + 1} o superiores, quedarán guardadas en la BD pero no se mostrarán.
+              ⚠ Al guardar se borrarán las notas del Parcial {numParciales + 1}{numParciales + 1 < (curso.num_parciales ?? 2) ? ` al ${curso.num_parciales}` : ''} de todos los estudiantes.
             </div>
           )}
           <div className="flex gap-3">
@@ -184,14 +207,42 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
-        <div className="flex gap-3">
-          <button type="submit" disabled={loading} className="btn-primary flex-1">
-            {loading ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-          <button type="button" onClick={() => setOpen(false)} className="btn-ghost flex-1">
-            Cancelar
-          </button>
-        </div>
+        {/* Confirmación de borrado de notas */}
+        {pendingFd ? (
+          <div className="space-y-3 p-3 bg-red-900/20 border border-red-700/50 rounded-xl">
+            <p className="text-sm text-red-300 font-medium">
+              ¿Confirmas que deseas borrar las notas del Parcial {numParciales + 1}
+              {numParciales + 1 < (curso.num_parciales ?? 2) ? ` al ${curso.num_parciales}` : ''}?
+            </p>
+            <p className="text-xs text-gray-400">Esta acción no se puede deshacer.</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={confirmarReducirYBorrar}
+                disabled={loading}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium disabled:opacity-50"
+              >
+                {loading ? 'Borrando…' : 'Sí, borrar y guardar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingFd(null)}
+                className="flex-1 py-2 rounded-lg border border-gray-600 text-gray-400 hover:text-gray-200 text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
+              {loading ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+            <button type="button" onClick={() => setOpen(false)} className="btn-ghost flex-1">
+              Cancelar
+            </button>
+          </div>
+        )}
       </form>
     </div>
   )

@@ -172,6 +172,36 @@ export async function actualizarDetallesCurso(cursoId: string, formData: FormDat
   return {}
 }
 
+export async function limpiarNotasParciales(
+  cursoId: string,
+  desde: number,
+  hasta: number
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update: Record<string, null> = {}
+  for (let i = desde; i <= hasta; i++) {
+    update[`acd${i}`] = null
+    update[`ta${i}`]  = null
+    update[`pe${i}`]  = null
+    update[`ex${i}`]  = null
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('calificaciones')
+    .update(update)
+    .eq('curso_id', cursoId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/cursos/${cursoId}/calificaciones`)
+  return {}
+}
+
 export async function actualizarHorariosCurso(cursoId: string, horarios: { dia_semana: string, hora_inicio: string, hora_fin: string, tipo?: string, centro_computo?: boolean }[]): Promise<{ok: boolean, error?: string}> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
