@@ -3,6 +3,7 @@ import { SummaryPanel } from '@/components/dashboard/SummaryPanel'
 import { TodayPanel } from '@/components/dashboard/TodayPanel'
 import { AgendaSection } from '@/components/dashboard/AgendaSection'
 import { TutoriasPendientesPanel } from '@/components/dashboard/TutoriasPendientesPanel'
+import { limpiarHorariosVencidos } from '@/lib/actions/tutorias'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -12,6 +13,7 @@ export default async function DashboardPage() {
   if (!user) return null
 
   await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
+  await limpiarHorariosVencidos()
 
   const hoy = new Date().toISOString().split('T')[0]
 

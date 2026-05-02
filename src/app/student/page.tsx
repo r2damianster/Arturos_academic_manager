@@ -40,18 +40,27 @@ export default async function StudentPage() {
   const cursoIds = estudiantes.map(e => e.curso_id)
 
   // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
-  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData] = await Promise.all([
+  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData, horasTutoriaRes] = await Promise.all([
     db.from('cursos').select('*').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
     db.from('asistencia').select('estado, estudiante_id').in('estudiante_id', estudianteIds),
     db.from('reservas').select('*, horarios!inner(profesor_id)').eq('auth_user_id', user.id).eq('estado', 'completada').order('fecha', { ascending: false }),
     getGruposAbiertosParaEstudiante(cursoIds),
+    db.from('tutor_horas_semana').select('curso_id, fecha_semana, horas').in('curso_id', cursoIds),
   ])
 
   const cursos: Curso[] = cursosRes.data ?? []
   const trabajos: Trabajo[] = trabajosRes.data ?? []
   const asistenciaReg: (Asistencia & { estudiante_id: string })[] = asistenciaRes.data ?? []
   const reservasReg: any[] = reservasRes.data ?? []
+
+  // Horas de tutoría ofrecidas por curso
+  const horasTutoria: { curso_id: string; fecha_semana: string; horas: number }[] = horasTutoriaRes.data ?? []
+  const horasTutoriaPorCurso = cursoIds.reduce((acc, cid) => {
+    const filas = horasTutoria.filter(h => h.curso_id === cid)
+    acc[cid] = { totalHoras: filas.reduce((s, f) => s + f.horas, 0), semanas: filas.length }
+    return acc
+  }, {} as Record<string, { totalHoras: number; semanas: number }>)
 
   // Mapas
   const cursosMap = Object.fromEntries(cursos.map(c => [c.id, c]))
@@ -136,6 +145,7 @@ export default async function StudentPage() {
         const misReservas = reservasReg.filter(r => r.horarios?.profesor_id === curso.profesor_id)
         const tutoriasAsistidas = misReservas.filter(r => r.asistio).length
         const tutoriasFaltadas = misReservas.filter(r => r.asistio === false).length
+        const statTutoria = horasTutoriaPorCurso[est.curso_id]
 
         return (
           <div key={est.id} className="card space-y-4">
@@ -158,6 +168,21 @@ export default async function StudentPage() {
                 </div>
               )}
             </div>
+
+            {/* Horas de tutoría ofrecidas por el profesor */}
+            {statTutoria && statTutoria.totalHoras > 0 && (
+              <div className="flex items-center gap-3 px-3 py-2.5 bg-teal-900/20 border border-teal-800/40 rounded-lg">
+                <span className="text-teal-400 text-lg">🕐</span>
+                <div>
+                  <p className="text-sm text-teal-300 font-medium">
+                    {statTutoria.totalHoras % 1 === 0 ? statTutoria.totalHoras : statTutoria.totalHoras.toFixed(1)} h de tutoría ofrecidas
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    en {statTutoria.semanas} {statTutoria.semanas === 1 ? 'semana' : 'semanas'} del curso
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Tutoría */}
             {est.tutoria && (
