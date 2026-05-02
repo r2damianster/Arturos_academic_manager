@@ -8,7 +8,6 @@ import {
   PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
 import { copiarPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
 import { PlanificarModal } from './PlanificarModal'
 import { ReplanificarModal } from './ReplanificarModal'
@@ -153,6 +152,24 @@ export function PlanificacionExtensiva({ clases }: Props) {
     d.setDate(d.getDate() + offset * 7)
     return d
   }
+
+  function fechaToOffset(fecha: string | null | undefined, dir: 'min' | 'max', fallback: number): number {
+    if (!fecha) return fallback
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+    const diff = (new Date(fecha).getTime() - hoy.getTime()) / (7 * 24 * 3600 * 1000)
+    return dir === 'min' ? Math.floor(diff) - 1 : Math.ceil(diff) + 1
+  }
+
+  const { minOffsetA, maxOffsetA } = useMemo(() => {
+    const c = cursos.find(x => x.id === cursoAId)
+    return { minOffsetA: fechaToOffset(c?.fecha_inicio, 'min', -52), maxOffsetA: fechaToOffset(c?.fecha_fin, 'max', 52) }
+  }, [cursoAId, cursos])
+
+  const { minOffsetB, maxOffsetB } = useMemo(() => {
+    if (!cursoBId) return { minOffsetB: -52, maxOffsetB: 52 }
+    const c = cursos.find(x => x.id === cursoBId)
+    return { minOffsetB: fechaToOffset(c?.fecha_inicio, 'min', -52), maxOffsetB: fechaToOffset(c?.fecha_fin, 'max', 52) }
+  }, [cursoBId, cursos])
 
   const { desdeA, hastaA } = useMemo(() => {
     const d = offsetToDate(offsetA)
@@ -473,9 +490,11 @@ export function PlanificacionExtensiva({ clases }: Props) {
             <div className="flex items-center justify-between pb-2 border-b border-gray-800">
               <h3 className="text-sm font-semibold text-gray-200">{cursoA?.asignatura}</h3>
               <div className="flex items-center gap-1">
-                <button onClick={() => setOffsetA(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+                <button onClick={() => setOffsetA(o => o - 1)} disabled={offsetA <= minOffsetA}
+                  className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs disabled:opacity-30 disabled:cursor-not-allowed">←</button>
                 <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeA.getMonth()]} – ${MESES_S[hastaA.getMonth()]} ${hastaA.getFullYear()}`}</span>
-                <button onClick={() => setOffsetA(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+                <button onClick={() => setOffsetA(o => o + 1)} disabled={offsetA >= maxOffsetA}
+                  className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs disabled:opacity-30 disabled:cursor-not-allowed">→</button>
                 {offsetA !== 0 && <button onClick={() => setOffsetA(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
               </div>
             </div>
@@ -507,9 +526,11 @@ export function PlanificacionExtensiva({ clases }: Props) {
               <div className="flex items-center justify-between pb-2 border-b border-gray-800">
                 <h3 className="text-sm font-semibold text-gray-200">{cursoB?.asignatura}</h3>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setOffsetB(o => o - 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">←</button>
+                  <button onClick={() => setOffsetB(o => o - 1)} disabled={offsetB <= minOffsetB}
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs disabled:opacity-30 disabled:cursor-not-allowed">←</button>
                   <span className="text-[10px] text-gray-500 w-20 text-center">{`${MESES_S[desdeB.getMonth()]} – ${MESES_S[hastaB.getMonth()]} ${hastaB.getFullYear()}`}</span>
-                  <button onClick={() => setOffsetB(o => o + 1)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs">→</button>
+                  <button onClick={() => setOffsetB(o => o + 1)} disabled={offsetB >= maxOffsetB}
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-800 text-xs disabled:opacity-30 disabled:cursor-not-allowed">→</button>
                   {offsetB !== 0 && <button onClick={() => setOffsetB(0)} className="text-[10px] text-gray-600 hover:text-gray-400 px-1">hoy</button>}
                 </div>
               </div>
