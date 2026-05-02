@@ -93,8 +93,9 @@ function fmtDateRange(dates: Date[]): string {
 
 function fmt(t: string) { return t?.slice(0, 5) ?? '' }
 
-function isSlotActiveOnDate(h: Horario, dateStr: string): boolean {
+function isSlotActiveOnDate(h: Horario, dateStr: string, today: string): boolean {
   if (h.estado !== 'disponible') return false
+  if (dateStr < today) return false          // nunca mostrar fechas pasadas
   if (!h.disponible_hasta) return true
   return dateStr <= h.disponible_hasta
 }
@@ -141,6 +142,7 @@ export function TutoriasBooking({
   const [anuncioLoading, setAnuncioLoading] = useState<string | null>(null)
 
   const weekDates    = getWeekDates(weekOffset)
+  const todayStr     = toDateStr(new Date())
 
   // Group horarios by profesor
   const profesorIds = [...new Set(horarios.map(h => h.profesor_id))]
@@ -435,7 +437,7 @@ export function TutoriasBooking({
                         const slotKey  = `${slot?.id}|${dateStr}`
                         const isMine   = slot ? mySet.has(slotKey) : false
                         const isOccupied = slot ? (occupiedSet.has(slotKey) && !isMine) : false
-                        const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr) : false
+                        const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr, todayStr) : false
 
                         // Any class belonging to the student's own course
                         const isPropiaCurso = !!clase && estudianteCursoIds.includes(clase.curso_id ?? '')

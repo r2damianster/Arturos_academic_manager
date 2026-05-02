@@ -114,7 +114,14 @@ export async function limpiarHorariosVencidos() {
     }
   }
 
-  // Expirar slots vencidos
+  // Expirar reservas pendientes/confirmadas de fechas pasadas (no-show automático)
+  await db.from('reservas')
+    .update({ estado: 'completada', asistio: false })
+    .in('horario_id', slots.map((s: { id: number }) => s.id))
+    .lt('fecha', hoy)
+    .in('estado', ['pendiente', 'confirmada'])
+
+  // Expirar slots cuyo disponible_hasta ya pasó
   await db.from('horarios')
     .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
     .eq('profesor_id', user.id).eq('estado', 'disponible')
