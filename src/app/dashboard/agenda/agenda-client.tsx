@@ -41,7 +41,7 @@ interface Clase {
   hora_fin: string
   tipo: string
   centro_computo: boolean
-  cursos: { id: string; asignatura: string } | null
+  cursos: { id: string; asignatura: string; fecha_inicio: string | null; fecha_fin: string | null } | null
   anuncios_tutoria_curso?: { estudiante_id: string; fecha: string; estudiantes: { nombre: string } }[]
 }
 
@@ -620,6 +620,13 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                     const bitEstado = cursoId ? bitacoraMap.get(bitKey)?.estado : undefined
                     const isOpen    = clasePicker?.clase.id === c.id && clasePicker?.fecha === ds
 
+                    const fechaInicioCurso = c.cursos?.fecha_inicio
+                    const fechaFinCurso    = c.cursos?.fecha_fin
+                    const fueraDeRango = !isTutoria && (
+                      (fechaInicioCurso != null && ds < fechaInicioCurso) ||
+                      (fechaFinCurso    != null && ds > fechaFinCurso)
+                    )
+
                     return (
                       <div key={c.id} className="absolute left-0.5 right-0.5 z-30"
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>
@@ -668,20 +675,23 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                           }}
                           onClick={e => {
                             e.stopPropagation()
+                            if (fueraDeRango) return
                             setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                           }}
                           onKeyDown={e => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault()
                               e.stopPropagation()
+                              if (fueraDeRango) return
                               setClasePicker(isOpen ? null : { clase: c, fecha: ds })
                             }
                           }}
                           className={`w-full h-full rounded border px-1.5 py-1 text-left transition-colors overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-brand-400 select-none touch-none
+                            ${fueraDeRango ? 'opacity-30 cursor-not-allowed' : ''}
                             ${isDraggingOver === `${cursoId}|${ds}` ? 'ring-2 ring-brand-400 bg-brand-500/20' : ''}
                             ${isTutoria ? 'bg-orange-600/25 border-orange-500/50 hover:bg-orange-600/35 cursor-pointer'
                                         : 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35 cursor-pointer'}
-                            ${bitEstado ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] transform transition-transform shadow-sm' : ''}`}>
+                            ${!fueraDeRango && bitEstado ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02] transform transition-transform shadow-sm' : ''}`}>
                           <div className={`pointer-events-none`}>
                             <p className={`text-[11px] font-semibold leading-tight truncate
                               ${isTutoria ? 'text-orange-200' : 'text-blue-200'}`}>
@@ -705,7 +715,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                               </p>
                             )}
                             {/* Badge de estado de planificación */}
-                            {bitEstado && pos.height >= SLOT_H * 1.5 && (
+                            {!fueraDeRango && bitEstado && pos.height >= SLOT_H * 1.5 && (
                               <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
                                 {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
                               </p>

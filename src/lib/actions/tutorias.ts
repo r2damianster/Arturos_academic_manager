@@ -19,10 +19,9 @@ function calcDisponibleHasta(duracion: DuracionTutoria): string | null {
 
 // ─── Activate a slot with duration ───────────────────────────────────────────
 
-function calcHorasSlot(hora_inicio: string, hora_fin: string): number {
-  const [h1, m1] = hora_inicio.split(':').map(Number)
-  const [h2, m2] = hora_fin.split(':').map(Number)
-  return Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60)
+function calcHorasSlot(h1: string, h2: string): number {
+  const [a, b] = [h1, h2].map(t => { const [hh, mm] = t.split(':').map(Number); return hh * 60 + mm })
+  return Math.max(0, (b - a) / 60)
 }
 
 function getMondayStr(date: Date): string {
@@ -30,17 +29,6 @@ function getMondayStr(date: Date): string {
   const day = d.getDay()
   d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
   return d.toISOString().split('T')[0]
-}
-
-function getWeeksBetween(desde: Date, hasta: Date): string[] {
-  const weeks: string[] = []
-  const cur = new Date(getMondayStr(desde) + 'T12:00:00')
-  const end = new Date(hasta)
-  while (cur <= end) {
-    weeks.push(cur.toISOString().split('T')[0])
-    cur.setDate(cur.getDate() + 7)
-  }
-  return weeks
 }
 
 export async function activarHorario(horarioId: number, duracion: string) {
@@ -67,42 +55,6 @@ export async function activarHorario(horarioId: number, duracion: string) {
   if (error) return { error: `Supabase Error: ${error.message}` }
   if (!data || data.length === 0) return { error: `Error: No se pudo actualizar en BD (permisos RLS o ID '${horarioId}' incorrecto).` }
 
-  // Registrar horas por semana y por curso activo
-  if (disponible_hasta && data[0]?.hora_inicio && data[0]?.hora_fin) {
-    const horasSlot = calcHorasSlot(data[0].hora_inicio, data[0].hora_fin)
-    if (horasSlot > 0) {
-      const semanas = getWeeksBetween(new Date(), new Date(disponible_hasta))
-      const { data: cursos } = await db
-        .from('cursos')
-        .select('id, fecha_inicio, fecha_fin')
-        .eq('profesor_id', user.id)
-        .not('fecha_inicio', 'is', null)
-        .not('fecha_fin', 'is', null)
-
-      if (cursos && semanas.length > 0) {
-        const rows: { profesor_id: string; curso_id: string; fecha_semana: string; horas: number }[] = []
-        for (const semana of semanas) {
-          for (const curso of cursos) {
-            if (semana >= curso.fecha_inicio.slice(0, 10) && semana <= curso.fecha_fin.slice(0, 10)) {
-              rows.push({ profesor_id: user.id, curso_id: curso.id, fecha_semana: semana, horas: horasSlot })
-            }
-          }
-        }
-        if (rows.length > 0) {
-          // upsert: si ya existe esa semana/curso, acumula
-          for (const row of rows) {
-            await db.rpc('acumular_horas_tutoria_semana', {
-              p_profesor_id: row.profesor_id,
-              p_curso_id: row.curso_id,
-              p_fecha_semana: row.fecha_semana,
-              p_horas: row.horas,
-            })
-          }
-        }
-      }
-    }
-  }
-
   return { ok: true, disponible_hasta }
 }
 
@@ -115,13 +67,40 @@ export async function limpiarHorariosVencidos() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
   const hoy = new Date().toISOString().split('T')[0]
-  await db
-    .from('horarios')
+  const semanaActual = getMondayStr(new Date())
+
+  // 1. Obtener slots activos y cursos para registrar semana actual ya transcurrida
+  const [slotsRes, cursosRes] = await Promise.all([
+    db.from('horarios').select('id, hora_inicio, hora_fin')
+      .eq('profesor_id', user.id).eq('estado', 'disponible'),
+    db.from('cursos').select('id, fecha_inicio, fecha_fin')
+      .eq('profesor_id', user.id)
+      .not('fecha_inicio', 'is', null).not('fecha_fin', 'is', null),
+  ])
+
+  const slots = slotsRes.data ?? []
+  const cursos = cursosRes.data ?? []
+
+  for (const slot of slots) {
+    const horas = calcHorasSlot(slot.hora_inicio, slot.hora_fin)
+    if (horas <= 0) continue
+    for (const curso of cursos) {
+      const fi = curso.fecha_inicio.slice(0, 10)
+      const ff = curso.fecha_fin.slice(0, 10)
+      if (semanaActual >= fi && semanaActual <= ff) {
+        await db.rpc('acumular_horas_tutoria_semana', {
+          p_profesor_id: user.id, p_curso_id: curso.id,
+          p_fecha_semana: semanaActual, p_horas: horas,
+        })
+      }
+    }
+  }
+
+  // 2. Expirar slots vencidos
+  await db.from('horarios')
     .update({ estado: 'no_disponible', disponible_hasta: null })
-    .eq('profesor_id', user.id)
-    .eq('estado', 'disponible')
-    .not('disponible_hasta', 'is', null)
-    .lt('disponible_hasta', hoy)
+    .eq('profesor_id', user.id).eq('estado', 'disponible')
+    .not('disponible_hasta', 'is', null).lt('disponible_hasta', hoy)
 }
 
 // ─── Deactivate a slot ────────────────────────────────────────────────────────
