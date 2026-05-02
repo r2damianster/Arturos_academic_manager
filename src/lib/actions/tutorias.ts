@@ -71,14 +71,14 @@ export async function limpiarHorariosVencidos() {
   const hoy = new Date().toISOString().split('T')[0]
 
   const [slotsRes, cursosRes] = await Promise.all([
-    db.from('horarios').select('id, hora_inicio, hora_fin, activado_el')
+    db.from('horarios').select('id, dia_semana, hora_inicio, hora_fin, activado_el, disponible_hasta')
       .eq('profesor_id', user.id).eq('estado', 'disponible'),
     db.from('cursos').select('id, fecha_inicio, fecha_fin')
       .eq('profesor_id', user.id)
       .not('fecha_inicio', 'is', null).not('fecha_fin', 'is', null),
   ])
 
-  const slots: { id: number; hora_inicio: string; hora_fin: string; activado_el: string | null }[] = slotsRes.data ?? []
+  const slots: { id: number; dia_semana: string; hora_inicio: string; hora_fin: string; activado_el: string | null; disponible_hasta: string | null }[] = slotsRes.data ?? []
   const cursos: { id: string; fecha_inicio: string; fecha_fin: string }[] = cursosRes.data ?? []
 
   // Para cada curso, calcular el total de horas por semana pasada (SET idempotente)
