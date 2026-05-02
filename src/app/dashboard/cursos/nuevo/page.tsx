@@ -200,7 +200,7 @@ export default function NuevoCursoPage() {
         <div>
           <label className="label">Número de parciales</label>
           <div className="flex gap-3">
-            {[2, 3, 4].map(n => (
+            {[1, 2, 3, 4].map(n => (
               <label key={n} className="flex-1 cursor-pointer">
                 <input type="radio" name="num_parciales" value={n}
                   checked={numParciales === n}

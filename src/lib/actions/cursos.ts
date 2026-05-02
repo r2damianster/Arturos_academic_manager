@@ -15,7 +15,7 @@ const CursoSchema = z.object({
   horas_semana:   z.coerce.number().int().min(1).max(200).default(64),
   num_sesiones:   z.coerce.number().int().min(1).max(200).default(32),
   horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
-  num_parciales:  z.coerce.number().int().min(2).max(4).default(2),
+  num_parciales:  z.coerce.number().int().min(1).max(4).default(2),
 })
 
 type HorarioInput = { dia_semana: string; hora_inicio: string; hora_fin: string; tipo?: string; centro_computo?: boolean }
@@ -133,7 +133,7 @@ const DetallesCursoSchema = z.object({
   horas_semana:  z.coerce.number().int().min(1).max(200).default(64),
   num_sesiones:  z.coerce.number().int().min(1).max(200).default(32),
   horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
-  num_parciales: z.coerce.number().int().min(2).max(4).default(2),
+  num_parciales: z.coerce.number().int().min(1).max(4).default(2),
   observacion:   z.string().max(500).optional(),
   institucion:   z.string().max(200).optional(),
 })

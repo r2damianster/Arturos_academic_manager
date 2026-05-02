@@ -627,6 +627,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                       (fechaFinCurso    != null && ds > fechaFinCurso)
                     )
 
+                    if (fueraDeRango) return null
+
                     return (
                       <div key={c.id} className="absolute left-0.5 right-0.5 z-30"
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>

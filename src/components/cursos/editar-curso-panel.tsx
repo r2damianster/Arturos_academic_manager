@@ -147,7 +147,7 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
         <div>
           <label className="label">Número de parciales</label>
           <div className="flex gap-3">
-            {[2, 3, 4].map(n => (
+            {[1, 2, 3, 4].map(n => (
               <button
                 key={n}
                 type="button"
