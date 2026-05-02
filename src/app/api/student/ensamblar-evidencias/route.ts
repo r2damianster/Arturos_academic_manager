@@ -10,12 +10,23 @@ interface Seccion {
   archivos: string[] // claves de archivo en FormData: "f0", "f1", etc.
 }
 
+interface Stats {
+  asistencia: number | null
+  indiceFormativo: number | null
+  observacionProceso: string | null
+  compromisos: number
+  citadoTutoria: boolean
+  tutoriasAsistidas: number
+  tutoriasFaltadas: number
+}
+
 interface Manifest {
   estudiante: string
   curso: string
   profesor: string
   fecha: string
   secciones: Seccion[]
+  stats?: Stats
 }
 
 async function imageToJpeg(bytes: ArrayBuffer, mimeType: string): Promise<Buffer> {
@@ -144,6 +155,94 @@ export async function POST(req: Request) {
       cover.drawText(`  • ${s.nombre}  (${s.archivos.length} archivo${s.archivos.length !== 1 ? 's' : ''})`, { x: 60, y: indexY, size: 9, font, color: rgb(0.75, 0.78, 0.85) })
       indexY -= 16
     })
+  }
+
+  // ── Seguimiento del proceso (datos del docente, disimulados para el estudiante) ─
+  if (manifest.stats) {
+    const st = manifest.stats
+    indexY -= 20
+    cover.drawLine({ start: { x: 60, y: indexY }, end: { x: cw - 60, y: indexY }, thickness: 0.5, color: rgb(0.15, 0.2, 0.32) })
+    indexY -= 14
+    cover.drawText('SEGUIMIENTO DEL PROCESO', { x: 60, y: indexY, size: 7.5, font, color: rgb(0.32, 0.42, 0.62) })
+    indexY -= 17
+
+    // Registro de presencia con barra
+    if (st.asistencia !== null) {
+      cover.drawText('Registro de presencia:', { x: 60, y: indexY, size: 9, font, color: rgb(0.55, 0.6, 0.7) })
+      const bx = 196, by = indexY - 2, bw = 128, bh = 9
+      cover.drawRectangle({ x: bx, y: by, width: bw, height: bh, color: rgb(0.08, 0.11, 0.18) })
+      const fill = Math.max(0, Math.min(1, st.asistencia / 100))
+      const fillCol = st.asistencia >= 80 ? rgb(0.14, 0.68, 0.4) : st.asistencia >= 60 ? rgb(0.85, 0.64, 0.12) : rgb(0.75, 0.2, 0.2)
+      if (fill > 0) cover.drawRectangle({ x: bx, y: by, width: bw * fill, height: bh, color: fillCol })
+      cover.drawText(`${st.asistencia}%`, { x: bx + bw + 6, y: indexY, size: 9, font: fontBold, color: rgb(0.82, 0.84, 0.92) })
+      indexY -= 13
+      cover.drawText('* Cifra estimada — puede diferir del registro oficial de la institucion.', { x: 60, y: indexY, size: 7, font, color: rgb(0.3, 0.34, 0.5) })
+      indexY -= 18
+    }
+
+    // Barra disimulada de participacion (5 cuadros = nivel promedio 1-5)
+    if (st.indiceFormativo !== null) {
+      cover.drawText('Cohesion del proceso:', { x: 60, y: indexY, size: 9, font, color: rgb(0.55, 0.6, 0.7) })
+      const sqBase = 184, sqY = indexY - 2, sqSz = 10, sqGap = 3
+      for (let i = 0; i < 5; i++) {
+        const cx = sqBase + i * (sqSz + sqGap)
+        cover.drawRectangle({ x: cx, y: sqY, width: sqSz, height: sqSz, color: rgb(0.08, 0.11, 0.18) })
+        if (i + 1 <= st.indiceFormativo) {
+          cover.drawRectangle({ x: cx, y: sqY, width: sqSz, height: sqSz, color: rgb(0.27, 0.45, 0.9) })
+        } else if (i < st.indiceFormativo) {
+          const frac = st.indiceFormativo - i
+          cover.drawRectangle({ x: cx, y: sqY, width: sqSz * frac, height: sqSz, color: rgb(0.27, 0.45, 0.9) })
+        }
+      }
+      indexY -= 20
+    }
+
+    // Observacion de proceso (frase codificada desde nota promedio)
+    if (st.observacionProceso) {
+      const maxW = cw - 120
+      const words = st.observacionProceso.split(' ')
+      const lines: string[] = []
+      let cur = ''
+      for (const w of words) {
+        const test = cur ? `${cur} ${w}` : w
+        if (font.widthOfTextAtSize(test, 8.5) > maxW && cur) { lines.push(cur); cur = w } else { cur = test }
+      }
+      if (cur) lines.push(cur)
+      const boxH = lines.length * 13 + 12
+      cover.drawRectangle({ x: 56, y: indexY - boxH + 4, width: cw - 112, height: boxH, color: rgb(0.06, 0.1, 0.16) })
+      cover.drawRectangle({ x: 56, y: indexY - boxH + 4, width: 3, height: boxH, color: rgb(0.27, 0.45, 0.9) })
+      indexY -= 8
+      for (const line of lines) {
+        cover.drawText(line, { x: 66, y: indexY, size: 8.5, font, color: rgb(0.74, 0.78, 0.85) })
+        indexY -= 13
+      }
+      indexY -= 8
+    }
+
+    // Compromisos formativos activos (= trabajos pendientes/en progreso)
+    if (st.compromisos > 0) {
+      cover.drawText('Compromisos formativos activos:', { x: 60, y: indexY, size: 9, font, color: rgb(0.55, 0.6, 0.7) })
+      cover.drawText(String(st.compromisos), { x: 238, y: indexY, size: 9, font: fontBold, color: rgb(0.92, 0.76, 0.28) })
+      indexY -= 16
+    }
+
+    // Espacios de acompanamiento (= tutorias)
+    if (st.citadoTutoria || st.tutoriasAsistidas > 0 || st.tutoriasFaltadas > 0) {
+      cover.drawText('Espacios de acompanamiento:', { x: 60, y: indexY, size: 9, font, color: rgb(0.55, 0.6, 0.7) })
+      indexY -= 13
+      if (st.citadoTutoria) {
+        cover.drawText('  Tiene un espacio de acompanamiento pendiente', { x: 60, y: indexY, size: 8, font, color: rgb(0.38, 0.62, 0.9) })
+        indexY -= 12
+      }
+      if (st.tutoriasAsistidas > 0) {
+        cover.drawText(`  Asistencias registradas: ${st.tutoriasAsistidas}`, { x: 60, y: indexY, size: 8, font, color: rgb(0.28, 0.68, 0.42) })
+        indexY -= 12
+      }
+      if (st.tutoriasFaltadas > 0) {
+        cover.drawText(`  Inasistencias registradas: ${st.tutoriasFaltadas}`, { x: 60, y: indexY, size: 8, font, color: rgb(0.78, 0.3, 0.28) })
+        indexY -= 12
+      }
+    }
   }
 
   // ── Secciones ─────────────────────────────────────────────────────────────

@@ -14,10 +14,21 @@ interface Categoria {
   archivos: Archivo[]
 }
 
+interface Stats {
+  asistencia: number | null
+  indiceFormativo: number | null
+  observacionProceso: string | null
+  compromisos: number
+  citadoTutoria: boolean
+  tutoriasAsistidas: number
+  tutoriasFaltadas: number
+}
+
 interface Props {
   estudiante: string
   curso: string
   profesor: string
+  stats?: Stats
 }
 
 const CATS_DEFAULT: Omit<Categoria, 'id' | 'archivos'>[] = [
@@ -39,7 +50,7 @@ function makeCats(): Categoria[] {
 
 const TIPOS_ACEPTADOS = 'application/pdf,image/jpeg,image/jpg,image/png,image/webp,image/heic,image/tiff'
 
-export function EnsamblarEvidencias({ estudiante, curso, profesor }: Props) {
+export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Props) {
   const [categorias, setCategorias] = useState<Categoria[]>(makeCats)
   const [generando, setGenerando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,7 +118,7 @@ export function EnsamblarEvidencias({ estudiante, curso, profesor }: Props) {
       })
 
     const hoy = new Date().toLocaleDateString('es-EC', { year: 'numeric', month: '2-digit', day: '2-digit' })
-    fd.append('manifest', JSON.stringify({ estudiante, curso, profesor, fecha: hoy, secciones }))
+    fd.append('manifest', JSON.stringify({ estudiante, curso, profesor, fecha: hoy, secciones, stats }))
 
     try {
       const res = await fetch('/api/student/ensamblar-evidencias', { method: 'POST', body: fd })

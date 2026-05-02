@@ -164,7 +164,8 @@ export default async function StudentPage() {
                   <p className={`text-xl font-bold ${pctAsistencia >= 80 ? 'text-emerald-400' : pctAsistencia >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
                     {pctAsistencia}%
                   </p>
-                  <p className="text-xs text-gray-500">Asistencia</p>
+                  <p className="text-xs text-gray-500">Asistencia est.</p>
+                  <p className="text-[9px] text-gray-600 leading-tight mt-0.5 max-w-[88px]">puede diferir del<br/>registro oficial</p>
                 </div>
               )}
             </div>
