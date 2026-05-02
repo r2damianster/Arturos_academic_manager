@@ -46,9 +46,11 @@ export async function activarHorario(horarioId: number, duracion: string) {
     disponible_hasta = calcDisponibleHasta(duracion as DuracionTutoria)
   }
 
+  const activado_el = new Date().toISOString().split('T')[0]
+
   const { data, error } = await db
     .from('horarios')
-    .update({ estado: 'disponible', disponible_hasta })
+    .update({ estado: 'disponible', disponible_hasta, activado_el })
     .eq('id', horarioId)
     .select('id, hora_inicio, hora_fin')
 
@@ -67,38 +69,54 @@ export async function limpiarHorariosVencidos() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
   const hoy = new Date().toISOString().split('T')[0]
-  const semanaActual = getMondayStr(new Date())
 
-  // 1. Obtener slots activos y cursos para registrar semana actual ya transcurrida
   const [slotsRes, cursosRes] = await Promise.all([
-    db.from('horarios').select('id, hora_inicio, hora_fin')
+    db.from('horarios').select('id, hora_inicio, hora_fin, activado_el')
       .eq('profesor_id', user.id).eq('estado', 'disponible'),
     db.from('cursos').select('id, fecha_inicio, fecha_fin')
       .eq('profesor_id', user.id)
       .not('fecha_inicio', 'is', null).not('fecha_fin', 'is', null),
   ])
 
-  const slots = slotsRes.data ?? []
-  const cursos = cursosRes.data ?? []
+  const slots: { id: number; hora_inicio: string; hora_fin: string; activado_el: string | null }[] = slotsRes.data ?? []
+  const cursos: { id: string; fecha_inicio: string; fecha_fin: string }[] = cursosRes.data ?? []
 
-  for (const slot of slots) {
-    const horas = calcHorasSlot(slot.hora_inicio, slot.hora_fin)
-    if (horas <= 0) continue
-    for (const curso of cursos) {
-      const fi = curso.fecha_inicio.slice(0, 10)
-      const ff = curso.fecha_fin.slice(0, 10)
-      if (semanaActual >= fi && semanaActual <= ff) {
+  // Para cada curso, calcular el total de horas por semana pasada (SET idempotente)
+  for (const curso of cursos) {
+    const fi = curso.fecha_inicio.slice(0, 10)
+    const ff = curso.fecha_fin.slice(0, 10)
+
+    // Generar semanas desde inicio del curso hasta hoy (sin futuras)
+    const limite = ff < hoy ? ff : hoy
+    const semanas: string[] = []
+    const cur = new Date(getMondayStr(new Date(fi + 'T12:00:00')) + 'T12:00:00')
+    while (cur.toISOString().split('T')[0] <= limite) {
+      semanas.push(cur.toISOString().split('T')[0])
+      cur.setDate(cur.getDate() + 7)
+    }
+
+    for (const semana of semanas) {
+      // Sumar horas de todos los slots que estaban activos en esa semana
+      let totalHoras = 0
+      for (const slot of slots) {
+        // El slot estaba activo en esta semana si activado_el <= semana (o no tiene fecha = asumimos desde inicio)
+        const desde = slot.activado_el ?? fi
+        if (desde <= semana) {
+          totalHoras += calcHorasSlot(slot.hora_inicio, slot.hora_fin)
+        }
+      }
+      if (totalHoras > 0) {
         await db.rpc('acumular_horas_tutoria_semana', {
           p_profesor_id: user.id, p_curso_id: curso.id,
-          p_fecha_semana: semanaActual, p_horas: horas,
+          p_fecha_semana: semana, p_horas: totalHoras,
         })
       }
     }
   }
 
-  // 2. Expirar slots vencidos
+  // Expirar slots vencidos
   await db.from('horarios')
-    .update({ estado: 'no_disponible', disponible_hasta: null })
+    .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
     .eq('profesor_id', user.id).eq('estado', 'disponible')
     .not('disponible_hasta', 'is', null).lt('disponible_hasta', hoy)
 }

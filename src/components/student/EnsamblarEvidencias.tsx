@@ -26,6 +26,8 @@ const CATS_DEFAULT: Omit<Categoria, 'id' | 'archivos'>[] = [
   { nombre: 'Brisk',                 tipo: 'individual' },
   { nombre: 'Perusall',              tipo: 'individual' },
   { nombre: 'Ensayos',               tipo: 'individual' },
+  { nombre: 'Ejercicios en clases',  tipo: 'individual' },
+  { nombre: 'Apuntes importantes',   tipo: 'individual' },
 ]
 
 let uid = 0
