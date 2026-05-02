@@ -163,6 +163,19 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **MOD** `src/app/student/page.tsx`: card "Armar Evidencias PDF" (col-span-2) como acceso rápido.
 - **Dependencias añadidas**: `pdf-lib`, `sharp`.
 
+### Horas de tutoría por curso/semana
+- **FEAT** Nueva tabla `tutor_horas_semana(profesor_id, curso_id, fecha_semana, horas, UNIQUE(profesor_id,curso_id,fecha_semana))` con RLS para profesor y estudiante
+- **FEAT** `limpiarHorariosVencidos` (ejecutada en cada carga del dashboard): registra la semana actual en `tutor_horas_semana` para cada slot disponible × cada curso activo con fecha dentro del rango. Solo cuenta semanas ya transcurridas. Luego expira slots con `disponible_hasta` vencido.
+- **FEAT** Portal estudiante: muestra "X h de tutoría ofrecidas en N semanas del curso" en la tarjeta de cada curso (query a `tutor_horas_semana`)
+- **MIGRACIÓN** `20260501_add_horas_tutoria_ofrecidas.sql` y `20260501_add_tutor_horas_semana.sql` aplicadas en producción
+- **Lógica clave**: las horas solo se acumulan cuando `semana_actual >= curso.fecha_inicio`. Si el profesor activa un slot antes de que empiece el curso, esas semanas previas no cuentan para ese curso.
+
+### Fixes sesión 14 (continuación)
+- **FIX** `agenda-client.tsx`: clases fuera de `fecha_inicio`/`fecha_fin` del curso → `return null` (completamente ocultas en el calendario)
+- **FIX** `editar-curso-panel.tsx`, `nuevo/page.tsx`, `cursos.ts`: parciales ahora incluyen opción **1 parcial** (antes mínimo era 2). Schema Zod actualizado a `min(1)`.
+- **FIX** Participación masiva en modo clase: botón "★ Abrir participación de todos" abre los paneles individuales de TODOS los estudiantes simultáneamente (no asigna el mismo nivel a todos — cada estudiante sigue teniendo sus propios controles)
+- **FIX** Asistencia en modo clase: arranca en **Presente** (verde) por defecto para todos
+
 ---
 
 ## Features recientes (2026-04-26 — sesión 10)
@@ -368,6 +381,19 @@ END; $$;
 
 ## Features próximas sesiones
 
+### PDF de evidencias estudiantil — enriquecer con datos del curso
+Al inicio del PDF generado por el estudiante, incluir:
+- Porcentaje de asistencia y registro por semana
+- Actividades calificadas
+- Asistencia a tutorías reservadas (asistió/faltó)
+- **Ranking de participación disimulado**: mostrar frases predefinidas por rango (ej: nivel 4-5 → "Tu participación refleja un compromiso activo con el aprendizaje"; nivel 1-2 → "Se identifican oportunidades para fortalecer la participación") — el profesor reconoce el nivel, el estudiante no lo ve como calificación. Podría incorporar las observaciones del profesor.
+
+### Reporte PDF del profesor
+El profesor puede generar un PDF por estudiante/curso con: notas de participación, observaciones, asistencia, si faltó a tutoría agendada, etc.
+
+### Email automático al asignar tutoría
+Al hacer clic en "Citar a tutoría" desde la tabla de estudiantes, enviar automáticamente un correo al estudiante sin que el profesor tenga que abrir el correo. La infraestructura de email ya existe (Resend/Supabase).
+
 ### Acceso a reemplazante
 Usuario externo (identificado por email) que cubre al profesor por un período específico. Acceso restringido a: planificación, pase de lista, registro de novedades. Prohibido: editar curso, editar tareas asignadas, descargar archivos Moodle CSV. Requiere: tabla `reemplazantes` (profesor_id, email_reemplazante, fecha_inicio, fecha_fin), middleware que detecta rol y oculta/bloquea funciones restringidas. Implementar como rol separado, no como modificación al rol profesor.
 
@@ -401,7 +427,8 @@ Usuario externo (identificado por email) que cubre al profesor por un período e
 ~~- Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)~~
 
 ## Bugs pendientes
-_(Sin bugs pendientes documentados en esta sesión.)_
+
+- **Agenda semanal / vista semanal planificación**: ocultar bloques de clase fuera del rango fecha_inicio/fecha_fin ya aplicado en agenda-client y planificacion-client. Verificar que en ambas vistas esté funcionando en producción.
 
 ## Convenciones críticas
 
