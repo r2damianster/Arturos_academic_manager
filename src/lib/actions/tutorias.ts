@@ -70,16 +70,26 @@ export async function limpiarHorariosVencidos() {
   const db = supabase as any
   const hoy = new Date().toISOString().split('T')[0]
 
-  const [slotsRes, cursosRes] = await Promise.all([
+  const [slotsRes, cursosRes, horariosCursoRes] = await Promise.all([
     db.from('horarios').select('id, dia_semana, hora_inicio, hora_fin, activado_el, disponible_hasta')
       .eq('profesor_id', user.id).eq('estado', 'disponible'),
     db.from('cursos').select('id, fecha_inicio, fecha_fin')
       .eq('profesor_id', user.id)
       .not('fecha_inicio', 'is', null).not('fecha_fin', 'is', null),
+    // Tutorías asignadas al horario del curso (tipo tutoria_curso) — fijas cada semana
+    db.from('horarios_clases').select('curso_id, hora_inicio, hora_fin')
+      .eq('profesor_id', user.id).eq('tipo', 'tutoria_curso'),
   ])
 
   const slots: { id: number; dia_semana: string; hora_inicio: string; hora_fin: string; activado_el: string | null; disponible_hasta: string | null }[] = slotsRes.data ?? []
   const cursos: { id: string; fecha_inicio: string; fecha_fin: string }[] = cursosRes.data ?? []
+  const horariosCurso: { curso_id: string; hora_inicio: string; hora_fin: string }[] = horariosCursoRes.data ?? []
+
+  // Horas fijas de tutoria_curso por curso (constantes por semana)
+  const horasFijasPorCurso: Record<string, number> = {}
+  for (const hc of horariosCurso) {
+    horasFijasPorCurso[hc.curso_id] = (horasFijasPorCurso[hc.curso_id] ?? 0) + calcHorasSlot(hc.hora_inicio, hc.hora_fin)
+  }
 
   // Para cada curso, calcular el total de horas por semana pasada (SET idempotente)
   for (const curso of cursos) {
@@ -96,15 +106,19 @@ export async function limpiarHorariosVencidos() {
     }
 
     for (const semana of semanas) {
-      // Sumar horas de todos los slots que estaban activos en esa semana
       let totalHoras = 0
+
+      // Slots adicionales activos en esa semana (incluyendo expirados en el pasado)
       for (const slot of slots) {
-        // El slot estaba activo en esta semana si activado_el <= semana (o no tiene fecha = asumimos desde inicio)
         const desde = slot.activado_el ?? fi
         if (desde <= semana) {
           totalHoras += calcHorasSlot(slot.hora_inicio, slot.hora_fin)
         }
       }
+
+      // Tutorías fijas del horario del curso (se repiten cada semana del curso)
+      totalHoras += horasFijasPorCurso[curso.id] ?? 0
+
       if (totalHoras > 0) {
         await db.rpc('acumular_horas_tutoria_semana', {
           p_profesor_id: user.id, p_curso_id: curso.id,
