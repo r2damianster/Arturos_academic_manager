@@ -260,6 +260,23 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
   const timeSlots = useMemo(() => getDynamicSlots(horarios, clases, eventos, weekDates), [horarios, clases, eventos, weekDates])
 
+  const { minOffset, maxOffset } = useMemo(() => {
+    const fi = clases.map(c => c.cursos?.fecha_inicio).filter(Boolean) as string[]
+    const ff = clases.map(c => c.cursos?.fecha_fin).filter(Boolean) as string[]
+    if (fi.length === 0 && ff.length === 0) return { minOffset: -52, maxOffset: 52 }
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+    let min = -52, max = 52
+    if (fi.length > 0) {
+      const earliest = new Date(Math.min(...fi.map(f => new Date(f).getTime())))
+      min = Math.floor((earliest.getTime() - hoy.getTime()) / (7 * 24 * 3600 * 1000)) - 1
+    }
+    if (ff.length > 0) {
+      const latest = new Date(Math.max(...ff.map(f => new Date(f).getTime())))
+      max = Math.ceil((latest.getTime() - hoy.getTime()) / (7 * 24 * 3600 * 1000)) + 1
+    }
+    return { minOffset: min, maxOffset: max }
+  }, [clases])
+
   // Cargar bitácoras de la semana visible para mostrar badges y dnd
   useEffect(() => {
     const loadBitacoras = async () => {
@@ -498,10 +515,12 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <button onClick={() => setWeekOffset(0)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Hoy</button>
-            <button onClick={() => setWeekOffset(w => w - 1)} className="btn-ghost p-1.5">
+            <button onClick={() => setWeekOffset(w => w - 1)} disabled={weekOffset <= minOffset}
+              className="btn-ghost p-1.5 disabled:opacity-30 disabled:cursor-not-allowed">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={() => setWeekOffset(w => w + 1)} className="btn-ghost p-1.5">
+            <button onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= maxOffset}
+              className="btn-ghost p-1.5 disabled:opacity-30 disabled:cursor-not-allowed">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
             <span className="text-sm text-gray-300 font-medium">{fmtRange(weekDates)}</span>
