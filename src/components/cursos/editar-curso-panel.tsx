@@ -146,6 +146,11 @@ export function EditarCursoPanel({ cursoId, curso, institucionProfesor, clases =
 
         <div>
           <label className="label">Número de parciales</label>
+          {numParciales < (curso.num_parciales ?? 2) && (
+            <div className="mb-2 px-3 py-2 bg-amber-900/20 border border-amber-600/40 rounded-lg text-xs text-amber-300">
+              ⚠ Si hay notas registradas en el Parcial {numParciales + 1} o superiores, quedarán guardadas en la BD pero no se mostrarán.
+            </div>
+          )}
           <div className="flex gap-3">
             {[1, 2, 3, 4].map(n => (
               <button
