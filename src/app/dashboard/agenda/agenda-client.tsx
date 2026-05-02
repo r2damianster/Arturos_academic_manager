@@ -105,8 +105,9 @@ function fmtRange(dates: Date[]) {
   return `${a.getDate()} ${MESES_S[a.getMonth()]} – ${b.getDate()} ${MESES_S[b.getMonth()]} ${b.getFullYear()}`
 }
 
-function isSlotActiveOnDate(h: HorarioTutoria, dateStr: string) {
+function isSlotActiveOnDate(h: HorarioTutoria, dateStr: string, todayStr?: string) {
   if (h.estado !== 'disponible') return false
+  if (todayStr && dateStr < todayStr) return false   // fechas pasadas nunca activas
   if (!h.disponible_hasta) return true
   return dateStr <= h.disponible_hasta
 }
@@ -770,7 +771,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   {/* ── Tutoría horario blocks (interactive) ── */}
                   {dayHorarios.map(h => {
                     const pos     = blockPos(h.hora_inicio, h.hora_fin)
-                    const active  = isSlotActiveOnDate(h, ds)
+                    const active  = isSlotActiveOnDate(h, ds, today)
                     const reserva = reservaMap.get(`${h.id}|${ds}`)
                     const popKey  = `${h.id}|${ds}`
                     const isOpen  = popover === popKey
