@@ -232,8 +232,8 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
           </svg>
         </button>
 
-        {/* Toggle mostrar todos */}
-        <label className="flex items-center gap-1.5 cursor-pointer select-none ml-auto">
+        {/* Toggle mostrar todos — solo visible cuando el panel está abierto */}
+        <label className={`flex items-center gap-1.5 cursor-pointer select-none ml-auto ${open ? '' : 'hidden'}`}>
           <div
             onClick={() => setMostrarTodos(v => !v)}
             className={`w-8 h-4 rounded-full transition-colors duration-200 flex-shrink-0 ${mostrarTodos ? 'bg-brand-600' : 'bg-gray-700'}`}
