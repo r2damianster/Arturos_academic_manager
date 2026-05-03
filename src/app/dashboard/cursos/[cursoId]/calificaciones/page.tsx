@@ -9,7 +9,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, califRes, participacionRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
@@ -17,6 +17,9 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .select('id, estudiante_id, fecha, semana, nivel, observacion')
       .eq('curso_id', cursoId)
       .order('fecha', { ascending: true }),
+    db.from('asistencia')
+      .select('estudiante_id, estado, atraso')
+      .eq('curso_id', cursoId),
   ])
 
   if (!cursoRes.data) notFound()
@@ -25,14 +28,41 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const estudiantes = estudiantesRes.data ?? []
   const calificaciones = califRes.data ?? []
   const participacion = participacionRes.data ?? []
+  const asistencia = asistenciaRes.data ?? []
 
-  // DEBUG: temporal
-  console.log('DEBUG participacion:', {
-    cursoId,
-    totalRegistros: participacion.length,
-    primerosRegistros: participacion.slice(0, 3),
-    estudiantesCount: estudiantes.length
-  })
+  const asistenciaMap: Record<string, {
+    total_sesiones: number
+    presentes: number
+    ausentes: number
+    atrasos: number
+    porcentaje: number | null
+  }> = {}
+
+  for (const registro of asistencia) {
+    const estudianteId = registro.estudiante_id
+    if (!asistenciaMap[estudianteId]) {
+      asistenciaMap[estudianteId] = {
+        total_sesiones: 0,
+        presentes: 0,
+        ausentes: 0,
+        atrasos: 0,
+        porcentaje: null,
+      }
+    }
+
+    const stats = asistenciaMap[estudianteId]
+    stats.total_sesiones += 1
+    if (registro.estado === 'Presente') stats.presentes += 1
+    if (registro.estado === 'Ausente') stats.ausentes += 1
+    if (registro.atraso) stats.atrasos += 1
+  }
+
+  for (const estudianteId of Object.keys(asistenciaMap)) {
+    const stats = asistenciaMap[estudianteId]
+    stats.porcentaje = stats.total_sesiones > 0
+      ? Math.round((stats.presentes / stats.total_sesiones) * 1000) / 10
+      : null
+  }
 
   const authIds = estudiantes.map((e: any) => e.auth_user_id).filter(Boolean)
   const encuestasRes = authIds.length > 0
@@ -89,6 +119,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           nombresTareas={nombresTareas}
           perfiles={perfilesMap}
           participacion={participacion}
+          asistenciaMap={asistenciaMap}
         />
       )}
     </div>

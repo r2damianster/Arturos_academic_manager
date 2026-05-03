@@ -51,14 +51,6 @@ function promedio(nums: (number | null)[]) {
 const WINDOW = 7 // fechas visibles a la vez
 
 export function ParticipacionGrid({ estudiantes, registros }: Props) {
-  // DEBUG: temporal
-  console.log('DEBUG ParticipacionGrid:', {
-    estudiantesCount: estudiantes.length,
-    registrosCount: registros.length,
-    primerosRegistros: registros.slice(0, 3),
-    fechasUnicas: Array.from(new Set(registros.map(r => r.fecha))).length
-  })
-
   const [windowStart, setWindowStart] = useState(0)
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 

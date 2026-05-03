@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CalificacionesTable } from './calificaciones-table'
 import { ParticipacionGrid, type ParticipacionRecord } from './participacion-grid'
+import { ResumenEstudiantes, type AsistenciaStats } from './resumen-estudiantes'
 
 interface Estudiante {
   id: string
@@ -21,19 +22,36 @@ interface Props {
   perfiles: Record<string, unknown>
   // participacion
   participacion: ParticipacionRecord[]
+  // asistencia
+  asistenciaMap: Record<string, AsistenciaStats>
 }
 
-type Tab = 'participacion' | 'calificaciones'
+type Tab = 'resumen' | 'participacion' | 'calificaciones'
 
 export function CalificacionesTabs({
-  cursoId, estudiantes, calificaciones, numParciales, nombresTareas, perfiles, participacion,
+  cursoId, estudiantes, calificaciones, numParciales, nombresTareas, perfiles, participacion, asistenciaMap,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('participacion')
+  const [tab, setTab] = useState<Tab>('resumen')
 
   return (
     <div className="space-y-5">
       {/* Tab switcher */}
       <div className="flex gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl w-fit">
+        <button
+          onClick={() => setTab('resumen')}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            tab === 'resumen'
+              ? 'bg-brand-600 text-white shadow-sm'
+              : 'text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          Resumen
+          <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${
+            tab === 'resumen' ? 'bg-white/20' : 'bg-gray-800 text-gray-500'
+          }`}>
+            {estudiantes.length}
+          </span>
+        </button>
         <button
           onClick={() => setTab('participacion')}
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -64,6 +82,14 @@ export function CalificacionesTabs({
       </div>
 
       {/* Contenido */}
+      {tab === 'resumen' && (
+        <ResumenEstudiantes
+          estudiantes={estudiantes}
+          asistenciaMap={asistenciaMap}
+          calificaciones={calificaciones as any}
+          participacion={participacion}
+        />
+      )}
       {tab === 'participacion' && (
         <ParticipacionGrid estudiantes={estudiantes} registros={participacion} />
       )}
