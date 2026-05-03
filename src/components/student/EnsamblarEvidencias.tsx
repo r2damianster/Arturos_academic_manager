@@ -50,6 +50,52 @@ function makeCats(): Categoria[] {
 
 const TIPOS_ACEPTADOS = 'application/pdf,image/jpeg,image/jpg,image/png,image/webp,image/heic,image/tiff'
 
+async function comprimirImagen(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const MAX = 1400
+      let w = img.width, h = img.height
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round((h * MAX) / w); w = MAX }
+        else { w = Math.round((w * MAX) / h); h = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+        },
+        'image/jpeg', 0.82
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+}
+
+function descargarBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } else {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  }
+}
+
 export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Props) {
   const [categorias, setCategorias] = useState<Categoria[]>(makeCats)
   const [generando, setGenerando] = useState(false)
@@ -109,13 +155,18 @@ export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Prop
     setError(null)
 
     const fd = new FormData()
-    const secciones = categorias
-      .filter(c => c.archivos.length > 0)
-      .map(c => {
-        const keys = c.archivos.map(a => a.id)
-        c.archivos.forEach(a => fd.append(a.id, a.file))
-        return { tipo: c.tipo, nombre: c.nombre, archivos: keys }
-      })
+    const secciones: { tipo: string; nombre: string; archivos: string[] }[] = []
+
+    for (const c of categorias) {
+      if (c.archivos.length === 0) continue
+      const keys: string[] = []
+      for (const a of c.archivos) {
+        const file = a.file.type.startsWith('image/') ? await comprimirImagen(a.file) : a.file
+        fd.append(a.id, file)
+        keys.push(a.id)
+      }
+      secciones.push({ tipo: c.tipo, nombre: c.nombre, archivos: keys })
+    }
 
     const hoy = new Date().toLocaleDateString('es-EC', { year: 'numeric', month: '2-digit', day: '2-digit' })
     fd.append('manifest', JSON.stringify({ estudiante, curso, profesor, fecha: hoy, secciones, stats }))
@@ -128,12 +179,7 @@ export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Prop
         return
       }
       const blob = await res.blob()
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href = url
-      a.download = `evidencias_${hoy.replaceAll('/', '-')}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      descargarBlob(blob, `evidencias_${hoy.replaceAll('/', '-')}.pdf`)
     } catch (e) {
       setError('Error de conexión al generar el PDF')
     } finally {
