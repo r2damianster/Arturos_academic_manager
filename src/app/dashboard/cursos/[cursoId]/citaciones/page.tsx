@@ -29,7 +29,7 @@ export default async function CitacionesPage({ params, searchParams }: { params:
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-4 mb-2">
-          <Link 
+          <Link
             href={`/dashboard/cursos/${cursoId}`}
             className="p-2 -ml-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
             title="Volver al curso"
