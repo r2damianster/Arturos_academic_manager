@@ -26,6 +26,14 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const calificaciones = califRes.data ?? []
   const participacion = participacionRes.data ?? []
 
+  // DEBUG: temporal
+  console.log('DEBUG participacion:', {
+    cursoId,
+    totalRegistros: participacion.length,
+    primerosRegistros: participacion.slice(0, 3),
+    estudiantesCount: estudiantes.length
+  })
+
   const authIds = estudiantes.map((e: any) => e.auth_user_id).filter(Boolean)
   const encuestasRes = authIds.length > 0
     ? await db.from('encuesta_estudiante')
