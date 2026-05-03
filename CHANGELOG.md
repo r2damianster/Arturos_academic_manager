@@ -6,6 +6,7 @@
 - **Fix:** Solucionado el bug en la API nativa de arrastrar y soltar (DND) de planificación que provocaba que el Modal confirmaciones desapareciera instantáneamente al limpiar prematuramente la variable dependiente `dragSource` en `onDragEnd`.
 - **Fix:** Agenda y Planificación ahora cargan solo las bitácoras del profesor correcto (`profesor_id`) para evitar RLS y permitir ver los planes cumplidos.
 - **Fix:** En `/dashboard/agenda`, `PlanificarModal` ya no muestra el panel de copiar/mover plan cuando se accede desde la agenda.
+- **Fix:** Detectado y corregido bug de registros de participación perdidos en algunas semanas: se recuperó el campo `observacion` en `participacion`, se ajustó el cálculo de `calcular_semana` para usar semanas académicas (lunes-domingo) y se prepararon actualizaciones históricas para datos existentes. Documentado por Copilot.
 - **Enhancement:** En `/dashboard/planificacion`, los bloques planificados son arrastrables y el drop abre un modal de confirmación para copiar o mover la planificación.
 - **Fix:** Los planes cumplidos en planificación ahora son visibles, arrastrables y permiten copiar a otras fechas desde el modal de planificación.
 
