@@ -97,7 +97,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
             </svg>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-white">Calificaciones</h1>
+            <h1 className="text-2xl font-bold text-white">Evaluaciones</h1>
             <p className="text-gray-400 text-sm">{curso.asignatura} · {curso.codigo}</p>
           </div>
         </div>

@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getCitacionesPorCurso } from '@/lib/actions/citaciones'
 import { CitacionesClient } from './citaciones-client'
@@ -26,7 +28,16 @@ export default async function CitacionesPage({ params, searchParams }: { params:
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white mb-2">Historial de Citaciones a Tutoría</h1>
+        <div className="flex items-center gap-4 mb-2">
+          <Link 
+            href={`/dashboard/cursos/${cursoId}`}
+            className="p-2 -ml-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
+            title="Volver al curso"
+          >
+            <ArrowLeft size={24} />
+          </Link>
+          <h1 className="text-2xl font-bold text-white">Historial de Citaciones a Tutoría</h1>
+        </div>
         <p className="text-gray-400">
           Seguimiento de estudiantes citados del curso {curso.codigo} - {curso.asignatura}.
         </p>
