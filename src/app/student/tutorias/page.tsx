@@ -115,6 +115,15 @@ export default async function TutoriasPage() {
     auth_user_id: user.id,
   }
 
+  // Fetch pending citaciones
+  const { data: citacionesData } = await db
+    .from('citaciones_tutoria')
+    .select('id, razon, detalle_razon, cursos(asignatura)')
+    .in('estudiante_id', estudiantes.map((e: { id: string }) => e.id))
+    .eq('estado', 'pendiente')
+
+  const citacionesPendientes = citacionesData ?? []
+
   return (
     <div className="min-h-screen bg-gray-950 py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
@@ -129,6 +138,27 @@ export default async function TutoriasPage() {
             <p className="text-gray-400 text-sm">Agenda una sesión con tu profesor</p>
           </div>
         </div>
+
+        {citacionesPendientes.length > 0 && (
+          <div className="bg-amber-900/40 border border-amber-700/50 rounded-xl p-4 flex gap-3">
+            <div className="text-amber-500 mt-0.5">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-amber-400 font-semibold text-sm">Tienes citaciones a tutoría pendientes</h3>
+              <p className="text-amber-200/70 text-xs mt-1">Tu profesor te ha solicitado que agendes una sesión de tutoría. Por favor, selecciona un horario disponible a continuación.</p>
+              <ul className="mt-2 space-y-1">
+                {citacionesPendientes.map((cit: any) => (
+                  <li key={cit.id} className="text-xs text-amber-300">
+                    • <span className="font-medium">{cit.cursos?.asignatura}</span> - Razón: {cit.razon}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         <TutoriasBooking
           horarios={horarios}

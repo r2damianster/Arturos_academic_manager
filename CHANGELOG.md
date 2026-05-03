@@ -1,5 +1,12 @@
 # Changelog — gestor-universitario-next
 
+## 2026-05-03
+- **Feature (by Antigravity):** Implementación de Seguimiento avanzado de citaciones a tutoría.
+  - Creada tabla `citaciones_tutoria` para llevar un historial detallado en vez de un flag booleano.
+  - Nuevo modal interactivo al citar estudiantes para registrar la razón y detalles.
+  - Nueva pantalla dedicada (`/dashboard/cursos/[cursoId]/citaciones`) para ver citaciones por curso y mes, y actualizar sus estados (Pendiente, Agendada, Asistida, Cumplida).
+  - Alerta en el portal estudiantil informando al estudiante si tiene tutorías pendientes de agendar.
+
 ## 2026-04-17 (Continuación)
 - **Feature:** Implementación del estado activo/retirado para estudiantes en el listado del curso (oculta estudiantes temporalmente sin borrar datos).
 - **Feature:** Al editar asistencias pasadas (`/dashboard/cursos/[cursoId]/pase-lista`), el sistema ahora pre-carga correctamente la Bitácora de clase de esa fecha.

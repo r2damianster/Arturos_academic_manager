@@ -114,9 +114,10 @@ export default async function CursoDetailPage({
   const modules = [
     { href: `/dashboard/cursos/${cursoId}/pase-lista`,             label: 'Bitácora y Lista',   icon: '✅', desc: 'Tomar y editar por fecha' },
     { href: `/dashboard/cursos/${cursoId}/asistencia`,             label: 'Asistencia',          icon: '📊', desc: 'Reporte completo' },
-    { href: `/dashboard/cursos/${cursoId}/calificaciones`,         label: 'Calificaciones',      icon: '📝', desc: 'Notas y evaluaciones' },
+    { href: `/dashboard/cursos/${cursoId}/calificaciones`,         label: 'Evaluaciones',        icon: '📝', desc: 'Notas, participación y resumen' },
     { href: `/dashboard/cursos/${cursoId}/trabajos`,               label: 'Trabajos',            icon: '📋', desc: 'Asignar y monitorear' },
     { href: `/dashboard/cursos/${cursoId}/encuesta`,               label: 'Encuesta',            icon: '📋', desc: 'Perfil del grupo' },
+    { href: `/dashboard/cursos/${cursoId}/citaciones`,             label: 'Citaciones',          icon: '📞', desc: 'Historial de tutorías' },
     { href: `/dashboard/cursos/${cursoId}/estudiantes/importar`,   label: 'Agregar Estudiantes', icon: '📥', desc: 'Carga masiva' },
   ]
 

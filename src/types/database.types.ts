@@ -869,6 +869,76 @@ export type Database = {
         }
         Relationships: []
       }
+      citaciones_tutoria: {
+        Row: {
+          id: string
+          profesor_id: string
+          curso_id: string
+          estudiante_id: string
+          fecha_citacion: string
+          razon: string
+          detalle_razon: string | null
+          estado: string
+          reserva_id: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profesor_id: string
+          curso_id: string
+          estudiante_id: string
+          fecha_citacion?: string
+          razon: string
+          detalle_razon?: string | null
+          estado?: string
+          reserva_id?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profesor_id?: string
+          curso_id?: string
+          estudiante_id?: string
+          fecha_citacion?: string
+          razon?: string
+          detalle_razon?: string | null
+          estado?: string
+          reserva_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citaciones_tutoria_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citaciones_tutoria_estudiante_id_fkey"
+            columns: ["estudiante_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citaciones_tutoria_profesor_id_fkey"
+            columns: ["profesor_id"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citaciones_tutoria_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

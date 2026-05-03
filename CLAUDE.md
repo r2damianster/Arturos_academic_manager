@@ -54,7 +54,7 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 /dashboard/cursos/[cursoId]        → Detalle curso: métricas, módulos, tabla estudiantes
 /dashboard/cursos/[cursoId]/encuesta → Perfil del grupo: datos socioeconómicos, uso IA
 /dashboard/cursos/[cursoId]/asistencia → Reporte de asistencia (tabla cruzada)
-/dashboard/cursos/[cursoId]/calificaciones → Notas por parcial
+/dashboard/cursos/[cursoId]/calificaciones → Evaluaciones: notas, participación y resumen
 /dashboard/cursos/[cursoId]/trabajos → Asignación y seguimiento de trabajos
 /dashboard/cursos/[cursoId]/pase-lista → Bitácora + asistencia (con date picker para editar pasadas)
 /dashboard/estudiantes             → Ficha individual de estudiante
@@ -380,6 +380,12 @@ END; $$;
 - `ChatBot` flotante (`src/components/student/ChatBot.tsx`) — ayuda contextual, FAQ, chips de sugerencias. Estructura lista para conectar Claude API.
 
 ## Features próximas sesiones
+
+### Seguimiento avanzado de citaciones a tutoría
+- **Nueva tabla `citaciones_tutoria`**: Historial de citaciones por estudiante para evitar sobreescribir un simple booleano.
+- **Razones de citación**: `inasistencia`, `bajo_desempeño`, `asignacion_trabajo`, `otro` + campo de detalle libre.
+- **Ciclo de vida (Estados)**: `pendiente` (citado pero sin agendar), `agendada` (vinculada a una reserva), `asistida`, `no_asistida`, y `cumplida/mejorado` (cuando el profesor da por cerrado el caso).
+- **Vista mensual/por período**: Pantalla dedicada para que el profesor sepa exactamente quiénes han sido citados en el mes, quiénes asistieron y quiénes siguen pendientes.
 
 ### PDF de evidencias estudiantil — enriquecer con datos del curso
 Al inicio del PDF generado por el estudiante, incluir:
