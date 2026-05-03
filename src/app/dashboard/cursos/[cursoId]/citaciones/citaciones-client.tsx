@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { actualizarEstadoCitacion } from '@/lib/actions/citaciones'
 
 interface Citacion {
@@ -19,15 +19,14 @@ interface Citacion {
 
 interface Props {
   cursoId: string
-  initialCitaciones: any[] // Mapeado de la BD
+  initialCitaciones: any[]
+  currentMonth: string
 }
 
-export function CitacionesClient({ cursoId, initialCitaciones }: Props) {
+export function CitacionesClient({ cursoId, initialCitaciones, currentMonth }: Props) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  
-  const currentMonth = searchParams.get('mes') || new Date().toISOString().slice(0, 7) // YYYY-MM
+
   const citaciones = initialCitaciones as Citacion[]
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {

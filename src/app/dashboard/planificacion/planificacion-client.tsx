@@ -89,7 +89,7 @@ interface Props {
 export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) {
   const supabase = createClient()
 
-  const [viewMode, setViewMode] = useState<'semana' | 'extensivo' | 'estudiante'>('semana')
+  const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>('semana')
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0)
@@ -135,9 +135,6 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [dragError, setDragError] = useState<string | null>(null)
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
-  const [estudianteIndex, setEstudianteIndex] = useState(0)
-  const [estudiantesData, setEstudiantesData] = useState<{ id: string; nombre: string; email: string; curso_id: string; asignatura: string; tutoria: boolean }[]>([])
-  const [loadingEstudiantes, setLoadingEstudiantes] = useState(false)
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
 
@@ -149,36 +146,6 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     if (cur < wStart && weekOffset > minOffset) { setWeekOffset(w => w - 1); setSelectedDate(dateToStr(cur)) }
     else if (cur > wEnd && weekOffset < maxOffset) { setWeekOffset(w => w + 1); setSelectedDate(dateToStr(cur)) }
     else if (cur >= wStart && cur <= wEnd) setSelectedDate(dateToStr(cur))
-  }
-
-  async function loadEstudiantes() {
-    if (estudiantesData.length > 0) return // Ya cargados
-    setLoadingEstudiantes(true)
-    try {
-      const { data, error } = await supabase
-        .from('estudiantes')
-        .select('id, nombre, email, curso_id, tutoria, cursos(asignatura)')
-        .eq('estado', 'activo')
-        .order('cursos(asignatura)', { ascending: true })
-        .order('nombre', { ascending: true })
-
-      if (error) throw error
-
-      const estudiantes = (data ?? []).map(est => ({
-        id: est.id,
-        nombre: est.nombre,
-        email: est.email,
-        curso_id: est.curso_id,
-        asignatura: (est.cursos as any)?.asignatura ?? 'Curso',
-        tutoria: est.tutoria
-      }))
-
-      setEstudiantesData(estudiantes)
-    } catch (err) {
-      console.error('Error cargando estudiantes:', err)
-    } finally {
-      setLoadingEstudiantes(false)
-    }
   }
 
   async function handleDeletePlan(cursoId: string, fecha: string) {
@@ -277,10 +244,9 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   }, [])
 
   useEffect(() => {
-    if (viewMode === 'estudiante') {
-      loadEstudiantes()
-    }
-  }, [viewMode])
+    if (isMounted) loadBitacoras()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekOffset, clases.length, isMounted])
 
   // Calcular cuántas clases hay sin planificar esta semana
   const sinPlanificar = useMemo(() => {
@@ -650,7 +616,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
       {/* Toggle vista */}
       <div className="flex gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
-        {(['semana', 'extensivo', 'estudiante'] as const).map(mode => (
+        {(['semana', 'extensivo'] as const).map(mode => (
           <button
             key={mode}
             type="button"
@@ -661,140 +627,10 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                 : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            {mode === 'semana' ? '📅 Semana' : mode === 'extensivo' ? '📋 Por curso' : '👥 Por estudiante'}
+            {mode === 'semana' ? '📅 Semana' : '📋 Por curso'}
           </button>
         ))}
       </div>
-
-      {/* Modo estudiante */}
-      {viewMode === 'estudiante' && (
-        <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-800">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Vista por estudiante</h2>
-              <span className="text-sm text-gray-400">
-                {estudiantesData.length > 0 ? `${estudianteIndex + 1} de ${estudiantesData.length}` : 'Cargando...'}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Navega estudiante por estudiante para atención detallada
-            </p>
-          </div>
-
-          {loadingEstudiantes ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-gray-400">Cargando estudiantes...</div>
-            </div>
-          ) : estudiantesData.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-gray-400">No hay estudiantes activos</div>
-            </div>
-          ) : (
-            <div className="p-6">
-              {/* Navegación */}
-              <div className="flex items-center justify-between mb-6">
-                <button
-                  onClick={() => setEstudianteIndex(i => Math.max(0, i - 1))}
-                  disabled={estudianteIndex === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                >
-                  <span className="text-lg">←</span>
-                  <span className="text-sm font-medium">Anterior</span>
-                </button>
-
-                <button
-                  onClick={() => setEstudianteIndex(i => Math.min(estudiantesData.length - 1, i + 1))}
-                  disabled={estudianteIndex === estudiantesData.length - 1}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                >
-                  <span className="text-sm font-medium">Siguiente</span>
-                  <span className="text-lg">→</span>
-                </button>
-              </div>
-
-              {/* Información del estudiante */}
-              {(() => {
-                const estudiante = estudiantesData[estudianteIndex]
-                return (
-                  <div className="space-y-6">
-                    {/* Perfil básico */}
-                    <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center text-2xl font-bold text-gray-400">
-                        {estudiante.nombre.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-xl font-bold text-white">{estudiante.nombre}</h3>
-                          {estudiante.tutoria && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
-                              📘 Citado a tutoría
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-gray-400 text-sm">{estudiante.email}</p>
-                        <p className="text-gray-500 text-sm mt-1">{estudiante.asignatura}</p>
-                      </div>
-                    </div>
-
-                    {/* Acciones disponibles */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Link
-                        href={`/dashboard/estudiantes/${estudiante.id}`}
-                        className="flex items-center gap-3 p-4 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-lg transition-colors"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">Ver perfil completo</p>
-                          <p className="text-sm text-gray-400">Calificaciones, asistencia, trabajos</p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href={`/dashboard/cursos/${estudiante.curso_id}/pase-lista`}
-                        className="flex items-center gap-3 p-4 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-lg transition-colors"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-green-600/20 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">Tomar asistencia</p>
-                          <p className="text-sm text-gray-400">Registro detallado de asistencia</p>
-                        </div>
-                      </Link>
-                    </div>
-
-                    {/* Navegación rápida */}
-                    <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-800">
-                      {estudiantesData.slice(Math.max(0, estudianteIndex - 2), estudianteIndex + 3).map((est, idx) => {
-                        const realIdx = Math.max(0, estudianteIndex - 2) + idx
-                        return (
-                          <button
-                            key={est.id}
-                            onClick={() => setEstudianteIndex(realIdx)}
-                            className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                              realIdx === estudianteIndex
-                                ? 'bg-brand-600 text-white'
-                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                            }`}
-                          >
-                            {realIdx + 1}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Vista semanal — solo visible en modo semana */}
       {viewMode === 'semana' && <>
