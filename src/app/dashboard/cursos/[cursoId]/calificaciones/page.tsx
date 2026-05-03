@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { CalificacionesTable } from '@/components/calificaciones/calificaciones-table'
+import { CalificacionesTabs } from '@/components/calificaciones/calificaciones-tabs'
 
 export default async function CalificacionesPage({ params }: { params: Promise<{ cursoId: string }> }) {
   const { cursoId } = await params
@@ -9,10 +9,14 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, califRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, califRes, participacionRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
+    db.from('participacion')
+      .select('id, estudiante_id, fecha, semana, nivel, observacion')
+      .eq('curso_id', cursoId)
+      .order('fecha', { ascending: true }),
   ])
 
   if (!cursoRes.data) notFound()
@@ -20,6 +24,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const curso = cursoRes.data
   const estudiantes = estudiantesRes.data ?? []
   const calificaciones = califRes.data ?? []
+  const participacion = participacionRes.data ?? []
 
   const authIds = estudiantes.map((e: any) => e.auth_user_id).filter(Boolean)
   const encuestasRes = authIds.length > 0
@@ -36,11 +41,10 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
     if (estId) perfilesMap[estId] = enc
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapaCalif: Record<string, any> = {}
   for (const c of calificaciones) mapaCalif[c.estudiante_id] = c
 
-  const numParciales: number  = curso.num_parciales ?? 2
+  const numParciales: number = curso.num_parciales ?? 2
   const nombresTareas: string[] = Array.isArray(curso.nombres_tareas)
     ? curso.nombres_tareas
     : ['ACD', 'TA', 'PE', 'EX']
@@ -59,8 +63,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
             <p className="text-gray-400 text-sm">{curso.asignatura} · {curso.codigo}</p>
           </div>
         </div>
-        <Link href={`/dashboard/cursos/${cursoId}/calificaciones/config`}
-          className="btn-ghost text-sm">
+        <Link href={`/dashboard/cursos/${cursoId}/calificaciones/config`} className="btn-ghost text-sm">
           ⚙ Configurar
         </Link>
       </div>
@@ -70,13 +73,14 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           <p className="text-gray-500">No hay estudiantes en este curso.</p>
         </div>
       ) : (
-        <CalificacionesTable
+        <CalificacionesTabs
           cursoId={cursoId}
           estudiantes={estudiantes}
           calificaciones={mapaCalif}
           numParciales={numParciales}
           nombresTareas={nombresTareas}
           perfiles={perfilesMap}
+          participacion={participacion}
         />
       )}
     </div>
