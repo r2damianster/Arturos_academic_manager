@@ -42,14 +42,15 @@ export default async function EvidenciasPage() {
     cursoData?.profesor_id
       ? db.from('profesores').select('nombre').eq('id', cursoData.profesor_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    db.from('asistencia').select('estado').eq('estudiante_id', estData.id),
-    admin.from('participacion').select('nivel').eq('estudiante_id', estData.id),
+    db.from('asistencia').select('estado').eq('estudiante_id', estData.id).eq('curso_id', estData.curso_id),
+    admin.from('participacion').select('nivel').eq('estudiante_id', estData.id).eq('curso_id', estData.curso_id),
     admin.from('calificaciones')
       .select('acd1,ta1,pe1,ex1,acd2,ta2,pe2,ex2,acd3,ta3,pe3,ex3,acd4,ta4,pe4,ex4')
       .eq('estudiante_id', estData.id)
+      .eq('curso_id', estData.curso_id)
       .maybeSingle(),
-    db.from('trabajos_asignados').select('estado').eq('estudiante_id', estData.id),
-    db.from('reservas').select('asistio').eq('auth_user_id', user.id),
+    db.from('trabajos_asignados').select('estado').eq('estudiante_id', estData.id).eq('curso_id', estData.curso_id),
+    db.from('reservas').select('asistio').eq('auth_user_id', user.id).eq('curso_id', estData.curso_id),
   ])
 
   const profData = profRes.data

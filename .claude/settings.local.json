@@ -33,7 +33,9 @@
       "mcp__claude_ai_Vercel__list_deployments",
       "mcp__claude_ai_Vercel__list_projects",
       "mcp__claude_ai_Vercel__get_deployment_build_logs",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(grep -n \"^---$\" CLAUDE.md)",
+      "mcp__lean-ctx__ctx_edit"
     ],
     "additionalDirectories": [
       "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory"

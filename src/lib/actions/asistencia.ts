@@ -78,6 +78,7 @@ export async function registrarAsistenciaMasiva(
   }
 
   revalidatePath(`/dashboard/cursos/${cursoId}/asistencia`)
+  revalidatePath(`/dashboard/cursos/${cursoId}/calificaciones`)
   revalidatePath('/dashboard/agenda')
   return {}
 }
