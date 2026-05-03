@@ -532,12 +532,18 @@ export function ModoClaseClient({
   function marcarAsistencia(estudianteId: string, estado: 'Presente' | 'Ausente' | 'Atraso') {
     setAsistencia(prev => ({ ...prev, [estudianteId]: estado }))
     const partEntry = partData[estudianteId]
+    const horas = estado === 'Ausente'
+      ? 0
+      : estado === 'Atraso'
+        ? Math.max(1, Math.round(horasClase / 2))
+        : horasClase
+
     startTransition(() => {
       registrarAsistenciaMasiva(cursoId, fecha, [{
         estudiante_id: estudianteId,
         estado,
         atraso: estado === 'Atraso',
-        horas: 1,
+        horas,
         participacion: partEntry?.nivel ?? null,
         observacion_participacion: partEntry?.obs?.trim() || null,
       }], bitacoraId)
