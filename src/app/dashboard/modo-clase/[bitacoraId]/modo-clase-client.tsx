@@ -12,7 +12,7 @@ import { Agrupacion } from '@/components/herramientas/Agrupacion'
 import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 import { formatNombreCorto } from '@/lib/format'
 
-type Student = { id: string; nombre: string; email: string }
+type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 type GrupoIntegrante = { id: string; estudiante_id: string; estudiantes: { id: string; nombre: string } | null }
 type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; grupo_integrantes: GrupoIntegrante[] }
@@ -1034,7 +1034,14 @@ export function ModoClaseClient({
                 return (
                   <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
                     <div className="flex items-center gap-2 px-2 py-1.5">
-                      <span className="flex-1 text-sm text-gray-300 truncate">{formatNombreCorto(s.nombre)}</span>
+                      <span className="flex-1 text-sm text-gray-300 truncate flex items-center gap-2">
+                        {formatNombreCorto(s.nombre)}
+                        {s.tutoria && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
+                            📘
+                          </span>
+                        )}
+                      </span>
                       <div className="flex gap-1 flex-shrink-0">
                         <button onClick={() => marcarAsistencia(s.id, 'Presente')} title="Presente"
                           className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-emerald-900 hover:text-emerald-400'}`}>P</button>
