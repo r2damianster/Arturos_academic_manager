@@ -11,7 +11,7 @@ type Props = {
   cursoId: string
   fecha: string
   bitacoraId: string
-  asistenciaInicial: { estudiante_id: string; estado: string; atraso: boolean }[]
+  asistenciaInicial: { estudiante_id: string; estado: 'Presente' | 'Ausente' | 'Atraso'; atraso: boolean }[]
   horasClase: number
 }
 
@@ -22,7 +22,7 @@ export function AsistenciaPorEstudiante({
   students, cursoId, fecha, bitacoraId, asistenciaInicial, horasClase,
 }: Props) {
   const [asistencia, setAsistencia] = useState<Record<string, 'Presente' | 'Ausente' | 'Atraso'>>(
-    Object.fromEntries(asistenciaInicial.map(a => [a.estudiante_id, a.estado]))
+    Object.fromEntries(asistenciaInicial.map(a => [a.estudiante_id, a.estado])) as Record<string, 'Presente' | 'Ausente' | 'Atraso'>
   )
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(

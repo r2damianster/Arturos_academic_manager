@@ -843,6 +843,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           })}
         </div>
       )}
+      </>}
 
       {/* Herramientas */}
       <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
@@ -952,9 +953,6 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
         />
       )}
 
-      {viewMode === 'semana' && (
-        <>/* existing week view JSX remains unchanged */</>
-      )}
       {viewMode === 'extensivo' && (
         <div className="space-y-4 bg-gray-900 p-4 rounded-xl">
           {courseGroups.length === 0 ? (
@@ -988,7 +986,6 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           )}
         </div>
       )}
-}
     </div>
   )
 }

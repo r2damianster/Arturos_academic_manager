@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getCitacionesPorCurso } from '@/lib/actions/citaciones'
 import { CitacionesClient } from './citaciones-client'
@@ -34,7 +33,9 @@ export default async function CitacionesPage({ params, searchParams }: { params:
             className="p-2 -ml-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
             title="Volver al curso"
           >
-            <ArrowLeft size={24} />
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
           </Link>
           <h1 className="text-2xl font-bold text-white">Historial de Citaciones a Tutoría</h1>
         </div>
