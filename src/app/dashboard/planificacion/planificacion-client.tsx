@@ -954,37 +954,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       )}
 
       {viewMode === 'extensivo' && (
-        <div className="space-y-4 bg-gray-900 p-4 rounded-xl">
-          {courseGroups.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No hay clases para mostrar.
-            </div>
-          ) : (
-            courseGroups.map(({ curso, clases: grupoClases }) => (
-              <div key={curso.id} className="border-b border-gray-800 pb-4 mb-4">
-                <h2 className="text-xl font-bold text-white mb-2">{curso.asignatura}</h2>
-                <table className="w-full text-left text-sm text-gray-400">
-                  <thead className="text-xs text-gray-500 uppercase bg-gray-900/50 border-b border-gray-800">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Día</th>
-                      <th className="px-4 py-3 font-medium">Hora</th>
-                      <th className="px-4 py-3 font-medium">Tipo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {grupoClases.map(clase => (
-                      <tr key={clase.id} className="hover:bg-gray-800/20 transition-colors">
-                        <td className="px-4 py-3">{clase.dia_semana}</td>
-                        <td className="px-4 py-3">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</td>
-                        <td className="px-4 py-3">{clase.tipo}{clase.centro_computo ? ' 💻' : ''}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))
-          )}
-        </div>
+        <PlanificacionExtensiva clases={clases} />
       )}
     </div>
   )
