@@ -79,7 +79,7 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {cursosFiltrados.map(curso => (
-              <div key={curso.id} className="card hover:border-gray-700 transition-colors">
+              <div key={curso.id} className="card card-lift">
                 {/* Fila superior: código · periodo · lápiz */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">

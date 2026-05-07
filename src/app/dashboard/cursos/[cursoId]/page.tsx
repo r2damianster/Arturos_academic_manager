@@ -208,7 +208,7 @@ export default async function CursoDetailPage({
       </div>
 
       {/* Módulos de navegación */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {modules.map(m => (
           <Link key={m.href} href={m.href}
             className="card hover:border-gray-700 transition-colors text-center group p-4">

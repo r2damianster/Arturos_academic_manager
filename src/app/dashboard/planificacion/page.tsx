@@ -14,7 +14,7 @@ export default async function PlanificacionPage() {
     .eq('profesor_id', user.id)
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-white">Mis Clases</h1>
         <p className="text-gray-400 text-sm mt-1">Planifica, inicia y realiza seguimiento de tus clases</p>

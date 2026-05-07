@@ -112,7 +112,7 @@ export default async function DashboardPage() {
   const clases = clasesBase.map((c: any) => ({ ...c, anuncios_tutoria_curso: anunciosPorClase[c.id] ?? [] }))
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-6">
       <SummaryPanel
         totalCursos={cursosCountRes.count ?? 0}
         totalEstudiantes={estudiantesCountRes.count ?? 0}

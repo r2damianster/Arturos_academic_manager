@@ -539,7 +539,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const clasesDeHoy = clases.filter(c => c.dia_semana === hoyDayName)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Sección Hoy */}
       {weekOffset === 0 && clasesDeHoy.length > 0 && (
         <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
