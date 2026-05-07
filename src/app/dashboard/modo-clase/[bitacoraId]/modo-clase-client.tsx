@@ -560,7 +560,7 @@ export function ModoClaseClient({
   const [savedGrupos, setSavedGrupos] = useState<Set<string>>(new Set())
 
   async function refreshGrupos() {
-    const data = await getGruposDeSesion(bitacoraId)
+    const data = await getGruposDeSesion(bitacoraId, cursoId)
     setGrupos(data.grupos as GrupoItem[])
   }
   const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos'>('asistencia')

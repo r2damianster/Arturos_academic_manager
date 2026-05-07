@@ -45,7 +45,7 @@ export default async function ModoClaseActivaPage({
       .from('horarios_clases')
       .select('hora_inicio, hora_fin, dia_semana')
       .eq('curso_id', bitacora.curso_id),
-    getGruposDeSesion(bitacoraId),
+    getGruposDeSesion(bitacoraId, bitacora.curso_id),
     getCategorias(),
   ])
 

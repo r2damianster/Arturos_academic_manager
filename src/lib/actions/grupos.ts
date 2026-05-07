@@ -392,22 +392,39 @@ export async function getGruposAbiertosParaEstudiante(cursoIds: string[]) {
 
 // ── Leer grupos de una sesión (para cliente) ──────────────────
 
-export async function getGruposDeSesion(bitacoraId: string) {
+export async function getGruposDeSesion(bitacoraId: string, cursoId?: string) {
   const db = await createClient()
+
+  const SELECT_GRUPOS = `
+    id, nombre, categoria, tipo, orden, abierto, max_integrantes,
+    grupo_integrantes (
+      id, estudiante_id, asignado_por,
+      estudiantes ( id, nombre )
+    )
+  `
 
   const { data: grupos, error } = await db
     .from('grupos_clase')
-    .select(`
-      id, nombre, categoria, tipo, orden, abierto, max_integrantes,
-      grupo_integrantes (
-        id, estudiante_id, asignado_por,
-        estudiantes ( id, nombre )
-      )
-    `)
+    .select(SELECT_GRUPOS)
     .eq('bitacora_id', bitacoraId)
     .order('orden')
 
   if (error) return { grupos: [], error: error.message }
+
+  // Fallback: si no hay grupos de sesión y hay cursoId, buscar grupos de curso
+  // (creados desde /herramientas sin bitacoraId)
+  if (grupos && grupos.length === 0 && cursoId) {
+    const { data: courseGrupos } = await db
+      .from('grupos_clase')
+      .select(SELECT_GRUPOS)
+      .eq('curso_id', cursoId)
+      .is('bitacora_id', null)
+      .order('orden')
+    if (courseGrupos && courseGrupos.length > 0) {
+      return { grupos: courseGrupos, error: null }
+    }
+  }
+
   return { grupos: grupos ?? [], error: null }
 }
 
