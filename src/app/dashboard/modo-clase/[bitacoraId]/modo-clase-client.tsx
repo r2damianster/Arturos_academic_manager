@@ -191,10 +191,33 @@ function VistGrupo({
   const [partActivo, setPartActivo] = useState<Set<string>>(new Set())
   const [partMap, setPartMap] = useState<Record<string, { nivel: number | null; obs: string }>>({})
   const [isPending, startTransition] = useTransition()
+  const [expositTicker, setExpositTicker] = useState('')
+  const [expositGirando, setExpositGirando] = useState(false)
+  const [expositElegidoId, setExpositElegidoId] = useState<string | null>(null)
 
   const miembros = grupo.grupo_integrantes
     .map(gi => students.find(s => s.id === gi.estudiante_id))
     .filter(Boolean) as Student[]
+
+  function sortearExpositor() {
+    if (expositGirando || miembros.length === 0) return
+    setExpositGirando(true)
+    setExpositElegidoId(null)
+    let count = 0
+    const total = 20
+    const id = setInterval(() => {
+      const r = miembros[Math.floor(Math.random() * miembros.length)]
+      setExpositTicker(formatNombreCorto(r.nombre))
+      count++
+      if (count >= total) {
+        clearInterval(id)
+        const winner = miembros[Math.floor(Math.random() * miembros.length)]
+        setExpositTicker(formatNombreCorto(winner.nombre))
+        setExpositElegidoId(winner.id)
+        setExpositGirando(false)
+      }
+    }, 75)
+  }
 
   function togglePart(id: string) {
     setPartActivo(prev => {
@@ -247,6 +270,28 @@ function VistGrupo({
         )}
       </div>
 
+      {/* Sortear expositor */}
+      {miembros.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <div
+            className={`h-11 flex items-center justify-center rounded-xl border text-sm font-bold transition-colors ${
+              expositElegidoId
+                ? 'border-amber-600 bg-amber-900/30 text-amber-200'
+                : 'border-gray-700 bg-gray-800/60 text-gray-500'
+            }`}
+          >
+            {expositTicker || '— sortear expositor —'}
+          </div>
+          <button
+            onClick={sortearExpositor}
+            disabled={expositGirando}
+            className="w-full py-2 rounded-lg border border-amber-700/60 bg-amber-900/20 text-amber-400 hover:bg-amber-900/40 text-xs font-medium transition-colors disabled:opacity-40"
+          >
+            {expositGirando ? 'Sorteando…' : '🎲 Sortear expositor'}
+          </button>
+        </div>
+      )}
+
       {/* Lista de miembros */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-3">
         {miembros.length === 0 ? (
@@ -255,10 +300,18 @@ function VistGrupo({
           miembros.map(s => {
             const estado = asistencia[s.id]
             const conPart = partActivo.has(s.id)
+            const esElegido = expositElegidoId === s.id
             return (
-              <div key={s.id} className="p-2.5 rounded-lg bg-gray-800/60 border border-gray-700/50 space-y-2">
+              <div key={s.id} className={`p-2.5 rounded-lg border space-y-2 transition-colors ${
+                esElegido
+                  ? 'bg-amber-900/20 border-amber-600/60'
+                  : 'bg-gray-800/60 border-gray-700/50'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-200 font-medium flex-1 truncate">{formatNombreCorto(s.nombre)}</p>
+                  <p className="text-sm font-medium flex-1 truncate flex items-center gap-1.5">
+                    {esElegido && <span className="text-amber-400">🎤</span>}
+                    <span className={esElegido ? 'text-amber-200' : 'text-gray-200'}>{formatNombreCorto(s.nombre)}</span>
+                  </p>
                   {/* P/A/F */}
                   <div className="flex gap-1 shrink-0">
                     {(['Presente', 'Atraso', 'Ausente'] as const).map(e => (
@@ -558,6 +611,7 @@ export function ModoClaseClient({
   const [gruposExcluidos, setGruposExcluidos] = useState<Set<string>>(new Set())
   const [autoExcluirGrupo, setAutoExcluirGrupo] = useState(true)
   const [savedGrupos, setSavedGrupos] = useState<Set<string>>(new Set())
+  const [ordenGrupos, setOrdenGrupos] = useState<string[]>([])
 
   async function refreshGrupos() {
     const data = await getGruposDeSesion(bitacoraId, cursoId)
@@ -1170,8 +1224,46 @@ export function ModoClaseClient({
                     onExcluirChange={setGruposExcluidos}
                     autoExcluir={autoExcluirGrupo}
                     onAutoExcluirChange={setAutoExcluirGrupo}
-                    onSeleccionar={setGrupoActivoId}
+                    onSeleccionar={(id) => setOrdenGrupos(prev => [...prev, id])}
                   />
+
+                  {/* Orden de presentación */}
+                  {ordenGrupos.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-500 uppercase tracking-widest">Orden de presentación</p>
+                        <button
+                          onClick={() => { setOrdenGrupos([]); setGruposExcluidos(new Set()) }}
+                          className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                        >
+                          ↺ Reiniciar
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {ordenGrupos.map((gId, i) => {
+                          const g = grupos.find(x => x.id === gId)
+                          if (!g) return null
+                          const saved = savedGrupos.has(gId)
+                          return (
+                            <button
+                              key={`${gId}-${i}`}
+                              onClick={() => setGrupoActivoId(gId)}
+                              className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-xl border transition-colors ${
+                                saved
+                                  ? 'border-emerald-700/50 bg-emerald-900/10'
+                                  : 'border-indigo-800/60 bg-indigo-950/30 hover:border-indigo-600'
+                              }`}
+                            >
+                              <span className="text-indigo-400 font-bold text-sm w-6 shrink-0">{i + 1}°</span>
+                              <span className="flex-1 text-sm font-medium text-gray-200">{g.nombre}</span>
+                              <span className="text-xs text-gray-500">{g.grupo_integrantes.length} est.</span>
+                              {saved && <span className="text-emerald-400 text-xs">✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Lista de grupos para acceso directo */}
                   <div>
