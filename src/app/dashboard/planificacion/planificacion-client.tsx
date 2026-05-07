@@ -69,6 +69,16 @@ function getWeekDates(offset: number): Date[] {
   return dates
 }
 
+function getWeekFromDate(startDate: Date): Date[] {
+  const dates: Date[] = []
+  const cur = new Date(startDate)
+  while (dates.length < 6) {
+    if (cur.getDay() !== 0) dates.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return dates
+}
+
 function getClaseForDay(clases: Clase[], dayName: string): Clase | undefined {
   return clases.find(c => c.dia_semana === dayName)
 }
@@ -136,16 +146,20 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
-  const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset])
+  const weekDates = useMemo(() => getWeekFromDate(new Date(selectedDate + 'T12:00:00')), [selectedDate])
 
   function navDay(delta: 1 | -1) {
     const cur = new Date(selectedDate + 'T12:00:00')
     cur.setDate(cur.getDate() + delta)
     if (cur.getDay() === 0) cur.setDate(cur.getDate() + delta) // saltar domingo
-    const wStart = weekDates[0], wEnd = weekDates[weekDates.length - 1]
-    if (cur < wStart && weekOffset > minOffset) { setWeekOffset(w => w - 1); setSelectedDate(dateToStr(cur)) }
-    else if (cur > wEnd && weekOffset < maxOffset) { setWeekOffset(w => w + 1); setSelectedDate(dateToStr(cur)) }
-    else if (cur >= wStart && cur <= wEnd) setSelectedDate(dateToStr(cur))
+    const newDate = dateToStr(cur)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const curNorm = new Date(newDate + 'T00:00:00')
+    const diffDays = Math.round((curNorm.getTime() - today.getTime()) / (24 * 3600 * 1000))
+    const newOffset = Math.floor(diffDays / 7)
+    if (newOffset < minOffset || newOffset > maxOffset) return
+    setWeekOffset(newOffset)
+    setSelectedDate(newDate)
   }
 
   async function handleDeletePlan(cursoId: string, fecha: string) {
@@ -165,11 +179,10 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   function navWeek(delta: 1 | -1) {
     const newOff = weekOffset + delta
     if (newOff < minOffset || newOff > maxOffset) return
-    const newDates = getWeekDates(newOff)
-    const curDay = new Date(selectedDate + 'T12:00:00').getDay()
-    const match = newDates.find(d => d.getDay() === curDay)
+    const cur = new Date(selectedDate + 'T12:00:00')
+    cur.setDate(cur.getDate() + delta * 7)
     setWeekOffset(newOff)
-    setSelectedDate(dateToStr(match ?? newDates[0]))
+    setSelectedDate(dateToStr(cur))
   }
 
   // Límites de navegación basados en fechas de los cursos
@@ -246,7 +259,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   useEffect(() => {
     if (isMounted) loadBitacoras()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekOffset, clases.length, isMounted])
+  }, [selectedDate, clases.length, isMounted])
 
   // Calcular cuántas clases hay sin planificar esta semana
   const sinPlanificar = useMemo(() => {
@@ -642,7 +655,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
             title="Semana anterior"
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
           >‹‹</button>
-          <button onClick={() => navDay(-1)} disabled={weekOffset <= minOffset && selectedDate === dateToStr(weekDates[0])}
+          <button onClick={() => navDay(-1)} disabled={weekOffset <= minOffset}
             title="Día anterior"
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
           >‹</button>
@@ -652,7 +665,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
               <div className="text-brand-400 text-[11px] font-medium">{DIAS_SHORT[sd.getDay()]} {sd.getDate()}</div>
             )})()}
           </div>
-          <button onClick={() => navDay(1)} disabled={weekOffset >= maxOffset && selectedDate === dateToStr(weekDates[weekDates.length - 1])}
+          <button onClick={() => navDay(1)} disabled={weekOffset >= maxOffset}
             title="Día siguiente"
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold"
           >›</button>
