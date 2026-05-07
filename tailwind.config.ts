@@ -18,6 +18,10 @@ const config: Config = {
           900: "#0c4a6e",
         },
       },
+      fontFamily: {
+        sans: ['var(--font-jakarta)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+      },
     },
   },
   plugins: [],
