@@ -802,6 +802,8 @@ export type Database = {
           orden: number
           abierto: boolean
           max_integrantes: number | null
+          es_plantilla: boolean
+          plantilla_nombre: string | null
           created_at: string
         }
         Insert: {
@@ -815,6 +817,8 @@ export type Database = {
           orden?: number
           abierto?: boolean
           max_integrantes?: number | null
+          es_plantilla?: boolean
+          plantilla_nombre?: string | null
           created_at?: string
         }
         Update: {
@@ -824,6 +828,8 @@ export type Database = {
           orden?: number
           abierto?: boolean
           max_integrantes?: number | null
+          es_plantilla?: boolean
+          plantilla_nombre?: string | null
         }
         Relationships: []
       }

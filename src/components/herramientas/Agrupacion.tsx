@@ -5,7 +5,11 @@ import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { formatNombreCorto } from '@/lib/format'
 import { CSS } from '@dnd-kit/utilities'
-import { crearGrupos, crearGruposConIntegrantes } from '@/lib/actions/grupos'
+import {
+  crearGrupos, crearGruposConIntegrantes,
+  copiarGruposASesion, guardarComoPlantilla,
+} from '@/lib/actions/grupos'
+import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
 
 type Student = { id: string; nombre: string; estado?: string | null }
@@ -197,16 +201,76 @@ function GrupoConfig({
 
 // ── Componente principal ──────────────────────────────────────
 
+// ── Guardar como plantilla (inline) ──────────────────────────
+
+function GuardarPlantillaInline({
+  bitacoraId,
+  cursoId,
+}: {
+  bitacoraId?: string | null
+  cursoId: string
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [nombre, setNombre] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const [ok, setOk] = useState(false)
+
+  if (!bitacoraId) return null
+  if (ok) return <span className="text-xs text-amber-400">⭐ Plantilla guardada</span>
+
+  return expanded ? (
+    <div className="flex items-center gap-2 flex-wrap">
+      <input
+        type="text"
+        value={nombre}
+        onChange={e => setNombre(e.target.value)}
+        placeholder="Nombre de la plantilla…"
+        className="input text-xs w-44 py-1"
+        autoFocus
+      />
+      <button
+        onClick={() => {
+          if (!nombre.trim()) return
+          startTransition(async () => {
+            const r = await guardarComoPlantilla(nombre.trim(), bitacoraId, cursoId)
+            if (!r.error) setOk(true)
+          })
+        }}
+        disabled={isPending || !nombre.trim()}
+        className="text-xs px-3 py-1.5 rounded-lg border border-amber-600 text-amber-400 hover:bg-amber-900/30 disabled:opacity-40 transition-colors"
+      >
+        {isPending ? '…' : 'Guardar'}
+      </button>
+      <button onClick={() => setExpanded(false)} className="text-xs text-gray-500 hover:text-gray-300">✕</button>
+    </div>
+  ) : (
+    <button
+      onClick={() => setExpanded(true)}
+      className="text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-400 hover:border-amber-600 hover:text-amber-400 transition-colors"
+    >
+      ⭐ Guardar como plantilla
+    </button>
+  )
+}
+
+// ── Componente principal ──────────────────────────────────────
+
 export function Agrupacion({
   students,
   cursoId = '',
   bitacoraId,
   categorias = [],
+  gruposUltimaSesion,
+  plantillas = [],
+  onSaved,
 }: {
   students: Student[]
   cursoId?: string
   bitacoraId?: string | null
   categorias?: Categoria[]
+  gruposUltimaSesion?: GrupoBase[] | null
+  plantillas?: PlantillaGrupo[]
+  onSaved?: () => void
 }) {
   const [tab, setTab] = useState<TipoTab>('aleatoria')
 
@@ -257,6 +321,40 @@ export function Agrupacion({
     }
   }
 
+  // ── Reusar / Plantillas ───────────────────────────────────────
+  const [isPendingReusar, startReusar] = useTransition()
+  const [reusarMsg, setReusarMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
+  function handleReusarUltima() {
+    if (!gruposUltimaSesion || !bitacoraId) return
+    startReusar(async () => {
+      setReusarMsg(null)
+      const r = await copiarGruposASesion(gruposUltimaSesion, bitacoraId, cursoId)
+      if (r.error) {
+        setReusarMsg({ type: 'err', text: r.error })
+      } else {
+        setReusarMsg({ type: 'ok', text: '✓ Grupos cargados' })
+        onSaved?.()
+      }
+    })
+  }
+
+  function handleCargarPlantilla(nombrePlantilla: string) {
+    if (!nombrePlantilla || !bitacoraId) return
+    const plantilla = plantillas.find(p => p.nombre === nombrePlantilla)
+    if (!plantilla) return
+    startReusar(async () => {
+      setReusarMsg(null)
+      const r = await copiarGruposASesion(plantilla.grupos, bitacoraId, cursoId)
+      if (r.error) {
+        setReusarMsg({ type: 'err', text: r.error })
+      } else {
+        setReusarMsg({ type: 'ok', text: `✓ Plantilla "${nombrePlantilla}" cargada` })
+        onSaved?.()
+      }
+    })
+  }
+
   if (students.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-gray-500">
@@ -274,6 +372,40 @@ export function Agrupacion({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Banner reusar / plantillas */}
+      {bitacoraId && (gruposUltimaSesion || plantillas.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/60 rounded-xl">
+          <span className="text-xs text-gray-500 font-medium shrink-0">Reusar:</span>
+          {gruposUltimaSesion && (
+            <button
+              onClick={handleReusarUltima}
+              disabled={isPendingReusar}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-40 transition-colors"
+            >
+              {isPendingReusar ? '…' : '↩ Clase anterior'}
+            </button>
+          )}
+          {plantillas.length > 0 && (
+            <select
+              defaultValue=""
+              onChange={e => { if (e.target.value) handleCargarPlantilla(e.target.value) }}
+              disabled={isPendingReusar}
+              className="text-xs bg-gray-800 border border-gray-600 text-gray-300 rounded-lg px-2 py-1.5 hover:border-indigo-500 disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              <option value="">⭐ Mis plantillas…</option>
+              {plantillas.map(p => (
+                <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
+              ))}
+            </select>
+          )}
+          {reusarMsg && (
+            <span className={`text-xs ${reusarMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
+              {reusarMsg.text}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-800 p-1 rounded-lg w-fit">
         {(['aleatoria', 'manual', 'afinidad'] as TipoTab[]).map(t => (
@@ -300,6 +432,7 @@ export function Agrupacion({
               cursoId={cursoId}
               bitacoraId={bitacoraId}
               categoriaActual={categorias.find(c => c.id === categoriaId)?.nombre ?? null}
+              onSaved={onSaved}
             />
           )}
           {tab === 'manual' && (
@@ -310,6 +443,7 @@ export function Agrupacion({
               cursoId={cursoId}
               bitacoraId={bitacoraId}
               categoriaActual={categorias.find(c => c.id === categoriaId)?.nombre ?? null}
+              onSaved={onSaved}
             />
           )}
           {tab === 'afinidad' && (
@@ -339,7 +473,7 @@ export function Agrupacion({
 // ── Tab Aleatoria ─────────────────────────────────────────────
 
 function TabAleatoria({
-  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual,
+  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual, onSaved,
 }: {
   activeStudents: Student[]
   configProps: Parameters<typeof GrupoConfig>[0]
@@ -347,6 +481,7 @@ function TabAleatoria({
   cursoId: string
   bitacoraId?: string | null
   categoriaActual: string | null
+  onSaved?: () => void
 }) {
   const [grupos, setGrupos] = useState<{ nombre: string; members: Student[] }[] | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -373,7 +508,10 @@ function TabAleatoria({
         categoriaActual,
         cursoId,
       )
-      if (!result.error) setSaved(true)
+      if (!result.error) {
+        setSaved(true)
+        onSaved?.()
+      }
     })
   }
 
@@ -394,7 +532,12 @@ function TabAleatoria({
             {isPending ? 'Guardando…' : '💾 Guardar grupos'}
           </button>
         )}
-        {saved && <span className="text-sm text-emerald-400">✓ Grupos guardados — ve al tab Grupos →</span>}
+        {saved && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-emerald-400">✓ Grupos guardados</span>
+            <GuardarPlantillaInline bitacoraId={bitacoraId} cursoId={cursoId} />
+          </div>
+        )}
       </div>
 
       {grupos && (
@@ -426,7 +569,7 @@ function TabAleatoria({
 // ── Tab Manual (DnD) ──────────────────────────────────────────
 
 function TabManual({
-  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual,
+  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual, onSaved,
 }: {
   activeStudents: Student[]
   configProps: Parameters<typeof GrupoConfig>[0]
@@ -434,6 +577,7 @@ function TabManual({
   cursoId: string
   bitacoraId?: string | null
   categoriaActual: string | null
+  onSaved?: () => void
 }) {
   const [configured, setConfigured] = useState(false)
   // studId → groupName | '__unassigned__'
@@ -480,7 +624,10 @@ function TabManual({
         categoriaActual,
         cursoId,
       )
-      if (!result.error) setSaved(true)
+      if (!result.error) {
+        setSaved(true)
+        onSaved?.()
+      }
     })
   }
 
@@ -538,7 +685,10 @@ function TabManual({
       </DndContext>
 
       {saved ? (
-        <p className="text-sm text-emerald-400">✓ Grupos guardados</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm text-emerald-400">✓ Grupos guardados</span>
+          <GuardarPlantillaInline bitacoraId={bitacoraId} cursoId={cursoId} />
+        </div>
       ) : (
         <button
           onClick={guardar}

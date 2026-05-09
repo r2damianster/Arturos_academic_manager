@@ -25,13 +25,13 @@ export async function crearGrupos(
   const parsed = z.array(GrupoInputSchema).safeParse(grupos)
   if (!parsed.success) return { error: 'Datos inválidos' }
 
-  // Limpiar grupos previos del mismo alcance
+  // Limpiar grupos previos del mismo alcance (nunca borrar plantillas)
   if (bitacoraId) {
     await db.from('grupos_clase').delete()
-      .eq('bitacora_id', bitacoraId).eq('profesor_id', user.id)
+      .eq('bitacora_id', bitacoraId).eq('profesor_id', user.id).eq('es_plantilla', false)
   } else {
     await db.from('grupos_clase').delete()
-      .eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null)
+      .eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null).eq('es_plantilla', false)
   }
 
   const rows = parsed.data.map(g => ({
@@ -65,11 +65,11 @@ export async function crearGruposConIntegrantes(
   const { data: { user } } = await db.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  // Limpiar grupos previos
+  // Limpiar grupos previos (nunca borrar plantillas)
   if (bitacoraId) {
-    await db.from('grupos_clase').delete().eq('bitacora_id', bitacoraId).eq('profesor_id', user.id)
+    await db.from('grupos_clase').delete().eq('bitacora_id', bitacoraId).eq('profesor_id', user.id).eq('es_plantilla', false)
   } else {
-    await db.from('grupos_clase').delete().eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null)
+    await db.from('grupos_clase').delete().eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null).eq('es_plantilla', false)
   }
 
   // Insertar grupos y obtener IDs
@@ -437,4 +437,205 @@ export async function getCategorias() {
     .select('id, nombre, valores, orden')
     .order('orden')
   return data ?? []
+}
+
+// ── Reusar grupos de sesión anterior ─────────────────────────
+
+export type GrupoBase = {
+  nombre: string
+  orden: number
+  categoria: string | null
+  tipo: 'aleatoria' | 'manual' | 'afinidad'
+  max_integrantes: number | null
+  estudianteIds: string[]
+}
+
+export type PlantillaGrupo = {
+  nombre: string
+  grupos: GrupoBase[]
+}
+
+export async function getUltimaSesionConGrupos(
+  cursoId: string,
+  excludeBitacoraId: string,
+): Promise<GrupoBase[] | null> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return null
+
+  // Encontrar la bitácora más reciente con grupos para este curso
+  const { data: lastRow } = await db
+    .from('grupos_clase')
+    .select('bitacora_id')
+    .eq('curso_id', cursoId)
+    .eq('profesor_id', user.id)
+    .eq('es_plantilla', false)
+    .not('bitacora_id', 'is', null)
+    .neq('bitacora_id', excludeBitacoraId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!lastRow?.bitacora_id) return null
+
+  const { data: grupos } = await db
+    .from('grupos_clase')
+    .select('nombre, categoria, tipo, orden, max_integrantes, grupo_integrantes(estudiante_id)')
+    .eq('bitacora_id', lastRow.bitacora_id)
+    .eq('profesor_id', user.id)
+    .order('orden')
+
+  if (!grupos || grupos.length === 0) return null
+
+  return grupos.map(g => ({
+    nombre: g.nombre,
+    orden: g.orden,
+    categoria: g.categoria,
+    tipo: g.tipo as GrupoBase['tipo'],
+    max_integrantes: g.max_integrantes,
+    estudianteIds: (g.grupo_integrantes as { estudiante_id: string }[]).map(i => i.estudiante_id),
+  }))
+}
+
+// ── Copiar grupos (sesión anterior o plantilla) a sesión actual ─
+
+export async function copiarGruposASesion(
+  grupos: GrupoBase[],
+  bitacoraId: string,
+  cursoId: string,
+): Promise<{ error?: string }> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // Limpiar grupos actuales de la sesión (no plantillas)
+  await db.from('grupos_clase').delete()
+    .eq('bitacora_id', bitacoraId).eq('profesor_id', user.id).eq('es_plantilla', false)
+
+  const { data: creados, error: errG } = await db
+    .from('grupos_clase')
+    .insert(grupos.map(g => ({
+      bitacora_id: bitacoraId,
+      curso_id: cursoId,
+      profesor_id: user.id,
+      nombre: g.nombre,
+      categoria: g.categoria,
+      tipo: g.tipo,
+      orden: g.orden,
+      max_integrantes: g.max_integrantes,
+      abierto: g.tipo === 'afinidad',
+      es_plantilla: false,
+    })))
+    .select('id, nombre, orden')
+
+  if (errG || !creados) return { error: errG?.message ?? 'Error copiando grupos' }
+
+  const integrantes = creados.flatMap(g => {
+    const src = grupos.find(s => s.nombre === g.nombre && s.orden === g.orden)
+    return (src?.estudianteIds ?? []).map(estudianteId => ({
+      grupo_id: g.id,
+      estudiante_id: estudianteId,
+      asignado_por: 'profesor' as const,
+    }))
+  })
+
+  if (integrantes.length > 0) {
+    const { error: errI } = await db.from('grupo_integrantes').insert(integrantes)
+    if (errI) return { error: errI.message }
+  }
+
+  revalidatePath('/dashboard/modo-clase')
+  return {}
+}
+
+// ── Plantillas ────────────────────────────────────────────────
+
+export async function getPlantillasGrupos(): Promise<PlantillaGrupo[]> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return []
+
+  const { data } = await db
+    .from('grupos_clase')
+    .select('plantilla_nombre, nombre, categoria, tipo, orden, max_integrantes, grupo_integrantes(estudiante_id)')
+    .eq('profesor_id', user.id)
+    .eq('es_plantilla', true)
+    .order('plantilla_nombre')
+    .order('orden')
+
+  if (!data || data.length === 0) return []
+
+  const map = new Map<string, GrupoBase[]>()
+  for (const g of data) {
+    const key = g.plantilla_nombre ?? 'Sin nombre'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push({
+      nombre: g.nombre,
+      orden: g.orden,
+      categoria: g.categoria,
+      tipo: g.tipo as GrupoBase['tipo'],
+      max_integrantes: g.max_integrantes,
+      estudianteIds: (g.grupo_integrantes as { estudiante_id: string }[]).map(i => i.estudiante_id),
+    })
+  }
+
+  return Array.from(map.entries()).map(([nombre, grupos]) => ({ nombre, grupos }))
+}
+
+export async function guardarComoPlantilla(
+  nombre: string,
+  bitacoraId: string,
+  cursoId: string,
+): Promise<{ error?: string }> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: sesionGrupos } = await db
+    .from('grupos_clase')
+    .select('nombre, categoria, tipo, orden, max_integrantes, grupo_integrantes(estudiante_id)')
+    .eq('bitacora_id', bitacoraId)
+    .eq('profesor_id', user.id)
+    .eq('es_plantilla', false)
+    .order('orden')
+
+  if (!sesionGrupos || sesionGrupos.length === 0) return { error: 'No hay grupos en esta sesión' }
+
+  // Reemplazar plantilla con el mismo nombre si existe
+  await db.from('grupos_clase').delete()
+    .eq('profesor_id', user.id).eq('es_plantilla', true).eq('plantilla_nombre', nombre)
+
+  const { data: creados, error: errG } = await db
+    .from('grupos_clase')
+    .insert(sesionGrupos.map(g => ({
+      curso_id: cursoId,
+      profesor_id: user.id,
+      nombre: g.nombre,
+      categoria: g.categoria,
+      tipo: g.tipo,
+      orden: g.orden,
+      max_integrantes: g.max_integrantes,
+      abierto: false,
+      es_plantilla: true,
+      plantilla_nombre: nombre,
+    })))
+    .select('id, nombre, orden')
+
+  if (errG || !creados) return { error: errG?.message ?? 'Error guardando plantilla' }
+
+  const integrantes = creados.flatMap(g => {
+    const src = sesionGrupos.find(s => s.nombre === g.nombre && s.orden === g.orden)
+    return ((src?.grupo_integrantes ?? []) as { estudiante_id: string }[]).map(i => ({
+      grupo_id: g.id,
+      estudiante_id: i.estudiante_id,
+      asignado_por: 'profesor' as const,
+    }))
+  })
+
+  if (integrantes.length > 0) {
+    const { error: errI } = await db.from('grupo_integrantes').insert(integrantes)
+    if (errI) return { error: errI.message }
+  }
+
+  return {}
 }

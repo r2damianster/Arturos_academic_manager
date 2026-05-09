@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ModoClaseClient } from './modo-clase-client'
 import type { ActividadPlanificada } from '@/types/domain'
-import { getGruposDeSesion, getCategorias } from '@/lib/actions/grupos'
+import { getGruposDeSesion, getCategorias, getUltimaSesionConGrupos, getPlantillasGrupos } from '@/lib/actions/grupos'
 
 export default async function ModoClaseActivaPage({
   params,
@@ -30,7 +30,7 @@ export default async function ModoClaseActivaPage({
   const diaSemana = dayNames[dow]
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData] = await Promise.all([
+  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas] = await Promise.all([
     db
       .from('estudiantes')
       .select('id, nombre, email, tutoria')
@@ -47,6 +47,8 @@ export default async function ModoClaseActivaPage({
       .eq('curso_id', bitacora.curso_id),
     getGruposDeSesion(bitacoraId, bitacora.curso_id),
     getCategorias(),
+    getUltimaSesionConGrupos(bitacora.curso_id, bitacoraId),
+    getPlantillasGrupos(),
   ])
 
   const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean }[]
@@ -81,6 +83,8 @@ export default async function ModoClaseActivaPage({
       horasClase={horasClase}
       gruposIniciales={gruposData.grupos as any}
       categorias={categoriasData}
+      gruposUltimaSesion={ultimaSesionGrupos}
+      plantillas={plantillas}
     />
   )
 }

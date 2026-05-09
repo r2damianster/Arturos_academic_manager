@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
 import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
+import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
@@ -38,6 +39,8 @@ type Props = {
   horasClase: number
   gruposIniciales: GrupoItem[]
   categorias: Categoria[]
+  gruposUltimaSesion?: GrupoBase[] | null
+  plantillas?: PlantillaGrupo[]
 }
 
 function formatElapsed(secs: number) {
@@ -450,7 +453,7 @@ export function ModoClaseClient({
   bitacoraId, cursoId, cursoNombre, cursoCodigo,
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
-  gruposIniciales, categorias,
+  gruposIniciales, categorias, gruposUltimaSesion, plantillas = [],
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -981,7 +984,15 @@ export function ModoClaseClient({
                 )}
                 {toolOpen === 'agrupacion' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Agrupacion students={students} cursoId={cursoId} bitacoraId={bitacoraId} categorias={categorias} />
+                    <Agrupacion
+                      students={students}
+                      cursoId={cursoId}
+                      bitacoraId={bitacoraId}
+                      categorias={categorias}
+                      gruposUltimaSesion={gruposUltimaSesion}
+                      plantillas={plantillas}
+                      onSaved={refreshGrupos}
+                    />
                     <button
                       onClick={() => { setToolOpen(null); switchToGrupos() }}
                       className="mt-3 w-full text-sm text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded-lg py-1.5 transition-colors"
