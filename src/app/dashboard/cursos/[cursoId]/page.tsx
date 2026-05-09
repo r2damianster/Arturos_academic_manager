@@ -24,10 +24,8 @@ export default async function CursoDetailPage({
   const db = supabase as any
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
-  const profesorRes = await db.from('profesores').select('institucion').eq('id', authUser?.id).maybeSingle()
-  const profesorInstitucion: string | null = profesorRes?.data?.institucion ?? null
 
-  const [cursoRes, estudiantesRes, clasesRes, asistenciaRes, trabajosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, clasesRes, asistenciaRes, trabajosRes, profesorRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
       .select('id, nombre, email, tutoria, estado, auth_user_id')
@@ -40,7 +38,9 @@ export default async function CursoDetailPage({
       .order('hora_inicio'),
     db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
     db.from('trabajos_asignados').select('estudiante_id, estado').eq('curso_id', cursoId),
+    db.from('profesores').select('institucion').eq('id', authUser?.id).maybeSingle(),
   ])
+  const profesorInstitucion: string | null = profesorRes?.data?.institucion ?? null
 
   const curso = cursoRes.data as Curso | null
   if (!curso) notFound()

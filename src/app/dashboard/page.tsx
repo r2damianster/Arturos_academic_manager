@@ -12,8 +12,9 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
-  await limpiarHorariosVencidos()
+  // Fire-and-forget — no bloquean el render
+  db.rpc('inicializar_horarios_profesor', { p_id: user.id }).catch(() => {})
+  limpiarHorariosVencidos().catch(() => {})
 
   const hoy = new Date().toISOString().split('T')[0]
 
@@ -26,6 +27,7 @@ export default async function DashboardPage() {
     clasesRes,
     horariosRes,
     profesorRes,
+    estudiantesRes,
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -35,6 +37,7 @@ export default async function DashboardPage() {
     db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, cursos(id, asignatura, fecha_inicio, fecha_fin)').eq('profesor_id', user.id),
     db.from('horarios').select('*').eq('profesor_id', user.id).order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
+    db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
   ])
 
   // Reservas de tutorías
@@ -66,8 +69,7 @@ export default async function DashboardPage() {
   }
 
   // Estudiantes del profesor (deduplicados por auth_user_id)
-  const { data: estudiantesData } = await db
-    .from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre')
+  const estudiantesData = estudiantesRes.data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const estudiantesMap = new Map<string, any>()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
