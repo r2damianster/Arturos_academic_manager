@@ -12,9 +12,8 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Fire-and-forget — no bloquean el render
-  db.rpc('inicializar_horarios_profesor', { p_id: user.id }).catch(() => {})
-  limpiarHorariosVencidos().catch(() => {})
+  await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
+  await limpiarHorariosVencidos()
 
   const hoy = new Date().toISOString().split('T')[0]
 
