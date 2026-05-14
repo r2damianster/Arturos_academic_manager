@@ -281,17 +281,25 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
         }
       })
     } else {
-      // Detect tutoria_curso conflict at this time slot
+      // Detect any conflict at this time slot (clases, tutoria_curso, etc.)
       const conflicto = (() => {
         const start = fmt(h.hora_inicio)
         const end   = fmt(h.hora_fin)
+        const seen = new Set<string>()
+        const found: string[] = []
         for (const slot of ALL_SLOTS) {
           if (slot >= start && slot < end) {
             const c = claseMap.get(`${h.dia_semana}|${slot}`)
-            if (c?.tipo === 'tutoria_curso') return c.cursos?.asignatura ?? 'un curso'
+            if (c) {
+              const asig = c.cursos?.asignatura ?? 'sin nombre'
+              const label = c.tipo === 'tutoria_curso'
+                ? `tutoría grupal de ${asig}`
+                : `clase de ${asig}`
+              if (!seen.has(label)) { seen.add(label); found.push(label) }
+            }
           }
         }
-        return null
+        return found.length > 0 ? found.join(', ') : null
       })()
       setDurConflicto(conflicto)
       setDurPicker(durPicker === h.id ? null : h.id)
@@ -497,8 +505,8 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                 <div className="flex items-start gap-2 px-3 py-2 bg-orange-950/50 border border-orange-700/60 rounded-lg">
                   <span className="text-orange-400 text-sm flex-shrink-0">⚠</span>
                   <p className="text-xs text-orange-300">
-                    Este horario coincide con una <strong>tutoría de curso</strong> ({durConflicto}).
-                    Los estudiantes verán el botón de reserva individual, pero también tendrán la tutoría grupal a la misma hora.
+                    Este horario coincide con: <strong>{durConflicto}</strong>.
+                    Puedes activarlo de todas formas, pero ese bloque ya está ocupado en tu agenda.
                   </p>
                 </div>
               )}
