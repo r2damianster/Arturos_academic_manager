@@ -39,6 +39,7 @@ interface Estudiante {
   auth_user_id: string | null
   carrera?: string | null
   telefono?: string | null
+  curso_id?: string | null
 }
 
 interface Clase {
