@@ -42,7 +42,7 @@ export default async function TutoriasPage() {
       .eq('profesor_id', user.id),
 
     db.from('estudiantes')
-      .select('id, nombre, email, auth_user_id, carrera, telefono, curso_id')
+      .select('id, nombre, email, auth_user_id, curso_id')
       .eq('profesor_id', user.id)
       .eq('estado', 'activo')
       .order('nombre'),

@@ -98,7 +98,7 @@ function RegistrarModal({
   onSaved: () => void
 }) {
   const [, startTransition] = useTransition()
-  const [modo, setModo] = useState<ModoModal>('manual')
+  const [modo, setModo] = useState<ModoModal>('curso')
   const [saving, setSaving] = useState(false)
   const [err, setErr]   = useState<string | null>(null)
   const [ok, setOk]     = useState(false)
@@ -223,16 +223,6 @@ function RegistrarModal({
         {/* Mode toggle */}
         <div className="flex gap-1 px-5 pt-4 flex-shrink-0">
           <button
-            onClick={() => setModo('manual')}
-            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-              modo === 'manual'
-                ? 'border-brand-500 bg-brand-900/40 text-brand-300'
-                : 'border-gray-700 text-gray-400 hover:bg-gray-800'
-            }`}
-          >
-            Entrada manual
-          </button>
-          <button
             onClick={() => setModo('curso')}
             className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
               modo === 'curso'
@@ -241,6 +231,16 @@ function RegistrarModal({
             }`}
           >
             Seleccionar del curso
+          </button>
+          <button
+            onClick={() => setModo('manual')}
+            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
+              modo === 'manual'
+                ? 'border-brand-500 bg-brand-900/40 text-brand-300'
+                : 'border-gray-700 text-gray-400 hover:bg-gray-800'
+            }`}
+          >
+            Entrada manual
           </button>
         </div>
 
