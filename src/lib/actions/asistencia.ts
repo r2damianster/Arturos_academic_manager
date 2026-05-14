@@ -111,5 +111,7 @@ export async function registrarParticipacion(
   const { error } = await supabase
     .from('participacion')
     .upsert(rows, { onConflict: 'curso_id,estudiante_id,fecha' })
-  return error ? { error: error.message } : {}
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/cursos/${cursoId}/calificaciones`)
+  return {}
 }

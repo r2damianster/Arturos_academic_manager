@@ -342,10 +342,10 @@ export async function marcarAsistenciaReserva(reservaId: number, asistio: boolea
   const db = supabase as any
   const { error } = await db
     .from('reservas')
-    .update({ 
-      estado: 'completada', 
-      asistio, 
-      completada_at: now 
+    .update({
+      estado: 'completada',
+      asistio,
+      completada_at: now
     })
     .eq('id', reservaId)
 
@@ -353,4 +353,127 @@ export async function marcarAsistenciaReserva(reservaId: number, asistio: boolea
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/tutorias')
   return {}
+}
+
+// ─── Register a manual (non-booked) tutoring session ─────────────────────────
+
+export async function registrarTutoriaManual(params: {
+  estudianteNombre: string
+  estudianteEmail?: string
+  estudianteCarrera?: string
+  cursoId: string
+  fecha: string           // YYYY-MM-DD
+  horaInicio: string      // HH:MM
+  horaFin?: string        // HH:MM
+  estado: 'asistio' | 'no_asistio' | 'cancelado'
+  notas?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const { error } = await db.from('reservas').insert({
+    horario_id:          null,
+    fecha:               params.fecha,
+    auth_user_id:        user.id,
+    estudiante_nombre:   params.estudianteNombre,
+    estudiante_carrera:  params.estudianteCarrera ?? '',
+    email:               params.estudianteEmail ?? '',
+    telefono:            '',
+    notas:               params.notas ?? null,
+    estado:              params.estado === 'asistio'    ? 'completada'
+                       : params.estado === 'no_asistio' ? 'completada'
+                       : 'cancelado',
+    profesor_id:         user.id,
+    origen:              'manual',
+    curso_id:            params.cursoId,
+    hora_inicio_manual:  params.horaInicio,
+    hora_fin_manual:     params.horaFin ?? null,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/tutorias')
+  return { ok: true }
+}
+
+// ─── Fetch enriched historial for the historial tab ──────────────────────────
+
+export type ReservaHistorial = {
+  id: number
+  fecha: string
+  estudiante_nombre: string
+  estudiante_carrera: string
+  email: string
+  notas: string | null
+  estado: string
+  origen: string
+  curso_id: string | null
+  hora_inicio_manual: string | null
+  hora_fin_manual: string | null
+  horario_hora_inicio: string | null
+  horario_hora_fin: string | null
+  asignatura: string | null
+  institucion: string | null
+  citacion_razon: string | null
+}
+
+export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data, error } = await db
+    .from('reservas')
+    .select(`
+      id, fecha, estudiante_nombre, estudiante_carrera, email, notas, estado, origen,
+      curso_id, hora_inicio_manual, hora_fin_manual,
+      horarios ( hora_inicio, hora_fin ),
+      cursos ( asignatura, institucion ),
+      citaciones_tutoria ( razon )
+    `)
+    .order('fecha', { ascending: false })
+
+  if (error) {
+    console.error('getHistorialTutorias:', error)
+    return []
+  }
+
+  return (data ?? []).map((r: {
+    id: number
+    fecha: string
+    estudiante_nombre: string
+    estudiante_carrera: string
+    email: string
+    notas: string | null
+    estado: string
+    origen: string
+    curso_id: string | null
+    hora_inicio_manual: string | null
+    hora_fin_manual: string | null
+    horarios: { hora_inicio: string; hora_fin: string } | null
+    cursos: { asignatura: string; institucion: string } | null
+    citaciones_tutoria: { razon: string }[] | null
+  }) => ({
+    id:                  r.id,
+    fecha:               r.fecha,
+    estudiante_nombre:   r.estudiante_nombre,
+    estudiante_carrera:  r.estudiante_carrera,
+    email:               r.email,
+    notas:               r.notas,
+    estado:              r.estado,
+    origen:              r.origen ?? 'agendada',
+    curso_id:            r.curso_id,
+    hora_inicio_manual:  r.hora_inicio_manual,
+    hora_fin_manual:     r.hora_fin_manual,
+    horario_hora_inicio: r.horarios?.hora_inicio ?? null,
+    horario_hora_fin:    r.horarios?.hora_fin ?? null,
+    asignatura:          r.cursos?.asignatura ?? null,
+    institucion:         r.cursos?.institucion ?? null,
+    citacion_razon:      r.citaciones_tutoria?.[0]?.razon ?? null,
+  }))
 }

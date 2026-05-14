@@ -21,7 +21,7 @@ interface Reserva {
   email: string
   telefono: string
   fecha: string
-  horario_id: number
+  horario_id: number | null
   estado: string
   cancelado_por?: string | null
   cancelado_at?: string | null

@@ -514,7 +514,7 @@ export type Database = {
       reservas: {
         Row: {
           id: number
-          horario_id: number
+          horario_id: number | null
           fecha: string
           auth_user_id: string
           estudiante_nombre: string
@@ -524,10 +524,15 @@ export type Database = {
           notas: string | null
           estado: string
           created_at: string
+          profesor_id: string | null
+          origen: string
+          curso_id: string | null
+          hora_inicio_manual: string | null
+          hora_fin_manual: string | null
         }
         Insert: {
           id?: number
-          horario_id: number
+          horario_id?: number | null
           fecha: string
           auth_user_id: string
           estudiante_nombre: string
@@ -537,10 +542,20 @@ export type Database = {
           notas?: string | null
           estado?: string
           created_at?: string
+          profesor_id?: string | null
+          origen?: string
+          curso_id?: string | null
+          hora_inicio_manual?: string | null
+          hora_fin_manual?: string | null
         }
         Update: {
           estado?: string
           notas?: string | null
+          profesor_id?: string | null
+          origen?: string
+          curso_id?: string | null
+          hora_inicio_manual?: string | null
+          hora_fin_manual?: string | null
         }
         Relationships: [
           {
