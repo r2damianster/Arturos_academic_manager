@@ -10,12 +10,13 @@ export function buildMoodleCSV(
     const estado = attendance[s.id]
     let status: string
     if (estado === 'Presente') {
-      status = 'P'
+      status = ''
     } else if (estado === 'Atraso') {
-      // Primera hora: ausente (llegó tarde); horas siguientes: presente
-      status = hourIndex === 0 ? 'A' : 'P'
+      // Primera hora: FI (llegó tarde = falta esa hora); horas siguientes: presente (vacío)
+      status = hourIndex === 0 ? 'FI' : ''
     } else {
-      status = 'A'
+      // Ausente / null / desconocido → falta injustificada
+      status = 'FI'
     }
     lines.push(`${s.email},${status}`)
   }
