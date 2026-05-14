@@ -131,7 +131,8 @@ export function TutoriasBooking({
   const [selected, setSelected] = useState<{ horario: Horario; date: Date } | null>(null)
   const [notas,   setNotas]   = useState('')
   const [loading, setLoading] = useState(false)
-  const [canceling, setCanceling] = useState<number | null>(null)
+  const [canceling,   setCanceling]   = useState<number | null>(null)
+  const [noShowing,   setNoShowing]   = useState<number | null>(null)
   const [error,   setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -270,6 +271,17 @@ export function TutoriasBooking({
     }
   }
 
+  // Determina qué acción mostrar según tiempo restante
+  function getReservaAction(r: Reserva): 'cancel' | 'no-show' | 'past' {
+    if (!r.fecha || !r.horarios?.hora_inicio || !r.horarios?.hora_fin) return 'cancel'
+    const now = Date.now()
+    const citaAt  = new Date(`${r.fecha}T${r.horarios.hora_inicio}`).getTime()
+    const citaFin = new Date(`${r.fecha}T${r.horarios.hora_fin}`).getTime()
+    if (now > citaFin) return 'past'
+    if (now > citaAt - 60 * 60 * 1000) return 'no-show'
+    return 'cancel'
+  }
+
   // ── Cancel booking ─────────────────────────────────────────────────────────
   async function handleCancelar(r: Reserva) {
     setCanceling(r.id); setError(null)
@@ -277,7 +289,7 @@ export function TutoriasBooking({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error: rpcErr } = await (supabase as any).rpc('cancelar_mi_reserva', { p_reserva_id: r.id })
       if (rpcErr) throw new Error(rpcErr.message)
-      const result = data as { ok: boolean; error?: string }
+      const result = data as { ok: boolean; error?: string; use_no_asistire?: boolean }
       if (!result.ok) throw new Error(result.error ?? 'Error al cancelar')
       setReservas(prev => prev.filter(x => x.id !== r.id))
       setOccupied(prev => prev.filter(o => !(o.horario_id === r.horario_id && o.fecha === r.fecha)))
@@ -285,6 +297,25 @@ export function TutoriasBooking({
       setError(e instanceof Error ? e.message : 'Error al cancelar')
     } finally {
       setCanceling(null)
+    }
+  }
+
+  // ── No-show booking ────────────────────────────────────────────────────────
+  async function handleNoAsistire(r: Reserva) {
+    setNoShowing(r.id); setError(null)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: rpcErr } = await (supabase as any).rpc('marcar_no_asistire', { p_reserva_id: r.id })
+      if (rpcErr) throw new Error(rpcErr.message)
+      const result = data as { ok: boolean; error?: string }
+      if (!result.ok) throw new Error(result.error ?? 'Error al marcar')
+      setReservas(prev => prev.filter(x => x.id !== r.id))
+      setOccupied(prev => prev.filter(o => !(o.horario_id === r.horario_id && o.fecha === r.fecha)))
+      setSuccess('Registrado como "No asistiré". El profesor verá la inasistencia.')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al marcar inasistencia')
+    } finally {
+      setNoShowing(null)
     }
   }
 
@@ -318,6 +349,7 @@ export function TutoriasBooking({
             const dateLabel = r.fecha
               ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' })
               : '—'
+            const action = getReservaAction(r)
             return (
               <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-800">
                 <div className="min-w-0">
@@ -325,10 +357,21 @@ export function TutoriasBooking({
                   <p className="text-xs text-blue-400">Prof. {profH?.profesores?.nombre ?? '—'}</p>
                   {r.notas && <p className="text-xs text-gray-500 italic truncate">"{r.notas}"</p>}
                 </div>
-                <button onClick={() => handleCancelar(r)} disabled={canceling === r.id}
-                  className="flex-shrink-0 text-xs text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-950 transition-colors disabled:opacity-40">
-                  {canceling === r.id ? '...' : 'Cancelar'}
-                </button>
+                {action === 'cancel' && (
+                  <button onClick={() => handleCancelar(r)} disabled={canceling === r.id}
+                    className="flex-shrink-0 text-xs text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-950 transition-colors disabled:opacity-40">
+                    {canceling === r.id ? '...' : 'Cancelar'}
+                  </button>
+                )}
+                {action === 'no-show' && (
+                  <button onClick={() => handleNoAsistire(r)} disabled={noShowing === r.id}
+                    className="flex-shrink-0 text-xs text-amber-400 border border-amber-800 px-2 py-1 rounded hover:bg-amber-950 transition-colors disabled:opacity-40">
+                    {noShowing === r.id ? '...' : 'No asistiré'}
+                  </button>
+                )}
+                {action === 'past' && (
+                  <span className="flex-shrink-0 text-xs text-gray-600 italic">Finalizada</span>
+                )}
               </div>
             )
           })}
