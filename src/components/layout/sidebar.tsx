@@ -27,6 +27,11 @@ const navItems: NavItem[] = [
     icon: <Video className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
   },
   {
+    href: '/dashboard/tutorias',
+    label: 'Tutorías',
+    icon: <GraduationCap className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
+  },
+  {
     href: '/dashboard/cursos',
     label: 'Mis Cursos',
     icon: <BookOpen className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
