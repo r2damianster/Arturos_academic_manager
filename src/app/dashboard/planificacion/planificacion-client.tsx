@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
@@ -98,13 +99,27 @@ interface Props {
 
 export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) {
   const supabase = createClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const didMount = useRef(false)
 
-  const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>('semana')
-  const [weekOffset, setWeekOffset] = useState(0)
+  const [viewMode, setViewMode] = useState<'semana' | 'extensivo'>(
+    () => searchParams.get('view') === 'extensivo' ? 'extensivo' : 'semana'
+  )
   const [selectedDate, setSelectedDate] = useState(() => {
+    const p = searchParams.get('date')
+    if (p) return p
     const t = new Date(); t.setHours(0, 0, 0, 0)
     if (t.getDay() === 0) t.setDate(t.getDate() + 1)
     return dateToStr(t)
+  })
+  const [weekOffset, setWeekOffset] = useState(() => {
+    const p = searchParams.get('date')
+    if (!p) return 0
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const stored = new Date(p + 'T00:00:00')
+    const diffDays = Math.round((stored.getTime() - today.getTime()) / (24 * 3600 * 1000))
+    return Math.floor(diffDays / 7)
   })
   const [isMounted, setIsMounted] = useState(false)
   const [hoyOpen, setHoyOpen] = useState(false)
@@ -255,6 +270,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!didMount.current) { didMount.current = true; return }
+    const params = new URLSearchParams()
+    if (viewMode === 'extensivo') params.set('view', 'extensivo')
+    params.set('date', selectedDate)
+    router.replace(`/dashboard/planificacion?${params.toString()}`, { scroll: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, selectedDate])
 
   useEffect(() => {
     if (isMounted) loadBitacoras()

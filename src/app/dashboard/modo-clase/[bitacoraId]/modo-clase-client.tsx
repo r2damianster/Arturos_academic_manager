@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
@@ -661,7 +660,7 @@ export function ModoClaseClient({
   async function handleDetener() {
     setDeteniendo(true)
     await detenerClase(bitacoraId)
-    router.push('/dashboard/planificacion')
+    router.back()
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -723,7 +722,7 @@ export function ModoClaseClient({
             </div>
 
             <button
-              onClick={() => router.push('/dashboard/planificacion')}
+              onClick={() => router.back()}
               className="w-full btn-primary py-2.5 text-sm"
             >
               Ir a Mis Clases →
@@ -734,15 +733,15 @@ export function ModoClaseClient({
       {/* Header */}
       <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-3 md:px-6 py-3 flex items-center justify-between gap-2 md:gap-4">
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
-          <Link
-            href="/dashboard/planificacion"
+          <button
+            onClick={() => router.back()}
             className="flex-shrink-0 flex items-center gap-1.5 text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-500 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             <span>Salir</span>
-          </Link>
+          </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="font-bold text-white text-sm md:text-base truncate">{cursoNombre}</h1>
