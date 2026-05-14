@@ -212,10 +212,11 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [selEvento,     setSelEvento]     = useState<Evento | null>(null)
 
   // Tutoría slot UI
-  const [durPicker,   setDurPicker]   = useState<number | null>(null)
-  const [durDateStr,  setDurDateStr]  = useState<string | null>(null)
-  const [durSaving,   setDurSaving]   = useState(false)
-  const [popover,     setPopover]     = useState<string | null>(null) // `${horarioId}|${dateStr}`
+  const [durPicker,    setDurPicker]    = useState<number | null>(null)
+  const [durDateStr,   setDurDateStr]   = useState<string | null>(null)
+  const [durSaving,    setDurSaving]    = useState(false)
+  const [durConflicto, setDurConflicto] = useState<string | null>(null)
+  const [popover,      setPopover]      = useState<string | null>(null) // `${horarioId}|${dateStr}`
 
   // Planificación / pase de lista desde agenda
   type ClaseModal = { clase: Clase; fecha: string; mode: 'planificar' | 'lista'; readOnly?: boolean }
@@ -358,7 +359,25 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
         await (supabase as any).from('horarios').update({ disponible_hasta: nuevoHasta }).eq('id', h.id)
       })
     } else {
-      // Activate: show duration picker
+      // Detect conflicts: any clase overlapping same dia_semana + time range
+      const conflicto = (() => {
+        const start = fmt(h.hora_inicio)
+        const end   = fmt(h.hora_fin)
+        const seen  = new Set<string>()
+        const found: string[] = []
+        for (const c of clases) {
+          if (c.dia_semana !== h.dia_semana) continue
+          const cs = fmt(c.hora_inicio)
+          const ce = fmt(c.hora_fin)
+          if (cs < end && ce > start) {
+            const asig  = c.cursos?.asignatura ?? 'sin nombre'
+            const label = c.tipo === 'tutoria_curso' ? `tutoría grupal de ${asig}` : `clase de ${asig}`
+            if (!seen.has(label)) { seen.add(label); found.push(label) }
+          }
+        }
+        return found.length > 0 ? found.join(', ') : null
+      })()
+      setDurConflicto(conflicto)
       setDurPicker(h.id)
       setDurDateStr(dateStr)
     }
@@ -371,6 +390,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     setDurSaving(false)
     setDurPicker(null)
     setDurDateStr(null)
+    setDurConflicto(null)
     router.refresh()
   }
 
@@ -869,10 +889,18 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       {/* ── Duration picker (activar tutoría) ─────────────────────── */}
       {durPicker !== null && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          onClick={e => { if (e.target === e.currentTarget) { setDurPicker(null); setDurDateStr(null) } }}>
+          onClick={e => { if (e.target === e.currentTarget) { setDurPicker(null); setDurDateStr(null); setDurConflicto(null) } }}>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-xs">
             <h3 className="font-semibold text-white mb-4">¿Por cuánto tiempo disponible?</h3>
             {durDateStr && <p className="text-xs text-gray-500 mb-3">Desde {durDateStr}</p>}
+            {durConflicto && (
+              <div className="flex items-start gap-2 mb-3 px-3 py-2 bg-orange-950/50 border border-orange-700/60 rounded-lg">
+                <span className="text-orange-400 text-sm flex-shrink-0">⚠</span>
+                <p className="text-xs text-orange-300">
+                  Este horario coincide con: <strong>{durConflicto}</strong>. Ese bloque ya está ocupado en tu agenda.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               {DURACIONES.map(d => (
                 <button key={d.value} disabled={durSaving}
@@ -882,7 +910,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                 </button>
               ))}
             </div>
-            <button onClick={() => { setDurPicker(null); setDurDateStr(null) }} className="mt-3 w-full text-center text-xs text-gray-600 hover:text-gray-400">Cancelar</button>
+            <button onClick={() => { setDurPicker(null); setDurDateStr(null); setDurConflicto(null) }} className="mt-3 w-full text-center text-xs text-gray-600 hover:text-gray-400">Cancelar</button>
           </div>
         </div>
       )}
