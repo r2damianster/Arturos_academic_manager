@@ -36,7 +36,9 @@
       "Bash(python -c ' *)",
       "Bash(grep -n \"^---$\" CLAUDE.md)",
       "mcp__lean-ctx__ctx_edit",
-      "mcp__claude_ai_Vercel__get_deployment"
+      "mcp__claude_ai_Vercel__get_deployment",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "Bash(xargs grep -l \"reservar_tutoria\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory"
