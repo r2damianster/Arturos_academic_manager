@@ -50,7 +50,6 @@ export default async function TutoriasPage() {
     db.from('cursos')
       .select('id, asignatura, institucion, codigo')
       .eq('profesor_id', user.id)
-      .eq('activo', true)
       .order('asignatura'),
 
     db.from('profesores')
