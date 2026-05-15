@@ -1,0 +1,212 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile'
+
+const SYSTEM_HTML = `Eres un arquitecto experto en HTML educativo para LMS (Moodle, Canvas, Blackboard).
+
+Genera código HTML optimizado para dispositivos móviles con:
+- Contenedor máximo 900px centrado, fuentes Segoe UI o Arial
+- Estilos 100% inline (sin <script>, sin <iframe>)
+- Paleta de colores pastel suave: encabezados #d1e9ff, recursos #e8f6f3, actividades #fef9e7
+- Bordes redondeados (10-15px) y sombras muy sutiles (box-shadow: 0 2px 8px rgba(0,0,0,0.08))
+- Estructura de scroll vertical — sin pestañas, sin acordeones, todo visible al hacer scroll
+
+Secciones en orden:
+1. ENCABEZADO: título del tema + número de semana + nombre de la asignatura
+2. INTRODUCCIÓN: contexto del tema (3-4 párrafos)
+3. REFERENCIA: cita en formato APA 7 relacionada al tema (generada por ti)
+4. RECURSOS: si se proporcionan links o materiales, crear cards con botón CTA estilizado
+5. MULTIMEDIA: si hay URL de video, crear botón CTA rojo que abra YouTube en pestaña nueva (NUNCA iframe)
+6. ACTIVIDADES: solo si hay tareas o actividades registradas
+7. CIERRE: tip pedagógico breve o reflexión final
+
+REGLAS CRÍTICAS — NUNCA VIOLAR:
+- PROHIBIDO: etiquetas <iframe>, <script>, <object>, <embed>
+- PROHIBIDO: atributos onclick, onload, allow, allowfullscreen, frameborder
+- Solo estilos inline con style=""
+- Videos: usar <a href="URL_YOUTUBE" target="_blank" rel="noopener noreferrer"> con estilo de botón CTA rojo
+
+Responde ÚNICAMENTE con el código HTML completo listo para copiar, sin explicaciones, sin bloques markdown, sin texto fuera del HTML.`
+
+const SYSTEM_GUIA = `Eres un experto pedagogo especializado en crear guías de estudio semanales universitarias.
+
+Crea una guía de estudio completa, clara y bien estructurada en español basándote en las clases proporcionadas.
+Identifica el tema central unificador entre todas las clases y organiza el contenido de forma pedagógica.
+
+Usa exactamente esta estructura (encabezados en MAYÚSCULAS seguidos de dos puntos):
+
+GUÍA DE ESTUDIO - SEMANA [N]: [TEMA PRINCIPAL]
+ASIGNATURA: [nombre]
+
+OBJETIVOS DE APRENDIZAJE:
+(escribe 3-5 objetivos con verbos de Bloom: identificar, analizar, aplicar, evaluar, etc.)
+
+INTRODUCCIÓN AL TEMA:
+(2-3 párrafos contextualizando el tema y su importancia)
+
+CONCEPTOS CLAVE:
+(lista con formato "Término: definición breve", uno por línea)
+
+DESARROLLO DEL TEMA:
+(subsecciones numeradas por cada subtema detectado, con explicación)
+
+ACTIVIDADES DE COMPRENSIÓN:
+(ejercicios prácticos derivados de las actividades registradas en clase)
+
+RECURSOS RECOMENDADOS:
+(solo incluir si se proporcionan links o materiales concretos)
+
+PREGUNTAS DE AUTOEVALUACIÓN:
+(5-8 preguntas variadas: definición, aplicación, análisis, síntesis)
+
+Responde con el texto completo de la guía en texto plano estructurado.
+No uses markdown (sin **, sin ##, sin *). Usa solo el formato de encabezados en mayúsculas indicado arriba.`
+
+interface GroqMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+async function callGroq(messages: GroqMessage[]): Promise<{ content: string; error?: string }> {
+  const key = process.env.GROQ_API_KEY
+  if (!key) return { content: '', error: 'GROQ_API_KEY no configurado en variables de entorno' }
+
+  const res = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    return { content: '', error: `Error Groq API (${res.status}): ${err.slice(0, 200)}` }
+  }
+
+  const data = await res.json()
+  const content = data.choices?.[0]?.message?.content ?? ''
+  return { content }
+}
+
+interface BitacoraRaw {
+  fecha: string
+  tema: string | null
+  actividades_json: unknown
+  observaciones: string | null
+}
+
+function formatBitacorasParaPrompt(bitacoras: BitacoraRaw[]): string {
+  return bitacoras.map(b => {
+    const acts = Array.isArray(b.actividades_json)
+      ? (b.actividades_json as { actividad: string; recurso: string }[])
+          .map(a => `  - ${a.actividad}${a.recurso ? ` (recurso: ${a.recurso})` : ''}`)
+          .join('\n')
+      : ''
+    return [
+      `Fecha: ${b.fecha}`,
+      `Tema: ${b.tema ?? 'Sin definir'}`,
+      `Actividades:\n${acts || '  (ninguna registrada)'}`,
+      `Observaciones: ${b.observaciones ?? 'ninguna'}`,
+    ].join('\n')
+  }).join('\n\n---\n\n')
+}
+
+export async function generarHtmlSemanal(params: {
+  bitacoraIds: string[]
+  asignatura: string
+  semanaNum: number
+  videoUrl?: string
+  recursos?: string
+}): Promise<{ html: string; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: bitacoras, error: dbErr } = await supabase
+    .from('bitacora_clase')
+    .select('fecha, tema, actividades_json, observaciones')
+    .in('id', params.bitacoraIds)
+    .order('fecha', { ascending: true })
+
+  if (dbErr) return { html: '', error: `Error de base de datos: ${dbErr.message}` }
+  if (!bitacoras?.length) return { html: '', error: 'No se encontraron las clases seleccionadas' }
+
+  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+
+  const userPrompt = [
+    `Genera el HTML completo para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
+    '',
+    'CLASES DE ESTA SEMANA:',
+    clasesTexto,
+    params.videoUrl ? `\nVIDEO YOUTUBE: ${params.videoUrl}` : '',
+    params.recursos ? `\nRECURSOS ADICIONALES:\n${params.recursos}` : '',
+  ].filter(Boolean).join('\n')
+
+  const result = await callGroq([
+    { role: 'system', content: SYSTEM_HTML },
+    { role: 'user', content: userPrompt },
+  ])
+
+  return { html: result.content, error: result.error }
+}
+
+export async function generarGuiaSemanal(params: {
+  bitacoraIds: string[]
+  asignatura: string
+  semanaNum: number
+  nivel: 'basico' | 'avanzado'
+}): Promise<{ guia: string; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: bitacoras, error: dbErr } = await supabase
+    .from('bitacora_clase')
+    .select('fecha, tema, actividades_json, observaciones')
+    .in('id', params.bitacoraIds)
+    .order('fecha', { ascending: true })
+
+  if (dbErr) return { guia: '', error: `Error de base de datos: ${dbErr.message}` }
+  if (!bitacoras?.length) return { guia: '', error: 'No se encontraron las clases seleccionadas' }
+
+  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+  const nivelLabel = params.nivel === 'avanzado' ? 'universitario avanzado (último año)' : 'universitario básico / introductorio'
+
+  const userPrompt = [
+    `Crea la guía de estudio para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
+    `Nivel del curso: ${nivelLabel}.`,
+    '',
+    'CLASES DE ESTA SEMANA:',
+    clasesTexto,
+  ].join('\n')
+
+  const result = await callGroq([
+    { role: 'system', content: SYSTEM_GUIA },
+    { role: 'user', content: userPrompt },
+  ])
+
+  return { guia: result.content, error: result.error }
+}
+
+export async function mejorarContenido(params: {
+  tipo: 'html' | 'guia'
+  contenidoActual: string
+  solicitud: string
+}): Promise<{ content: string; error?: string }> {
+  const systemPrompt = params.tipo === 'html' ? SYSTEM_HTML : SYSTEM_GUIA
+
+  const userPrompt = params.tipo === 'html'
+    ? `Aquí está el HTML actual:\n\n${params.contenidoActual}\n\nModificación solicitada: ${params.solicitud}\n\nDevuelve el HTML completo actualizado, sin explicaciones.`
+    : `Aquí está la guía actual:\n\n${params.contenidoActual}\n\nModificación solicitada: ${params.solicitud}\n\nDevuelve la guía completa actualizada, sin explicaciones.`
+
+  return callGroq([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ])
+}

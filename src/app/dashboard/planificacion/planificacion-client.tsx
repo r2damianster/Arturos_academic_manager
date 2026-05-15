@@ -9,6 +9,7 @@ import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
 import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
 import { gestionarDragPlanificacion, eliminarPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
+import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [dragError, setDragError] = useState<string | null>(null)
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
+  const [showGenerador, setShowGenerador] = useState(false)
 
   const weekDates = useMemo(() => getWeekFromDate(new Date(selectedDate + 'T12:00:00')), [selectedDate])
 
@@ -886,6 +888,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       <div className="rounded-xl bg-gray-900 border border-gray-800 p-4">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Herramientas de clase</p>
         <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={() => setShowGenerador(true)}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-brand-900/30 hover:bg-brand-900/50 border border-brand-700/50 text-sm text-brand-200 transition-colors"
+          >
+            <svg className="w-4 h-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a.75.75 0 01-.53.22H9.77a.75.75 0 01-.53-.22l-.347-.347z" />
+            </svg>
+            Generar contenido semanal
+          </button>
           <Link
             href="/dashboard/herramientas"
             className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm text-gray-200 transition-colors"
@@ -992,6 +1003,13 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
       {viewMode === 'extensivo' && (
         <PlanificacionExtensiva clases={clases} />
+      )}
+
+      {showGenerador && (
+        <GeneradorPanel
+          clases={clases}
+          onClose={() => setShowGenerador(false)}
+        />
       )}
     </div>
   )
