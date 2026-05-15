@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase } from '@/lib/actions/bitacora'
+import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase, getSiguienteClase, trasladarActividades } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
 import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
@@ -638,6 +638,45 @@ export function ModoClaseClient({
     refreshGrupos()
   }
 
+  // ── Traslado de actividades ───────────────────────────────────────────────
+  type SiguienteClaseInfo = { id: string; fecha: string; tema: string | null }
+  const [trasladandoPanel, setTrasladandoPanel] = useState(false)
+  const [selectedTransfer, setSelectedTransfer] = useState<Set<number>>(new Set())
+  const [siguienteClase, setSiguienteClase] = useState<SiguienteClaseInfo | null | 'loading'>(null)
+  const [trasladandoSaving, setTrasladandoSaving] = useState(false)
+  const [trasladandoError, setTrasladandoError] = useState<string | null>(null)
+  const [trasladandoOk, setTrasladandoOk] = useState(false)
+
+  async function abrirTrasladar() {
+    setTrasladandoPanel(true)
+    setSelectedTransfer(new Set())
+    setTrasladandoOk(false)
+    setTrasladandoError(null)
+    setSiguienteClase('loading')
+    const next = await getSiguienteClase(bitacoraId)
+    setSiguienteClase(next)
+  }
+
+  async function confirmarTrasladar() {
+    if (selectedTransfer.size === 0) return
+    setTrasladandoSaving(true)
+    setTrasladandoError(null)
+    const result = await trasladarActividades(bitacoraId, Array.from(selectedTransfer))
+    if (result.error) {
+      setTrasladandoError(result.error)
+      setTrasladandoSaving(false)
+      return
+    }
+    const remaining = actividades.filter((_, i) => !selectedTransfer.has(i))
+    updateActividades(remaining)
+    setTrasladandoSaving(false)
+    setTrasladandoOk(true)
+    setTimeout(() => {
+      setTrasladandoPanel(false)
+      setTrasladandoOk(false)
+    }, 2000)
+  }
+
   // ── Finalizar / Detener ────────────────────────────────────────────────────
   const [confirmando, setConfirmando] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
@@ -1034,6 +1073,102 @@ export function ModoClaseClient({
                     <span className="text-sm text-gray-300 truncate">{a.actividad}</span>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Trasladar actividad a siguiente clase */}
+            {actividades.length > 0 && !trasladandoPanel && (
+              <button
+                onClick={abrirTrasladar}
+                className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-amber-700/50 text-amber-600 hover:border-amber-600 hover:text-amber-400 hover:bg-amber-900/10 transition-colors text-sm"
+              >
+                <span className="text-base leading-none">→</span> Trasladar a siguiente clase
+              </button>
+            )}
+
+            {/* Panel de traslado */}
+            {trasladandoPanel && (
+              <div className="rounded-xl border border-amber-700/50 bg-amber-900/10 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-amber-300">Trasladar a siguiente clase</p>
+                  <button
+                    onClick={() => setTrasladandoPanel(false)}
+                    className="text-gray-500 hover:text-gray-300 text-sm leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {siguienteClase === 'loading' && (
+                  <p className="text-xs text-gray-500">Buscando siguiente clase…</p>
+                )}
+                {siguienteClase === null && (
+                  <p className="text-xs text-red-400">No hay siguiente clase planificada. Crea un plan primero.</p>
+                )}
+                {siguienteClase && siguienteClase !== 'loading' && (
+                  <>
+                    <div className="text-xs bg-gray-800/60 rounded-lg px-3 py-2">
+                      <span className="text-gray-500">Destino: </span>
+                      <span className="text-white">{formatFecha(siguienteClase.fecha)}</span>
+                      {siguienteClase.tema && (
+                        <span className="text-gray-400"> · {siguienteClase.tema}</span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Selecciona las actividades a trasladar:</p>
+                      {actividades.map((a, i) => (
+                        <label
+                          key={i}
+                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-800/40 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTransfer.has(i)}
+                            onChange={e => {
+                              const next = new Set(selectedTransfer)
+                              if (e.target.checked) next.add(i)
+                              else next.delete(i)
+                              setSelectedTransfer(next)
+                            }}
+                            className="accent-amber-500 w-4 h-4 flex-shrink-0"
+                          />
+                          <span className={`text-sm flex-1 truncate ${a.completada ? 'line-through text-gray-600' : 'text-gray-300'}`}>
+                            {a.actividad}
+                          </span>
+                          {a.completada && (
+                            <span className="text-xs text-emerald-600 flex-shrink-0">✓</span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+
+                    {trasladandoError && (
+                      <p className="text-xs text-red-400">{trasladandoError}</p>
+                    )}
+                    {trasladandoOk && (
+                      <p className="text-xs text-emerald-400 text-center">✓ Actividades trasladadas</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={confirmarTrasladar}
+                        disabled={selectedTransfer.size === 0 || trasladandoSaving}
+                        className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                      >
+                        {trasladandoSaving
+                          ? 'Trasladando…'
+                          : `Trasladar${selectedTransfer.size > 0 ? ` (${selectedTransfer.size})` : ''}`}
+                      </button>
+                      <button
+                        onClick={() => setTrasladandoPanel(false)}
+                        className="btn-ghost text-xs px-3 py-2"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -809,3 +809,99 @@ export async function finalizarClase(
   revalidatePath('/dashboard/modo-clase')
   return {}
 }
+
+// ─── Traslado de actividades a siguiente clase ────────────────────────────────
+
+export async function getSiguienteClase(bitacoraId: string): Promise<{
+  id: string
+  fecha: string
+  tema: string | null
+} | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: current } = await supabase
+    .from('bitacora_clase')
+    .select('curso_id, fecha')
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+    .single()
+
+  if (!current) return null
+
+  const { data: next } = await supabase
+    .from('bitacora_clase')
+    .select('id, fecha, tema')
+    .eq('curso_id', current.curso_id)
+    .eq('profesor_id', user.id)
+    .gt('fecha', current.fecha)
+    .order('fecha', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  return next ?? null
+}
+
+export async function trasladarActividades(
+  sourceBitacoraId: string,
+  indices: number[]
+): Promise<{ error?: string; nextFecha?: string; nextTema?: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  if (indices.length === 0) return { error: 'Selecciona al menos una actividad' }
+
+  const { data: source, error: srcErr } = await supabase
+    .from('bitacora_clase')
+    .select('curso_id, fecha, actividades_json')
+    .eq('id', sourceBitacoraId)
+    .eq('profesor_id', user.id)
+    .single()
+
+  if (srcErr || !source) return { error: 'Clase no encontrada' }
+
+  const actividades = (source.actividades_json as ActividadPlanificada[]) ?? []
+
+  const { data: next, error: nextErr } = await supabase
+    .from('bitacora_clase')
+    .select('id, fecha, tema, actividades_json')
+    .eq('curso_id', source.curso_id)
+    .eq('profesor_id', user.id)
+    .gt('fecha', source.fecha)
+    .order('fecha', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (nextErr || !next) {
+    return { error: 'No hay siguiente clase planificada. Crea un plan para la próxima clase primero.' }
+  }
+
+  const indicesSet = new Set(indices)
+  const toTransfer = indices.map(i => actividades[i]).filter(Boolean)
+  const remaining = actividades.filter((_, i) => !indicesSet.has(i))
+
+  const { error: updateSrcErr } = await supabase
+    .from('bitacora_clase')
+    .update({ actividades_json: remaining })
+    .eq('id', sourceBitacoraId)
+    .eq('profesor_id', user.id)
+
+  if (updateSrcErr) return { error: updateSrcErr.message }
+
+  const nextActividades = [
+    ...((next.actividades_json as ActividadPlanificada[]) ?? []),
+    ...toTransfer,
+  ]
+
+  const { error: updateNextErr } = await supabase
+    .from('bitacora_clase')
+    .update({ actividades_json: nextActividades })
+    .eq('id', next.id)
+    .eq('profesor_id', user.id)
+
+  if (updateNextErr) return { error: updateNextErr.message }
+
+  revalidateBitacoraViews(source.curso_id)
+  return { nextFecha: next.fecha, nextTema: next.tema }
+}
