@@ -29,7 +29,7 @@ interface Manifest {
   stats?: Stats
 }
 
-async function imageToJpeg(bytes: ArrayBuffer, mimeType: string): Promise<Buffer> {
+async function imageToJpeg(bytes: ArrayBuffer, _mimeType: string): Promise<Buffer> {
   const { default: sharp } = await import('sharp')
   return sharp(Buffer.from(bytes)).jpeg({ quality: 90 }).toBuffer()
 }
@@ -285,7 +285,11 @@ export async function POST(req: Request) {
   }
 
   const pdfBytes = await pdfDoc.save()
-  const nombreArchivo = `evidencias_${manifest.estudiante.split(' ')[0].toLowerCase()}_${manifest.fecha}.pdf`
+  // Strip diacritics and non-ASCII so Content-Disposition header stays valid (RFC 5987)
+  const safeNombre = manifest.estudiante.split(' ')[0].toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_-]/g, '_')
+  const safeFecha = manifest.fecha.replace(/[/\\:]/g, '-')
+  const nombreArchivo = `evidencias_${safeNombre}_${safeFecha}.pdf`
 
   return new Response(pdfBytes.buffer as ArrayBuffer, {
     headers: {

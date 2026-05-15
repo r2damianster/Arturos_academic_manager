@@ -81,19 +81,13 @@ async function comprimirImagen(file: File): Promise<File> {
 
 function descargarBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  if (isMobile) {
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
-  } else {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 2000)
-  }
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Props) {
@@ -156,12 +150,23 @@ export function EnsamblarEvidencias({ estudiante, curso, profesor, stats }: Prop
 
     const fd = new FormData()
     const secciones: { tipo: string; nombre: string; archivos: string[] }[] = []
+    const LIMITE_BYTES = 4 * 1024 * 1024 // 4 MB — margen bajo el límite de Vercel (4.5 MB)
+    let totalBytes = 0
 
     for (const c of categorias) {
       if (c.archivos.length === 0) continue
       const keys: string[] = []
       for (const a of c.archivos) {
         const file = a.file.type.startsWith('image/') ? await comprimirImagen(a.file) : a.file
+        totalBytes += file.size
+        if (totalBytes > LIMITE_BYTES) {
+          setError(
+            `El total de archivos supera 4 MB. En iPhone las fotos HEIC pueden pesar 5–15 MB cada una. ` +
+            `Solución: toma capturas de pantalla (PNG) en lugar de fotos directas, o exporta las fotos como JPEG desde la app Fotos antes de subirlas.`
+          )
+          setGenerando(false)
+          return
+        }
         fd.append(a.id, file)
         keys.push(a.id)
       }
