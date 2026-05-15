@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { generarHtmlSemanal, generarGuiaSemanal, mejorarContenido } from '@/lib/actions/generar-contenido'
 
@@ -32,10 +32,7 @@ type Step = 1 | 2 | 3
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-  timestamp: Date
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   clases: Clase[]
@@ -65,15 +62,27 @@ async function descargaDocx(guia: string, titulo: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = titulo.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-') + '.docx'
+  a.download =
+    titulo
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-') + '.docx'
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function calcularSemana(fechaInicio: string | null, fechasBitacoras: string[]): number {
+  if (!fechaInicio || fechasBitacoras.length === 0) return 1
+  const inicio = new Date(fechaInicio + 'T00:00:00')
+  const primera = new Date(Math.min(...fechasBitacoras.map(f => new Date(f + 'T00:00:00').getTime())))
+  const diffDias = Math.floor((primera.getTime() - inicio.getTime()) / (24 * 3600 * 1000))
+  return Math.max(1, Math.floor(diffDias / 7) + 1)
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneradorPanel({ clases, onClose }: Props) {
-  // Cursos únicos
   const cursosUnicos = Array.from(
     new Map(
       clases
@@ -93,9 +102,8 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Paso 2
-  const [semanaNum, setSemanaNum] = useState(1)
-  const [videoUrl, setVideoUrl] = useState('')
-  const [recursos, setRecursos] = useState('')
+  const [semanaOverride, setSemanaOverride] = useState<number | null>(null)
+  const [instruccionAdicional, setInstruccionAdicional] = useState('')
   const [nivel, setNivel] = useState<'basico' | 'avanzado'>('basico')
 
   // Paso 3
@@ -110,16 +118,24 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const selectedCurso = cursosUnicos.find(c => c.id === selectedCursoId)
 
-  // Cargar bitácoras cuando cambia el curso
+  // Semana auto-calculada desde fecha_inicio del curso + fechas de bitácoras seleccionadas
+  const semanaAutoDetectada = useMemo(() => {
+    const fechasSeleccionadas = bitacoras
+      .filter(b => selectedIds.has(b.id))
+      .map(b => b.fecha)
+    return calcularSemana(selectedCurso?.fecha_inicio ?? null, fechasSeleccionadas)
+  }, [selectedIds, bitacoras, selectedCurso])
+
+  const semanaFinal = semanaOverride ?? semanaAutoDetectada
+
+  // Cargar bitácoras al cambiar curso
   useEffect(() => {
     if (!selectedCursoId) return
     setLoadingBit(true)
     setSelectedIds(new Set())
-
     const supabase = createClient()
     supabase
       .from('bitacora_clase')
@@ -146,7 +162,11 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  // Resetear chat al cambiar de tab o regenerar
+  // Resetear semana override cuando cambian las bitácoras seleccionadas
+  useEffect(() => {
+    setSemanaOverride(null)
+  }, [selectedIds])
+
   function resetearChat() {
     setChatMessages([])
     setChatInput('')
@@ -176,14 +196,14 @@ export function GeneradorPanel({ clases, onClose }: Props) {
 
     const ids = Array.from(selectedIds)
     const asignatura = selectedCurso?.asignatura ?? ''
+    const instruccion = instruccionAdicional.trim() || undefined
 
     if (activeTab === 'html') {
       const result = await generarHtmlSemanal({
         bitacoraIds: ids,
         asignatura,
-        semanaNum,
-        videoUrl: videoUrl.trim() || undefined,
-        recursos: recursos.trim() || undefined,
+        semanaNum: semanaFinal,
+        instruccionAdicional: instruccion,
       })
       if (result.error) {
         setGenError(result.error)
@@ -195,8 +215,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
       const result = await generarGuiaSemanal({
         bitacoraIds: ids,
         asignatura,
-        semanaNum,
+        semanaNum: semanaFinal,
         nivel,
+        instruccionAdicional: instruccion,
       })
       if (result.error) {
         setGenError(result.error)
@@ -212,8 +233,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     const solicitud = chatInput.trim()
     if (!solicitud || chatLoading || !generatedContent) return
 
-    const userMsg: ChatMessage = { role: 'user', content: solicitud, timestamp: new Date() }
-    setChatMessages(prev => [...prev, userMsg])
+    setChatMessages(prev => [...prev, { role: 'user', content: solicitud }])
     setChatInput('')
     setChatLoading(true)
 
@@ -226,13 +246,13 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     if (result.error) {
       setChatMessages(prev => [
         ...prev,
-        { role: 'assistant', content: `Error: ${result.error}`, timestamp: new Date() },
+        { role: 'assistant', content: `Error: ${result.error}` },
       ])
     } else {
       setGeneratedContent(result.content)
       setChatMessages(prev => [
         ...prev,
-        { role: 'assistant', content: '✓ Contenido actualizado según tu solicitud.', timestamp: new Date() },
+        { role: 'assistant', content: '✓ Contenido actualizado.' },
       ])
     }
     setChatLoading(false)
@@ -248,10 +268,10 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     if (docxLoading) return
     setDocxLoading(true)
     try {
-      const titulo = `Guía Semana ${semanaNum} - ${selectedCurso?.asignatura ?? 'Curso'}`
+      const titulo = `Guía Semana ${semanaFinal} - ${selectedCurso?.asignatura ?? 'Curso'}`
       await descargaDocx(generatedContent, titulo)
     } catch {
-      alert('Error generando el archivo Word. Inténtalo de nuevo.')
+      alert('Error generando el archivo Word.')
     } finally {
       setDocxLoading(false)
     }
@@ -259,16 +279,12 @@ export function GeneradorPanel({ clases, onClose }: Props) {
 
   // ── Render ──
 
-  const totalBitacoras = bitacoras.length
   const seleccionadas = selectedIds.size
 
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-full sm:max-w-[860px] z-50 bg-gray-950 border-l border-gray-800 flex flex-col shadow-2xl overflow-hidden">
@@ -278,7 +294,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
           <div>
             <h2 className="text-white font-semibold text-base">Generador de contenido semanal</h2>
             <p className="text-gray-500 text-xs mt-0.5">
-              {step === 1 ? 'Selecciona las clases a incluir' : step === 2 ? 'Configura los parámetros' : 'Resultado listo para usar'}
+              {step === 1 ? 'Selecciona las clases a incluir' : step === 2 ? 'Revisa y configura' : 'Resultado listo para usar'}
             </p>
           </div>
           <button
@@ -313,19 +329,14 @@ export function GeneradorPanel({ clases, onClose }: Props) {
           ))}
         </div>
 
-        {/* Separador bajo tabs */}
         <div className="h-px bg-gray-800 flex-shrink-0" />
 
-        {/* Pasos indicadores */}
+        {/* Pasos */}
         <div className="flex items-center gap-3 px-5 py-3 flex-shrink-0 bg-gray-900/50">
           {[1, 2, 3].map(s => (
             <div key={s} className="flex items-center gap-1.5">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                step === s
-                  ? 'bg-brand-600 text-white'
-                  : step > s
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-800 text-gray-500'
+                step === s ? 'bg-brand-600 text-white' : step > s ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500'
               }`}>
                 {step > s ? '✓' : s}
               </div>
@@ -340,10 +351,10 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         {/* Cuerpo scrollable */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── PASO 1: Seleccionar clases ─────────────────────────────────── */}
+          {/* ── PASO 1 ── */}
           {step === 1 && (
             <div className="p-5 space-y-5">
-              {/* Selector de curso */}
+              {/* Selector curso */}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-2">Asignatura</label>
                 {cursosUnicos.length === 0 ? (
@@ -367,37 +378,34 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                 )}
               </div>
 
-              {/* Lista de bitácoras */}
+              {/* Lista bitácoras */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-medium text-gray-400">
                     Clases a incluir
                     {seleccionadas > 0 && (
-                      <span className="ml-2 text-brand-400">{seleccionadas} seleccionada{seleccionadas !== 1 ? 's' : ''}</span>
+                      <span className="ml-2 text-brand-400">
+                        {seleccionadas} seleccionada{seleccionadas !== 1 ? 's' : ''}
+                      </span>
                     )}
                   </label>
-                  {totalBitacoras > 0 && (
-                    <button
-                      onClick={toggleTodas}
-                      className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      {selectedIds.size === totalBitacoras ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                  {bitacoras.length > 0 && (
+                    <button onClick={toggleTodas} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                      {selectedIds.size === bitacoras.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
                     </button>
                   )}
                 </div>
 
                 {loadingBit ? (
                   <div className="space-y-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-14 bg-gray-800 rounded-lg animate-pulse" />
-                    ))}
+                    {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-800 rounded-lg animate-pulse" />)}
                   </div>
                 ) : bitacoras.length === 0 ? (
                   <div className="rounded-lg border border-gray-800 p-6 text-center">
                     <p className="text-gray-500 text-sm">No hay clases planificadas o cumplidas en este curso.</p>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                     {bitacoras.map(b => {
                       const checked = selectedIds.has(b.id)
                       return (
@@ -429,7 +437,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-gray-500 text-xs">{b.fecha}</span>
                               {b.actividades_count > 0 && (
-                                <span className="text-gray-600 text-xs">{b.actividades_count} actividad{b.actividades_count !== 1 ? 'es' : ''}</span>
+                                <span className="text-gray-600 text-xs">
+                                  {b.actividades_count} actividad{b.actividades_count !== 1 ? 'es' : ''}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -442,63 +452,44 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             </div>
           )}
 
-          {/* ── PASO 2: Configurar ────────────────────────────────────────── */}
+          {/* ── PASO 2 ── */}
           {step === 2 && (
             <div className="p-5 space-y-5">
+              {/* Resumen selección */}
               <div className="rounded-lg bg-gray-900 border border-gray-800 p-3 flex items-center gap-2">
                 <span className="text-emerald-400 text-sm">✓</span>
                 <span className="text-gray-400 text-sm">
-                  {seleccionadas} clase{seleccionadas !== 1 ? 's' : ''} seleccionada{seleccionadas !== 1 ? 's' : ''} de <strong className="text-gray-200">{selectedCurso?.asignatura}</strong>
+                  {seleccionadas} clase{seleccionadas !== 1 ? 's' : ''} de{' '}
+                  <strong className="text-gray-200">{selectedCurso?.asignatura}</strong>
+                  {' '}— recursos y videos incluidos automáticamente desde los planes
                 </span>
               </div>
 
-              {/* Número de semana */}
+              {/* Número de semana (auto-calculado) */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-2">Número de semana</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Número de semana</label>
+                <p className="text-gray-600 text-xs mb-2">
+                  Calculado automáticamente desde {selectedCurso?.fecha_inicio ?? 'fecha de inicio del curso'}.
+                  Ajusta si es necesario.
+                </p>
                 <input
                   type="number"
                   min={1}
                   max={52}
-                  value={semanaNum}
-                  onChange={e => setSemanaNum(Number(e.target.value))}
+                  value={semanaFinal}
+                  onChange={e => setSemanaOverride(Number(e.target.value))}
                   className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
                 />
+                {semanaOverride === null && (
+                  <span className="ml-3 text-xs text-brand-400">auto-detectado</span>
+                )}
               </div>
 
-              {/* Inputs específicos del tab */}
-              {activeTab === 'html' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2">
-                      URL de video YouTube <span className="text-gray-600">(opcional)</span>
-                    </label>
-                    <input
-                      type="url"
-                      value={videoUrl}
-                      onChange={e => setVideoUrl(e.target.value)}
-                      placeholder="https://youtube.com/watch?v=..."
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2">
-                      Recursos adicionales <span className="text-gray-600">(opcional — links, materiales)</span>
-                    </label>
-                    <textarea
-                      value={recursos}
-                      onChange={e => setRecursos(e.target.value)}
-                      rows={3}
-                      placeholder={'Slide: https://docs.google.com/...\nPDF: https://...'}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 resize-none font-mono"
-                    />
-                  </div>
-                </>
-              )}
-
+              {/* Nivel — solo para Guía */}
               {activeTab === 'guia' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-2">Nivel del curso</label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     {(['basico', 'avanzado'] as const).map(n => (
                       <label key={n} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -517,6 +508,23 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                 </div>
               )}
 
+              {/* Instrucción adicional */}
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">
+                  Instrucción adicional <span className="text-gray-600">(opcional)</span>
+                </label>
+                <p className="text-gray-600 text-xs mb-2">
+                  Directriz, énfasis, link externo o cualquier contexto extra que la IA debe considerar.
+                </p>
+                <textarea
+                  value={instruccionAdicional}
+                  onChange={e => setInstruccionAdicional(e.target.value)}
+                  rows={3}
+                  placeholder={'ej: "Enfatiza el método de sustitución trigonométrica"\n     "Incluye este artículo: https://..."'}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 resize-none"
+                />
+              </div>
+
               {/* Error */}
               {genError && (
                 <div className="rounded-lg bg-red-900/20 border border-red-500/40 px-4 py-3 text-red-400 text-sm">
@@ -526,15 +534,15 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             </div>
           )}
 
-          {/* ── PASO 3: Resultado ─────────────────────────────────────────── */}
+          {/* ── PASO 3 ── */}
           {step === 3 && (
             <div className="p-5 space-y-4">
-              {/* Textarea editable */}
+              {/* Textarea + botones descarga */}
               <div>
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <span className="text-xs font-medium text-gray-400">
-                    {activeTab === 'html' ? 'Código HTML generado' : 'Guía generada'}
-                    <span className="ml-2 text-gray-600">(editable directamente)</span>
+                    {activeTab === 'html' ? 'Código HTML' : 'Guía de estudio'}
+                    <span className="ml-2 text-gray-600">— editable directamente</span>
                   </span>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
@@ -544,12 +552,14 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                       {copied ? '✓ Copiado' : '📋 Copiar'}
                     </button>
                     <button
-                      onClick={() => descargaTxt(
-                        generatedContent,
-                        activeTab === 'html'
-                          ? `html-semana${semanaNum}-${selectedCurso?.asignatura ?? 'curso'}`
-                          : `guia-semana${semanaNum}-${selectedCurso?.asignatura ?? 'curso'}`
-                      )}
+                      onClick={() =>
+                        descargaTxt(
+                          generatedContent,
+                          activeTab === 'html'
+                            ? `html-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
+                            : `guia-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
+                        )
+                      }
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors text-xs"
                     >
                       ⬇ .txt
@@ -566,7 +576,6 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   </div>
                 </div>
                 <textarea
-                  ref={textareaRef}
                   value={generatedContent}
                   onChange={e => setGeneratedContent(e.target.value)}
                   rows={18}
@@ -577,10 +586,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
               {/* Mini chat */}
               <div className="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-800">
-                  <span className="text-xs font-medium text-gray-400">💬 Pedir mejoras</span>
+                  <span className="text-xs font-medium text-gray-400">💬 Pedir mejoras al contenido</span>
                 </div>
 
-                {/* Historial */}
                 {chatMessages.length > 0 && (
                   <div className="max-h-48 overflow-y-auto px-4 py-3 space-y-2.5">
                     {chatMessages.map((msg, i) => (
@@ -605,16 +613,16 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   </div>
                 )}
 
-                {/* Input */}
                 <div className="flex gap-2 p-3">
                   <input
                     type="text"
                     value={chatInput}
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleMejorar() } }}
-                    placeholder={activeTab === 'html'
-                      ? 'ej: "cambia los colores de encabezado a verde"'
-                      : 'ej: "agrega más ejemplos en Conceptos Clave"'
+                    placeholder={
+                      activeTab === 'html'
+                        ? 'ej: "cambia los colores de encabezado a verde"'
+                        : 'ej: "agrega más ejemplos prácticos en Desarrollo del Tema"'
                     }
                     disabled={chatLoading}
                     className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-600 focus:outline-none focus:border-gray-600 disabled:opacity-50"
@@ -632,7 +640,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer con botones de navegación */}
+        {/* Footer navegación */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-gray-800 flex-shrink-0 bg-gray-950">
           <button
             onClick={() => {
@@ -681,11 +689,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
 
           {step === 3 && (
             <button
-              onClick={() => {
-                setStep(2)
-                setGeneratedContent('')
-                resetearChat()
-              }}
+              onClick={() => { setStep(2); setGeneratedContent(''); resetearChat() }}
               className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg text-sm transition-colors"
             >
               ↻ Regenerar

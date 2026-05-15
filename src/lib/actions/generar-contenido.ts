@@ -125,8 +125,7 @@ export async function generarHtmlSemanal(params: {
   bitacoraIds: string[]
   asignatura: string
   semanaNum: number
-  videoUrl?: string
-  recursos?: string
+  instruccionAdicional?: string
 }): Promise<{ html: string; error?: string }> {
   const supabase = await createClient()
 
@@ -143,11 +142,11 @@ export async function generarHtmlSemanal(params: {
 
   const userPrompt = [
     `Genera el HTML completo para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
+    'Los recursos, videos y materiales ya están incluidos en el campo "recurso" de cada actividad — úsalos para las secciones de Recursos y Multimedia.',
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
-    params.videoUrl ? `\nVIDEO YOUTUBE: ${params.videoUrl}` : '',
-    params.recursos ? `\nRECURSOS ADICIONALES:\n${params.recursos}` : '',
+    params.instruccionAdicional ? `\nINSTRUCCIÓN ADICIONAL DEL PROFESOR:\n${params.instruccionAdicional}` : '',
   ].filter(Boolean).join('\n')
 
   const result = await callGroq([
@@ -163,6 +162,7 @@ export async function generarGuiaSemanal(params: {
   asignatura: string
   semanaNum: number
   nivel: 'basico' | 'avanzado'
+  instruccionAdicional?: string
 }): Promise<{ guia: string; error?: string }> {
   const supabase = await createClient()
 
@@ -184,7 +184,8 @@ export async function generarGuiaSemanal(params: {
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
-  ].join('\n')
+    params.instruccionAdicional ? `\nINSTRUCCIÓN ADICIONAL DEL PROFESOR:\n${params.instruccionAdicional}` : '',
+  ].filter(Boolean).join('\n')
 
   const result = await callGroq([
     { role: 'system', content: SYSTEM_GUIA },
