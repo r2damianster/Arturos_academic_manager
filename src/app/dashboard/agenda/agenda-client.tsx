@@ -166,15 +166,90 @@ function buildSlots(startMin: number, endMin: number): string[] {
 
 // ─── Form helpers ─────────────────────────────────────────────────────────────
 
+function roundUpTo15(): string {
+  const now = new Date()
+  const totalMin = now.getHours() * 60 + now.getMinutes()
+  const rounded = Math.min(Math.ceil(totalMin / 15) * 15, 23 * 60 + 45)
+  return fromMin(rounded)
+}
+
 function emptyForm(day: string, hora?: string): EventoInput {
+  const ini = hora ?? roundUpTo15()
   return {
     titulo: '', descripcion: '', tipo: 'personal',
     fecha_inicio: day, fecha_fin: day,
-    hora_inicio: hora ?? null,
-    hora_fin: hora ? fromMin(toMin(hora) + 60) : null,
-    todo_el_dia: !hora,
+    hora_inicio: ini,
+    hora_fin: fromMin(Math.min(toMin(ini) + 60, 23 * 60 + 45)),
+    todo_el_dia: false,
     recurrente: false, recurrencia: null, recurrencia_dias: [], recurrencia_hasta: null,
   }
+}
+
+function TimePicker({ value, onChange, label, minTime }: {
+  value: string | null
+  onChange: (v: string) => void
+  label: string
+  minTime?: string | null
+}) {
+  const totalMin = value ? toMin(value) : null
+  const isPM = totalMin !== null ? totalMin >= 720 : null
+  const h12 = totalMin !== null ? (Math.floor(totalMin / 60) % 12 || 12) : null
+  const minute = totalMin !== null ? totalMin % 60 : null
+  const minTotalMin = minTime ? toMin(minTime) : null
+
+  function build(p: 'AM' | 'PM', h: number, m: number): string {
+    const h24 = p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12)
+    return fromMin(h24 * 60 + m)
+  }
+  function resultMin(p: 'AM' | 'PM', h: number, m: number) {
+    const h24 = p === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12)
+    return h24 * 60 + m
+  }
+  const period = isPM === null ? null : isPM ? 'PM' : 'AM'
+  function isHourDisabled(h: number) {
+    if (!minTotalMin || !period) return false
+    return [0, 15, 30, 45].every(m => resultMin(period, h, m) < minTotalMin)
+  }
+  function isMinDisabled(m: number) {
+    if (!minTotalMin || h12 === null || !period) return false
+    return resultMin(period, h12, m) < minTotalMin
+  }
+
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="flex gap-1.5 mb-2">
+        {(['AM', 'PM'] as const).map(p => (
+          <button type="button" key={p} onClick={() => onChange(build(p, h12 ?? 8, minute ?? 0))}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${period === p ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+            {p}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-6 gap-1 mb-2">
+        {[1,2,3,4,5,6,7,8,9,10,11,12].map(h => {
+          const disabled = isHourDisabled(h)
+          return (
+            <button type="button" key={h} onClick={() => !disabled && onChange(build(period ?? 'AM', h, minute ?? 0))}
+              className={`py-1 rounded text-sm font-medium transition-colors ${h12 === h ? 'bg-brand-600 text-white' : disabled ? 'bg-gray-900 text-gray-700 cursor-not-allowed' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              {h}
+            </button>
+          )
+        })}
+      </div>
+      <div className="grid grid-cols-4 gap-1">
+        {[0, 15, 30, 45].map(m => {
+          const disabled = isMinDisabled(m)
+          return (
+            <button type="button" key={m} onClick={() => !disabled && onChange(build(period ?? 'AM', h12 ?? 8, m))}
+              className={`py-1.5 rounded text-sm font-medium transition-colors ${minute === m ? 'bg-brand-600 text-white' : disabled ? 'bg-gray-900 text-gray-700 cursor-not-allowed' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              {String(m).padStart(2, '0')}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -993,22 +1068,43 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={evForm.todo_el_dia}
-                  onChange={e => setEvForm(f => ({ ...f, todo_el_dia: e.target.checked }))}
+                  onChange={e => {
+                    const allDay = e.target.checked
+                    setEvForm(f => {
+                      if (allDay) return { ...f, todo_el_dia: true, hora_inicio: null, hora_fin: null }
+                      const ini = f.hora_inicio ?? roundUpTo15()
+                      const fin = f.hora_fin && toMin(f.hora_fin) > toMin(ini)
+                        ? f.hora_fin
+                        : fromMin(Math.min(toMin(ini) + 60, 23 * 60 + 45))
+                      return { ...f, todo_el_dia: false, hora_inicio: ini, hora_fin: fin }
+                    })
+                  }}
                   className="rounded border-gray-600 bg-gray-800 text-brand-600" />
                 <span className="text-sm text-gray-300">Todo el día</span>
               </label>
               {!evForm.todo_el_dia && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Hora inicio</label>
-                    <input type="time" value={evForm.hora_inicio ?? ''}
-                      onChange={e => setEvForm(f => ({ ...f, hora_inicio: e.target.value || null }))} className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Hora fin</label>
-                    <input type="time" value={evForm.hora_fin ?? ''}
-                      onChange={e => setEvForm(f => ({ ...f, hora_fin: e.target.value || null }))} className="input" />
-                  </div>
+                  <TimePicker
+                    label="Hora inicio"
+                    value={evForm.hora_inicio}
+                    onChange={v => setEvForm(f => {
+                      const minFin = toMin(v) + 15
+                      const keepFin = f.hora_fin && toMin(f.hora_fin) >= minFin
+                      return {
+                        ...f,
+                        hora_inicio: v,
+                        hora_fin: keepFin ? f.hora_fin : fromMin(Math.min(toMin(v) + 60, 23 * 60 + 45)),
+                      }
+                    })}
+                  />
+                  <TimePicker
+                    label="Hora fin"
+                    value={evForm.hora_fin}
+                    onChange={v => setEvForm(f => ({ ...f, hora_fin: v }))}
+                    minTime={evForm.fecha_inicio === evForm.fecha_fin && evForm.hora_inicio
+                      ? fromMin(Math.min(toMin(evForm.hora_inicio) + 15, 23 * 60 + 45))
+                      : null}
+                  />
                 </div>
               )}
               <label className="flex items-center gap-2 cursor-pointer">
