@@ -351,6 +351,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   }
 
   const [confirmBatch, setConfirmBatch] = useState(false)
+  const [confirmBatchLV, setConfirmBatchLV] = useState(false)
 
   // ── Batch ──────────────────────────────────────────────────────────────────
   async function batchNoDisponible() {
@@ -361,6 +362,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
     })
   }
   async function batchLV() {
+    setConfirmBatchLV(false)
     const lv = ['lunes','martes','miércoles','jueves','viernes']
     setHorarios(prev => prev.map(h => ({
       ...h,
@@ -481,9 +483,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                 Todo NO disp
               </button>
             )}
-            <button onClick={batchLV} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
-              L–V dispon
-            </button>
+            {confirmBatchLV ? (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[10px] text-amber-400">¿Activar L–V disponible?</span>
+                <button onClick={batchLV} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors">Confirmar</button>
+                <button onClick={() => setConfirmBatchLV(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmBatchLV(true)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
+                L–V dispon
+              </button>
+            )}
           </div>
         </div>
 
