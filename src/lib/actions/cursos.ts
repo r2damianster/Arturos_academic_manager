@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 // ─── Schema canónico ──────────────────────────────────────────────────────────
 
-export const CursoFullSchema = z.object({
+const CursoFullSchema = z.object({
   codigo:         z.string().min(2).max(30),
   asignatura:     z.string().min(3).max(100),
   periodo:        z.string().min(3).max(20),
