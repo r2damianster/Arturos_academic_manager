@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
-import { EditarCursoPanel } from '@/components/cursos/editar-curso-panel'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -20,33 +19,27 @@ export default async function CursoDetailPage({
   const { cursoId } = await params
   const { edit } = await searchParams
   const supabase = await createClient()
+  // Redirect legacy ?edit=true links to new dedicated route
+  if (edit === 'true') {
+    redirect(`/dashboard/cursos/${cursoId}/editar`)
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-
-  const [cursoRes, estudiantesRes, clasesRes, asistenciaRes, trabajosRes, profesorRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
       .select('id, nombre, email, tutoria, estado, auth_user_id')
       .eq('curso_id', cursoId)
       .order('nombre'),
-    db.from('horarios_clases')
-      .select('*')
-      .eq('curso_id', cursoId)
-      .order('dia_semana')
-      .order('hora_inicio'),
     db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
     db.from('trabajos_asignados').select('estudiante_id, estado').eq('curso_id', cursoId),
-    db.from('profesores').select('institucion').eq('id', authUser?.id).maybeSingle(),
   ])
-  const profesorInstitucion: string | null = profesorRes?.data?.institucion ?? null
 
   const curso = cursoRes.data as Curso | null
   if (!curso) notFound()
 
   const todosEstudiantes: EstudianteRaw[] = estudiantesRes.data ?? []
-  const clases = clasesRes.data ?? []
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
 
@@ -139,27 +132,16 @@ export default async function CursoDetailPage({
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-white">{curso.asignatura}</h1>
-            <EditarCursoPanel
-              cursoId={cursoId}
-              clases={clases as any}
-              defaultOpen={edit === 'true'}
-              curso={{
-                asignatura:    curso.asignatura,
-                codigo:        curso.codigo,
-                periodo:       curso.periodo,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                aula:          (curso as any).aula ?? null,
-                fecha_inicio:  curso.fecha_inicio ?? null,
-                fecha_fin:     curso.fecha_fin ?? null,
-                horas_semana:  curso.horas_semana,
-                num_sesiones:  curso.num_sesiones,
-                horas_teoricas: curso.horas_teoricas,
-                num_parciales: curso.num_parciales ?? 2,
-                observacion:   curso.observacion ?? null,
-                institucion:   curso.institucion ?? null,
-              }}
-              institucionProfesor={profesorInstitucion}
-            />
+            <Link
+              href={`/dashboard/cursos/${cursoId}/editar`}
+              className="mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editar curso
+            </Link>
           </div>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(curso as any).aula && (

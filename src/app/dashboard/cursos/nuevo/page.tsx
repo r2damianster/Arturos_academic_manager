@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { crearCursoAction } from '@/lib/actions/cursos'
+import { HorariosFormFields, HorarioClase } from '@/components/cursos/horarios-form-fields'
 import Link from 'next/link'
 
 function generarCodigo(asignatura: string, periodo: string): string {
@@ -21,10 +22,7 @@ export default function NuevoCursoPage() {
   const [codigo, setCodigo] = useState('')
   const [codigoManual, setCodigoManual] = useState(false)
   const [numParciales, setNumParciales] = useState(2)
-
-  type HorarioInput = { dia_semana: string, hora_inicio: string, hora_fin: string, tipo: string, centro_computo: boolean }
-  const [horariosClases, setHorariosClases] = useState<HorarioInput[]>([])
-
+  const [horarios, setHorarios] = useState<HorarioClase[]>([])
 
   useEffect(() => {
     if (!codigoManual && (asignatura || periodo)) {
@@ -47,8 +45,9 @@ export default function NuevoCursoPage() {
       </div>
 
       <form action={crearCursoAction} className="card space-y-5">
-        <input type="hidden" name="horarios_clases" value={JSON.stringify(horariosClases)} />
-        {/* Asignatura + Período */}
+        <input type="hidden" name="horarios_clases" value={JSON.stringify(horarios)} />
+
+        {/* Asignatura */}
         <div>
           <label className="label">Nombre de la asignatura *</label>
           <input name="asignatura" className="input" placeholder="Academic Reading and Writing II"
@@ -56,6 +55,7 @@ export default function NuevoCursoPage() {
             onChange={e => setAsignatura(e.target.value)} />
         </div>
 
+        {/* Período + Código */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Período *</label>
@@ -66,9 +66,7 @@ export default function NuevoCursoPage() {
           <div>
             <label className="label">
               Código
-              {!codigoManual && (
-                <span className="ml-2 text-xs text-brand-400 font-normal">auto</span>
-              )}
+              {!codigoManual && <span className="ml-2 text-xs text-brand-400 font-normal">auto</span>}
             </label>
             <input name="codigo" className="input" placeholder="arwi261"
               required maxLength={30} value={codigo}
@@ -84,88 +82,22 @@ export default function NuevoCursoPage() {
           </div>
         </div>
 
+        {/* Institución */}
+        <div>
+          <label className="label">Institución</label>
+          <input name="institucion" className="input" maxLength={200}
+            placeholder="Ej: ULEAM — Facultad de Ciencias Informáticas" />
+        </div>
+
         {/* Aula */}
         <div>
           <label className="label">Aula</label>
           <input name="aula" className="input" placeholder="Ej: Aula 102 – Bloque PADF" maxLength={100} />
-          <p className="text-xs text-gray-500 mt-1">Visible también para los estudiantes</p>
         </div>
 
-        {/* Horarios de Clases */}
-        <div className="space-y-3 pt-2 pb-2 border-y border-gray-800">
-          <div className="flex justify-between items-center">
-            <label className="label !mb-0">Horarios de Clases o Tutorías de Curso</label>
-            <button type="button" className="text-xs text-brand-400 font-semibold"
-              onClick={() => setHorariosClases([...horariosClases, { dia_semana: 'lunes', hora_inicio: '15:00', hora_fin: '17:00', tipo: 'clase', centro_computo: false }])}>
-              + Añadir horario
-            </button>
-          </div>
-          {horariosClases.length === 0 ? (
-            <p className="text-xs text-gray-500">No se han añadido horarios. (Útil para cruce automático con tutorías generales)</p>
-          ) : (
-            <div className="space-y-2">
-              {horariosClases.map((h, i) => (
-                <div key={i} className="bg-gray-900/50 p-2 rounded-lg border border-gray-800 space-y-2">
-                  {/* Fila 1: tipo + día + eliminar */}
-                  <div className="flex gap-2 items-center">
-                    <select
-                      className="input text-xs py-1 px-2 flex-1"
-                      value={h.tipo}
-                      onChange={e => {
-                        const newH = [...horariosClases]
-                        newH[i] = { ...newH[i], tipo: e.target.value }
-                        setHorariosClases(newH)
-                      }}>
-                      <option value="clase">Clase Regular</option>
-                      <option value="tutoria_curso">Tutoría de Curso</option>
-                    </select>
-                    <select
-                      className="input text-xs py-1 flex-1"
-                      value={h.dia_semana}
-                      onChange={e => {
-                        const newH = [...horariosClases]
-                        newH[i] = { ...newH[i], dia_semana: e.target.value }
-                        setHorariosClases(newH)
-                      }}>
-                      {['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'].map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                    <button type="button" onClick={() => setHorariosClases(horariosClases.filter((_, idx) => idx !== i))}
-                      className="text-red-400 hover:text-red-300 text-lg leading-none flex-shrink-0">✕</button>
-                  </div>
-                  {/* Fila 2: horas */}
-                  <div className="flex gap-2 items-center">
-                    <span className="text-gray-500 text-xs w-6 flex-shrink-0">De</span>
-                    <input type="time" className="input text-xs py-1 flex-1" required value={h.hora_inicio}
-                      onChange={e => {
-                        const newH = [...horariosClases]
-                        newH[i] = { ...newH[i], hora_inicio: e.target.value }
-                        setHorariosClases(newH)
-                      }} />
-                    <span className="text-gray-500 text-xs w-4 text-center flex-shrink-0">a</span>
-                    <input type="time" className="input text-xs py-1 flex-1" required value={h.hora_fin}
-                      onChange={e => {
-                        const newH = [...horariosClases]
-                        newH[i] = { ...newH[i], hora_fin: e.target.value }
-                        setHorariosClases(newH)
-                      }} />
-                  </div>
-                  {/* Fila 3: centro de cómputo */}
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input type="checkbox" className="w-4 h-4 rounded accent-brand-500"
-                      checked={h.centro_computo}
-                      onChange={e => {
-                        const newH = [...horariosClases]
-                        newH[i] = { ...newH[i], centro_computo: e.target.checked }
-                        setHorariosClases(newH)
-                      }} />
-                    <span className="text-xs text-gray-400">Centro de cómputo</span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Horarios */}
+        <div className="pt-2 pb-2 border-y border-gray-800">
+          <HorariosFormFields value={horarios} onChange={setHorarios} />
         </div>
 
         {/* Fechas */}
@@ -180,7 +112,7 @@ export default function NuevoCursoPage() {
           </div>
         </div>
 
-        {/* Horas */}
+        {/* Carga horaria */}
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="label">Horas/semana</label>
@@ -219,6 +151,13 @@ export default function NuevoCursoPage() {
           </div>
         </div>
 
+        {/* Observaciones */}
+        <div>
+          <label className="label">Observaciones</label>
+          <textarea name="observacion" className="input" rows={3} maxLength={500}
+            placeholder="Notas generales del curso, características del grupo, etc." />
+        </div>
+
         <div className="flex gap-3 pt-2">
           <button type="submit" className="btn-primary flex-1">Crear curso</button>
           <Link href="/dashboard/cursos" className="btn-ghost flex-1 text-center">Cancelar</Link>
@@ -227,4 +166,3 @@ export default function NuevoCursoPage() {
     </div>
   )
 }
-

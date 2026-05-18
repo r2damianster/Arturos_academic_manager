@@ -1,28 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-
-async function guardarConfigCalificaciones(cursoId: string, formData: FormData) {
-  'use server'
-  const { createClient } = await import('@/lib/supabase/server')
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  const numParciales = parseInt(formData.get('num_parciales') as string) || 2
-  const t1 = (formData.get('tarea1') as string)?.trim() || 'ACD'
-  const t2 = (formData.get('tarea2') as string)?.trim() || 'TA'
-  const t3 = (formData.get('tarea3') as string)?.trim() || 'PE'
-  const t4 = (formData.get('tarea4') as string)?.trim() || 'EX'
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('cursos')
-    .update({ num_parciales: numParciales, nombres_tareas: [t1, t2, t3, t4] })
-    .eq('id', cursoId)
-    .eq('profesor_id', user.id)
-
-  redirect(`/dashboard/cursos/${cursoId}/calificaciones`)
-}
+import { actualizarCurso } from '@/lib/actions/cursos'
 
 export default async function ConfigCalificacionesPage({ params }: { params: Promise<{ cursoId: string }> }) {
   const { cursoId } = await params
@@ -37,11 +16,13 @@ export default async function ConfigCalificacionesPage({ params }: { params: Pro
   if (!curso) notFound()
 
   const numParciales: number = curso.num_parciales ?? 2
-  const tareas: string[] = Array.isArray(curso.nombres_tareas)
-    ? curso.nombres_tareas
-    : ['ACD', 'TA', 'PE', 'EX']
+  const tareas: string[] = Array.isArray(curso.nombres_tareas) ? curso.nombres_tareas : ['ACD', 'TA', 'PE', 'EX']
 
-  const action = guardarConfigCalificaciones.bind(null, cursoId)
+  async function guardarConfig(formData: FormData) {
+    'use server'
+    const res = await actualizarCurso(cursoId, formData)
+    if (!res.error) redirect(`/dashboard/cursos/${cursoId}/calificaciones`)
+  }
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
@@ -57,7 +38,7 @@ export default async function ConfigCalificacionesPage({ params }: { params: Pro
         </div>
       </div>
 
-      <form action={action} className="space-y-5">
+      <form action={guardarConfig} className="space-y-5">
         <div className="card space-y-4">
           <h2 className="font-semibold text-white">Número de parciales</h2>
           <div className="flex gap-3">
