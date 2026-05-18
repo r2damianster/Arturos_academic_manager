@@ -1086,7 +1086,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                 <div className="grid grid-cols-2 gap-3">
                   <TimePicker
                     label="Hora inicio"
-                    value={evForm.hora_inicio}
+                    value={evForm.hora_inicio ?? null}
                     onChange={v => setEvForm(f => {
                       const minFin = toMin(v) + 15
                       const keepFin = f.hora_fin && toMin(f.hora_fin) >= minFin
@@ -1099,7 +1099,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   />
                   <TimePicker
                     label="Hora fin"
-                    value={evForm.hora_fin}
+                    value={evForm.hora_fin ?? null}
                     onChange={v => setEvForm(f => ({ ...f, hora_fin: v }))}
                     minTime={evForm.fecha_inicio === evForm.fecha_fin && evForm.hora_inicio
                       ? fromMin(Math.min(toMin(evForm.hora_inicio) + 15, 23 * 60 + 45))
