@@ -252,34 +252,55 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const hoy = toDateStr(new Date())
   const nDisp = horarios.filter(h => isSlotActiveOnDate(h, hoy)).length
 
+  const nReservasActivasSemana = (() => {
+    if (!weekDates.length) return 0
+    const desde = toDateStr(weekDates[0])
+    const hasta = toDateStr(weekDates[weekDates.length - 1])
+    return reservas.filter(r =>
+      r.fecha >= desde && r.fecha <= hasta &&
+      (r.estado === 'pendiente' || r.estado === 'confirmada')
+    ).length
+  })()
+
   const activeDias = weekDates.filter(date => {
     const diaKey = DAY_JS[date.getDay()]
     return horarios.some(h => h.dia_semana === diaKey) || clases.some(c => c.dia_semana === diaKey)
   })
 
   // ── Toggle slot ────────────────────────────────────────────────────────────
+  function doDeactivate(h: Horario, dateStr: string) {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() - 1)
+    const nuevoHasta = d.toISOString().split('T')[0]
+    setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: nuevoHasta } : x))
+    setErr(null)
+    startTransition(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from('horarios')
+        .update({ disponible_hasta: nuevoHasta })
+        .eq('id', h.id)
+      if (error) {
+        setErr('Error al guardar')
+        setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: h.disponible_hasta } : x))
+      }
+    })
+  }
+
   async function toggleSlot(h: Horario, dateStr: string) {
     const key = `${h.id}|${dateStr}`
     if (reservaBySlotDate.has(key)) { setPopover(popover === key ? null : key); return }
 
     if (isSlotActiveOnDate(h, dateStr)) {
-      // Truncate disponible_hasta to day BEFORE clicked date
-      // → semanas previas permanecen verdes, esta semana en adelante queda gris
-      const d = new Date(dateStr + 'T00:00:00')
-      d.setDate(d.getDate() - 1)
-      const nuevoHasta = d.toISOString().split('T')[0]
-      setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: nuevoHasta } : x))
-      setErr(null)
-      startTransition(async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any).from('horarios')
-          .update({ disponible_hasta: nuevoHasta })
-          .eq('id', h.id)
-        if (error) {
-          setErr('Error al guardar')
-          setHorarios(prev => prev.map(x => x.id === h.id ? { ...x, disponible_hasta: h.disponible_hasta } : x))
-        }
-      })
+      const activeRes = reservas.filter(r =>
+        r.horario_id === h.id &&
+        r.fecha >= dateStr &&
+        (r.estado === 'pendiente' || r.estado === 'confirmada')
+      )
+      if (activeRes.length > 0) {
+        setWarnSlot({ h, dateStr, names: activeRes.map(r => r.estudiante_nombre) })
+        return
+      }
+      doDeactivate(h, dateStr)
     } else {
       // Detect any conflict at this time slot (clases, tutoria_curso, etc.)
       const conflicto = (() => {
@@ -352,6 +373,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
   const [confirmBatch, setConfirmBatch] = useState(false)
   const [confirmBatchLV, setConfirmBatchLV] = useState(false)
+  const [warnSlot, setWarnSlot] = useState<{ h: Horario; dateStr: string; names: string[] } | null>(null)
 
   // ── Batch ──────────────────────────────────────────────────────────────────
   async function batchNoDisponible() {
@@ -474,7 +496,12 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
             <span className="text-[10px] text-gray-500">{nDisp} disp · {pendientes.length} pend</span>
             {confirmBatch ? (
               <span className="flex items-center gap-1.5">
-                <span className="text-[10px] text-amber-400">¿Marcar todos NO disponible?</span>
+                <span className="text-[10px] text-amber-400">
+                  ¿Marcar todos NO disponible?
+                  {nReservasActivasSemana > 0 && (
+                    <span className="text-red-400 ml-1">({nReservasActivasSemana} reserva{nReservasActivasSemana > 1 ? 's' : ''} activa{nReservasActivasSemana > 1 ? 's' : ''} quedarán invisibles)</span>
+                  )}
+                </span>
                 <button onClick={batchNoDisponible} className="text-[10px] text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-900/30 transition-colors">Confirmar</button>
                 <button onClick={() => setConfirmBatch(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
               </span>
@@ -556,6 +583,40 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
             </div>
           )
         })()}
+
+        {/* Warn slot overlay: reservas activas al desactivar horario */}
+        {warnSlot && (
+          <div className="border-2 border-amber-500 rounded-lg bg-gray-800 shadow-xl px-4 py-4 space-y-3 relative z-10 my-4 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-400 text-lg flex-shrink-0">⚠</span>
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  Reservas activas en este horario
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Si desactivas este slot, las siguientes reservas quedarán invisibles en el calendario (no se cancelan automáticamente):
+                </p>
+              </div>
+            </div>
+            <ul className="text-xs text-amber-200 space-y-0.5 pl-6">
+              {warnSlot.names.map((n, i) => <li key={i}>• {n}</li>)}
+            </ul>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { doDeactivate(warnSlot.h, warnSlot.dateStr); setWarnSlot(null) }}
+                className="text-[12px] font-medium px-3 py-2 rounded-lg border border-red-700 bg-red-900/40 text-red-300 hover:bg-red-700/50 transition-all"
+              >
+                Desactivar de todas formas
+              </button>
+              <button
+                onClick={() => setWarnSlot(null)}
+                className="text-[12px] font-medium px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Grid */}
         {activeDias.length === 0 ? (
