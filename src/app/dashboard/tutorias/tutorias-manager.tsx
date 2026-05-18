@@ -215,7 +215,12 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
   const horarioMap   = new Map<string, Horario>()
   for (const h of horarios) {
-    horarioMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
+    const key = `${h.dia_semana}|${fmt(h.hora_inicio)}`
+    const existing = horarioMap.get(key)
+    // Prefer disponible over no_disponible when there are duplicate horarios for the same slot
+    if (!existing || (h.estado === 'disponible' && existing.estado !== 'disponible')) {
+      horarioMap.set(key, h)
+    }
   }
 
   const claseMap = new Map<string, Clase>()
@@ -234,6 +239,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
     if (r.estado === 'pendiente' || r.estado === 'confirmada') {
       reservaBySlotDate.set(`${r.horario_id}|${r.fecha}`, r)
     }
+  }
+
+  // Backup lookup by dia|hora|fecha — catches reservas whose horario_id doesn't match
+  // the horarioMap entry (duplicate horarios: same slot, different ids)
+  const reservaByDiaHoraFecha = new Map<string, Reserva>()
+  for (const r of reservas) {
+    if (r.estado !== 'pendiente' && r.estado !== 'confirmada') continue
+    const rh = horarios.find(x => x.id === r.horario_id)
+    if (!rh) continue
+    const key = `${rh.dia_semana}|${fmt(rh.hora_inicio)}|${r.fecha}`
+    if (!reservaByDiaHoraFecha.has(key)) reservaByDiaHoraFecha.set(key, r)
   }
 
   const pendientes = reservas
@@ -288,7 +304,9 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
   async function toggleSlot(h: Horario, dateStr: string) {
     const key = `${h.id}|${dateStr}`
-    if (reservaBySlotDate.has(key)) { setPopover(popover === key ? null : key); return }
+    const hasReserva = reservaBySlotDate.has(key)
+      || reservaByDiaHoraFecha.has(`${h.dia_semana}|${fmt(h.hora_inicio)}|${dateStr}`)
+    if (hasReserva) { setPopover(popover === key ? null : key); return }
 
     if (isSlotActiveOnDate(h, dateStr)) {
       const activeRes = reservas.filter(r =>
@@ -376,12 +394,31 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const [warnSlot, setWarnSlot] = useState<{ h: Horario; dateStr: string; names: string[] } | null>(null)
 
   // ── Batch ──────────────────────────────────────────────────────────────────
-  async function batchNoDisponible() {
+  async function batchNoDisponible(modo: 'semana' | 'permanente') {
     setConfirmBatch(false)
-    setHorarios(prev => prev.map(h => ({ ...h, estado:'no_disponible', disponible_hasta: null })))
-    startTransition(async () => {
-      await (supabase as any).from('horarios').update({ estado:'no_disponible', disponible_hasta: null }).eq('profesor_id', profesorId)
-    })
+    if (modo === 'semana') {
+      // Truncate disponible_hasta to one day before the viewed week starts
+      const d = new Date(toDateStr(weekDates[0]) + 'T00:00:00')
+      d.setDate(d.getDate() - 1)
+      const nuevoHasta = d.toISOString().split('T')[0]
+      const activeIds = horarios.filter(h => isSlotActiveOnDate(h, toDateStr(weekDates[0]))).map(h => h.id)
+      if (activeIds.length === 0) return
+      setHorarios(prev => prev.map(h =>
+        activeIds.includes(h.id) ? { ...h, disponible_hasta: nuevoHasta } : h
+      ))
+      startTransition(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('horarios')
+          .update({ disponible_hasta: nuevoHasta })
+          .in('id', activeIds)
+      })
+    } else {
+      setHorarios(prev => prev.map(h => ({ ...h, estado:'no_disponible', disponible_hasta: null })))
+      startTransition(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('horarios').update({ estado:'no_disponible', disponible_hasta: null }).eq('profesor_id', profesorId)
+      })
+    }
   }
   async function batchLV() {
     setConfirmBatchLV(false)
@@ -495,15 +532,20 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="text-[10px] text-gray-500">{nDisp} disp · {pendientes.length} pend</span>
             {confirmBatch ? (
-              <span className="flex items-center gap-1.5">
-                <span className="text-[10px] text-amber-400">
-                  ¿Marcar todos NO disponible?
-                  {nReservasActivasSemana > 0 && (
-                    <span className="text-red-400 ml-1">({nReservasActivasSemana} reserva{nReservasActivasSemana > 1 ? 's' : ''} activa{nReservasActivasSemana > 1 ? 's' : ''} quedarán invisibles)</span>
-                  )}
+              <span className="flex flex-col gap-1.5 p-2 border border-amber-700/60 rounded-lg bg-amber-950/30 min-w-0">
+                <span className="text-[10px] text-amber-300 font-medium">¿Cuánto tiempo desactivar?</span>
+                {nReservasActivasSemana > 0 && (
+                  <span className="text-[10px] text-red-400">⚠ {nReservasActivasSemana} reserva{nReservasActivasSemana > 1 ? 's' : ''} activa{nReservasActivasSemana > 1 ? 's' : ''} en esta semana</span>
+                )}
+                <span className="flex gap-1.5 flex-wrap">
+                  <button onClick={() => batchNoDisponible('semana')} className="text-[10px] text-amber-300 border border-amber-700 px-2 py-1 rounded hover:bg-amber-900/40 transition-colors">
+                    Solo {weekOffset === 0 ? 'esta semana' : 'semana vista'}
+                  </button>
+                  <button onClick={() => batchNoDisponible('permanente')} className="text-[10px] text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-900/30 transition-colors">
+                    Permanente (todo)
+                  </button>
+                  <button onClick={() => setConfirmBatch(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
                 </span>
-                <button onClick={batchNoDisponible} className="text-[10px] text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-900/30 transition-colors">Confirmar</button>
-                <button onClick={() => setConfirmBatch(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
               </span>
             ) : (
               <button onClick={() => setConfirmBatch(true)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
@@ -722,6 +764,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
                         const popKey  = `${h.id}|${dateStr}`
                         const reserva = reservaBySlotDate.get(popKey)
+                          ?? reservaByDiaHoraFecha.get(`${diaKey}|${time}|${dateStr}`)
                         const isReserved = !!reserva
                         const isOpen  = popover === popKey
                         const isDurOpen = durPicker === h.id
