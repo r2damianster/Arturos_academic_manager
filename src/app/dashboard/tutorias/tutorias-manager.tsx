@@ -420,17 +420,21 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
       })
     }
   }
-  async function batchLV() {
+  async function batchLV(modo: 'semana' | 'permanente') {
     setConfirmBatchLV(false)
     const lv = ['lunes','martes','miércoles','jueves','viernes']
+    const disponible_hasta = modo === 'semana'
+      ? toDateStr(weekDates[weekDates.length - 1])
+      : null
     setHorarios(prev => prev.map(h => ({
       ...h,
       estado: lv.includes(h.dia_semana) ? 'disponible' : h.estado,
-      disponible_hasta: lv.includes(h.dia_semana) ? null : h.disponible_hasta,
+      disponible_hasta: lv.includes(h.dia_semana) ? disponible_hasta : h.disponible_hasta,
     })))
     startTransition(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('horarios')
-        .update({ estado:'disponible', disponible_hasta: null })
+        .update({ estado:'disponible', disponible_hasta })
         .eq('profesor_id', profesorId).in('dia_semana', lv)
     })
   }
@@ -553,10 +557,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
               </button>
             )}
             {confirmBatchLV ? (
-              <span className="flex items-center gap-1.5">
-                <span className="text-[10px] text-amber-400">¿Activar L–V disponible?</span>
-                <button onClick={batchLV} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors">Confirmar</button>
-                <button onClick={() => setConfirmBatchLV(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
+              <span className="flex flex-col gap-1.5 p-2 border border-emerald-800/60 rounded-lg bg-emerald-950/20 min-w-0">
+                <span className="text-[10px] text-emerald-300 font-medium">¿Por cuánto tiempo activar L–V?</span>
+                <span className="flex gap-1.5 flex-wrap">
+                  <button onClick={() => batchLV('semana')} className="text-[10px] text-emerald-300 border border-emerald-700 px-2 py-1 rounded hover:bg-emerald-900/40 transition-colors">
+                    Solo {weekOffset === 0 ? 'esta semana' : 'semana vista'}
+                  </button>
+                  <button onClick={() => batchLV('permanente')} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors">
+                    Permanente
+                  </button>
+                  <button onClick={() => setConfirmBatchLV(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
+                </span>
               </span>
             ) : (
               <button onClick={() => setConfirmBatchLV(true)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
