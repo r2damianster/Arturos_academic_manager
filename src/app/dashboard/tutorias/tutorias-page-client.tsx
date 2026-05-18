@@ -84,7 +84,7 @@ interface Props {
   citaciones: Citacion[]
 }
 
-type Tab = 'registro' | 'horarios'
+type Tab = 'citaciones' | 'historial' | 'horarios'
 
 export function TutoriasPageClient({
   horarios,
@@ -96,7 +96,7 @@ export function TutoriasPageClient({
   historial,
   citaciones,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('registro')
+  const [tab, setTab] = useState<Tab>('citaciones')
 
   const pendientesCount = reservas.filter(
     r => r.estado === 'pendiente' || r.estado === 'confirmada'
@@ -114,13 +114,16 @@ export function TutoriasPageClient({
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-gray-800">
-        <TabButton active={tab === 'registro'} onClick={() => setTab('registro')}>
-          Historial y Citaciones
+        <TabButton active={tab === 'citaciones'} onClick={() => setTab('citaciones')}>
+          Citaciones
           {citacionesPendientes > 0 && (
             <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-600 text-white text-[9px] font-bold">
               {citacionesPendientes}
             </span>
           )}
+        </TabButton>
+        <TabButton active={tab === 'historial'} onClick={() => setTab('historial')}>
+          Historial y Exportación
         </TabButton>
         <TabButton active={tab === 'horarios'} onClick={() => setTab('horarios')}>
           Mis Horarios
@@ -133,21 +136,15 @@ export function TutoriasPageClient({
       </div>
 
       {/* Tab content */}
-      {tab === 'registro' && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Citaciones</h2>
-            <CitacionesTab citaciones={citaciones} />
-          </div>
-          <div className="border-t border-gray-800 pt-4">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Historial y Exportación</h2>
-            <HistorialTab
-              historial={historial}
-              cursos={cursos}
-              estudiantes={estudiantes}
-            />
-          </div>
-        </div>
+      {tab === 'citaciones' && (
+        <CitacionesTab citaciones={citaciones} />
+      )}
+      {tab === 'historial' && (
+        <HistorialTab
+          historial={historial}
+          cursos={cursos}
+          estudiantes={estudiantes}
+        />
       )}
       {tab === 'horarios' && (
         <TutoriasManager

@@ -43,7 +43,43 @@ function buildHorariosInserts(horarios: HorarioInput[], cursoId: string, profeso
   }))
 }
 
-// ─── Crear curso ──────────────────────────────────────────────────────────────
+// ─── Crear curso (base — solo info, devuelve id para wizard) ─────────────────
+
+export async function crearCursoBase(
+  formData: FormData
+): Promise<{ cursoId?: string; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const parsed = CursoFullSchema.pick({
+    codigo: true, asignatura: true, periodo: true,
+    institucion: true, aula: true, observacion: true,
+    num_parciales: true,
+  }).safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: 'Datos inválidos: ' + parsed.error.issues[0]?.message }
+
+  const { data: curso, error } = await supabase.from('cursos')
+    .insert({
+      codigo:      parsed.data.codigo,
+      asignatura:  parsed.data.asignatura,
+      periodo:     parsed.data.periodo,
+      institucion: parsed.data.institucion || null,
+      aula:        parsed.data.aula || null,
+      observacion: parsed.data.observacion || null,
+      num_parciales: parsed.data.num_parciales ?? 2,
+      profesor_id: user.id,
+    })
+    .select('id').single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/cursos')
+  revalidatePath('/dashboard')
+  return { cursoId: curso.id }
+}
+
+// ─── Crear curso (legacy full — mantener para compat) ────────────────────────
 
 export async function crearCursoAction(formData: FormData): Promise<void> {
   const supabase = await createClient()

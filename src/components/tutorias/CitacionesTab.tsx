@@ -34,14 +34,16 @@ const ESTADOS: Record<string, { label: string; cls: string }> = {
 }
 
 const NEXT_ESTADOS: Record<string, { value: string; label: string }[]> = {
-  pendiente:   [{ value: 'agendada', label: 'Agendar' }, { value: 'no_asistida', label: 'No asistió' }, { value: 'cumplida', label: 'Cerrar' }],
+  pendiente:   [{ value: 'agendada', label: 'Agendar' }, { value: 'asistida', label: 'Asistió' }, { value: 'no_asistida', label: 'No asistió' }, { value: 'cumplida', label: 'Cerrar' }],
   agendada:    [{ value: 'asistida', label: 'Asistió' }, { value: 'no_asistida', label: 'No asistió' }],
   asistida:    [{ value: 'cumplida', label: 'Cumplida' }, { value: 'mejorado', label: 'Mejorado' }],
   no_asistida: [{ value: 'pendiente', label: 'Reenviar' }, { value: 'cumplida', label: 'Cerrar' }],
 }
 
+const ESTADOS_ACTIVOS = new Set(['pendiente', 'agendada', 'asistida', 'no_asistida'])
+
 export function CitacionesTab({ citaciones: init }: Props) {
-  const [citaciones, setCitaciones] = useState(init)
+  const [citaciones, setCitaciones] = useState(init.filter(c => ESTADOS_ACTIVOS.has(c.estado)))
   const [, startTransition] = useTransition()
   const [acting, setActing] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)

@@ -350,8 +350,11 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
     setPopover(null); setActing(null)
   }
 
+  const [confirmBatch, setConfirmBatch] = useState(false)
+
   // ── Batch ──────────────────────────────────────────────────────────────────
   async function batchNoDisponible() {
+    setConfirmBatch(false)
     setHorarios(prev => prev.map(h => ({ ...h, estado:'no_disponible', disponible_hasta: null })))
     startTransition(async () => {
       await (supabase as any).from('horarios').update({ estado:'no_disponible', disponible_hasta: null }).eq('profesor_id', profesorId)
@@ -467,9 +470,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="text-[10px] text-gray-500">{nDisp} disp · {pendientes.length} pend</span>
-            <button onClick={batchNoDisponible} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
-              Todo NO disp
-            </button>
+            {confirmBatch ? (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[10px] text-amber-400">¿Marcar todos NO disponible?</span>
+                <button onClick={batchNoDisponible} className="text-[10px] text-red-400 border border-red-800 px-2 py-1 rounded hover:bg-red-900/30 transition-colors">Confirmar</button>
+                <button onClick={() => setConfirmBatch(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmBatch(true)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
+                Todo NO disp
+              </button>
+            )}
             <button onClick={batchLV} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
               L–V dispon
             </button>
