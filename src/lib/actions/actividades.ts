@@ -254,6 +254,22 @@ export async function getActividadesPendientesDelCurso(cursoId: string): Promise
   return (data ?? []) as ActividadRow[]
 }
 
+export async function getUltimasNotas(n = 8): Promise<ActividadConCurso[]> {
+  const { supabase, user } = await getUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('actividades_inbox')
+    .select('*, cursos(asignatura)')
+    .eq('profesor_id', user.id)
+    .eq('archivada', false)
+    .order('pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(n)
+
+  return (data ?? []) as ActividadConCurso[]
+}
+
 export async function getActividadesParaHoy(): Promise<ActividadConCurso[]> {
   const { supabase, user } = await getUser()
   if (!user) return []
