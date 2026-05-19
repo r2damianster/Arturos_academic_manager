@@ -1,23 +1,14 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
-import { getActividades } from '@/lib/actions/actividades'
+import { useState, useTransition } from 'react'
+import { getActividades, getCounts } from '@/lib/actions/actividades'
 import { ActividadCard } from '@/components/actividades/ActividadCard'
 import { QuickAddModal } from '@/components/actividades/QuickAddModal'
 import { EditarActividadPanel } from '@/components/actividades/EditarActividadPanel'
-import type { Database } from '@/types/database.types'
-import { Plus, Inbox } from 'lucide-react'
+import type { ActividadConCurso } from '@/lib/actions/actividades'
+import { Plus, StickyNote, Search } from 'lucide-react'
 
-type ActividadRow = Database['public']['Tables']['actividades_inbox']['Row']
-type ActividadConCurso = ActividadRow & { cursos: { asignatura: string } | null }
-
-type Counts = {
-  pendiente: number
-  en_progreso: number
-  cumplida: number
-  convertida: number
-  archivada: number
-}
+type Counts = { total: number; archivadas: number; fijadas: number }
 
 type Props = {
   counts: Counts
@@ -25,206 +16,233 @@ type Props = {
   actividadesIniciales: ActividadConCurso[]
 }
 
-const TABS: { key: keyof Counts; label: string }[] = [
-  { key: 'pendiente', label: 'Pendientes' },
-  { key: 'en_progreso', label: 'En progreso' },
-  { key: 'cumplida', label: 'Cumplidas' },
-  { key: 'convertida', label: 'Convertidas' },
-  { key: 'archivada', label: 'Archivadas' },
-]
-
 const TIPO_OPTS = [
-  { value: '', label: 'Todos los tipos' },
-  { value: 'idea', label: '💡 Idea' },
-  { value: 'tarea', label: '✅ Tarea' },
-  { value: 'recordatorio', label: '🔔 Recordatorio' },
+  { value: '', label: 'Todas' },
+  { value: 'nota', label: '📝 Notas' },
+  { value: 'tarea', label: '✅ Tareas' },
+  { value: 'recordatorio', label: '🔔 Recordatorios' },
 ]
 
-const PRIORIDAD_OPTS = [
-  { value: '', label: 'Todas las prioridades' },
-  { value: 'alta', label: '🔴 Alta' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'baja', label: 'Baja' },
+const COLOR_OPTS = [
+  { value: '', label: 'Todos los colores', dot: '' },
+  { value: 'rojo',     label: 'Rojo',     dot: 'bg-red-500' },
+  { value: 'naranja',  label: 'Naranja',  dot: 'bg-orange-500' },
+  { value: 'amarillo', label: 'Amarillo', dot: 'bg-yellow-400' },
+  { value: 'verde',    label: 'Verde',    dot: 'bg-green-500' },
+  { value: 'teal',     label: 'Teal',     dot: 'bg-teal-400' },
+  { value: 'azul',     label: 'Azul',     dot: 'bg-blue-500' },
+  { value: 'morado',   label: 'Morado',   dot: 'bg-purple-500' },
 ]
 
 export function ActividadesClient({ counts, cursos, actividadesIniciales }: Props) {
-  const [tabActivo, setTabActivo] = useState<keyof Counts>('pendiente')
+  const [vistaArchivadas, setVistaArchivadas] = useState(false)
   const [actividades, setActividades] = useState<ActividadConCurso[]>(actividadesIniciales)
   const [countsState, setCountsState] = useState(counts)
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroCurso, setFiltroCurso] = useState('')
-  const [filtroPrioridad, setFiltroPrioridad] = useState('')
+  const [filtroColor, setFiltroColor] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [editando, setEditando] = useState<ActividadConCurso | null>(null)
   const [, startTransition] = useTransition()
 
-  async function recargar(estado?: keyof Counts) {
-    const tab = estado ?? tabActivo
+  async function recargar(archivada?: boolean) {
+    const archivar = archivada ?? vistaArchivadas
     const [data, newCounts] = await Promise.all([
       getActividades({
-        estado: tab,
+        archivada: archivar,
         tipo: filtroTipo || undefined,
         cursoId: filtroCurso || undefined,
-        prioridad: filtroPrioridad || undefined,
+        color: filtroColor || undefined,
         search: busqueda || undefined,
       }),
-      import('@/lib/actions/actividades').then(m => m.getCountsPorEstado()),
+      getCounts(),
     ])
     setActividades(data)
     setCountsState(newCounts)
   }
 
-  function cambiarTab(tab: keyof Counts) {
-    setTabActivo(tab)
+  async function cambiarVista(archivada: boolean) {
+    setVistaArchivadas(archivada)
     startTransition(async () => {
       const data = await getActividades({
-        estado: tab,
+        archivada,
         tipo: filtroTipo || undefined,
         cursoId: filtroCurso || undefined,
-        prioridad: filtroPrioridad || undefined,
-        search: busqueda || undefined,
+        color: filtroColor || undefined,
       })
       setActividades(data)
     })
   }
 
-  async function aplicarFiltros() {
+  async function aplicarFiltros(overrides: Record<string, string> = {}) {
+    const tipo = overrides.tipo ?? filtroTipo
+    const cursoId = overrides.cursoId ?? filtroCurso
+    const color = overrides.color ?? filtroColor
+    const search = overrides.search ?? busqueda
     startTransition(async () => {
       const data = await getActividades({
-        estado: tabActivo,
-        tipo: filtroTipo || undefined,
-        cursoId: filtroCurso || undefined,
-        prioridad: filtroPrioridad || undefined,
-        search: busqueda || undefined,
+        archivada: vistaArchivadas,
+        tipo: tipo || undefined,
+        cursoId: cursoId || undefined,
+        color: color || undefined,
+        search: search || undefined,
       })
       setActividades(data)
     })
   }
 
-  const actividadesFiltradas = useMemo(() => {
-    if (!busqueda) return actividades
-    const q = busqueda.toLowerCase()
-    return actividades.filter(a =>
-      a.titulo.toLowerCase().includes(q) ||
-      (a.descripcion?.toLowerCase().includes(q))
-    )
-  }, [actividades, busqueda])
+  // Split pinned / normal (solo en vista activa)
+  const fijadas = !vistaArchivadas ? actividades.filter(a => a.pinned) : []
+  const noFijadas = !vistaArchivadas ? actividades.filter(a => !a.pinned) : actividades
 
   return (
     <div className="space-y-5">
-      {/* Botón agregar */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 flex-wrap">
-          {/* Tabs por estado */}
-          {TABS.map(t => (
+      {/* Header bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Buscar notas..."
+            value={busqueda}
+            onChange={e => {
+              setBusqueda(e.target.value)
+              aplicarFiltros({ search: e.target.value })
+            }}
+            className="input pl-9 w-full text-sm"
+          />
+        </div>
+
+        {/* Vista tabs */}
+        <div className="flex rounded-lg border border-gray-700 overflow-hidden">
+          <button
+            onClick={() => cambiarVista(false)}
+            className={`px-3 py-1.5 text-sm transition-colors ${
+              !vistaArchivadas ? 'bg-brand-600/20 text-brand-400' : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Notas {countsState.total > 0 && <span className="ml-1 text-xs text-gray-500">{countsState.total}</span>}
+          </button>
+          <button
+            onClick={() => cambiarVista(true)}
+            className={`px-3 py-1.5 text-sm border-l border-gray-700 transition-colors ${
+              vistaArchivadas ? 'bg-brand-600/20 text-brand-400' : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Archivadas {countsState.archivadas > 0 && <span className="ml-1 text-xs text-gray-500">{countsState.archivadas}</span>}
+          </button>
+        </div>
+
+        {/* Nueva nota */}
+        <button onClick={() => setShowQuickAdd(true)} className="btn-primary flex items-center gap-1.5 text-sm">
+          <Plus className="w-4 h-4" />
+          Nueva nota
+        </button>
+      </div>
+
+      {/* Filtros secundarios */}
+      <div className="flex gap-2 flex-wrap">
+        {/* Tipo */}
+        <div className="flex gap-1">
+          {TIPO_OPTS.map(o => (
             <button
-              key={t.key}
-              onClick={() => cambiarTab(t.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                tabActivo === t.key
-                  ? 'bg-brand-600/20 text-brand-400 border border-brand-600/30'
-                  : 'text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-600'
+              key={o.value}
+              onClick={() => { setFiltroTipo(o.value); aplicarFiltros({ tipo: o.value }) }}
+              className={`px-2.5 py-1 rounded-lg text-xs border transition-all ${
+                filtroTipo === o.value
+                  ? 'bg-gray-700 text-gray-200 border-gray-600'
+                  : 'text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-400'
               }`}
             >
-              {t.label}
-              {countsState[t.key] > 0 && (
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                  tabActivo === t.key ? 'bg-brand-600/30 text-brand-300' : 'bg-gray-700 text-gray-400'
-                }`}>
-                  {countsState[t.key]}
-                </span>
-              )}
+              {o.label}
             </button>
           ))}
         </div>
 
-        <button
-          onClick={() => setShowQuickAdd(true)}
-          className="btn-primary flex items-center gap-2 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Nueva actividad
-        </button>
-      </div>
+        {/* Color */}
+        <div className="flex gap-1 items-center ml-2">
+          {COLOR_OPTS.map(o => (
+            <button
+              key={o.value}
+              onClick={() => { setFiltroColor(o.value); aplicarFiltros({ color: o.value }) }}
+              title={o.label}
+              className={`transition-all ${
+                o.value === ''
+                  ? `text-xs px-2 py-1 rounded-lg border ${filtroColor === '' ? 'bg-gray-700 text-gray-200 border-gray-600' : 'text-gray-500 border-gray-800 hover:border-gray-700'}`
+                  : `w-4 h-4 rounded-full ${o.dot} ${filtroColor === o.value ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-950 scale-110' : 'opacity-60 hover:opacity-100'}`
+              }`}
+            >
+              {o.value === '' ? 'Color' : ''}
+            </button>
+          ))}
+        </div>
 
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
-        <input
-          type="text"
-          placeholder="Buscar..."
-          value={busqueda}
-          onChange={e => { setBusqueda(e.target.value); aplicarFiltros() }}
-          className="input text-sm flex-1 min-w-[160px]"
-        />
-        <select
-          value={filtroTipo}
-          onChange={e => { setFiltroTipo(e.target.value); setTimeout(aplicarFiltros, 0) }}
-          className="input text-sm"
-        >
-          {TIPO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select
-          value={filtroPrioridad}
-          onChange={e => { setFiltroPrioridad(e.target.value); setTimeout(aplicarFiltros, 0) }}
-          className="input text-sm"
-        >
-          {PRIORIDAD_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        {/* Curso */}
         {cursos.length > 0 && (
           <select
             value={filtroCurso}
-            onChange={e => { setFiltroCurso(e.target.value); setTimeout(aplicarFiltros, 0) }}
-            className="input text-sm"
+            onChange={e => { setFiltroCurso(e.target.value); aplicarFiltros({ cursoId: e.target.value }) }}
+            className="input text-xs ml-2"
           >
             <option value="">Todos los cursos</option>
-            {cursos.map(c => (
-              <option key={c.id} value={c.id}>{c.asignatura}</option>
-            ))}
+            {cursos.map(c => <option key={c.id} value={c.id}>{c.asignatura}</option>)}
           </select>
         )}
       </div>
 
-      {/* Lista */}
-      {actividadesFiltradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Inbox className="w-12 h-12 text-gray-700 mb-4" strokeWidth={1} />
+      {/* Grid masonry */}
+      {actividades.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <StickyNote className="w-14 h-14 text-gray-800 mb-4" strokeWidth={1} />
           <p className="text-gray-500 font-medium">
-            {tabActivo === 'pendiente' ? 'Inbox vacío' : `Sin actividades ${tabActivo}s`}
+            {vistaArchivadas ? 'Sin notas archivadas' : 'Tu tablero está vacío'}
           </p>
           <p className="text-gray-600 text-sm mt-1">
-            {tabActivo === 'pendiente'
-              ? 'Agrega una idea, tarea o recordatorio para empezar'
-              : 'Las actividades aparecerán aquí cuando cambies su estado'}
+            {!vistaArchivadas && 'Captura ideas, tareas y recordatorios'}
           </p>
-          {tabActivo === 'pendiente' && (
-            <button
-              onClick={() => setShowQuickAdd(true)}
-              className="mt-4 btn-primary text-sm"
-            >
-              + Nueva actividad
+          {!vistaArchivadas && (
+            <button onClick={() => setShowQuickAdd(true)} className="mt-4 btn-primary text-sm">
+              + Nueva nota
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {actividadesFiltradas.map(a => (
-            <ActividadCard
-              key={a.id}
-              actividad={a}
-              onEditar={() => setEditando(a)}
-              onCambiado={() => recargar()}
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Fijadas */}
+          {fijadas.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Fijadas</p>
+              <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '0.75rem' }}>
+                {fijadas.map(a => (
+                  <ActividadCard key={a.id} actividad={a} onEditar={() => setEditando(a)} onCambiado={() => recargar()} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notas / Otras */}
+          {noFijadas.length > 0 && (
+            <div>
+              {fijadas.length > 0 && (
+                <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Otras</p>
+              )}
+              <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '0.75rem' }}>
+                {noFijadas.map(a => (
+                  <ActividadCard key={a.id} actividad={a} onEditar={() => setEditando(a)} onCambiado={() => recargar()} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modales */}
       {showQuickAdd && (
         <QuickAddModal
           cursos={cursos}
           onClose={() => setShowQuickAdd(false)}
-          onGuardado={() => { setShowQuickAdd(false); recargar('pendiente') }}
+          onGuardado={() => { setShowQuickAdd(false); recargar(false) }}
         />
       )}
 

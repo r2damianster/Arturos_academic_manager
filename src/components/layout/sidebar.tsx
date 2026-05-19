@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/dashboard/actividades',
-    label: 'Inbox',
+    label: 'Notas',
     icon: <Inbox className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
   },
 ]

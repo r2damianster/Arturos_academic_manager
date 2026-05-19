@@ -5,19 +5,22 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { Database } from '@/types/database.types'
 
-type ActividadRow = Database['public']['Tables']['actividades_inbox']['Row']
-type ActividadConCurso = ActividadRow & {
-  cursos: { asignatura: string } | null
-}
+export type ChecklistItem = { id: string; texto: string; done: boolean }
+export type ActividadRow = Database['public']['Tables']['actividades_inbox']['Row']
+export type ActividadConCurso = ActividadRow & { cursos: { asignatura: string } | null }
+
+const COLORES_VALIDOS = ['rojo','naranja','amarillo','verde','teal','azul','morado'] as const
+export type NoteColor = typeof COLORES_VALIDOS[number] | null
 
 const ActividadSchema = z.object({
   titulo: z.string().min(1).max(500),
   descripcion: z.string().optional().nullable(),
-  tipo: z.enum(['idea', 'tarea', 'recordatorio']).default('tarea'),
+  tipo: z.enum(['nota', 'tarea', 'recordatorio']).default('nota'),
   prioridad: z.enum(['baja', 'normal', 'alta']).default('normal'),
   curso_id: z.string().uuid().optional().nullable(),
   etiquetas: z.array(z.string()).optional().default([]),
   fecha_vencimiento: z.string().optional().nullable(),
+  color: z.enum(['rojo','naranja','amarillo','verde','teal','azul','morado']).optional().nullable(),
   origen: z.string().optional().nullable(),
 })
 
@@ -27,6 +30,11 @@ async function getUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   return { supabase, user }
+}
+
+function revalidate() {
+  revalidatePath('/dashboard/actividades')
+  revalidatePath('/dashboard')
 }
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
@@ -45,91 +53,22 @@ export async function crearActividad(input: ActividadInput) {
     .single()
 
   if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  revalidatePath('/dashboard')
+  revalidate()
   return { ok: true, id: data.id }
 }
 
-export async function actualizarActividad(id: string, patch: Partial<ActividadInput>) {
+export async function actualizarActividad(id: string, patch: Database['public']['Tables']['actividades_inbox']['Update']) {
   const { supabase, user } = await getUser()
   if (!user) return { error: 'No autenticado' }
 
   const { error } = await supabase
     .from('actividades_inbox')
-    .update(patch as Database['public']['Tables']['actividades_inbox']['Update'])
+    .update(patch)
     .eq('id', id)
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  revalidatePath('/dashboard')
-  return { ok: true }
-}
-
-export async function marcarCumplida(id: string) {
-  const { supabase, user } = await getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const { error } = await supabase
-    .from('actividades_inbox')
-    .update({ estado: 'cumplida', fecha_cumplimiento: new Date().toISOString() })
-    .eq('id', id)
-    .eq('profesor_id', user.id)
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  revalidatePath('/dashboard')
-  return { ok: true }
-}
-
-export async function desmarcarCumplida(id: string) {
-  const { supabase, user } = await getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const { error } = await supabase
-    .from('actividades_inbox')
-    .update({ estado: 'pendiente', fecha_cumplimiento: null })
-    .eq('id', id)
-    .eq('profesor_id', user.id)
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  return { ok: true }
-}
-
-export async function marcarEnProgreso(id: string) {
-  const { supabase, user } = await getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const { error } = await supabase
-    .from('actividades_inbox')
-    .update({ estado: 'en_progreso' })
-    .eq('id', id)
-    .eq('profesor_id', user.id)
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  return { ok: true }
-}
-
-export async function archivarActividad(id: string) {
-  const { supabase, user } = await getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const { error } = await supabase
-    .from('actividades_inbox')
-    .update({ estado: 'archivada' })
-    .eq('id', id)
-    .eq('profesor_id', user.id)
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
+  revalidate()
   return { ok: true }
 }
 
@@ -144,19 +83,118 @@ export async function eliminarActividad(id: string) {
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/actividades')
-  revalidatePath('/dashboard')
+  revalidate()
   return { ok: true }
+}
+
+// ─── ESTADO KEEP ──────────────────────────────────────────────────────────────
+
+export async function togglePin(id: string, currentValue: boolean) {
+  return actualizarActividad(id, { pinned: !currentValue })
+}
+
+export async function setColor(id: string, color: NoteColor) {
+  return actualizarActividad(id, { color })
+}
+
+export async function toggleArchivada(id: string, currentValue: boolean) {
+  return actualizarActividad(id, { archivada: !currentValue })
+}
+
+export async function marcarCompletada(id: string) {
+  return actualizarActividad(id, { completada: true, fecha_cumplimiento: new Date().toISOString() })
+}
+
+export async function desmarcarCompletada(id: string) {
+  return actualizarActividad(id, { completada: false, fecha_cumplimiento: null })
+}
+
+// ─── CHECKLIST ────────────────────────────────────────────────────────────────
+
+async function getChecklistItems(supabase: Awaited<ReturnType<typeof createClient>>, id: string, profesorId: string): Promise<ChecklistItem[] | null> {
+  const { data } = await supabase
+    .from('actividades_inbox')
+    .select('checklist_items')
+    .eq('id', id)
+    .eq('profesor_id', profesorId)
+    .single()
+  return data ? (data.checklist_items as ChecklistItem[]) : null
+}
+
+export async function addChecklistItem(id: string, texto: string) {
+  const { supabase, user } = await getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const items = await getChecklistItems(supabase, id, user.id)
+  if (items === null) return { error: 'No encontrada' }
+
+  const newItem: ChecklistItem = {
+    id: crypto.randomUUID(),
+    texto: texto.trim(),
+    done: false,
+  }
+
+  const { error } = await supabase
+    .from('actividades_inbox')
+    .update({ checklist_items: [...items, newItem] })
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidate()
+  return { ok: true, item: newItem }
+}
+
+export async function toggleChecklistItem(id: string, itemId: string) {
+  const { supabase, user } = await getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const items = await getChecklistItems(supabase, id, user.id)
+  if (items === null) return { error: 'No encontrada' }
+
+  const updated = items.map(i => i.id === itemId ? { ...i, done: !i.done } : i)
+
+  const { error } = await supabase
+    .from('actividades_inbox')
+    .update({ checklist_items: updated })
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidate()
+  return { ok: true }
+}
+
+export async function removeChecklistItem(id: string, itemId: string) {
+  const { supabase, user } = await getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const items = await getChecklistItems(supabase, id, user.id)
+  if (items === null) return { error: 'No encontrada' }
+
+  const { error } = await supabase
+    .from('actividades_inbox')
+    .update({ checklist_items: items.filter(i => i.id !== itemId) })
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidate()
+  return { ok: true }
+}
+
+export async function saveChecklistItems(id: string, items: ChecklistItem[]) {
+  return actualizarActividad(id, { checklist_items: items })
 }
 
 // ─── LECTURA ──────────────────────────────────────────────────────────────────
 
 export async function getActividades(filtros: {
-  estado?: string
+  archivada?: boolean
   tipo?: string
   cursoId?: string
-  prioridad?: string
+  color?: string
+  etiqueta?: string
   search?: string
 } = {}): Promise<ActividadConCurso[]> {
   const { supabase, user } = await getUser()
@@ -166,39 +204,37 @@ export async function getActividades(filtros: {
     .from('actividades_inbox')
     .select('*, cursos(asignatura)')
     .eq('profesor_id', user.id)
+    .eq('archivada', filtros.archivada ?? false)
+    .order('pinned', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (filtros.estado) query = query.eq('estado', filtros.estado)
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
   if (filtros.cursoId) query = query.eq('curso_id', filtros.cursoId)
-  if (filtros.prioridad) query = query.eq('prioridad', filtros.prioridad)
+  if (filtros.color) query = query.eq('color', filtros.color)
   if (filtros.search) query = query.ilike('titulo', `%${filtros.search}%`)
 
   const { data } = await query
   return (data ?? []) as ActividadConCurso[]
 }
 
-export async function getCountsPorEstado(): Promise<{
-  pendiente: number
-  en_progreso: number
-  cumplida: number
-  convertida: number
-  archivada: number
-}> {
+export async function getCounts(): Promise<{ total: number; archivadas: number; fijadas: number }> {
   const { supabase, user } = await getUser()
-  if (!user) return { pendiente: 0, en_progreso: 0, cumplida: 0, convertida: 0, archivada: 0 }
+  if (!user) return { total: 0, archivadas: 0, fijadas: 0 }
 
   const { data } = await supabase
     .from('actividades_inbox')
-    .select('estado')
+    .select('archivada, pinned')
     .eq('profesor_id', user.id)
 
-  const counts = { pendiente: 0, en_progreso: 0, cumplida: 0, convertida: 0, archivada: 0 }
+  let total = 0, archivadas = 0, fijadas = 0
   for (const row of data ?? []) {
-    const e = row.estado as keyof typeof counts
-    if (e in counts) counts[e]++
+    if (row.archivada) archivadas++
+    else {
+      total++
+      if (row.pinned) fijadas++
+    }
   }
-  return counts
+  return { total, archivadas, fijadas }
 }
 
 export async function getActividadesPendientesDelCurso(cursoId: string): Promise<ActividadRow[]> {
@@ -210,7 +246,9 @@ export async function getActividadesPendientesDelCurso(cursoId: string): Promise
     .select('*')
     .eq('profesor_id', user.id)
     .eq('curso_id', cursoId)
-    .in('estado', ['pendiente', 'en_progreso'])
+    .eq('archivada', false)
+    .eq('completada', false)
+    .order('pinned', { ascending: false })
     .order('created_at', { ascending: false })
 
   return (data ?? []) as ActividadRow[]
@@ -228,7 +266,8 @@ export async function getActividadesParaHoy(): Promise<ActividadConCurso[]> {
     .select('*, cursos(asignatura)')
     .eq('profesor_id', user.id)
     .in('tipo', ['tarea', 'recordatorio'])
-    .in('estado', ['pendiente', 'en_progreso'])
+    .eq('archivada', false)
+    .eq('completada', false)
     .lte('fecha_vencimiento', hoy.toISOString())
     .order('fecha_vencimiento', { ascending: true })
 

@@ -1,41 +1,40 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { marcarCumplida, desmarcarCumplida, archivarActividad, eliminarActividad, marcarEnProgreso } from '@/lib/actions/actividades'
-import type { Database } from '@/types/database.types'
-import { Check, Pencil, Archive, Trash2, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
+import { togglePin, setColor, toggleArchivada, eliminarActividad, toggleChecklistItem } from '@/lib/actions/actividades'
+import { InlineChecklist } from './ChecklistEditor'
+import { getCardStyle } from './ColorPicker'
+import type { ActividadConCurso, NoteColor } from '@/lib/actions/actividades'
+import { Pin, PinOff, Palette, Archive, ArchiveRestore, Trash2, Calendar } from 'lucide-react'
 import { clsx } from 'clsx'
 
-type ActividadRow = Database['public']['Tables']['actividades_inbox']['Row']
-type ActividadConCurso = ActividadRow & { cursos: { asignatura: string } | null }
-
-const TIPO_CONFIG = {
-  idea: { label: '💡 Idea', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-  tarea: { label: '✅ Tarea', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
-  recordatorio: { label: '🔔 Recordatorio', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
-}
-
-const PRIORIDAD_CONFIG = {
-  alta: { label: 'Alta', cls: 'bg-red-500/15 text-red-400 border-red-500/30' },
-  normal: null,
-  baja: { label: 'Baja', cls: 'bg-gray-700 text-gray-500 border-gray-600' },
+const TIPO_EMOJI: Record<string, string> = {
+  nota: '',
+  tarea: '',
+  recordatorio: '🔔',
 }
 
 function fmtFecha(iso: string) {
   const d = new Date(iso)
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const venc = new Date(d)
-  venc.setHours(0, 0, 0, 0)
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const venc = new Date(d); venc.setHours(0, 0, 0, 0)
   const diff = Math.round((venc.getTime() - hoy.getTime()) / 86400000)
   if (diff < 0) return { label: `Vencida hace ${Math.abs(diff)}d`, vencida: true }
   if (diff === 0) return { label: 'Hoy', vencida: false }
   if (diff === 1) return { label: 'Mañana', vencida: false }
-  return {
-    label: d.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' }),
-    vencida: false,
-  }
+  return { label: d.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' }), vencida: false }
 }
+
+const QUICK_COLORS: { value: NoteColor; dot: string }[] = [
+  { value: null,       dot: 'bg-gray-700 border border-gray-500' },
+  { value: 'rojo',     dot: 'bg-red-500' },
+  { value: 'naranja',  dot: 'bg-orange-500' },
+  { value: 'amarillo', dot: 'bg-yellow-400' },
+  { value: 'verde',    dot: 'bg-green-500' },
+  { value: 'teal',     dot: 'bg-teal-400' },
+  { value: 'azul',     dot: 'bg-blue-500' },
+  { value: 'morado',   dot: 'bg-purple-500' },
+]
 
 type Props = {
   actividad: ActividadConCurso
@@ -44,169 +43,197 @@ type Props = {
 }
 
 export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
-  const [expanded, setExpanded] = useState(false)
+  const [showColors, setShowColors] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [localItems, setLocalItems] = useState(actividad.checklist_items)
   const [, startTransition] = useTransition()
-  const [loading, setLoading] = useState<string | null>(null)
 
-  const cumplida = actividad.estado === 'cumplida'
-  const tipo = TIPO_CONFIG[actividad.tipo]
-  const prio = PRIORIDAD_CONFIG[actividad.prioridad ?? 'normal']
+  const { bg, border } = getCardStyle(actividad.color)
+  const isDone = actividad.completada
 
-  async function handle(action: string, fn: () => Promise<{ ok?: boolean; error?: string }>) {
-    setLoading(action)
-    await fn()
-    setLoading(null)
+  function refresh() {
     startTransition(() => onCambiado())
   }
 
+  async function handlePin(e: React.MouseEvent) {
+    e.stopPropagation()
+    await togglePin(actividad.id, actividad.pinned)
+    refresh()
+  }
+
+  async function handleColor(e: React.MouseEvent, color: NoteColor) {
+    e.stopPropagation()
+    setShowColors(false)
+    await setColor(actividad.id, color)
+    refresh()
+  }
+
+  async function handleArchive(e: React.MouseEvent) {
+    e.stopPropagation()
+    await toggleArchivada(actividad.id, actividad.archivada)
+    refresh()
+  }
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
+    await eliminarActividad(actividad.id)
+    refresh()
+  }
+
+  async function handleChecklistToggle(itemId: string) {
+    // Optimistic update
+    setLocalItems(prev => prev.map(i => i.id === itemId ? { ...i, done: !i.done } : i))
+    await toggleChecklistItem(actividad.id, itemId)
+    refresh()
+  }
+
   return (
-    <div className={clsx(
-      'card p-4 border transition-all',
-      cumplida ? 'border-gray-800 opacity-70' : 'border-gray-800 hover:border-gray-700',
-    )}>
-      <div className="flex items-start gap-3">
-        {/* Checkbox cumplida */}
-        <button
-          onClick={() => handle('cumplir', () => cumplida ? desmarcarCumplida(actividad.id) : marcarCumplida(actividad.id))}
-          disabled={loading !== null}
-          className={clsx(
-            'flex-shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-all',
-            cumplida
-              ? 'bg-emerald-600 border-emerald-600'
-              : 'border-gray-600 hover:border-emerald-500',
-          )}
-          title={cumplida ? 'Desmarcar' : 'Marcar cumplida'}
-        >
-          {cumplida && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-        </button>
+    <div
+      className={clsx(
+        'break-inside-avoid mb-3 rounded-2xl border cursor-pointer transition-all group relative',
+        'hover:shadow-lg hover:shadow-black/30 hover:-translate-y-0.5',
+        bg, border,
+        isDone && 'opacity-60',
+      )}
+      onClick={e => {
+        if (confirmDelete || showColors) return
+        onEditar()
+      }}
+    >
+      {/* Pin button — siempre visible si pinned, hover si no */}
+      <button
+        onClick={handlePin}
+        className={clsx(
+          'absolute top-2 right-2 p-1.5 rounded-lg transition-all z-10',
+          actividad.pinned
+            ? 'text-amber-400 opacity-100'
+            : 'text-gray-600 opacity-0 group-hover:opacity-100 hover:text-gray-300 hover:bg-black/20',
+        )}
+        title={actividad.pinned ? 'Desfijar' : 'Fijar'}
+      >
+        {actividad.pinned ? <Pin className="w-3.5 h-3.5 fill-current" /> : <PinOff className="w-3.5 h-3.5" />}
+      </button>
 
-        {/* Contenido */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={clsx('text-sm font-medium', cumplida ? 'text-gray-500 line-through' : 'text-white')}>
-              {actividad.titulo}
-            </span>
+      {/* Contenido */}
+      <div className="p-4 pr-9">
+        {/* Título */}
+        <p className={clsx(
+          'font-medium text-sm leading-snug mb-1',
+          isDone ? 'text-gray-500 line-through' : 'text-white',
+        )}>
+          {TIPO_EMOJI[actividad.tipo] && <span className="mr-1">{TIPO_EMOJI[actividad.tipo]}</span>}
+          {actividad.titulo}
+        </p>
 
-            {/* Badges */}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${tipo.cls}`}>
-              {tipo.label}
-            </span>
-            {prio && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${prio.cls}`}>
-                {prio.label}
-              </span>
-            )}
-            {actividad.cursos && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded border bg-gray-700/50 text-gray-400 border-gray-700">
-                {actividad.cursos.asignatura}
-              </span>
-            )}
-            {actividad.fecha_vencimiento && (() => {
-              const f = fmtFecha(actividad.fecha_vencimiento)
-              return (
-                <span className={clsx(
-                  'text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1',
-                  f.vencida
-                    ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                    : 'bg-gray-700/50 text-gray-400 border-gray-700'
-                )}>
-                  <Calendar className="w-3 h-3" />
-                  {f.label}
-                </span>
-              )
-            })()}
+        {/* Descripción */}
+        {actividad.descripcion && actividad.tipo !== 'tarea' && (
+          <p className="text-xs text-gray-400 leading-relaxed mb-2 line-clamp-6 whitespace-pre-wrap">
+            {actividad.descripcion}
+          </p>
+        )}
+
+        {/* Checklist inline */}
+        {actividad.tipo === 'tarea' && localItems.length > 0 && (
+          <div className="mb-2">
+            <InlineChecklist items={localItems} onToggle={handleChecklistToggle} />
           </div>
+        )}
 
-          {/* Descripción colapsable */}
-          {actividad.descripcion && (
-            <div>
-              <p className={clsx('text-xs text-gray-500 mt-1', !expanded && 'line-clamp-1')}>
-                {actividad.descripcion}
-              </p>
-              {actividad.descripcion.length > 80 && (
-                <button
-                  onClick={() => setExpanded(v => !v)}
-                  className="text-[10px] text-gray-600 hover:text-gray-400 mt-0.5 flex items-center gap-0.5"
-                >
-                  {expanded ? <><ChevronUp className="w-3 h-3" /> Menos</> : <><ChevronDown className="w-3 h-3" /> Más</>}
-                </button>
-              )}
-            </div>
-          )}
+        {/* Descripción extra para tarea */}
+        {actividad.tipo === 'tarea' && actividad.descripcion && localItems.length === 0 && (
+          <p className="text-xs text-gray-400 leading-relaxed mb-2 line-clamp-4">{actividad.descripcion}</p>
+        )}
 
-          {/* Estado en_progreso badge */}
-          {actividad.estado === 'en_progreso' && (
-            <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-              En progreso
+        {/* Meta badges */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {actividad.cursos && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20 text-gray-400">
+              {actividad.cursos.asignatura}
             </span>
           )}
-        </div>
-
-        {/* Acciones */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {actividad.estado === 'pendiente' && (
-            <button
-              onClick={() => handle('progreso', () => marcarEnProgreso(actividad.id))}
-              disabled={loading !== null}
-              title="Marcar en progreso"
-              className="p-1.5 text-gray-500 hover:text-cyan-400 hover:bg-gray-800 rounded transition-colors text-[10px] leading-none border border-transparent hover:border-gray-700"
-            >
-              ▶
-            </button>
-          )}
-
-          <button
-            onClick={onEditar}
-            disabled={loading !== null}
-            title="Editar"
-            className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-
-          {actividad.estado !== 'archivada' && (
-            <button
-              onClick={() => handle('archivar', () => archivarActividad(actividad.id))}
-              disabled={loading !== null}
-              title="Archivar"
-              className="p-1.5 text-gray-500 hover:text-amber-400 hover:bg-gray-800 rounded transition-colors"
-            >
-              <Archive className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              disabled={loading !== null}
-              title="Eliminar"
-              className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <span className="flex items-center gap-1 text-xs">
-              <button
-                onClick={() => handle('eliminar', () => eliminarActividad(actividad.id))}
-                className="text-red-400 hover:text-red-300 font-medium px-1"
-              >
-                Sí
-              </button>
-              <button onClick={() => setConfirmDelete(false)} className="text-gray-500 hover:text-gray-400 px-1">
-                No
-              </button>
+          {actividad.etiquetas?.map(tag => (
+            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20 text-gray-400">
+              #{tag}
             </span>
-          )}
+          ))}
+          {actividad.fecha_vencimiento && (() => {
+            const f = fmtFecha(actividad.fecha_vencimiento)
+            return (
+              <span className={clsx(
+                'text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5',
+                f.vencida ? 'bg-red-900/40 text-red-400' : 'bg-black/20 text-gray-400',
+              )}>
+                <Calendar className="w-2.5 h-2.5" />
+                {f.label}
+              </span>
+            )
+          })()}
         </div>
       </div>
 
-      {/* Fecha de cumplimiento */}
-      {actividad.fecha_cumplimiento && (
-        <p className="text-[10px] text-gray-600 mt-2 ml-8">
-          Cumplida el {new Date(actividad.fecha_cumplimiento).toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
-      )}
+      {/* Barra de acciones — visible en hover */}
+      <div className={clsx(
+        'border-t border-white/5 px-3 py-1.5 flex items-center gap-1',
+        'opacity-0 group-hover:opacity-100 transition-opacity',
+      )}>
+        {/* Color picker toggle */}
+        <div className="relative">
+          <button
+            onClick={e => { e.stopPropagation(); setShowColors(v => !v) }}
+            className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-black/20 rounded-lg transition-colors"
+            title="Color"
+          >
+            <Palette className="w-3.5 h-3.5" />
+          </button>
+          {showColors && (
+            <div
+              className="absolute bottom-8 left-0 bg-gray-800 border border-gray-700 rounded-xl p-2 flex gap-1.5 z-20 shadow-xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {QUICK_COLORS.map(c => (
+                <button
+                  key={c.value ?? 'default'}
+                  title={c.value ?? 'Default'}
+                  onClick={e => handleColor(e, c.value)}
+                  className={clsx(
+                    'w-5 h-5 rounded-full transition-transform hover:scale-110',
+                    c.dot,
+                    actividad.color === c.value && 'ring-2 ring-white ring-offset-1 ring-offset-gray-800',
+                  )}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Archivar / Restaurar */}
+        <button
+          onClick={handleArchive}
+          className="p-1.5 text-gray-500 hover:text-amber-400 hover:bg-black/20 rounded-lg transition-colors"
+          title={actividad.archivada ? 'Restaurar' : 'Archivar'}
+        >
+          {actividad.archivada
+            ? <ArchiveRestore className="w-3.5 h-3.5" />
+            : <Archive className="w-3.5 h-3.5" />
+          }
+        </button>
+
+        {/* Eliminar */}
+        {!confirmDelete ? (
+          <button
+            onClick={e => { e.stopPropagation(); setConfirmDelete(true) }}
+            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-black/20 rounded-lg transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <span className="flex items-center gap-1 text-xs ml-1" onClick={e => e.stopPropagation()}>
+            <button onClick={handleDelete} className="text-red-400 hover:text-red-300 font-medium px-1">Sí</button>
+            <button onClick={() => setConfirmDelete(false)} className="text-gray-500 hover:text-gray-400 px-1">No</button>
+          </span>
+        )}
+      </div>
     </div>
   )
 }

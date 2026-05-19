@@ -966,9 +966,13 @@ export type Database = {
           profesor_id: string
           titulo: string
           descripcion: string | null
-          tipo: 'idea' | 'tarea' | 'recordatorio'
+          tipo: 'nota' | 'tarea' | 'recordatorio'
           prioridad: 'baja' | 'normal' | 'alta'
-          estado: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          archivada: boolean
+          pinned: boolean
+          completada: boolean
+          color: 'rojo' | 'naranja' | 'amarillo' | 'verde' | 'teal' | 'azul' | 'morado' | null
+          checklist_items: { id: string; texto: string; done: boolean }[]
           curso_id: string | null
           etiquetas: string[]
           fecha_vencimiento: string | null
@@ -985,9 +989,13 @@ export type Database = {
           profesor_id: string
           titulo: string
           descripcion?: string | null
-          tipo?: 'idea' | 'tarea' | 'recordatorio'
+          tipo?: 'nota' | 'tarea' | 'recordatorio'
           prioridad?: 'baja' | 'normal' | 'alta'
-          estado?: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          archivada?: boolean
+          pinned?: boolean
+          completada?: boolean
+          color?: 'rojo' | 'naranja' | 'amarillo' | 'verde' | 'teal' | 'azul' | 'morado' | null
+          checklist_items?: { id: string; texto: string; done: boolean }[]
           curso_id?: string | null
           etiquetas?: string[]
           fecha_vencimiento?: string | null
@@ -1002,9 +1010,13 @@ export type Database = {
         Update: {
           titulo?: string
           descripcion?: string | null
-          tipo?: 'idea' | 'tarea' | 'recordatorio'
+          tipo?: 'nota' | 'tarea' | 'recordatorio'
           prioridad?: 'baja' | 'normal' | 'alta'
-          estado?: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          archivada?: boolean
+          pinned?: boolean
+          completada?: boolean
+          color?: 'rojo' | 'naranja' | 'amarillo' | 'verde' | 'teal' | 'azul' | 'morado' | null
+          checklist_items?: { id: string; texto: string; done: boolean }[]
           curso_id?: string | null
           etiquetas?: string[]
           fecha_vencimiento?: string | null

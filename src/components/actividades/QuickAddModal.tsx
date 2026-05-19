@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { crearActividad } from '@/lib/actions/actividades'
+import { ColorPicker } from './ColorPicker'
+import type { NoteColor } from '@/lib/actions/actividades'
 import type { Database } from '@/types/database.types'
 
 type Tipo = Database['public']['Tables']['actividades_inbox']['Row']['tipo']
@@ -15,23 +17,22 @@ type Props = {
 }
 
 const TIPOS: { value: Tipo; emoji: string; label: string }[] = [
-  { value: 'tarea', emoji: '✅', label: 'Tarea' },
-  { value: 'idea', emoji: '💡', label: 'Idea' },
+  { value: 'nota',         emoji: '📝', label: 'Nota' },
+  { value: 'tarea',        emoji: '✅', label: 'Tarea' },
   { value: 'recordatorio', emoji: '🔔', label: 'Recordatorio' },
 ]
 
 export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, onGuardado }: Props) {
   const [titulo, setTitulo] = useState('')
-  const [tipo, setTipo] = useState<Tipo>('tarea')
+  const [tipo, setTipo] = useState<Tipo>('nota')
+  const [color, setColor] = useState<NoteColor>(null)
   const [cursoId, setCursoId] = useState(cursoIdPrefill ?? '')
   const [fecha, setFecha] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   async function handleSave() {
     if (!titulo.trim()) return
@@ -40,6 +41,7 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
     const result = await crearActividad({
       titulo: titulo.trim(),
       tipo,
+      color,
       curso_id: cursoId || null,
       fecha_vencimiento: fecha ? new Date(fecha).toISOString() : null,
       origen: origenPrefill ?? 'inbox',
@@ -60,17 +62,15 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-white">Nueva actividad</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors text-lg leading-none">✕</button>
+          <h3 className="font-semibold text-white">Nueva nota</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
         </div>
 
-        {/* Título */}
         <input
           ref={inputRef}
           type="text"
-          placeholder="¿Qué tienes en mente?"
+          placeholder="Título..."
           value={titulo}
           onChange={e => setTitulo(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -95,55 +95,41 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
           ))}
         </div>
 
+        {/* Color */}
+        <div className="mb-4">
+          <label className="block text-xs text-gray-500 mb-2">Color</label>
+          <ColorPicker value={color} onChange={setColor} />
+        </div>
+
         {/* Opcionales */}
         <div className="grid grid-cols-2 gap-3 mb-5">
           {cursos.length > 0 && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Curso (opcional)</label>
-              <select
-                value={cursoId}
-                onChange={e => setCursoId(e.target.value)}
-                className="input w-full text-sm"
-              >
+              <label className="block text-xs text-gray-500 mb-1">Curso</label>
+              <select value={cursoId} onChange={e => setCursoId(e.target.value)} className="input w-full text-sm">
                 <option value="">Sin curso</option>
-                {cursos.map(c => (
-                  <option key={c.id} value={c.id}>{c.asignatura}</option>
-                ))}
+                {cursos.map(c => <option key={c.id} value={c.id}>{c.asignatura}</option>)}
               </select>
             </div>
           )}
-
           {(tipo === 'tarea' || tipo === 'recordatorio') && (
             <div className={cursos.length === 0 ? 'col-span-2' : ''}>
               <label className="block text-xs text-gray-500 mb-1">
-                {tipo === 'recordatorio' ? 'Fecha (requerida)' : 'Fecha límite (opcional)'}
+                {tipo === 'recordatorio' ? 'Fecha (requerida)' : 'Fecha límite'}
               </label>
-              <input
-                type="date"
-                value={fecha}
-                onChange={e => setFecha(e.target.value)}
-                className="input w-full text-sm"
-              />
+              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input w-full text-sm" />
             </div>
           )}
         </div>
 
         {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
 
-        {/* Botones */}
         <div className="flex gap-3">
-          <button onClick={onClose} disabled={saving} className="btn-ghost flex-1">
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !titulo.trim()}
-            className="btn-primary flex-1 disabled:opacity-50"
-          >
+          <button onClick={onClose} disabled={saving} className="btn-ghost flex-1">Cancelar</button>
+          <button onClick={handleSave} disabled={saving || !titulo.trim()} className="btn-primary flex-1 disabled:opacity-50">
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
-
         <p className="text-center text-[10px] text-gray-700 mt-3">Enter para guardar · Esc para cerrar</p>
       </div>
     </div>
