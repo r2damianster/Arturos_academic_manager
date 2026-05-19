@@ -18,11 +18,14 @@ function parsearGuia(texto: string): Paragraph[] {
   const esEncabezado = (linea: string) => {
     const l = linea.trim()
     if (!l) return false
-    // línea en MAYÚSCULAS con colon al final o sola (ej: "OBJETIVOS DE APRENDIZAJE:")
-    return /^[A-ZÁÉÍÓÚÑ\s\-–:0-9]+$/.test(l) && l.length > 3
+    // línea en MAYÚSCULAS con colon al final o sola (ej: "COMPETENCIA TÉCNICA Y/O HABILIDAD BLANDA:")
+    return /^[A-ZÁÉÍÓÚÑ\s\-–:0-9/]+$/.test(l) && l.length > 3
   }
 
-  const esTituloDoc = (linea: string) => linea.trim().startsWith('GUÍA DE ESTUDIO')
+  const esTituloDoc = (linea: string) => {
+    const l = linea.trim()
+    return l.startsWith('GUÍA DE ESTUDIO') || l.startsWith('GUÍA DE APRENDIZAJE')
+  }
 
   for (const linea of lineas) {
     const l = linea.trim()

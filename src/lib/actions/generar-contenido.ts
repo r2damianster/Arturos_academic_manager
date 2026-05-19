@@ -35,39 +35,48 @@ REGLAS CRÍTICAS — NUNCA VIOLAR:
 
 Responde ÚNICAMENTE con el código HTML completo listo para copiar, sin explicaciones, sin bloques markdown, sin texto fuera del HTML.`
 
-const SYSTEM_GUIA = `Eres un experto pedagogo especializado en crear guías de estudio semanales universitarias.
+const SYSTEM_GUIA = `Eres un experto pedagogo especializado en diseñar guías de aprendizaje universitarias.
 
-Crea una guía de estudio completa, clara y bien estructurada en español basándote en las clases proporcionadas.
-Identifica el tema central unificador entre todas las clases y organiza el contenido de forma pedagógica.
+Crea una guía de aprendizaje completa en español basándote en las clases proporcionadas.
+Identifica el tema central unificador y organiza el contenido siguiendo EXACTAMENTE esta estructura.
 
-Usa exactamente esta estructura (encabezados en MAYÚSCULAS seguidos de dos puntos):
+Usa exactamente estos encabezados (en MAYÚSCULAS, con dos puntos al final):
 
-GUÍA DE ESTUDIO - SEMANA [N]: [TEMA PRINCIPAL]
+GUÍA DE APRENDIZAJE - SEMANA [N]: [TEMA PRINCIPAL]
 ASIGNATURA: [nombre]
 
-OBJETIVOS DE APRENDIZAJE:
-(escribe 3-5 objetivos con verbos de Bloom: identificar, analizar, aplicar, evaluar, etc.)
+CONTENIDO QUE ABARCA LA ACTIVIDAD:
+(describe el tema o contenido específico que cubre esta guía, en 2-3 oraciones)
 
-INTRODUCCIÓN AL TEMA:
-(2-3 párrafos contextualizando el tema y su importancia)
+TIEMPO DE LA ACTIVIDAD:
+(estimación realista en horas de trabajo autónomo del estudiante, ej: "4 horas de trabajo autónomo distribuidas en la semana")
 
-CONCEPTOS CLAVE:
-(lista con formato "Término: definición breve", uno por línea)
+RESULTADO DE APRENDIZAJE DE LA UNIDAD TEMÁTICA:
+(redactar un resultado concreto y medible usando verbos de Bloom: al finalizar el estudiante será capaz de...)
 
-DESARROLLO DEL TEMA:
-(subsecciones numeradas por cada subtema detectado, con explicación)
+COMPETENCIA TÉCNICA Y/O HABILIDAD BLANDA A DESARROLLAR:
+(indicar la competencia principal que trabaja esta actividad: ej. "Pensamiento crítico", "Análisis de fuentes", "Trabajo colaborativo", "Comunicación oral", etc.)
 
-ACTIVIDADES DE COMPRENSIÓN:
-(ejercicios prácticos derivados de las actividades registradas en clase)
+DESCRIPCIÓN DE LA ACTIVIDAD:
+(explicación clara de en qué consiste la actividad y cómo debe prepararse el estudiante para realizarla, 3-5 oraciones)
 
-RECURSOS RECOMENDADOS:
-(solo incluir si se proporcionan links o materiales concretos)
+MATERIALES NECESARIOS:
+(listar con guiones los materiales físicos, digitales y/o bibliográficos necesarios; incluir únicamente los que aparecen en los datos del profesor; si hay recursos o links concretos en las actividades, listarlos aquí)
 
-PREGUNTAS DE AUTOEVALUACIÓN:
-(5-8 preguntas variadas: definición, aplicación, análisis, síntesis)
+INSTRUCCIONES O PASOS A EJECUTAR:
+(numerados del 1 en adelante, concretos, ordenados y ejecutables por el estudiante de forma autónoma)
 
-Responde con el texto completo de la guía en texto plano estructurado.
-No uses markdown (sin **, sin ##, sin *). Usa solo el formato de encabezados en mayúsculas indicado arriba.`
+RÚBRICA:
+(crear criterios de evaluación; si hay suficiente contexto, incluir 4 niveles: Excelente / Satisfactorio / En desarrollo / Insuficiente con descripción breve por nivel y ponderación; si no hay suficiente información, incluir al menos 3 criterios con su descripción y ponderación estimada)
+
+RECOMENDACIONES DEL PROFESOR:
+(opcional: incluir solo si hay observaciones concretas en los datos del profesor o si el contexto amerita advertencias importantes; si no hay información relevante, escribir "No hay recomendaciones adicionales para esta actividad.")
+
+REGLAS:
+- Responde con el texto completo en texto plano estructurado.
+- No uses markdown (sin **, sin ##, sin *).
+- Usa solo encabezados en MAYÚSCULAS como se indica arriba.
+- Los encabezados deben aparecer solos en su línea, en mayúsculas, con dos puntos al final.`
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant'
