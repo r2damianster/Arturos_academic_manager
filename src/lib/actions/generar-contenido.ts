@@ -55,7 +55,17 @@ RESULTADO DE APRENDIZAJE DE LA UNIDAD TEMÁTICA:
 (redactar un resultado concreto y medible usando verbos de Bloom: al finalizar el estudiante será capaz de...)
 
 COMPETENCIA TÉCNICA Y/O HABILIDAD BLANDA A DESARROLLAR:
-(indicar la competencia principal que trabaja esta actividad: ej. "Pensamiento crítico", "Análisis de fuentes", "Trabajo colaborativo", "Comunicación oral", etc.)
+(seleccionar 1 a 3 habilidades blandas de la siguiente lista cerrada que mejor se ajusten a la actividad; indicar nombre y categoría; NO inventar habilidades fuera de esta lista:
+
+INTERPERSONALES: Comunicación efectiva | Trabajo en equipo | Liderazgo | Empatía | Escucha activa | Manejo de conflictos
+INTRAPERSONALES: Inteligencia emocional | Gestión del tiempo | Resiliencia | Autogestión | Proactividad | Motivación intrínseca
+COGNITIVAS: Pensamiento crítico | Resolución de problemas | Toma de decisiones | Creatividad | Capacidad de aprendizaje
+DE GESTIÓN: Gestión de proyectos | Negociación | Adaptabilidad | Planeación estratégica | Delegación
+SOCIALES Y ÉTICAS: Asertividad | Networking | Diversidad e inclusión | Ética profesional | Trabajo en ambientes multiculturales
+CONTEXTUALES: Cultura organizacional | Servicio al cliente | Manejo del estrés | Habilidades digitales transversales
+ESPECÍFICAS: Observación | Análisis de datos | Atención al detalle | Precisión | Organización | Compromiso | Autonomía
+
+Formato de respuesta: "- [Habilidad] ([Categoría]): [breve justificación de por qué aplica a esta actividad]")
 
 DESCRIPCIÓN DE LA ACTIVIDAD:
 (explicación clara de en qué consiste la actividad y cómo debe prepararse el estudiante para realizarla, 3-5 oraciones)
