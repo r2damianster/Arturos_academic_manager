@@ -960,6 +960,71 @@ export type Database = {
           }
         ]
       }
+      actividades_inbox: {
+        Row: {
+          id: string
+          profesor_id: string
+          titulo: string
+          descripcion: string | null
+          tipo: 'idea' | 'tarea' | 'recordatorio'
+          prioridad: 'baja' | 'normal' | 'alta'
+          estado: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          curso_id: string | null
+          etiquetas: string[]
+          fecha_vencimiento: string | null
+          fecha_cumplimiento: string | null
+          conversion_destino: 'evento' | 'planificacion' | 'bitacora_actividad' | 'tutoria_manual' | 'horario_tutoria' | null
+          conversion_ref_id: string | null
+          conversion_fecha: string | null
+          origen: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profesor_id: string
+          titulo: string
+          descripcion?: string | null
+          tipo?: 'idea' | 'tarea' | 'recordatorio'
+          prioridad?: 'baja' | 'normal' | 'alta'
+          estado?: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          curso_id?: string | null
+          etiquetas?: string[]
+          fecha_vencimiento?: string | null
+          fecha_cumplimiento?: string | null
+          conversion_destino?: 'evento' | 'planificacion' | 'bitacora_actividad' | 'tutoria_manual' | 'horario_tutoria' | null
+          conversion_ref_id?: string | null
+          conversion_fecha?: string | null
+          origen?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          titulo?: string
+          descripcion?: string | null
+          tipo?: 'idea' | 'tarea' | 'recordatorio'
+          prioridad?: 'baja' | 'normal' | 'alta'
+          estado?: 'pendiente' | 'en_progreso' | 'cumplida' | 'convertida' | 'archivada'
+          curso_id?: string | null
+          etiquetas?: string[]
+          fecha_vencimiento?: string | null
+          fecha_cumplimiento?: string | null
+          conversion_destino?: 'evento' | 'planificacion' | 'bitacora_actividad' | 'tutoria_manual' | 'horario_tutoria' | null
+          conversion_ref_id?: string | null
+          conversion_fecha?: string | null
+          origen?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividades_inbox_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

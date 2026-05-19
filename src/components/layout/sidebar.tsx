@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
-import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap } from 'lucide-react'
+import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap, Inbox } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -40,6 +40,11 @@ const navItems: NavItem[] = [
     href: '/dashboard/herramientas',
     label: 'Herramientas',
     icon: <Wrench className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
+  },
+  {
+    href: '/dashboard/actividades',
+    label: 'Inbox',
+    icon: <Inbox className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
   },
 ]
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
-import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap, Menu, X, Inbox } from 'lucide-react'
 
 interface MobileNavProps {
   nombreProfesor: string
@@ -37,6 +37,11 @@ const navItems: { href: string; label: string; match?: string; matchAlso?: strin
     href: '/dashboard/herramientas',
     label: 'Herramientas',
     icon: <Wrench className="w-5 h-5" strokeWidth={1.5} />,
+  },
+  {
+    href: '/dashboard/actividades',
+    label: 'Inbox',
+    icon: <Inbox className="w-5 h-5" strokeWidth={1.5} />,
   },
   {
     href: '/dashboard/config',
