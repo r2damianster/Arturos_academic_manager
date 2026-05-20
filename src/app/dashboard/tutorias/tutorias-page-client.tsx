@@ -30,6 +30,8 @@ interface Reserva {
   asistio?: boolean | null
   completada_at?: string | null
   notas?: string | null
+  modalidad?: string | null
+  link_zoom?: string | null
 }
 
 interface Estudiante {

@@ -28,6 +28,8 @@ interface Reserva {
   asistio?: boolean | null
   completada_at?: string | null
   notas?: string | null
+  modalidad?: string | null
+  link_zoom?: string | null
 }
 
 interface Estudiante {
@@ -805,6 +807,23 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                                       <p className="text-gray-400 text-[10px] truncate">{reserva.estudiante_carrera}</p>
                                       <p className="text-gray-500 text-[10px]">{reserva.fecha} · {fmt(h.hora_inicio)}</p>
                                       {reserva.email && <p className="text-gray-600 text-[10px] truncate">{reserva.email}</p>}
+                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        {reserva.modalidad === 'virtual' && (
+                                          <span className="text-[9px] bg-violet-900/40 border border-violet-700 text-violet-300 px-1 py-0.5 rounded">💻 Virtual</span>
+                                        )}
+                                        {reserva.modalidad === 'presencial' && (
+                                          <span className="text-[9px] bg-emerald-900/30 border border-emerald-800 text-emerald-400 px-1 py-0.5 rounded">🏫 Presencial</span>
+                                        )}
+                                        {reserva.modalidad === 'otro' && (
+                                          <span className="text-[9px] bg-gray-800 border border-gray-700 text-gray-400 px-1 py-0.5 rounded">📋 Otro</span>
+                                        )}
+                                        {reserva.link_zoom && (
+                                          <a href={reserva.link_zoom} target="_blank" rel="noopener noreferrer"
+                                            className="text-[9px] text-violet-400 underline hover:text-violet-300 truncate max-w-[100px]">
+                                            Zoom
+                                          </a>
+                                        )}
+                                      </div>
                                       {reserva.notas && <p className="text-gray-500 text-[10px] italic mt-1">"{reserva.notas}"</p>}
                                       {reserva.estado === 'confirmada' && (
                                         <p className="text-blue-400 text-[10px] mt-1">Asignada directamente</p>
@@ -984,6 +1003,23 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                     {dateLabel} {h ? `· ${fmt(h.hora_inicio)}–${fmt(h.hora_fin)}` : ''}
                     {r.email && <span className="ml-2 text-gray-600">{r.email}</span>}
                   </p>
+                  <div className="flex items-center gap-1.5 ml-8 mt-0.5 flex-wrap">
+                    {r.modalidad === 'virtual' && (
+                      <span className="text-[9px] bg-violet-900/40 border border-violet-700 text-violet-300 px-1 py-0.5 rounded">💻 Virtual</span>
+                    )}
+                    {r.modalidad === 'presencial' && (
+                      <span className="text-[9px] bg-emerald-900/30 border border-emerald-800 text-emerald-400 px-1 py-0.5 rounded">🏫 Presencial</span>
+                    )}
+                    {r.modalidad === 'otro' && (
+                      <span className="text-[9px] bg-gray-800 border border-gray-700 text-gray-400 px-1 py-0.5 rounded">📋 Otro</span>
+                    )}
+                    {r.link_zoom && (
+                      <a href={r.link_zoom} target="_blank" rel="noopener noreferrer"
+                        className="text-[9px] text-violet-400 underline hover:text-violet-300 truncate max-w-[120px]">
+                        Enlace Zoom
+                      </a>
+                    )}
+                  </div>
                   {r.notas && <p className="text-[10px] text-gray-600 italic ml-8 mt-0.5">"{r.notas}"</p>}
                 </div>
                 <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
