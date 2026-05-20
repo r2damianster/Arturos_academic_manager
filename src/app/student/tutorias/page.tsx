@@ -100,7 +100,7 @@ export default async function TutoriasPage() {
   // Fetch student's own pending reservas (with full details)
   const { data: misReservasData } = await db
     .from('reservas')
-    .select('id, horario_id, fecha, estado, notas, horarios(dia_semana, hora_inicio, hora_fin)')
+    .select('id, horario_id, fecha, estado, notas, modalidad, link_zoom, horarios(dia_semana, hora_inicio, hora_fin)')
     .eq('auth_user_id', user.id)
     .eq('estado', 'pendiente')
 

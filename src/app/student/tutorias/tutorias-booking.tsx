@@ -21,6 +21,8 @@ interface Reserva {
   fecha: string
   estado: string
   notas: string | null
+  modalidad: string | null
+  link_zoom: string | null
   horarios: { dia_semana: string; hora_inicio: string; hora_fin: string } | null
 }
 
@@ -129,7 +131,9 @@ export function TutoriasBooking({
   const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
   const [selected, setSelected] = useState<{ horario: Horario; date: Date } | null>(null)
-  const [notas,   setNotas]   = useState('')
+  const [notas,     setNotas]     = useState('')
+  const [modalidad, setModalidad] = useState<'presencial' | 'virtual' | 'otro'>('presencial')
+  const [linkZoom,  setLinkZoom]  = useState('')
   const [loading, setLoading] = useState(false)
   const [canceling,   setCanceling]   = useState<number | null>(null)
   const [noShowing,   setNoShowing]   = useState<number | null>(null)
@@ -243,6 +247,8 @@ export function TutoriasBooking({
         p_auth_user_id: studentInfo.auth_user_id,
         p_notas:        notas || null,
         p_fecha:        sessionDate,
+        p_modalidad:    modalidad,
+        p_link_zoom:    modalidad === 'virtual' && linkZoom.trim() ? linkZoom.trim() : null,
       })
       if (rpcErr) throw new Error(rpcErr.message)
       const result = data as { ok: boolean; error?: string; reserva_id?: number }
@@ -263,7 +269,7 @@ export function TutoriasBooking({
       setReservas(prev => [...prev, newReserva])
       setOccupied(prev => [...prev, { horario_id: selected.horario.id, fecha: sessionDate }])
       setSuccess(`Tutoría agendada: ${selected.horario.dia_semana} ${sessionDate} ${fmt(selected.horario.hora_inicio)}`)
-      setSelected(null); setNotas('')
+      setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al confirmar')
     } finally {
@@ -355,6 +361,29 @@ export function TutoriasBooking({
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-blue-200 capitalize">{dateLabel} · {ini}–{fin}</p>
                   <p className="text-xs text-blue-400">Prof. {profH?.profesores?.nombre ?? '—'}</p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {r.modalidad === 'virtual' && (
+                      <span className="text-[10px] bg-violet-900/40 border border-violet-700 text-violet-300 px-1.5 py-0.5 rounded">
+                        💻 Virtual
+                      </span>
+                    )}
+                    {r.modalidad === 'presencial' && (
+                      <span className="text-[10px] bg-emerald-900/30 border border-emerald-800 text-emerald-400 px-1.5 py-0.5 rounded">
+                        🏫 Presencial
+                      </span>
+                    )}
+                    {r.modalidad === 'otro' && (
+                      <span className="text-[10px] bg-gray-800 border border-gray-700 text-gray-400 px-1.5 py-0.5 rounded">
+                        📋 Otro
+                      </span>
+                    )}
+                    {r.link_zoom && (
+                      <a href={r.link_zoom} target="_blank" rel="noopener noreferrer"
+                        className="text-[10px] text-violet-400 underline hover:text-violet-300 truncate max-w-[140px]">
+                        Enlace Zoom
+                      </a>
+                    )}
+                  </div>
                   {r.notas && <p className="text-xs text-gray-500 italic truncate">"{r.notas}"</p>}
                 </div>
                 {action === 'cancel' && (
@@ -596,7 +625,7 @@ export function TutoriasBooking({
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
-            onClick={() => { setSelected(null); setNotas('') }}
+            onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
           />
 
           {/* Slide-over panel */}
@@ -608,7 +637,7 @@ export function TutoriasBooking({
                 <p className="text-xs text-gray-400 mt-0.5">Reserva una sesión con tu profesor</p>
               </div>
               <button
-                onClick={() => { setSelected(null); setNotas('') }}
+                onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
                 className="text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg p-1.5 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -653,6 +682,47 @@ export function TutoriasBooking({
                 </div>
               </div>
 
+              {/* Modalidad */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Modalidad</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'presencial', label: 'Presencial', icon: '🏫' },
+                    { value: 'virtual',    label: 'Virtual',    icon: '💻' },
+                    { value: 'otro',       label: 'Otro',       icon: '📋' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setModalidad(opt.value)}
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                        modalidad === opt.value
+                          ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
+                          : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:border-gray-500'
+                      }`}
+                    >
+                      <span className="text-base">{opt.icon}</span>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {modalidad === 'virtual' && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500" htmlFor="zoom-input">
+                      Link de Zoom <span className="text-gray-700">(opcional)</span>
+                    </label>
+                    <input
+                      id="zoom-input"
+                      type="url"
+                      className="input text-sm w-full"
+                      placeholder="https://zoom.us/j/..."
+                      value={linkZoom}
+                      onChange={e => setLinkZoom(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Notas */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="notas-input">
@@ -688,7 +758,7 @@ export function TutoriasBooking({
                 {loading ? 'Confirmando...' : '✓ Confirmar reserva'}
               </button>
               <button
-                onClick={() => { setSelected(null); setNotas('') }}
+                onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
                 disabled={loading}
                 className="btn-ghost w-full text-sm disabled:opacity-50"
               >

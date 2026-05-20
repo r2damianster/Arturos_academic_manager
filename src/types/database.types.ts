@@ -529,6 +529,8 @@ export type Database = {
           curso_id: string | null
           hora_inicio_manual: string | null
           hora_fin_manual: string | null
+          modalidad: string
+          link_zoom: string | null
         }
         Insert: {
           id?: number
@@ -547,6 +549,8 @@ export type Database = {
           curso_id?: string | null
           hora_inicio_manual?: string | null
           hora_fin_manual?: string | null
+          modalidad?: string
+          link_zoom?: string | null
         }
         Update: {
           estado?: string
@@ -556,6 +560,8 @@ export type Database = {
           curso_id?: string | null
           hora_inicio_manual?: string | null
           hora_fin_manual?: string | null
+          modalidad?: string
+          link_zoom?: string | null
         }
         Relationships: [
           {
