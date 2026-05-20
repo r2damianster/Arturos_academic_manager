@@ -260,6 +260,8 @@ export function TutoriasBooking({
         fecha: sessionDate,
         estado: 'pendiente',
         notas: notas || null,
+        modalidad: modalidad,
+        link_zoom: modalidad === 'virtual' && linkZoom.trim() ? linkZoom.trim() : null,
         horarios: {
           dia_semana: selected.horario.dia_semana,
           hora_inicio: selected.horario.hora_inicio,
