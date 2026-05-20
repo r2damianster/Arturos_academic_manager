@@ -39,6 +39,7 @@ const IA_KEYS: { key: string; label: string }[] = [
 const CARRERAS_GRADO = [
   'Pedagogía de los Idiomas Nacionales y Extranjeros',
   'Psicología Educativa',
+  'Negocios Internacionales',
   'Medicina',
   'Medicina Veterinaria',
   'Otra',
