@@ -278,6 +278,11 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   const [horarios,   setHorarios]   = useState<HorarioTutoria[]>(initH)
   const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
+
+  // Sync props → state after router.refresh() re-renders the RSC with fresh data
+  useEffect(() => { setEventos(initEv) }, [initEv])
+  useEffect(() => { setHorarios(initH) }, [initH])
+  useEffect(() => { setReservas(initR) }, [initR])
   const [mostrarTutoriasVacias, setMostrarTutoriasVacias] = useState(false)
 
   // Personal event form
