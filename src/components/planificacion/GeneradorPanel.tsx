@@ -26,6 +26,11 @@ interface BitacoraItem {
   actividades_count: number
 }
 
+interface LogroItem {
+  id: string
+  descripcion: string
+}
+
 type Tab = 'html' | 'guia'
 type Step = 1 | 2 | 3
 
@@ -105,6 +110,8 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [semanaOverride, setSemanaOverride] = useState<number | null>(null)
   const [instruccionAdicional, setInstruccionAdicional] = useState('')
   const [nivel, setNivel] = useState<'basico' | 'avanzado'>('basico')
+  const [logros, setLogros] = useState<LogroItem[]>([])
+  const [selectedLogroId, setSelectedLogroId] = useState<string>('')
 
   // Paso 3
   const [generating, setGenerating] = useState(false)
@@ -130,6 +137,21 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   }, [selectedIds, bitacoras, selectedCurso])
 
   const semanaFinal = semanaOverride ?? semanaAutoDetectada
+
+  // Cargar logros al cambiar curso
+  useEffect(() => {
+    if (!selectedCursoId) return
+    setLogros([])
+    setSelectedLogroId('')
+    const supabase = createClient()
+    supabase
+      .from('logros_aprendizaje')
+      .select('id, descripcion')
+      .eq('curso_id', selectedCursoId)
+      .order('orden', { ascending: true })
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setLogros(data ?? []))
+  }, [selectedCursoId])
 
   // Cargar bitácoras al cambiar curso
   useEffect(() => {
@@ -212,12 +234,14 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         setStep(3)
       }
     } else {
+      const logroSeleccionado = logros.find(l => l.id === selectedLogroId)
       const result = await generarGuiaSemanal({
         bitacoraIds: ids,
         asignatura,
         semanaNum: semanaFinal,
         nivel,
         instruccionAdicional: instruccion,
+        logroDescripcion: logroSeleccionado?.descripcion,
       })
       if (result.error) {
         setGenError(result.error)
@@ -505,6 +529,63 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                       </label>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Logro de aprendizaje — solo para Guía */}
+              {activeTab === 'guia' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                    Logro / Objetivo de aprendizaje
+                    <span className="text-gray-600 ml-1">(opcional)</span>
+                  </label>
+                  {logros.length === 0 ? (
+                    <p className="text-xs text-gray-600 italic">
+                      Sin logros definidos para esta asignatura. La IA generará uno automáticamente.{' '}
+                      <a
+                        href={`/dashboard/cursos/${selectedCursoId}/editar?tab=logros`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-400 hover:underline"
+                      >
+                        Definir logros →
+                      </a>
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="flex items-start gap-2 cursor-pointer group">
+                        <input
+                          type="radio"
+                          name="logro"
+                          value=""
+                          checked={selectedLogroId === ''}
+                          onChange={() => setSelectedLogroId('')}
+                          className="mt-0.5 accent-brand-500 flex-shrink-0"
+                        />
+                        <span className="text-xs text-gray-500 italic group-hover:text-gray-300 transition-colors">
+                          Generar automáticamente según las actividades
+                        </span>
+                      </label>
+                      {logros.map((l, i) => (
+                        <label key={l.id} className="flex items-start gap-2 cursor-pointer group">
+                          <input
+                            type="radio"
+                            name="logro"
+                            value={l.id}
+                            checked={selectedLogroId === l.id}
+                            onChange={() => setSelectedLogroId(l.id)}
+                            className="mt-0.5 accent-brand-500 flex-shrink-0"
+                          />
+                          <span className={`text-xs leading-relaxed transition-colors ${
+                            selectedLogroId === l.id ? 'text-brand-300' : 'text-gray-400 group-hover:text-gray-200'
+                          }`}>
+                            <span className="font-semibold text-gray-500 mr-1">{i + 1}.</span>
+                            {l.descripcion}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

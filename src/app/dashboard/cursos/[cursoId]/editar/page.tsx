@@ -18,13 +18,18 @@ export default async function EditarCursoPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const [cursoRes, clasesRes, profesorRes] = await Promise.all([
+  const [cursoRes, clasesRes, profesorRes, logrosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).eq('profesor_id', user.id).single(),
     db.from('horarios_clases')
       .select('dia_semana, hora_inicio, hora_fin, tipo, centro_computo')
       .eq('curso_id', cursoId)
       .order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('institucion').eq('id', user.id).maybeSingle(),
+    db.from('logros_aprendizaje')
+      .select('id, descripcion, orden')
+      .eq('curso_id', cursoId)
+      .order('orden', { ascending: true })
+      .order('created_at', { ascending: true }),
   ])
 
   if (!cursoRes.data) notFound()
@@ -35,6 +40,8 @@ export default async function EditarCursoPage({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       curso={cursoRes.data as any}
       clases={clasesRes.data ?? []}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      logros={logrosRes.data ?? [] as any}
       profesorInstitucion={profesorRes?.data?.institucion ?? null}
       defaultTab={tab ?? 'info'}
     />

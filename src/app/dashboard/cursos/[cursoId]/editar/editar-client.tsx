@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { actualizarCurso, eliminarCurso } from '@/lib/actions/cursos'
+import { addLogro, updateLogro, deleteLogro } from '@/lib/actions/logros'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
 import type { HorarioClase } from '@/components/cursos/horarios-form-fields'
 
-type Tab = 'info' | 'calendario' | 'horarios' | 'evaluacion' | 'peligro'
+type Tab = 'info' | 'calendario' | 'horarios' | 'evaluacion' | 'logros' | 'peligro'
 
 interface Curso {
   asignatura: string
@@ -25,10 +26,17 @@ interface Curso {
   nombres_tareas?: string[] | null
 }
 
+interface LogroItem {
+  id: string
+  descripcion: string
+  orden: number
+}
+
 interface Props {
   cursoId: string
   curso: Curso
   clases: HorarioClase[]
+  logros: LogroItem[]
   profesorInstitucion?: string | null
   defaultTab: string
 }
@@ -38,10 +46,11 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'calendario', label: 'Calendario' },
   { id: 'horarios',   label: 'Horarios' },
   { id: 'evaluacion', label: 'Evaluación' },
+  { id: 'logros',     label: 'Logros' },
   { id: 'peligro',    label: '⚠ Zona peligrosa' },
 ]
 
-export function EditarClient({ cursoId, curso, clases, profesorInstitucion, defaultTab }: Props) {
+export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profesorInstitucion, defaultTab }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>((TABS.find(t => t.id === defaultTab)?.id) ?? 'info')
   const [loading, setLoading] = useState(false)
@@ -320,6 +329,11 @@ export function EditarClient({ cursoId, curso, clases, profesorInstitucion, defa
         </form>
       )}
 
+      {/* Tab — Logros de aprendizaje */}
+      {tab === 'logros' && (
+        <LogrosTab cursoId={cursoId} logrosInit={logrosInit} />
+      )}
+
       {/* Tab — Zona peligrosa */}
       {tab === 'peligro' && (
         <div className="card border-red-900/50 space-y-4">
@@ -367,6 +381,142 @@ function Feedback({ success, error }: { success: string; error: string }) {
   if (success) return <p className="text-emerald-400 text-sm">{success}</p>
   if (error)   return <p className="text-red-400 text-sm">{error}</p>
   return null
+}
+
+function LogrosTab({ cursoId, logrosInit }: { cursoId: string; logrosInit: LogroItem[] }) {
+  const [logros, setLogros] = useState<LogroItem[]>(logrosInit)
+  const [nuevoTexto, setNuevoTexto] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editTexto, setEditTexto] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [errMsg, setErrMsg] = useState('')
+
+  async function handleAdd() {
+    if (!nuevoTexto.trim()) return
+    setAdding(true)
+    setErrMsg('')
+    const res = await addLogro(cursoId, nuevoTexto.trim())
+    if (res.error) { setErrMsg(res.error); setAdding(false); return }
+    setLogros(prev => [...prev, { id: res.id!, descripcion: nuevoTexto.trim(), orden: prev.length }])
+    setNuevoTexto('')
+    setAdding(false)
+  }
+
+  async function handleUpdate(id: string) {
+    if (!editTexto.trim()) return
+    setSaving(true)
+    setErrMsg('')
+    const res = await updateLogro(id, editTexto.trim())
+    if (res.error) { setErrMsg(res.error); setSaving(false); return }
+    setLogros(prev => prev.map(l => l.id === id ? { ...l, descripcion: editTexto.trim() } : l))
+    setEditId(null)
+    setSaving(false)
+  }
+
+  async function handleDelete(id: string) {
+    const res = await deleteLogro(id)
+    if (res.error) { setErrMsg(res.error); return }
+    setLogros(prev => prev.filter(l => l.id !== id))
+  }
+
+  return (
+    <div className="card space-y-5">
+      <div>
+        <h3 className="font-semibold text-white mb-1">Logros / Objetivos de aprendizaje</h3>
+        <p className="text-xs text-gray-500">
+          Define los logros de la asignatura. Al generar una guía de estudio con IA, podrás seleccionar
+          el logro al que aporta esa semana.
+        </p>
+      </div>
+
+      {/* Lista */}
+      <div className="space-y-2">
+        {logros.length === 0 && (
+          <p className="text-sm text-gray-500 italic">Sin logros definidos aún.</p>
+        )}
+        {logros.map((l, i) => (
+          <div key={l.id} className="flex gap-2 items-start group">
+            <span className="flex-shrink-0 w-6 h-6 mt-1 rounded-full bg-brand-600/20 border border-brand-600/40 text-brand-400 text-xs flex items-center justify-center font-bold">
+              {i + 1}
+            </span>
+            {editId === l.id ? (
+              <div className="flex-1 flex gap-2">
+                <textarea
+                  className="input flex-1 text-sm resize-none"
+                  rows={2}
+                  value={editTexto}
+                  onChange={e => setEditTexto(e.target.value)}
+                  maxLength={500}
+                />
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdate(l.id)}
+                    disabled={saving}
+                    className="px-2 py-1 text-xs rounded bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50"
+                  >
+                    {saving ? '…' : '✓'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditId(null)}
+                    className="px-2 py-1 text-xs rounded border border-gray-600 text-gray-400 hover:text-gray-200"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="flex-1 text-sm text-gray-200 leading-relaxed pt-1">{l.descripcion}</p>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setEditId(l.id); setEditTexto(l.descripcion) }}
+                    className="p-1.5 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-800 text-xs"
+                    title="Editar"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(l.id)}
+                    className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 text-xs"
+                    title="Eliminar"
+                  >
+                    ×
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Agregar */}
+      <div className="space-y-2 pt-2 border-t border-gray-800">
+        <label className="label">Agregar logro</label>
+        <textarea
+          className="input text-sm resize-none"
+          rows={3}
+          value={nuevoTexto}
+          onChange={e => setNuevoTexto(e.target.value)}
+          maxLength={500}
+          placeholder="Ej: Analiza y aplica los principios de la programación orientada a objetos para resolver problemas de software de mediana complejidad."
+        />
+        {errMsg && <p className="text-red-400 text-xs">{errMsg}</p>}
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={adding || !nuevoTexto.trim()}
+          className="btn-primary text-sm disabled:opacity-40"
+        >
+          {adding ? 'Agregando…' : '+ Agregar logro'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function ConfirmarNombreDelete({

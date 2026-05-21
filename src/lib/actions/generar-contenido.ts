@@ -51,8 +51,8 @@ CONTENIDO QUE ABARCA LA ACTIVIDAD:
 TIEMPO DE LA ACTIVIDAD:
 (estimación realista en horas de trabajo autónomo del estudiante, ej: "4 horas de trabajo autónomo distribuidas en la semana")
 
-RESULTADO DE APRENDIZAJE DE LA UNIDAD TEMÁTICA:
-(redactar un resultado concreto y medible usando verbos de Bloom: al finalizar el estudiante será capaz de...)
+LOGRO/OBJETIVO DE APRENDIZAJE AL QUE APORTA:
+(si se proporciona un LOGRO INSTITUCIONAL en los datos del profesor, úsalo exactamente sin parafrasear; si no se proporciona, redacta uno concreto y medible con verbos de Bloom basándote en las actividades: "Al finalizar el estudiante será capaz de...")
 
 COMPETENCIA TÉCNICA Y/O HABILIDAD BLANDA A DESARROLLAR:
 (seleccionar 1 a 3 habilidades blandas de la siguiente lista cerrada que mejor se ajusten a la actividad; indicar nombre y categoría; NO inventar habilidades fuera de esta lista:
@@ -186,6 +186,7 @@ export async function generarGuiaSemanal(params: {
   semanaNum: number
   nivel: 'basico' | 'avanzado'
   instruccionAdicional?: string
+  logroDescripcion?: string
 }): Promise<{ guia: string; error?: string }> {
   const supabase = await createClient()
 
@@ -204,6 +205,9 @@ export async function generarGuiaSemanal(params: {
   const userPrompt = [
     `Crea la guía de estudio para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     `Nivel del curso: ${nivelLabel}.`,
+    params.logroDescripcion
+      ? `\nLOGRO INSTITUCIONAL (usar exactamente en la sección "LOGRO/OBJETIVO DE APRENDIZAJE AL QUE APORTA"):\n${params.logroDescripcion}`
+      : '',
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
