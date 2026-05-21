@@ -467,11 +467,19 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   async function handleActivar(duracion: DuracionTutoria) {
     if (!durPicker) return
     setDurSaving(true)
-    await activarHorario(durPicker, duracion)
+    const result = await activarHorario(durPicker, duracion)
     setDurSaving(false)
+    const activatedId = durPicker
     setDurPicker(null)
     setDurDateStr(null)
     setDurConflicto(null)
+    if (result && !('error' in result)) {
+      setHorarios(prev => prev.map(h =>
+        h.id === activatedId
+          ? { ...h, estado: 'disponible', disponible_hasta: result.disponible_hasta ?? null }
+          : h
+      ))
+    }
     router.refresh()
   }
 
@@ -489,13 +497,47 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
     if (editingEvento) {
       const result = await actualizarEvento(editingEvento, evForm)
       if (!result.error) {
+        setEventos(prev => prev.map(ev => ev.id === editingEvento ? {
+          ...ev,
+          titulo: evForm.titulo,
+          descripcion: evForm.descripcion ?? null,
+          tipo: evForm.tipo,
+          fecha_inicio: evForm.fecha_inicio,
+          fecha_fin: evForm.fecha_fin,
+          hora_inicio: evForm.hora_inicio ?? null,
+          hora_fin: evForm.hora_fin ?? null,
+          todo_el_dia: evForm.todo_el_dia,
+          recurrente: evForm.recurrente,
+          recurrencia: evForm.recurrencia ?? null,
+          recurrencia_dias: evForm.recurrencia_dias ?? null,
+          recurrencia_hasta: evForm.recurrencia_hasta ?? null,
+        } : ev))
         setShowEvForm(false)
         setEditingEvento(null)
         router.refresh()
       }
     } else {
       const result = await crearEvento(evForm)
-      if (!result.error) { setShowEvForm(false); router.refresh() }
+      if (!result.error && result.id) {
+        setEventos(prev => [...prev, {
+          id: result.id!,
+          titulo: evForm.titulo,
+          descripcion: evForm.descripcion ?? null,
+          tipo: evForm.tipo,
+          fecha_inicio: evForm.fecha_inicio,
+          fecha_fin: evForm.fecha_fin,
+          hora_inicio: evForm.hora_inicio ?? null,
+          hora_fin: evForm.hora_fin ?? null,
+          todo_el_dia: evForm.todo_el_dia,
+          recurrente: evForm.recurrente,
+          recurrencia: evForm.recurrencia ?? null,
+          recurrencia_dias: evForm.recurrencia_dias ?? null,
+          recurrencia_hasta: evForm.recurrencia_hasta ?? null,
+          created_at: new Date().toISOString(),
+        }])
+        setShowEvForm(false)
+        router.refresh()
+      }
     }
     setEvSaving(false)
   }
