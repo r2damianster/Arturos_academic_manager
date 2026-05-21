@@ -92,6 +92,35 @@ export type Database = {
           }
         ]
       }
+      logros_aprendizaje: {
+        Row: {
+          id: string
+          curso_id: string
+          descripcion: string
+          orden: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          curso_id: string
+          descripcion: string
+          orden?: number
+          created_at?: string
+        }
+        Update: {
+          descripcion?: string
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logros_aprendizaje_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       horarios_clases: {
         Row: {
           id: string

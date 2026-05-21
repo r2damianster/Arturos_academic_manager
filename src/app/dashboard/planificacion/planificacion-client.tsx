@@ -8,7 +8,7 @@ import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
 import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
-import { gestionarDragPlanificacion, eliminarPlanificacion, type AccionDrag } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -162,6 +162,51 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [showGenerador, setShowGenerador] = useState(false)
+
+  // ── Traslado de actividades desde planificación ──────────────────────────
+  type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
+  const [trasladoPanel, setTrasladoPanel] = useState<{ bitacoraId: string; actividades: { actividad: string; recurso: string }[] } | null>(null)
+  const [trasladoDestinos, setTrasladoDestinos] = useState<ClaseDestinoInfo[] | 'loading' | null>(null)
+  const [trasladoTargetId, setTrasladoTargetId] = useState<string | null>(null)
+  const [trasladoMode, setTrasladoMode] = useState<'move' | 'copy'>('move')
+  const [selectedTrasladoIdx, setSelectedTrasladoIdx] = useState<Set<number>>(new Set())
+  const [trasladoSaving, setTrasladoSaving] = useState(false)
+  const [trasladoError, setTrasladoError] = useState<string | null>(null)
+  const [trasladoOk, setTrasladoOk] = useState(false)
+
+  async function abrirTrasladoPlan(bitacoraId: string, actividades: { actividad: string; recurso: string }[]) {
+    setTrasladoPanel({ bitacoraId, actividades })
+    setSelectedTrasladoIdx(new Set())
+    setTrasladoOk(false)
+    setTrasladoError(null)
+    setTrasladoMode('move')
+    setTrasladoDestinos('loading')
+    setTrasladoTargetId(null)
+    const futuras = await getClasesFuturas(bitacoraId)
+    setTrasladoDestinos(futuras.length > 0 ? futuras : null)
+    if (futuras.length > 0) setTrasladoTargetId(futuras[0].id)
+  }
+
+  async function confirmarTrasladoPlan() {
+    if (!trasladoPanel || selectedTrasladoIdx.size === 0 || !trasladoTargetId) return
+    setTrasladoSaving(true)
+    setTrasladoError(null)
+    const result = await trasladarActividades(trasladoPanel.bitacoraId, Array.from(selectedTrasladoIdx), trasladoTargetId, trasladoMode)
+    if (result.error) {
+      setTrasladoError(result.error)
+      setTrasladoSaving(false)
+      return
+    }
+    if (trasladoMode === 'move') {
+      loadBitacoras()
+    }
+    setTrasladoSaving(false)
+    setTrasladoOk(true)
+    setTimeout(() => {
+      setTrasladoPanel(null)
+      setTrasladoOk(false)
+    }, 2000)
+  }
 
   const weekDates = useMemo(() => getWeekFromDate(new Date(selectedDate + 'T12:00:00')), [selectedDate])
 
@@ -508,12 +553,22 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                   </td>
                   <td className="py-2 px-3">
                     {entry?.estado === 'cumplido' && (
-                      <Link
-                        href={`/dashboard/modo-clase/${entry.id}`}
-                        className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
-                      >
-                        Ver resumen
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/dashboard/modo-clase/${entry.id}`}
+                          className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
+                        >
+                          Ver resumen
+                        </Link>
+                        {entry.actividades_json?.length > 0 && (
+                          <button
+                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json)}
+                            className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+                          >
+                            → Trasladar act.
+                          </button>
+                        )}
+                      </div>
                     )}
                     {entry?.estado === 'planificado' && (
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -540,6 +595,14 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                         >
                           Replanificar
                         </button>
+                        {entry.actividades_json?.length > 0 && (
+                          <button
+                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json)}
+                            className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+                          >
+                            → Trasladar act.
+                          </button>
+                        )}
                       </div>
                     )}
                     {!entry && (
@@ -1010,6 +1073,102 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           clases={clases}
           onClose={() => setShowGenerador(false)}
         />
+      )}
+
+      {/* Panel de traslado de actividades */}
+      {trasladoPanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-gray-900 border border-amber-700/50 rounded-2xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-amber-300">Trasladar actividades</p>
+              <button onClick={() => setTrasladoPanel(null)} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
+            </div>
+
+            {trasladoDestinos === 'loading' && (
+              <p className="text-xs text-gray-500">Buscando clases futuras…</p>
+            )}
+            {trasladoDestinos === null && (
+              <p className="text-xs text-red-400">No hay clases futuras planificadas para este curso.</p>
+            )}
+            {trasladoDestinos && trasladoDestinos !== 'loading' && (
+              <>
+                <div className="space-y-1">
+                  <p className="text-xs text-gray-500">Destino:</p>
+                  <select
+                    value={trasladoTargetId ?? ''}
+                    onChange={e => setTrasladoTargetId(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
+                  >
+                    {trasladoDestinos.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.fecha}{c.tema ? ` · ${c.tema.slice(0, 40)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-1 bg-gray-800/60 rounded-lg p-1 w-fit">
+                  {(['move', 'copy'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setTrasladoMode(m)}
+                      className={`text-xs px-3 py-1 rounded-md transition-colors font-medium ${
+                        trasladoMode === m ? 'bg-amber-700 text-white' : 'text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      {m === 'move' ? 'Mover' : 'Copiar'}
+                    </button>
+                  ))}
+                </div>
+                {trasladoMode === 'copy' && (
+                  <p className="text-[10px] text-gray-500">La actividad queda también en este plan.</p>
+                )}
+
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  <p className="text-xs text-gray-500">Selecciona actividades:</p>
+                  {trasladoPanel.actividades.map((a, i) => (
+                    <label key={i} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-800/40 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedTrasladoIdx.has(i)}
+                        onChange={e => {
+                          const next = new Set(selectedTrasladoIdx)
+                          if (e.target.checked) next.add(i)
+                          else next.delete(i)
+                          setSelectedTrasladoIdx(next)
+                        }}
+                        className="accent-amber-500 w-4 h-4 flex-shrink-0"
+                      />
+                      <span className="text-sm text-gray-300 flex-1 truncate">{a.actividad}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {trasladoError && <p className="text-xs text-red-400">{trasladoError}</p>}
+                {trasladoOk && (
+                  <p className="text-xs text-emerald-400 text-center">
+                    ✓ {trasladoMode === 'move' ? 'Actividades movidas' : 'Actividades copiadas'}
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmarTrasladoPlan}
+                    disabled={selectedTrasladoIdx.size === 0 || trasladoSaving || !trasladoTargetId}
+                    className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  >
+                    {trasladoSaving
+                      ? (trasladoMode === 'move' ? 'Moviendo…' : 'Copiando…')
+                      : `${trasladoMode === 'move' ? 'Mover' : 'Copiar'}${selectedTrasladoIdx.size > 0 ? ` (${selectedTrasladoIdx.size})` : ''}`}
+                  </button>
+                  <button onClick={() => setTrasladoPanel(null)} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

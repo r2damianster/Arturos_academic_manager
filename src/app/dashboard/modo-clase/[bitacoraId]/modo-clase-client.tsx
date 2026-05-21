@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase, getSiguienteClase, trasladarActividades } from '@/lib/actions/bitacora'
+import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
 import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
@@ -639,10 +639,12 @@ export function ModoClaseClient({
   }
 
   // ── Traslado de actividades ───────────────────────────────────────────────
-  type SiguienteClaseInfo = { id: string; fecha: string; tema: string | null }
+  type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
   const [trasladandoPanel, setTrasladandoPanel] = useState(false)
   const [selectedTransfer, setSelectedTransfer] = useState<Set<number>>(new Set())
-  const [siguienteClase, setSiguienteClase] = useState<SiguienteClaseInfo | null | 'loading'>(null)
+  const [clasesDestino, setClasesDestino] = useState<ClaseDestinoInfo[] | 'loading' | null>(null)
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
+  const [transferMode, setTransferMode] = useState<'move' | 'copy'>('move')
   const [trasladandoSaving, setTrasladandoSaving] = useState(false)
   const [trasladandoError, setTrasladandoError] = useState<string | null>(null)
   const [trasladandoOk, setTrasladandoOk] = useState(false)
@@ -652,23 +654,28 @@ export function ModoClaseClient({
     setSelectedTransfer(new Set())
     setTrasladandoOk(false)
     setTrasladandoError(null)
-    setSiguienteClase('loading')
-    const next = await getSiguienteClase(bitacoraId)
-    setSiguienteClase(next)
+    setClasesDestino('loading')
+    setSelectedTargetId(null)
+    setTransferMode('move')
+    const futuras = await getClasesFuturas(bitacoraId)
+    setClasesDestino(futuras.length > 0 ? futuras : null)
+    if (futuras.length > 0) setSelectedTargetId(futuras[0].id)
   }
 
   async function confirmarTrasladar() {
-    if (selectedTransfer.size === 0) return
+    if (selectedTransfer.size === 0 || !selectedTargetId) return
     setTrasladandoSaving(true)
     setTrasladandoError(null)
-    const result = await trasladarActividades(bitacoraId, Array.from(selectedTransfer))
+    const result = await trasladarActividades(bitacoraId, Array.from(selectedTransfer), selectedTargetId, transferMode)
     if (result.error) {
       setTrasladandoError(result.error)
       setTrasladandoSaving(false)
       return
     }
-    const remaining = actividades.filter((_, i) => !selectedTransfer.has(i))
-    updateActividades(remaining)
+    if (transferMode === 'move') {
+      const remaining = actividades.filter((_, i) => !selectedTransfer.has(i))
+      updateActividades(remaining)
+    }
     setTrasladandoSaving(false)
     setTrasladandoOk(true)
     setTimeout(() => {
@@ -1082,7 +1089,7 @@ export function ModoClaseClient({
                 onClick={abrirTrasladar}
                 className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-amber-700/50 text-amber-600 hover:border-amber-600 hover:text-amber-400 hover:bg-amber-900/10 transition-colors text-sm"
               >
-                <span className="text-base leading-none">→</span> Trasladar a siguiente clase
+                <span className="text-base leading-none">→</span> Trasladar actividades a otro plan
               </button>
             )}
 
@@ -1090,7 +1097,7 @@ export function ModoClaseClient({
             {trasladandoPanel && (
               <div className="rounded-xl border border-amber-700/50 bg-amber-900/10 p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-amber-300">Trasladar a siguiente clase</p>
+                  <p className="text-sm font-semibold text-amber-300">Trasladar actividades</p>
                   <button
                     onClick={() => setTrasladandoPanel(false)}
                     className="text-gray-500 hover:text-gray-300 text-sm leading-none"
@@ -1099,24 +1106,52 @@ export function ModoClaseClient({
                   </button>
                 </div>
 
-                {siguienteClase === 'loading' && (
-                  <p className="text-xs text-gray-500">Buscando siguiente clase…</p>
+                {clasesDestino === 'loading' && (
+                  <p className="text-xs text-gray-500">Buscando clases futuras…</p>
                 )}
-                {siguienteClase === null && (
-                  <p className="text-xs text-red-400">No hay siguiente clase planificada. Crea un plan primero.</p>
+                {clasesDestino === null && (
+                  <p className="text-xs text-red-400">No hay clases futuras planificadas. Crea un plan primero.</p>
                 )}
-                {siguienteClase && siguienteClase !== 'loading' && (
+                {clasesDestino && clasesDestino !== 'loading' && (
                   <>
-                    <div className="text-xs bg-gray-800/60 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">Destino: </span>
-                      <span className="text-white">{formatFecha(siguienteClase.fecha)}</span>
-                      {siguienteClase.tema && (
-                        <span className="text-gray-400"> · {siguienteClase.tema}</span>
-                      )}
+                    {/* Selector de destino */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Destino:</p>
+                      <select
+                        value={selectedTargetId ?? ''}
+                        onChange={e => setSelectedTargetId(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
+                      >
+                        {clasesDestino.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {formatFecha(c.fecha)}{c.tema ? ` · ${c.tema.slice(0, 40)}` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
+                    {/* Toggle copiar / mover */}
+                    <div className="flex gap-1 bg-gray-800/60 rounded-lg p-1 w-fit">
+                      {(['move', 'copy'] as const).map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setTransferMode(m)}
+                          className={`text-xs px-3 py-1 rounded-md transition-colors font-medium ${
+                            transferMode === m
+                              ? 'bg-amber-700 text-white'
+                              : 'text-gray-500 hover:text-gray-300'
+                          }`}
+                        >
+                          {m === 'move' ? 'Mover' : 'Copiar'}
+                        </button>
+                      ))}
+                    </div>
+                    {transferMode === 'copy' && (
+                      <p className="text-[10px] text-gray-500">La actividad queda también en este plan.</p>
+                    )}
+
                     <div className="space-y-1">
-                      <p className="text-xs text-gray-500">Selecciona las actividades a trasladar:</p>
+                      <p className="text-xs text-gray-500">Selecciona las actividades:</p>
                       {actividades.map((a, i) => (
                         <label
                           key={i}
@@ -1147,18 +1182,18 @@ export function ModoClaseClient({
                       <p className="text-xs text-red-400">{trasladandoError}</p>
                     )}
                     {trasladandoOk && (
-                      <p className="text-xs text-emerald-400 text-center">✓ Actividades trasladadas</p>
+                      <p className="text-xs text-emerald-400 text-center">✓ {transferMode === 'move' ? 'Actividades movidas' : 'Actividades copiadas'}</p>
                     )}
 
                     <div className="flex gap-2">
                       <button
                         onClick={confirmarTrasladar}
-                        disabled={selectedTransfer.size === 0 || trasladandoSaving}
+                        disabled={selectedTransfer.size === 0 || trasladandoSaving || !selectedTargetId}
                         className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                       >
                         {trasladandoSaving
-                          ? 'Trasladando…'
-                          : `Trasladar${selectedTransfer.size > 0 ? ` (${selectedTransfer.size})` : ''}`}
+                          ? (transferMode === 'move' ? 'Moviendo…' : 'Copiando…')
+                          : `${transferMode === 'move' ? 'Mover' : 'Copiar'}${selectedTransfer.size > 0 ? ` (${selectedTransfer.size})` : ''}`}
                       </button>
                       <button
                         onClick={() => setTrasladandoPanel(false)}
