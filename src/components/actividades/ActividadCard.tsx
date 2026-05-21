@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { togglePin, setColor, toggleArchivada, eliminarActividad, toggleChecklistItem } from '@/lib/actions/actividades'
+import { togglePin, setColor, toggleArchivada, eliminarActividad, toggleChecklistItem, convertirAEvento } from '@/lib/actions/actividades'
 import { InlineChecklist } from './ChecklistEditor'
 import { getCardStyle } from './ColorPicker'
 import type { ActividadConCurso, NoteColor } from '@/lib/actions/actividades'
-import { Pin, PinOff, Palette, Archive, ArchiveRestore, Trash2, Calendar } from 'lucide-react'
+import { Pin, PinOff, Palette, Archive, ArchiveRestore, Trash2, Calendar, CalendarPlus, Check } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const TIPO_EMOJI: Record<string, string> = {
@@ -45,6 +45,11 @@ type Props = {
 export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
   const [showColors, setShowColors] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showSchedule, setShowSchedule] = useState(false)
+  const [schedFecha, setSchedFecha] = useState('')
+  const [schedHoraInicio, setSchedHoraInicio] = useState('')
+  const [schedHoraFin, setSchedHoraFin] = useState('')
+  const [schedLoading, setSchedLoading] = useState(false)
   const [localItems, setLocalItems] = useState(actividad.checklist_items)
   const [, startTransition] = useTransition()
 
@@ -80,6 +85,20 @@ export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
     refresh()
   }
 
+  async function handleConvertirEvento(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!schedFecha) return
+    setSchedLoading(true)
+    await convertirAEvento(actividad.id, {
+      fecha: schedFecha,
+      horaInicio: schedHoraInicio || undefined,
+      horaFin: schedHoraFin || undefined,
+    })
+    setSchedLoading(false)
+    setShowSchedule(false)
+    refresh()
+  }
+
   async function handleChecklistToggle(itemId: string) {
     // Optimistic update
     setLocalItems(prev => prev.map(i => i.id === itemId ? { ...i, done: !i.done } : i))
@@ -109,7 +128,7 @@ export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
             ? 'text-amber-400 opacity-100'
             : 'text-gray-600 opacity-0 group-hover:opacity-100 hover:text-gray-300 hover:bg-black/20',
         )}
-        title={actividad.pinned ? 'Desfijar' : 'Fijar'}
+        title={actividad.pinned ? 'Quitar destaque' : 'Destacar'}
       >
         {actividad.pinned ? <Pin className="w-3.5 h-3.5 fill-current" /> : <PinOff className="w-3.5 h-3.5" />}
       </button>
@@ -168,8 +187,61 @@ export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
               </span>
             )
           })()}
+          {actividad.conversion_destino === 'evento' && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-900/40 text-brand-400 flex items-center gap-0.5">
+              <Check className="w-2.5 h-2.5" />
+              Programado
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Formulario inline para programar como evento */}
+      {showSchedule && (
+        <div
+          className="border-t border-white/5 px-3 py-2 space-y-1.5"
+          onClick={e => e.stopPropagation()}
+        >
+          <p className="text-[10px] text-gray-400 font-medium">Programar en agenda</p>
+          <input
+            type="date"
+            value={schedFecha}
+            onChange={e => setSchedFecha(e.target.value)}
+            className="input w-full text-xs py-1"
+          />
+          <div className="flex gap-1.5">
+            <input
+              type="time"
+              placeholder="Inicio"
+              value={schedHoraInicio}
+              onChange={e => setSchedHoraInicio(e.target.value)}
+              className="input flex-1 text-xs py-1"
+            />
+            <input
+              type="time"
+              placeholder="Fin"
+              value={schedHoraFin}
+              onChange={e => setSchedHoraFin(e.target.value)}
+              className="input flex-1 text-xs py-1"
+            />
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleConvertirEvento}
+              disabled={!schedFecha || schedLoading}
+              className="flex-1 btn-primary text-xs py-1 disabled:opacity-40"
+            >
+              {schedLoading ? 'Guardando...' : '→ Agregar al calendario'}
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); setShowSchedule(false) }}
+              className="px-2 text-xs text-gray-500 hover:text-gray-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Barra de acciones — visible en hover */}
       <div className={clsx(
@@ -205,6 +277,26 @@ export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
             </div>
           )}
         </div>
+
+        {/* Programar como evento — solo para tarea/recordatorio */}
+        {(actividad.tipo === 'tarea' || actividad.tipo === 'recordatorio') && (
+          actividad.conversion_destino === 'evento' ? (
+            <span className="p-1.5 text-brand-500" title="Ya programado como evento">
+              <CalendarPlus className="w-3.5 h-3.5" />
+            </span>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); setShowSchedule(v => !v) }}
+              className={clsx(
+                'p-1.5 rounded-lg transition-colors',
+                showSchedule ? 'text-brand-400 bg-brand-900/30' : 'text-gray-500 hover:text-brand-400 hover:bg-black/20',
+              )}
+              title="Programar en agenda"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+            </button>
+          )
+        )}
 
         {/* Archivar / Restaurar */}
         <button

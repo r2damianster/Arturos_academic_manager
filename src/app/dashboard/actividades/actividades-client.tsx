@@ -94,7 +94,10 @@ export function ActividadesClient({ counts, cursos, actividadesIniciales }: Prop
 
   // Split pinned / normal (solo en vista activa)
   const fijadas = !vistaArchivadas ? actividades.filter(a => a.pinned) : []
-  const noFijadas = !vistaArchivadas ? actividades.filter(a => !a.pinned) : actividades
+  const TIPO_ORDER: Record<string, number> = { tarea: 0, nota: 1, recordatorio: 2 }
+  const noFijadas = (!vistaArchivadas ? actividades.filter(a => !a.pinned) : actividades)
+    .slice()
+    .sort((a, b) => (TIPO_ORDER[a.tipo] ?? 9) - (TIPO_ORDER[b.tipo] ?? 9))
 
   return (
     <div className="space-y-5">
@@ -213,7 +216,7 @@ export function ActividadesClient({ counts, cursos, actividadesIniciales }: Prop
           {/* Fijadas */}
           {fijadas.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Fijadas</p>
+              <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Destacadas</p>
               <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '0.75rem' }}>
                 {fijadas.map(a => (
                   <ActividadCard key={a.id} actividad={a} onEditar={() => setEditando(a)} onCambiado={() => recargar()} />

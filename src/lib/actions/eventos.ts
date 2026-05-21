@@ -7,7 +7,7 @@ import { z } from 'zod'
 const EventoSchema = z.object({
   titulo: z.string().min(1).max(200),
   descripcion: z.string().max(1000).optional().nullable(),
-  tipo: z.enum(['personal', 'académico', 'laboral', 'social', 'otro']),
+  tipo: z.enum(['personal', 'académico', 'laboral', 'social', 'otro', 'tarea']),
   fecha_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   fecha_fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   hora_inicio: z.string().optional().nullable(),
