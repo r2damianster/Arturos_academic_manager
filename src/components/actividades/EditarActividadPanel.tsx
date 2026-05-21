@@ -29,9 +29,6 @@ const PRIORIDADES: { value: Prioridad; label: string }[] = [
   { value: 'baja',   label: '⬇ Baja' },
 ]
 
-function toDateInput(iso: string | null) {
-  return iso ? iso.slice(0, 10) : ''
-}
 
 export function EditarActividadPanel({ actividad, cursos, onClose, onGuardado }: Props) {
   const [titulo, setTitulo]             = useState(actividad.titulo)
@@ -40,7 +37,6 @@ export function EditarActividadPanel({ actividad, cursos, onClose, onGuardado }:
   const [prioridad, setPrioridad]       = useState<Prioridad>(actividad.prioridad ?? 'normal')
   const [color, setColor]               = useState<NoteColor>(actividad.color)
   const [cursoId, setCursoId]           = useState(actividad.curso_id ?? '')
-  const [fecha, setFecha]               = useState(toDateInput(actividad.fecha_vencimiento))
   const [checklist, setChecklist]       = useState<ChecklistItem[]>(actividad.checklist_items)
   const [etiquetaInput, setEtiquetaInput] = useState('')
   const [etiquetas, setEtiquetas]       = useState<string[]>(actividad.etiquetas ?? [])
@@ -64,7 +60,6 @@ export function EditarActividadPanel({ actividad, cursos, onClose, onGuardado }:
       prioridad,
       color,
       curso_id: cursoId || null,
-      fecha_vencimiento: fecha ? new Date(fecha).toISOString() : null,
       checklist_items: checklist,
       etiquetas,
     })
@@ -173,11 +168,6 @@ export function EditarActividadPanel({ actividad, cursos, onClose, onGuardado }:
               </select>
             </div>
 
-            {/* Fecha */}
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha límite</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input w-full text-sm" />
-            </div>
           </div>
 
           {/* Curso */}

@@ -27,7 +27,6 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
   const [tipo, setTipo] = useState<Tipo>('nota')
   const [color, setColor] = useState<NoteColor>(null)
   const [cursoId, setCursoId] = useState(cursoIdPrefill ?? '')
-  const [fecha, setFecha] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -43,7 +42,6 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
       tipo,
       color,
       curso_id: cursoId || null,
-      fecha_vencimiento: fecha ? new Date(fecha).toISOString() : null,
       origen: origenPrefill ?? 'inbox',
     })
     setSaving(false)
@@ -110,14 +108,6 @@ export function QuickAddModal({ cursos, cursoIdPrefill, origenPrefill, onClose, 
                 <option value="">Sin curso</option>
                 {cursos.map(c => <option key={c.id} value={c.id}>{c.asignatura}</option>)}
               </select>
-            </div>
-          )}
-          {(tipo === 'tarea' || tipo === 'recordatorio') && (
-            <div className={cursos.length === 0 ? 'col-span-2' : ''}>
-              <label className="block text-xs text-gray-500 mb-1">
-                {tipo === 'recordatorio' ? 'Fecha (requerida)' : 'Fecha límite'}
-              </label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input w-full text-sm" />
             </div>
           )}
         </div>
