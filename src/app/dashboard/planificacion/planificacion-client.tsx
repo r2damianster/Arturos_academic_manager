@@ -451,6 +451,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
             >
               Ver resumen
             </Link>
+            {entry.actividades_json?.length > 0 && (
+              <button
+                onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json) }}
+                className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+                title="Trasladar actividades a otro plan"
+              >
+                →
+              </button>
+            )}
             {deleteBtn}
           </div>
         </div>
@@ -476,6 +485,15 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           >
             ▶ Iniciar clase
           </Link>
+          {entry.actividades_json?.length > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json) }}
+              className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+              title="Trasladar actividades a otro plan"
+            >
+              →
+            </button>
+          )}
           {deleteBtn}
         </div>
       </div>
