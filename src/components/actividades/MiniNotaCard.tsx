@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { eliminarActividad, togglePin } from '@/lib/actions/actividades'
 import { getCardStyle } from './ColorPicker'
 import type { ActividadConCurso } from '@/lib/actions/actividades'
-import { Pin, X } from 'lucide-react'
+import { Pin, X, CalendarPlus } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const TIPO_EMOJI: Record<string, string> = {
@@ -17,9 +17,10 @@ type Props = {
   actividad: ActividadConCurso
   onClick: () => void
   onCambiado: () => void
+  onProgramar?: () => void
 }
 
-export function MiniNotaCard({ actividad, onClick, onCambiado }: Props) {
+export function MiniNotaCard({ actividad, onClick, onCambiado, onProgramar }: Props) {
   const [loading, setLoading] = useState(false)
   const { border } = getCardStyle(actividad.color)
 
@@ -76,6 +77,16 @@ export function MiniNotaCard({ actividad, onClick, onCambiado }: Props) {
 
       {/* Acciones — visible en hover */}
       <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Programar en agenda — solo tarea/recordatorio sin convertir */}
+        {onProgramar && (actividad.tipo === 'tarea' || actividad.tipo === 'recordatorio') && actividad.conversion_destino !== 'evento' && (
+          <button
+            onClick={e => { e.stopPropagation(); onProgramar() }}
+            title="Programar en agenda"
+            className="p-1 rounded-lg text-gray-600 hover:text-brand-400 transition-colors"
+          >
+            <CalendarPlus className="w-3 h-3" />
+          </button>
+        )}
         <button
           onClick={handlePin}
           title={actividad.pinned ? 'Desfijar' : 'Fijar'}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { crearActividad, eliminarActividad, getUltimasNotas } from '@/lib/actions/actividades'
 import { MiniNotaCard } from './MiniNotaCard'
 import { EditarActividadPanel } from './EditarActividadPanel'
+import { ConvertirEventoModal } from './ConvertirEventoModal'
 import type { ActividadConCurso } from '@/lib/actions/actividades'
 import type { Database } from '@/types/database.types'
 import { StickyNote, X, ArrowUpRight, Loader2 } from 'lucide-react'
@@ -27,6 +28,7 @@ export function FloatingNotesPanel() {
   const [notas, setNotas] = useState<ActividadConCurso[]>([])
   const [loading, setLoading] = useState(false)
   const [editando, setEditando] = useState<ActividadConCurso | null>(null)
+  const [programando, setProgramando] = useState<ActividadConCurso | null>(null)
   const [tipo, setTipo] = useState<Tipo>('nota')
   const [titulo, setTitulo] = useState('')
   const [saving, setSaving] = useState(false)
@@ -169,12 +171,16 @@ export function FloatingNotesPanel() {
                   <p className="text-[10px] text-gray-700 mt-0.5">Captura tu primera idea arriba</p>
                 </div>
               ) : (
-                notas.map(n => (
+                [...notas].sort((a, b) => {
+                  const order: Record<string, number> = { tarea: 0, nota: 1, recordatorio: 2 }
+                  return (order[a.tipo] ?? 9) - (order[b.tipo] ?? 9)
+                }).map(n => (
                   <MiniNotaCard
                     key={n.id}
                     actividad={n}
                     onClick={() => setEditando(n)}
                     onCambiado={() => startTransition(() => recargar())}
+                    onProgramar={() => setProgramando(n)}
                   />
                 ))
               )}
@@ -206,6 +212,15 @@ export function FloatingNotesPanel() {
           cursos={[]}
           onClose={() => setEditando(null)}
           onGuardado={() => { setEditando(null); recargar() }}
+        />
+      )}
+
+      {/* Modal convertir a evento */}
+      {programando && (
+        <ConvertirEventoModal
+          actividad={programando}
+          onClose={() => setProgramando(null)}
+          onConvertido={() => { setProgramando(null); recargar() }}
         />
       )}
     </>
