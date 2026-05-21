@@ -61,6 +61,7 @@ const TIPO_COLOR: Record<string, { bg: string; text: string; border: string; dot
   académico: { bg: 'bg-teal-500/15',   text: 'text-teal-300',   border: 'border-teal-500/40',   dot: 'bg-teal-500' },
   laboral:   { bg: 'bg-amber-500/15',  text: 'text-amber-300',  border: 'border-amber-500/40',  dot: 'bg-amber-500' },
   social:    { bg: 'bg-pink-500/15',   text: 'text-pink-300',   border: 'border-pink-500/40',   dot: 'bg-pink-500' },
+  tarea:     { bg: 'bg-red-500/15',    text: 'text-red-300',    border: 'border-red-500/40',    dot: 'bg-red-500' },
   otro:      { bg: 'bg-gray-500/15',   text: 'text-gray-300',   border: 'border-gray-500/40',   dot: 'bg-gray-500' },
 }
 function evClr(tipo: string) { return TIPO_COLOR[tipo] ?? TIPO_COLOR.otro }
@@ -1041,7 +1042,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               <div>
                 <label className="label">Tipo</label>
                 <div className="flex gap-2 flex-wrap">
-                  {(['personal','académico','laboral','social','otro'] as const).map(t => {
+                  {(['personal','académico','laboral','social','tarea','otro'] as const).map(t => {
                     const c = evClr(t)
                     return (
                       <button type="button" key={t} onClick={() => setEvForm(f => ({ ...f, tipo: t }))}
