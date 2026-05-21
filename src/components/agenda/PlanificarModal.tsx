@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion } from '@/lib/actions/bitacora'
+import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion, getClasesFuturas } from '@/lib/actions/bitacora'
 import type { ActividadPlanificada } from '@/types/domain'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -97,12 +97,13 @@ function generarFechasValidas(dowSet: Set<number>, desde: string, n = 14): strin
 
 // ─── Sortable row ──────────────────────────────────────────────────────────────
 
-function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove }: {
+function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTransfer }: {
   act: ActividadPlanificada & { id: string }
   readOnly: boolean
   onUpdate: (field: keyof ActividadPlanificada, value: string) => void
   onRemove: () => void
   canRemove: boolean
+  onTransfer?: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: act.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
@@ -140,11 +141,20 @@ function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove }: {
         disabled={readOnly}
       />
       {!readOnly ? (
-        <button type="button" onClick={onRemove}
-          className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
-          disabled={!canRemove}>
-          ✕
-        </button>
+        <div className="flex items-center gap-1">
+          {onTransfer && (
+            <button type="button" onClick={onTransfer}
+              title="Trasladar esta actividad a otro plan"
+              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-amber-400 transition-colors rounded text-xs">
+              →
+            </button>
+          )}
+          <button type="button" onClick={onRemove}
+            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors rounded"
+            disabled={!canRemove}>
+            ✕
+          </button>
+        </div>
       ) : <span />}
     </div>
   )
@@ -182,6 +192,74 @@ export function PlanificarModal({
   const [copying,     setCopying]     = useState(false)
   const [copyError,   setCopyError]   = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
+
+  // Sub-panel "Trasladar actividad individual"
+  type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
+  const [txActId,       setTxActId]       = useState<string | null>(null)   // act.id seleccionada
+  const [txDestinos,    setTxDestinos]    = useState<ClaseDestinoInfo[] | 'loading' | null>(null)
+  const [txTargetId,    setTxTargetId]    = useState<string | null>(null)
+  const [txMode,        setTxMode]        = useState<'move' | 'copy'>('move')
+  const [txSaving,      setTxSaving]      = useState(false)
+  const [txError,       setTxError]       = useState<string | null>(null)
+  const [txOk,          setTxOk]          = useState(false)
+
+  async function abrirTrasladoAct(actId: string) {
+    setTxActId(actId)
+    setTxOk(false)
+    setTxError(null)
+    setTxMode('move')
+    setTxDestinos('loading')
+    setTxTargetId(null)
+    if (!existing) return
+    const futuras = await getClasesFuturas(existing.id)
+    setTxDestinos(futuras.length > 0 ? futuras : null)
+    if (futuras.length > 0) setTxTargetId(futuras[0].id)
+  }
+
+  async function confirmarTrasladoAct() {
+    if (!txActId || !txTargetId || !existing) return
+    setTxSaving(true)
+    setTxError(null)
+
+    const actObj = actividades.find(a => a.id === txActId)
+    if (!actObj) { setTxSaving(false); return }
+
+    // Fetch target current actividades
+    const { data: target, error: tgtErr } = await supabase
+      .from('bitacora_clase')
+      .select('actividades_json')
+      .eq('id', txTargetId)
+      .maybeSingle()
+
+    if (tgtErr || !target) {
+      setTxError('No se pudo cargar la clase destino')
+      setTxSaving(false)
+      return
+    }
+
+    const targetActs = [
+      ...((target.actividades_json as ActividadPlanificada[]) ?? []),
+      { actividad: actObj.actividad, recurso: actObj.recurso },
+    ]
+
+    const { error: updTgt } = await supabase
+      .from('bitacora_clase')
+      .update({ actividades_json: targetActs })
+      .eq('id', txTargetId)
+
+    if (updTgt) { setTxError(updTgt.message); setTxSaving(false); return }
+
+    if (txMode === 'move') {
+      removeActividad(txActId)
+      // Save source without the moved activity
+      const remaining = actividades.filter(a => a.id !== txActId && a.actividad.trim())
+      await supabase.from('bitacora_clase').update({ actividades_json: remaining }).eq('id', existing.id)
+    }
+
+    setTxSaving(false)
+    setTxOk(true)
+    setTimeout(() => { setTxActId(null); setTxOk(false) }, 1800)
+  }
 
   // ── Derived data from clases ────────────────────────────────────────────────
 
@@ -429,12 +507,73 @@ export function PlanificarModal({
                           onUpdate={(field, value) => updateActividad(act.id, field, value)}
                           onRemove={() => removeActividad(act.id)}
                           canRemove={actividades.length > 1}
+                          onTransfer={existing && !readOnly ? () => abrirTrasladoAct(act.id) : undefined}
                         />
                       ))}
                     </SortableContext>
                   </DndContext>
                 </div>
               </div>
+
+              {/* Panel traslado de actividad individual */}
+              {txActId && (() => {
+                const actObj = actividades.find(a => a.id === txActId)
+                return (
+                  <div className="border border-amber-700/50 bg-amber-900/10 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-amber-300">Trasladar actividad</p>
+                      <button type="button" onClick={() => setTxActId(null)} className="text-gray-500 hover:text-gray-300 text-sm leading-none">✕</button>
+                    </div>
+                    {actObj && (
+                      <p className="text-xs text-gray-300 bg-gray-800/60 rounded-lg px-3 py-2 truncate">
+                        <span className="text-gray-500">Actividad: </span>{actObj.actividad || '(sin nombre)'}
+                      </p>
+                    )}
+                    {txDestinos === 'loading' && <p className="text-xs text-gray-500">Buscando clases futuras…</p>}
+                    {txDestinos === null && <p className="text-xs text-red-400">No hay clases futuras planificadas para este curso.</p>}
+                    {txDestinos && txDestinos !== 'loading' && (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-gray-500">Destino:</p>
+                          <select
+                            value={txTargetId ?? ''}
+                            onChange={e => setTxTargetId(e.target.value)}
+                            className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
+                          >
+                            {txDestinos.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.fecha}{c.tema ? ` · ${c.tema.slice(0, 40)}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-1 bg-gray-800/60 rounded-lg p-1 w-fit">
+                          {(['move', 'copy'] as const).map(m => (
+                            <button key={m} type="button" onClick={() => setTxMode(m)}
+                              className={`text-xs px-3 py-1 rounded-md transition-colors font-medium ${txMode === m ? 'bg-amber-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                              {m === 'move' ? 'Mover' : 'Copiar'}
+                            </button>
+                          ))}
+                        </div>
+                        {txMode === 'copy' && <p className="text-[10px] text-gray-500">La actividad queda también aquí.</p>}
+                        {txError && <p className="text-xs text-red-400">{txError}</p>}
+                        {txOk && <p className="text-xs text-emerald-400">✓ {txMode === 'move' ? 'Actividad movida' : 'Actividad copiada'}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={confirmarTrasladoAct}
+                            disabled={txSaving || !txTargetId}
+                            className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">
+                            {txSaving ? (txMode === 'move' ? 'Moviendo…' : 'Copiando…') : (txMode === 'move' ? 'Mover' : 'Copiar')}
+                          </button>
+                          <button type="button" onClick={() => setTxActId(null)}
+                            className="px-3 py-2 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
+                            Cancelar
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Observaciones */}
               <div>
