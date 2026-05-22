@@ -12,6 +12,9 @@ import { Agrupacion } from '@/components/herramientas/Agrupacion'
 import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 import { formatNombreCorto } from '@/lib/format'
 import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
+import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/ficha-estudiante'
+import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actions'
+import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -545,17 +548,50 @@ export function ModoClaseClient({
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
 
-  // Ficha del estudiante
+  // Ficha del estudiante (drawer)
   const [fichaId, setFichaId] = useState<string | null>(null)
 
   // Vista de asistencia: todos (compacto) | uno (focalizado)
   const [asistenciaVista, setAsistenciaVista] = useState<'todos' | 'uno'>('todos')
   const [unoIdx, setUnoIdx] = useState(0)
 
+  // Cache de fichas cargadas para la vista Uno por uno
+  const [fichaCache, setFichaCache] = useState<Record<string, FichaEstudianteData>>({})
+  const [fichaLoading, setFichaLoading] = useState(false)
+
+  // Toggle info sensible + estado inline
+  const [sensibleOn, toggleSensible] = useSensibleToggle()
+  const [sensibleAbierto, setSensibleAbierto] = useState(false)
+  const [notaUno, setNotaUno] = useState('')
+  const [notaGuardando, setNotaGuardando] = useState(false)
+  const [confirmarLimpiarUno, setConfirmarLimpiarUno] = useState(false)
+  const [limpiarMsg, setLimpiarMsg] = useState<string | null>(null)
+  const [, startLimpiarT] = useTransition()
+
   const NIVEL_COLORS_A = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
   const NIVEL_LABELS_A = ['', '1·Nula', '2·Baja', '3·Media', '4·Alta', '5·Excel']
   const safeIdx = Math.min(unoIdx, Math.max(0, students.length - 1))
   const estudianteUno = students[safeIdx] ?? null
+
+  // Cargar ficha del estudiante enfocado en vista Uno por uno (con caché)
+  useEffect(() => {
+    if (asistenciaVista !== 'uno' || !estudianteUno) return
+    if (fichaCache[estudianteUno.id]) {
+      setNotaUno((fichaCache[estudianteUno.id].estudiante.nota_incidencia as string | null) ?? '')
+      setConfirmarLimpiarUno(false)
+      setLimpiarMsg(null)
+      return
+    }
+    setFichaLoading(true)
+    getFichaEstudiante(estudianteUno.id, cursoId, bitacoraId).then(res => {
+      if ('error' in res) return
+      setFichaCache(prev => ({ ...prev, [estudianteUno.id]: res }))
+      setNotaUno((res.estudiante.nota_incidencia as string | null) ?? '')
+      setConfirmarLimpiarUno(false)
+      setLimpiarMsg(null)
+    }).finally(() => setFichaLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asistenciaVista, estudianteUno?.id])
 
   function togglePart(estudianteId: string) {
     setPartAbierto(prev => {
@@ -1397,81 +1433,335 @@ export function ModoClaseClient({
               </div>
 
               {/* Tarjeta focalizada */}
-              <div className="flex-1 overflow-y-auto px-3 pb-2">
-                <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 space-y-4">
-                  {/* Nombre + contador + ficha */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-white leading-tight truncate">{estudianteUno.nombre}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        {safeIdx + 1} de {students.length}
-                        {estudianteUno.tutoria && (
-                          <span className="ml-2 px-1.5 py-0.5 bg-blue-900/40 border border-blue-800 rounded text-[10px] text-blue-400">📘</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setFichaId(estudianteUno.id)}
-                      title="Ver ficha del estudiante"
-                      className="shrink-0 w-7 h-7 rounded-full bg-gray-800 text-gray-500 hover:text-brand-400 hover:bg-gray-700 flex items-center justify-center text-xs transition-colors"
-                    >
-                      ⓘ
-                    </button>
-                  </div>
+              <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-3">
 
-                  {/* Botones P / A / F */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {([
-                      { est: 'Presente' as EstadoA, label: 'Presente', active: 'bg-emerald-600 text-white border-emerald-500', inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-emerald-700 hover:text-emerald-400' },
-                      { est: 'Atraso'   as EstadoA, label: 'Atraso',   active: 'bg-amber-600 text-white border-amber-500',   inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-amber-700 hover:text-amber-400' },
-                      { est: 'Ausente'  as EstadoA, label: 'Falta',    active: 'bg-red-600 text-white border-red-500',       inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-red-700 hover:text-red-400' },
-                    ]).map(b => (
-                      <button
-                        key={b.label}
-                        onClick={() => marcarAsistencia(estudianteUno.id, b.est!)}
-                        className={`py-2.5 rounded-lg border text-xs font-bold transition-all ${
-                          asistencia[estudianteUno.id] === b.est ? b.active : b.inactive
-                        }`}
-                      >
-                        {b.label}
-                      </button>
+                {/* ── Cabecera: nombre + botón drawer completo ── */}
+                <div className="flex items-start justify-between gap-2 pt-1">
+                  <div className="min-w-0">
+                    <p className="text-base font-bold text-white leading-tight">{estudianteUno.nombre}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {safeIdx + 1} de {students.length}
+                      {estudianteUno.tutoria && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-blue-900/40 border border-blue-800 rounded text-[10px] text-blue-400">📘</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setFichaId(estudianteUno.id)}
+                    title="Abrir ficha completa"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 text-[11px] bg-gray-800 border border-gray-700 text-gray-400 hover:text-brand-400 hover:border-brand-700 rounded-full transition-colors"
+                  >
+                    ⓘ Ficha
+                  </button>
+                </div>
+
+                {/* ── Botones P / A / F ── */}
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { est: 'Presente' as EstadoA, label: 'Presente', active: 'bg-emerald-600 text-white border-emerald-500', inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-emerald-700 hover:text-emerald-400' },
+                    { est: 'Atraso'   as EstadoA, label: 'Atraso',   active: 'bg-amber-600 text-white border-amber-500',   inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-amber-700 hover:text-amber-400' },
+                    { est: 'Ausente'  as EstadoA, label: 'Falta',    active: 'bg-red-600 text-white border-red-500',       inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-red-700 hover:text-red-400' },
+                  ]).map(b => (
+                    <button
+                      key={b.label}
+                      onClick={() => marcarAsistencia(estudianteUno.id, b.est!)}
+                      className={`py-2.5 rounded-lg border text-xs font-bold transition-all ${
+                        asistencia[estudianteUno.id] === b.est ? b.active : b.inactive
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Participación ── */}
+                {asistencia[estudianteUno.id] !== 'Ausente' && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Participación</p>
+                    <div className="flex gap-1">
+                      {[1,2,3,4,5].map(n => {
+                        const nivelActual = partData[estudianteUno.id]?.nivel ?? null
+                        return (
+                          <button
+                            key={n}
+                            onClick={() => setNivelPart(estudianteUno.id, n)}
+                            title={NIVEL_LABELS_A[n]}
+                            className={`flex-1 h-8 rounded text-xs font-bold transition-colors ${
+                              nivelActual === n ? `${NIVEL_COLORS_A[n]} text-white` : 'bg-gray-800 text-gray-500 hover:text-white'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <input
+                      type="text"
+                      value={partData[estudianteUno.id]?.obs ?? ''}
+                      onChange={e => setObsPart(estudianteUno.id, e.target.value)}
+                      onBlur={() => guardarObsPart(estudianteUno.id)}
+                      placeholder="Observación de participación…"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
+                    />
+                  </div>
+                )}
+
+                {/* ── Datos del estudiante (carga lazy) ── */}
+                {fichaLoading && (
+                  <div className="space-y-2 pt-1">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-8 bg-gray-800 rounded animate-pulse" />
                     ))}
                   </div>
+                )}
 
-                  {/* Participación */}
-                  {asistencia[estudianteUno.id] !== 'Ausente' && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Participación</p>
-                      <div className="flex gap-1">
-                        {[1,2,3,4,5].map(n => {
-                          const nivelActual = partData[estudianteUno.id]?.nivel ?? null
-                          return (
-                            <button
-                              key={n}
-                              onClick={() => setNivelPart(estudianteUno.id, n)}
-                              title={NIVEL_LABELS_A[n]}
-                              className={`flex-1 h-8 rounded text-xs font-bold transition-colors ${
-                                nivelActual === n
-                                  ? `${NIVEL_COLORS_A[n]} text-white`
-                                  : 'bg-gray-800 text-gray-500 hover:text-white'
-                              }`}
-                            >
-                              {n}
-                            </button>
-                          )
-                        })}
+                {fichaCache[estudianteUno.id] && (() => {
+                  const f = fichaCache[estudianteUno.id]
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const enc = f.encuesta as Record<string, any> | null
+                  return (
+                    <div className="space-y-3 border-t border-gray-800 pt-3">
+
+                      {/* Stats rápidos */}
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          {
+                            label: 'Asistencia',
+                            value: f.asistencia.pct != null ? `${f.asistencia.pct}%` : '—',
+                            color: f.asistencia.pct == null ? 'text-gray-400'
+                              : f.asistencia.pct >= 80 ? 'text-emerald-400'
+                              : f.asistencia.pct >= 60 ? 'text-yellow-400' : 'text-red-400',
+                          },
+                          {
+                            label: 'Part. prom.',
+                            value: f.participacion.promedio != null ? `${f.participacion.promedio}/5` : '—',
+                            color: 'text-brand-400',
+                          },
+                          {
+                            label: 'Trabajos',
+                            value: String(f.trabajos.activos),
+                            color: f.trabajos.activos > 0 ? 'text-amber-400' : 'text-gray-400',
+                          },
+                        ].map(s => (
+                          <div key={s.label} className="text-center bg-gray-800/50 rounded-lg py-1.5 px-1">
+                            <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
+                            <p className="text-[9px] text-gray-600 leading-tight">{s.label}</p>
+                          </div>
+                        ))}
                       </div>
-                      <input
-                        type="text"
-                        value={partData[estudianteUno.id]?.obs ?? ''}
-                        onChange={e => setObsPart(estudianteUno.id, e.target.value)}
-                        onBlur={() => guardarObsPart(estudianteUno.id)}
-                        placeholder="Observación de participación…"
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
-                      />
+
+                      {/* Carrera y modalidad */}
+                      {enc && (
+                        <div className="flex gap-2 flex-wrap">
+                          {enc.carrera && <span className="px-2 py-0.5 bg-gray-800 rounded text-[11px] text-gray-300">{enc.carrera}</span>}
+                          {enc.modalidad_carrera && <span className="px-2 py-0.5 bg-gray-800 rounded text-[11px] text-gray-400">{enc.modalidad_carrera}</span>}
+                          {enc.nivel_estudio && <span className="px-2 py-0.5 bg-gray-800 rounded text-[11px] text-gray-400 capitalize">{enc.nivel_estudio}</span>}
+                        </div>
+                      )}
+
+                      {/* Último trabajo */}
+                      {f.trabajos.ultimo && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">Trabajo activo</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-gray-300 truncate">
+                              <span className="font-medium">{f.trabajos.ultimo.tipo}</span>
+                              {f.trabajos.ultimo.tema ? ` · ${f.trabajos.ultimo.tema}` : ''}
+                            </p>
+                            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] border font-medium ${
+                              f.trabajos.ultimo.estado === 'Pendiente' ? 'text-yellow-400 bg-yellow-900/30 border-yellow-800'
+                              : f.trabajos.ultimo.estado === 'En progreso' ? 'text-blue-400 bg-blue-900/30 border-blue-800'
+                              : f.trabajos.ultimo.estado === 'Entregado' ? 'text-purple-400 bg-purple-900/30 border-purple-800'
+                              : 'text-gray-400 bg-gray-800 border-gray-700'
+                            }`}>
+                              {f.trabajos.ultimo.estado ?? '—'}
+                            </span>
+                          </div>
+                          {f.trabajos.ultimo.progreso > 0 && (
+                            <div className="w-full bg-gray-800 h-1 rounded-full">
+                              <div className="bg-brand-500 h-1 rounded-full" style={{ width: `${f.trabajos.ultimo.progreso}%` }} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Última obs de clase */}
+                      {f.asistencia.ultimaObs && (
+                        <div className="border-l-2 border-blue-800 pl-2">
+                          <p className="text-[10px] text-gray-500 mb-0.5">
+                            Última obs. de clase
+                            <span className="text-gray-600 ml-1">
+                              ({new Date(f.asistencia.ultimaObs.fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })})
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-gray-400 italic line-clamp-2">"{f.asistencia.ultimaObs.obs}"</p>
+                        </div>
+                      )}
+
+                      {/* Citaciones vigentes */}
+                      {f.citaciones.pendientes > 0 && (
+                        <div className="flex items-center gap-1.5 px-2 py-1.5 bg-blue-900/20 border border-blue-800/50 rounded-lg">
+                          <span className="text-blue-400 text-xs">📘</span>
+                          <p className="text-[11px] text-blue-300">
+                            {f.citaciones.pendientes} citación{f.citaciones.pendientes > 1 ? 'es' : ''} vigente{f.citaciones.pendientes > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Participación reciente (dots) */}
+                      {f.participacion.ultimas.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">Participación reciente</p>
+                          <div className="flex items-center gap-1.5">
+                            {f.participacion.ultimas.map((p, i) => (
+                              <div key={i} className="flex flex-col items-center gap-0.5">
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${p.nivel ? NIVEL_COLORS_A[p.nivel] : 'bg-gray-700'}`}>
+                                  {p.nivel ?? '—'}
+                                </span>
+                                <span className="text-[8px] text-gray-700">
+                                  {new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── INFO SENSIBLE (colapsable) ── */}
+                      <div className="border border-gray-700/60 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setSensibleAbierto(prev => !prev)}
+                          className="w-full flex items-center justify-between px-3 py-2 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-gray-800/40 transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5">🔒 Info sensible</span>
+                          <span>{sensibleAbierto ? '▲' : '▼'}</span>
+                        </button>
+
+                        {sensibleAbierto && (
+                          <div className="px-3 pb-3 space-y-3 bg-gray-900/40">
+
+                            {/* Nota privada editable */}
+                            <div className="space-y-1 pt-1">
+                              <label className="text-[10px] text-gray-400">📝 Nota privada del profesor</label>
+                              <textarea
+                                value={notaUno}
+                                onChange={e => setNotaUno(e.target.value)}
+                                onBlur={async () => {
+                                  if (!f) return
+                                  setNotaGuardando(true)
+                                  await saveNotaIncidencia(f.estudiante.id, notaUno, cursoId)
+                                  setFichaCache(prev => ({
+                                    ...prev,
+                                    [f.estudiante.id]: {
+                                      ...prev[f.estudiante.id],
+                                      estudiante: { ...prev[f.estudiante.id].estudiante, nota_incidencia: notaUno.trim() || null }
+                                    }
+                                  }))
+                                  setNotaGuardando(false)
+                                }}
+                                rows={2}
+                                maxLength={500}
+                                placeholder="Recuerda preguntarle sobre..."
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-300 placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
+                              />
+                              {notaGuardando && <p className="text-[9px] text-gray-500">Guardando...</p>}
+                            </div>
+
+                            {/* Problema reportado */}
+                            {enc?.problemas_reportados && (
+                              <div className="space-y-2">
+                                <div className="p-2 bg-yellow-900/10 border border-yellow-800/40 rounded-lg">
+                                  <p className="text-[10px] text-yellow-500 font-medium mb-0.5">⚠ Problema reportado</p>
+                                  <p className="text-[11px] text-yellow-200/70 italic">"{enc.problemas_reportados}"</p>
+                                </div>
+                                {!confirmarLimpiarUno ? (
+                                  <button onClick={() => setConfirmarLimpiarUno(true)} className="text-[11px] text-gray-500 hover:text-gray-300">
+                                    ✕ Marcar como resuelto
+                                  </button>
+                                ) : (
+                                  <div className="border border-red-800/50 rounded-lg p-2 bg-red-900/10 space-y-1.5">
+                                    <p className="text-[10px] text-red-300">¿Borrar problema reportado? No se puede deshacer.</p>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          if (!f.estudiante.auth_user_id) return
+                                          startLimpiarT(async () => {
+                                            const res = await clearProblemas(f.estudiante.auth_user_id!, cursoId)
+                                            if (!res?.error) {
+                                              setFichaCache(prev => prev[f.estudiante.id]?.encuesta ? {
+                                                ...prev,
+                                                [f.estudiante.id]: { ...prev[f.estudiante.id], encuesta: { ...prev[f.estudiante.id].encuesta, problemas_reportados: null } }
+                                              } : prev)
+                                              setLimpiarMsg('Resuelto.')
+                                              setConfirmarLimpiarUno(false)
+                                            }
+                                          })
+                                        }}
+                                        className="flex-1 py-1 text-[10px] rounded bg-red-900/40 border border-red-700 text-red-300 hover:bg-red-900/60"
+                                      >Confirmar</button>
+                                      <button
+                                        onClick={() => setConfirmarLimpiarUno(false)}
+                                        className="flex-1 py-1 text-[10px] rounded bg-gray-800 border border-gray-700 text-gray-300"
+                                      >Cancelar</button>
+                                    </div>
+                                    {limpiarMsg && <p className="text-[10px] text-emerald-400">{limpiarMsg}</p>}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Datos demográficos */}
+                            {enc && (
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                                {[
+                                  { label: 'Género', value: enc.genero },
+                                  { label: 'Vivienda', value: enc.situacion_vivienda },
+                                  { label: 'Foráneo', value: enc.es_foraneo === true ? 'Sí' : enc.es_foraneo === false ? 'No' : null },
+                                  { label: 'Dispositivo', value: enc.dispositivo_movil },
+                                  { label: 'Trabaja', value: enc.trabaja === true ? 'Sí' : enc.trabaja === false ? 'No' : null },
+                                  enc.trabaja && { label: 'Horas/día', value: enc.horas_trabajo_diarias != null ? `${enc.horas_trabajo_diarias}h` : null },
+                                ].filter(Boolean).map((item, i) => item && (
+                                  <div key={i}>
+                                    <p className="text-[9px] text-gray-600">{item.label}</p>
+                                    <p className="text-gray-300 capitalize">{item.value ?? 'N/A'}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Uso de IA (barra mini) */}
+                            {enc && [
+                              { label: 'Tareas', key: 'uso_ia_tareas' },
+                              { label: 'Redacción', key: 'uso_ia_redaccion' },
+                              { label: 'Ideas', key: 'uso_ia_ideas' },
+                              { label: 'Crítico', key: 'uso_ia_critico' },
+                            ].some(x => enc[x.key] != null) && (
+                              <div className="space-y-1">
+                                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">Uso de IA</p>
+                                {[
+                                  { label: 'Tareas', key: 'uso_ia_tareas' },
+                                  { label: 'Redacción', key: 'uso_ia_redaccion' },
+                                  { label: 'Ideas', key: 'uso_ia_ideas' },
+                                  { label: 'Análisis crítico', key: 'uso_ia_critico' },
+                                ].map(item => enc[item.key] != null && (
+                                  <div key={item.key}>
+                                    <div className="flex justify-between text-[9px] text-gray-500 mb-0.5">
+                                      <span>{item.label}</span><span>{enc[item.key]}/5</span>
+                                    </div>
+                                    <div className="w-full bg-gray-800 h-1 rounded-full">
+                                      <div className="bg-brand-500 h-1 rounded-full" style={{ width: `${((enc[item.key] || 0) / 5) * 100}%` }} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                     </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
 
               {/* Navegación anterior / siguiente */}
