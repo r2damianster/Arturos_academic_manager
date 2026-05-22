@@ -3,11 +3,18 @@
 import { useState } from 'react'
 import { replanificarClase, type ReplanificarResult } from '@/lib/actions/bitacora'
 
+export interface ClaseFecha {
+  fecha: string       // YYYY-MM-DD
+  hasPlan: boolean
+  tema?: string
+}
+
 interface ReplanificarModalProps {
   cursoId: string
   asignatura: string
   origenFecha: string      // YYYY-MM-DD
   origenTema: string
+  claseFechas?: ClaseFecha[]
   onClose: () => void
   onDone: () => void
 }
@@ -15,7 +22,7 @@ interface ReplanificarModalProps {
 type Modo = 'merge' | 'shift'
 
 export function ReplanificarModal({
-  cursoId, asignatura, origenFecha, origenTema, onClose, onDone
+  cursoId, asignatura, origenFecha, origenTema, claseFechas, onClose, onDone
 }: ReplanificarModalProps) {
   const [destinoFecha, setDestinoFecha] = useState('')
   const [modo, setModo] = useState<Modo>('shift')
@@ -115,19 +122,56 @@ export function ReplanificarModal({
           {/* Fecha destino */}
           <div>
             <label className="label">Fecha destino *</label>
-            <input
-              type="date"
-              value={destinoFecha}
-              min={hoy}
-              onChange={e => { setDestinoFecha(e.target.value); setPreview(null); setConfirming(false); setError(null) }}
-              className="input"
-              disabled={loading}
-              autoFocus
-            />
-            {destinoFecha && (
-              <p className="text-xs text-gray-500 mt-1">
-                {fmtFecha(destinoFecha)} ({getDayName(destinoFecha)})
-              </p>
+            {claseFechas && claseFechas.length > 0 ? (
+              <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+                {claseFechas.map(cf => {
+                  const selected = destinoFecha === cf.fecha
+                  return (
+                    <button
+                      key={cf.fecha}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => { setDestinoFecha(cf.fecha); setPreview(null); setConfirming(false); setError(null) }}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-all text-sm ${
+                        selected
+                          ? 'border-blue-500 bg-blue-600/15 text-white'
+                          : cf.hasPlan
+                            ? 'border-amber-600/40 bg-amber-900/10 text-gray-300 hover:border-amber-500/60'
+                            : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{fmtFecha(cf.fecha)} <span className="text-gray-500 text-xs font-normal">({getDayName(cf.fecha)})</span></span>
+                        {cf.hasPlan && (
+                          <span className="text-[10px] text-amber-400 font-semibold whitespace-nowrap">tiene plan</span>
+                        )}
+                      </div>
+                      {cf.hasPlan && cf.tema && (
+                        <p className="text-[11px] text-gray-500 mt-0.5 truncate">{cf.tema}</p>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : claseFechas && claseFechas.length === 0 ? (
+              <p className="text-sm text-gray-500 py-2">No hay clases futuras disponibles en este curso.</p>
+            ) : (
+              <>
+                <input
+                  type="date"
+                  value={destinoFecha}
+                  min={hoy}
+                  onChange={e => { setDestinoFecha(e.target.value); setPreview(null); setConfirming(false); setError(null) }}
+                  className="input"
+                  disabled={loading}
+                  autoFocus
+                />
+                {destinoFecha && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {fmtFecha(destinoFecha)} ({getDayName(destinoFecha)})
+                  </p>
+                )}
+              </>
             )}
           </div>
 

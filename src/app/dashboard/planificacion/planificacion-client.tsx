@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
-import { ReplanificarModal } from '@/components/agenda/ReplanificarModal'
+import { ReplanificarModal, type ClaseFecha } from '@/components/agenda/ReplanificarModal'
 import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
 import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, type AccionDrag } from '@/lib/actions/bitacora'
@@ -136,6 +136,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     asignatura: string
     fecha: string
     tema: string
+    claseFechas: ClaseFecha[]
   } | null>(null)
   const [dragSource, setDragSource] = useState<{
     id: string
@@ -603,12 +604,32 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                           Editar
                         </button>
                         <button
-                          onClick={() => setReplanificarModal({
-                            cursoId: grupo.curso.id,
-                            asignatura: grupo.curso.asignatura,
-                            fecha,
-                            tema: entry.tema,
-                          })}
+                          onClick={() => {
+                            const cId = grupo.curso.id
+                            const fin = grupo.curso.fecha_fin
+                            const desde = new Date(fecha + 'T12:00:00')
+                            desde.setDate(desde.getDate() + 1)
+                            const hasta = fin ? new Date(fin + 'T12:00:00') : new Date(Date.now() + 180 * 86400000)
+                            const diasClase = grupo.clases.map(c => c.dia_semana)
+                            const claseFechas: ClaseFecha[] = []
+                            const cur = new Date(desde)
+                            while (cur <= hasta) {
+                              const dayName = DIAS_LONG[cur.getDay()]
+                              if (diasClase.includes(dayName)) {
+                                const f = dateToStr(cur)
+                                const bk = bitacoraMap.get(`${cId}|${f}`)
+                                claseFechas.push({ fecha: f, hasPlan: Boolean(bk), tema: bk?.tema })
+                              }
+                              cur.setDate(cur.getDate() + 1)
+                            }
+                            setReplanificarModal({
+                              cursoId: cId,
+                              asignatura: grupo.curso.asignatura,
+                              fecha,
+                              tema: entry.tema,
+                              claseFechas,
+                            })
+                          }}
                           className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                         >
                           Replanificar
@@ -1027,6 +1048,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           asignatura={replanificarModal.asignatura}
           origenFecha={replanificarModal.fecha}
           origenTema={replanificarModal.tema}
+          claseFechas={replanificarModal.claseFechas}
           onClose={() => setReplanificarModal(null)}
           onDone={() => {
             setReplanificarModal(null)
