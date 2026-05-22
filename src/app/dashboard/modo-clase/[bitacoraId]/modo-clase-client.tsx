@@ -11,6 +11,7 @@ import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 import { formatNombreCorto } from '@/lib/format'
+import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -543,6 +544,9 @@ export function ModoClaseClient({
   // Estado de participación inline
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
+
+  // Ficha del estudiante
+  const [fichaId, setFichaId] = useState<string | null>(null)
 
   function togglePart(estudianteId: string) {
     setPartAbierto(prev => {
@@ -1308,6 +1312,11 @@ export function ModoClaseClient({
                           className={`w-7 h-7 rounded text-xs font-bold transition-colors ${abierto || nivelActual ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-brand-900 hover:text-brand-400'}`}>
                           {nivelActual ?? '★'}
                         </button>
+                        {/* Botón ficha */}
+                        <button onClick={() => setFichaId(s.id)} title="Ver ficha del estudiante"
+                          className="w-7 h-7 rounded text-xs font-bold transition-colors bg-gray-800 text-gray-500 hover:bg-gray-700 hover:text-brand-400">
+                          ⓘ
+                        </button>
                       </div>
                     </div>
                     {/* Panel de participación expandible */}
@@ -1496,6 +1505,16 @@ export function ModoClaseClient({
           )}
         </div>
       </div>
+
+      {/* Ficha del estudiante */}
+      {fichaId && (
+        <FichaEstudianteDrawer
+          estudianteId={fichaId}
+          cursoId={cursoId}
+          bitacoraId={bitacoraId}
+          onClose={() => setFichaId(null)}
+        />
+      )}
     </div>
   )
 }

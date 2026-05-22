@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { guardarPlanificacion, confirmarCumplido } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
 import type { ActividadPlanificada } from '@/types/domain'
+import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,9 @@ export function PasarListaModal({
   // Lista UI mode
   const [listaTab,    setListaTab]    = useState<'todos' | 'uno'>('todos')
   const [currentIdx,  setCurrentIdx]  = useState(0)
+
+  // Ficha del estudiante
+  const [fichaId, setFichaId] = useState<string | null>(null)
 
   const fmt = (t: string) => t?.slice(0, 5) ?? ''
 
@@ -472,6 +476,16 @@ export function PasarListaModal({
                               </button>
                             ))}
                           </div>
+
+                          {/* Ficha */}
+                          <button
+                            type="button"
+                            onClick={() => setFichaId(r.estudiante_id)}
+                            title="Ver ficha del estudiante"
+                            className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-800 text-gray-500 hover:text-brand-400 hover:bg-gray-700 flex items-center justify-center text-[11px] font-bold transition-colors"
+                          >
+                            ⓘ
+                          </button>
                         </div>
 
                         {/* Observación inline */}
@@ -518,6 +532,13 @@ export function PasarListaModal({
                     <div className="text-center">
                       <p className="text-2xl font-bold text-white leading-tight">{r.nombre}</p>
                       <p className="text-xs text-gray-500 mt-0.5">Estudiante {currentIdx + 1} de {total}</p>
+                      <button
+                        type="button"
+                        onClick={() => setFichaId(r.estudiante_id)}
+                        className="mt-2 inline-flex items-center gap-1 px-3 py-1 text-[11px] bg-gray-800 border border-gray-700 text-gray-400 hover:text-brand-400 hover:border-brand-700 rounded-full transition-colors"
+                      >
+                        ⓘ Ver ficha completa
+                      </button>
                     </div>
 
                     {/* Botones de estado — grandes */}
@@ -643,6 +664,15 @@ export function PasarListaModal({
           </div>
         )}
       </div>
+
+      {/* Ficha del estudiante */}
+      {fichaId && (
+        <FichaEstudianteDrawer
+          estudianteId={fichaId}
+          cursoId={cursoId}
+          onClose={() => setFichaId(null)}
+        />
+      )}
     </div>
   )
 }

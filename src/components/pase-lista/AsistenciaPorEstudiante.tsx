@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva } from '@/lib/actions/asistencia'
 import { formatNombreCorto } from '@/lib/format'
+import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 
@@ -29,6 +30,7 @@ export function AsistenciaPorEstudiante({
     students.length > 0 ? students[0].id : null
   )
   const [isPending, startTransition] = useTransition()
+  const [fichaId, setFichaId] = useState<string | null>(null)
 
   const selectedStudent = students.find(s => s.id === selectedStudentId)
 
@@ -104,13 +106,24 @@ export function AsistenciaPorEstudiante({
       {selectedStudent ? (
         <div className="flex-1 border border-gray-700 rounded-lg bg-gray-800/30 p-4 flex flex-col overflow-hidden">
           <div className="mb-4 pb-4 border-b border-gray-700">
-            <h3 className="text-base font-bold text-white mb-1">{selectedStudent.nombre}</h3>
-            <p className="text-xs text-gray-500">{selectedStudent.email}</p>
-            {selectedStudent.tutoria && (
-              <p className="text-xs text-blue-400 mt-1.5 flex items-center gap-1">
-                <span className="bg-blue-900/40 border border-blue-700 px-1.5 py-0.5 rounded">📘 Citado a tutorías</span>
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white mb-1">{selectedStudent.nombre}</h3>
+                <p className="text-xs text-gray-500">{selectedStudent.email}</p>
+                {selectedStudent.tutoria && (
+                  <p className="text-xs text-blue-400 mt-1.5 flex items-center gap-1">
+                    <span className="bg-blue-900/40 border border-blue-700 px-1.5 py-0.5 rounded">📘 Citado a tutorías</span>
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setFichaId(selectedStudent.id)}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-[11px] bg-gray-800 border border-gray-700 text-gray-400 hover:text-brand-400 hover:border-brand-700 rounded-full transition-colors"
+                title="Ver ficha completa del estudiante"
+              >
+                ⓘ Ficha
+              </button>
+            </div>
           </div>
 
           {/* Asistencia */}
@@ -194,6 +207,15 @@ export function AsistenciaPorEstudiante({
           </div>
         </div>
       ) : null}
+
+      {/* Ficha del estudiante */}
+      {fichaId && (
+        <FichaEstudianteDrawer
+          estudianteId={fichaId}
+          cursoId={cursoId}
+          onClose={() => setFichaId(null)}
+        />
+      )}
     </div>
   )
 }
