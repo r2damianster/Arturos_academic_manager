@@ -41,6 +41,7 @@ interface Clase {
   hora_fin: string
   tipo: string
   centro_computo: boolean
+  obligatoria: boolean
   cursos: { id: string; asignatura: string; fecha_inicio: string | null; fecha_fin: string | null } | null
   anuncios_tutoria_curso?: { estudiante_id: string; fecha: string; estudiantes: { nombre: string } }[]
 }
@@ -753,7 +754,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                 if (c.dia_semana !== diaNombre) return false
                 if (c.tipo === 'tutoria_curso') {
                   const voy = c.anuncios_tutoria_curso?.length ?? 0
-                  if (voy === 0 && !mostrarTutoriasVacias) return false
+                  if (voy === 0 && !mostrarTutoriasVacias && !c.obligatoria) return false
                 }
                 return true
               })
