@@ -77,6 +77,27 @@ async function descargaDocx(guia: string, titulo: string) {
   URL.revokeObjectURL(url)
 }
 
+async function descargaPdf(guia: string, titulo: string) {
+  const res = await fetch('/api/generar-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ guia, titulo }),
+  })
+  if (!res.ok) throw new Error('Error generando PDF')
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download =
+    titulo
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-') + '.pdf'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function calcularSemana(fechaInicio: string | null, fechasBitacoras: string[]): number {
   if (!fechaInicio || fechasBitacoras.length === 0) return 1
   const inicio = new Date(fechaInicio + 'T00:00:00')
@@ -119,6 +140,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [genError, setGenError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [docxLoading, setDocxLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   // Chat
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -298,6 +320,19 @@ export function GeneradorPanel({ clases, onClose }: Props) {
       alert('Error generando el archivo Word.')
     } finally {
       setDocxLoading(false)
+    }
+  }
+
+  async function handlePdf() {
+    if (pdfLoading) return
+    setPdfLoading(true)
+    try {
+      const titulo = `Guía Semana ${semanaFinal} - ${selectedCurso?.asignatura ?? 'Curso'}`
+      await descargaPdf(generatedContent, titulo)
+    } catch {
+      alert('Error generando el PDF.')
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -646,13 +681,22 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                       ⬇ .txt
                     </button>
                     {activeTab === 'guia' && (
-                      <button
-                        onClick={handleDocx}
-                        disabled={docxLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-700 border border-blue-600 text-white hover:bg-blue-600 transition-colors text-xs disabled:opacity-50"
-                      >
-                        {docxLoading ? '⏳ Generando…' : '⬇ Word (.docx)'}
-                      </button>
+                      <>
+                        <button
+                          onClick={handleDocx}
+                          disabled={docxLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-700 border border-blue-600 text-white hover:bg-blue-600 transition-colors text-xs disabled:opacity-50"
+                        >
+                          {docxLoading ? '⏳ Generando…' : '⬇ Word (.docx)'}
+                        </button>
+                        <button
+                          onClick={handlePdf}
+                          disabled={pdfLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 border border-red-600 text-white hover:bg-red-600 transition-colors text-xs disabled:opacity-50"
+                        >
+                          {pdfLoading ? '⏳ Generando…' : '⬇ PDF'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
