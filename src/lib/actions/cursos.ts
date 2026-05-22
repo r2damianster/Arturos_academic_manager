@@ -29,6 +29,7 @@ type HorarioInput = {
   hora_fin: string
   tipo?: string
   centro_computo?: boolean
+  obligatoria?: boolean
 }
 
 function buildHorariosInserts(horarios: HorarioInput[], cursoId: string, profesorId: string) {
@@ -40,6 +41,7 @@ function buildHorariosInserts(horarios: HorarioInput[], cursoId: string, profeso
     hora_fin: h.hora_fin,
     tipo: h.tipo || 'clase',
     centro_computo: h.centro_computo ?? false,
+    obligatoria: h.obligatoria ?? false,
   }))
 }
 

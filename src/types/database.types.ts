@@ -131,6 +131,7 @@ export type Database = {
           hora_fin: string
           tipo: string
           centro_computo: boolean
+          obligatoria: boolean
           created_at: string
         }
         Insert: {
@@ -142,6 +143,7 @@ export type Database = {
           hora_fin: string
           tipo?: string
           centro_computo?: boolean
+          obligatoria?: boolean
           created_at?: string
         }
         Update: {
@@ -153,6 +155,7 @@ export type Database = {
           hora_fin?: string
           tipo?: string
           centro_computo?: boolean
+          obligatoria?: boolean
         }
         Relationships: [
           {

@@ -33,7 +33,7 @@ export default async function DashboardPage() {
     db.from('cursos').select('id, asignatura, codigo, periodo').order('created_at', { ascending: false }).limit(5),
     db.from('asistencia').select('id', { count: 'exact', head: true }).eq('fecha', hoy),
     db.from('eventos_profesor').select('*').eq('profesor_id', user.id).order('fecha_inicio'),
-    db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, cursos(id, asignatura, fecha_inicio, fecha_fin)').eq('profesor_id', user.id),
+    db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, obligatoria, cursos(id, asignatura, fecha_inicio, fecha_fin)').eq('profesor_id', user.id),
     db.from('horarios').select('*').eq('profesor_id', user.id).order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),

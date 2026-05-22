@@ -12,6 +12,7 @@ interface RawClase {
   hora_fin: string
   tipo: string
   centro_computo: boolean
+  obligatoria: boolean
   cursos: { asignatura: string } | null
   anuncios_tutoria_curso: { estudiante_id: string; fecha: string }[]
 }
@@ -154,9 +155,10 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       if (normalizeDia(c.dia_semana) !== targetDow) continue
       const confirmaciones = (c.anuncios_tutoria_curso ?? []).filter(a => a.fecha === targetStr).length
       const esTutoriaCurso = c.tipo === 'tutoria_curso'
-      if (esTutoriaCurso && confirmaciones === 0 && !mostrarTodos) continue
+      if (esTutoriaCurso && confirmaciones === 0 && !mostrarTodos && !c.obligatoria) continue
       const detalles = [
         c.centro_computo ? 'Centro cómputo' : null,
+        esTutoriaCurso && c.obligatoria ? 'Obligatoria' : null,
         confirmaciones > 0 ? `${confirmaciones} confirmó asistencia` : null,
       ].filter(Boolean).join(' · ')
       result.push({
@@ -167,7 +169,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
         detalle: detalles || null,
         tipo:     'clase',
         colorKey: esTutoriaCurso ? 'teal' : 'blue',
-        tenue:   esTutoriaCurso && confirmaciones === 0,
+        tenue:   esTutoriaCurso && confirmaciones === 0 && !c.obligatoria,
       })
     }
 

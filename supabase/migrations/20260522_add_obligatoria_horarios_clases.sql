@@ -1,0 +1,2 @@
+ALTER TABLE public.horarios_clases
+  ADD COLUMN IF NOT EXISTS obligatoria BOOLEAN NOT NULL DEFAULT FALSE;

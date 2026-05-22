@@ -6,6 +6,7 @@ export interface HorarioClase {
   hora_fin: string
   tipo: string
   centro_computo?: boolean
+  obligatoria?: boolean
 }
 
 interface Props {
@@ -85,6 +86,16 @@ export function HorariosFormFields({ value, onChange }: Props) {
                 />
                 <span className="text-xs text-gray-400">💻 Centro de cómputo</span>
               </label>
+              {h.tipo === 'tutoria_curso' && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox" className="w-4 h-4 rounded accent-orange-500"
+                    checked={h.obligatoria ?? false}
+                    onChange={e => update(i, { obligatoria: e.target.checked })}
+                  />
+                  <span className="text-xs text-orange-300">📌 Obligatoria (siempre visible en Panel)</span>
+                </label>
+              )}
             </div>
           ))}
         </div>
