@@ -697,6 +697,26 @@ export function ModoClaseClient({
       clearTimeout(saveTimer.current)
       await actualizarActividadesEnVivo(bitacoraId, actividades)
     }
+    // Flush completo antes de finalizar — evita pérdida por requests fire-and-forget
+    // aún en vuelo cuando el usuario navega después del overlay.
+    const registrosFlush = students.map(s => {
+      const estado = asistencia[s.id] ?? 'Ausente'
+      const partEntry = partData[s.id]
+      const horas = estado === 'Ausente'
+        ? 0
+        : estado === 'Atraso'
+          ? Math.max(1, Math.round(horasClase / 2))
+          : horasClase
+      return {
+        estudiante_id: s.id,
+        estado,
+        atraso: estado === 'Atraso',
+        horas,
+        participacion: partEntry?.nivel ?? null,
+        observacion_participacion: partEntry?.obs?.trim() || null,
+      }
+    })
+    await registrarAsistenciaMasiva(cursoId, fecha, registrosFlush, bitacoraId)
     await finalizarClase(bitacoraId)
     setFinalizando(false)
     setConfirmando(false)
