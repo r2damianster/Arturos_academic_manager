@@ -636,7 +636,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   value={instruccionAdicional}
                   onChange={e => setInstruccionAdicional(e.target.value)}
                   rows={3}
-                  placeholder={'ej: "Enfatiza el método de sustitución trigonométrica"\n     "Incluye este artículo: https://..."'}
+                  placeholder={'ej: "Céntrate únicamente en las actividades de comparación"\n     "Incluye este artículo: https://..."'}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 resize-none"
                 />
               </div>

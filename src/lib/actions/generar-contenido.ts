@@ -32,6 +32,7 @@ REGLAS CRÍTICAS — NUNCA VIOLAR:
 - <iframe> SOLO para Google Slides/Google Drive presentations (dominio docs.google.com). Para cualquier otro dominio, PROHIBIDO.
 - Solo estilos inline con style=""
 - Videos YouTube/Vimeo: <a href="URL" target="_blank" rel="noopener noreferrer"> con estilo botón rojo. NUNCA iframe para video.
+- Si el prompt incluye "INSTRUCCIÓN PRIORITARIA DEL PROFESOR", esa instrucción tiene MÁXIMA PRIORIDAD y puede modificar, limitar o filtrar las secciones descritas arriba. Aplícala estrictamente.
 
 Responde ÚNICAMENTE con el código HTML completo listo para copiar, sin explicaciones, sin bloques markdown, sin texto fuera del HTML.`
 
@@ -86,7 +87,8 @@ REGLAS:
 - Responde con el texto completo en texto plano estructurado.
 - No uses markdown (sin **, sin ##, sin *).
 - Usa solo encabezados en MAYÚSCULAS como se indica arriba.
-- Los encabezados deben aparecer solos en su línea, en mayúsculas, con dos puntos al final.`
+- Los encabezados deben aparecer solos en su línea, en mayúsculas, con dos puntos al final.
+- Si el prompt incluye "INSTRUCCIÓN PRIORITARIA DEL PROFESOR", esa instrucción tiene MÁXIMA PRIORIDAD y puede modificar, limitar o filtrar las secciones o el contenido. Aplícala estrictamente antes de procesar los datos.`
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant'
@@ -164,12 +166,12 @@ export async function generarHtmlSemanal(params: {
   const clasesTexto = formatBitacorasParaPrompt(bitacoras)
 
   const userPrompt = [
+    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
     `Genera el HTML completo para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     'Los recursos, videos y materiales ya están incluidos en el campo "recurso" de cada actividad — úsalos para las secciones de Recursos y Multimedia.',
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
-    params.instruccionAdicional ? `\nINSTRUCCIÓN ADICIONAL DEL PROFESOR:\n${params.instruccionAdicional}` : '',
   ].filter(Boolean).join('\n')
 
   const result = await callGroq([
@@ -203,6 +205,7 @@ export async function generarGuiaSemanal(params: {
   const nivelLabel = params.nivel === 'avanzado' ? 'universitario avanzado (último año)' : 'universitario básico / introductorio'
 
   const userPrompt = [
+    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
     `Crea la guía de estudio para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     `Nivel del curso: ${nivelLabel}.`,
     params.logroDescripcion
@@ -211,7 +214,6 @@ export async function generarGuiaSemanal(params: {
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
-    params.instruccionAdicional ? `\nINSTRUCCIÓN ADICIONAL DEL PROFESOR:\n${params.instruccionAdicional}` : '',
   ].filter(Boolean).join('\n')
 
   const result = await callGroq([
@@ -230,8 +232,8 @@ export async function mejorarContenido(params: {
   const systemPrompt = params.tipo === 'html' ? SYSTEM_HTML : SYSTEM_GUIA
 
   const userPrompt = params.tipo === 'html'
-    ? `Aquí está el HTML actual:\n\n${params.contenidoActual}\n\nModificación solicitada: ${params.solicitud}\n\nDevuelve el HTML completo actualizado, sin explicaciones.`
-    : `Aquí está la guía actual:\n\n${params.contenidoActual}\n\nModificación solicitada: ${params.solicitud}\n\nDevuelve la guía completa actualizada, sin explicaciones.`
+    ? `INSTRUCCIÓN PRIORITARIA (aplicar con máxima prioridad; si dice "únicamente" o "solo", ignorar secciones no relacionadas): ${params.solicitud}\n\nAquí está el HTML actual:\n\n${params.contenidoActual}\n\nDevuelve el HTML completo actualizado según la instrucción, sin explicaciones.`
+    : `INSTRUCCIÓN PRIORITARIA (aplicar con máxima prioridad; si dice "únicamente" o "solo", ignorar secciones no relacionadas): ${params.solicitud}\n\nAquí está la guía actual:\n\n${params.contenidoActual}\n\nDevuelve la guía completa actualizada según la instrucción, sin explicaciones.`
 
   return callGroq([
     { role: 'system', content: systemPrompt },
