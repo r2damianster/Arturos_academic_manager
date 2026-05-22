@@ -15,8 +15,8 @@ import { clsx } from 'clsx'
 type Tipo = Database['public']['Tables']['actividades_inbox']['Row']['tipo']
 
 const TIPO_OPTS: { value: Tipo; emoji: string; label: string }[] = [
-  { value: 'nota',         emoji: '📝', label: 'Nota' },
   { value: 'tarea',        emoji: '✅', label: 'Tarea' },
+  { value: 'nota',         emoji: '📝', label: 'Nota' },
   { value: 'recordatorio', emoji: '🔔', label: 'Recuerdo' },
 ]
 
