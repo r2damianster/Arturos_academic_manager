@@ -138,7 +138,7 @@ export function AsistenciaGridClient({
             const horas = getHorasFecha(moodleFecha, horasPorDia)
             const attendanceMap: Record<string, string> = {}
             for (const est of estudiantes) {
-              attendanceMap[est.id] = mapaAsistencia[est.id]?.[moodleFecha]?.estado ?? 'Ausente'
+              attendanceMap[est.id] = mapaAsistencia[est.id]?.[moodleFecha]?.estado ?? 'Presente'
             }
             return (
               <div className="flex gap-1.5 flex-wrap self-center">

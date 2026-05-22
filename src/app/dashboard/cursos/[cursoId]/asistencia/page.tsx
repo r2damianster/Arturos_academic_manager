@@ -14,11 +14,12 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, registrosRes, horariosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, registrosRes, horariosRes, bitacorasRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('asistencia').select('*').eq('curso_id', cursoId).order('fecha'),
     db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
+    db.from('bitacora_clase').select('fecha').eq('curso_id', cursoId).eq('estado', 'cumplido'),
   ])
 
   if (!cursoRes.data) notFound()
@@ -27,7 +28,8 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
   const estudiantes: Estudiante[] = estudiantesRes.data ?? []
   const registros: RegistroAsistencia[] = registrosRes.data ?? []
 
-  const fechas = Array.from(new Set(registros.map(r => r.fecha))).sort()
+  const bitacoraFechas: string[] = (bitacorasRes.data ?? []).map((b: { fecha: string }) => b.fecha)
+  const fechas = Array.from(new Set([...registros.map(r => r.fecha), ...bitacoraFechas])).sort()
 
   type HorarioRow = { dia_semana: string; hora_inicio: string; hora_fin: string }
   const horasPorDia: Record<string, number> = {}
