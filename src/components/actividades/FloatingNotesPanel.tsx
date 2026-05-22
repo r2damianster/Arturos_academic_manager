@@ -28,7 +28,9 @@ export function FloatingNotesPanel() {
   const [notas, setNotas] = useState<ActividadConCurso[]>([])
   const [loading, setLoading] = useState(false)
   const [editando, setEditando] = useState<ActividadConCurso | null>(null)
-  const [programando, setProgramando] = useState<ActividadConCurso | null>(null)
+  const [programando, setProgramando] = useState<ActividadConCurso[]>([])
+  const [seleccionMode, setSeleccionMode] = useState(false)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [tipo, setTipo] = useState<Tipo>('nota')
   const [titulo, setTitulo] = useState('')
   const [saving, setSaving] = useState(false)
@@ -107,6 +109,21 @@ export function FloatingNotesPanel() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
               <span className="text-sm font-semibold text-white">Notas rápidas</span>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSeleccionMode(v => !v)
+                    setSeleccionados(new Set())
+                  }}
+                  title="Seleccionar varias"
+                  className={clsx(
+                    'text-xs px-2 py-0.5 rounded-lg border transition-colors',
+                    seleccionMode
+                      ? 'border-brand-500/60 bg-brand-600/15 text-brand-300'
+                      : 'border-gray-700 text-gray-500 hover:text-gray-300',
+                  )}
+                >
+                  ✓ Seleccionar
+                </button>
                 <Link
                   href="/dashboard/actividades"
                   className="text-xs text-gray-500 hover:text-brand-400 flex items-center gap-0.5 transition-colors"
@@ -119,6 +136,22 @@ export function FloatingNotesPanel() {
                 </button>
               </div>
             </div>
+
+            {/* Barra bulk — visible cuando hay seleccionados */}
+            {seleccionMode && seleccionados.size > 0 && (
+              <div className="px-3 py-2 border-b border-gray-800/60 flex items-center justify-between flex-shrink-0 bg-brand-900/20">
+                <span className="text-xs text-brand-300">{seleccionados.size} seleccionada{seleccionados.size > 1 ? 's' : ''}</span>
+                <button
+                  onClick={() => {
+                    const sel = notas.filter(n => seleccionados.has(n.id))
+                    setProgramando(sel)
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-500 transition-colors"
+                >
+                  → Agrupar en evento
+                </button>
+              </div>
+            )}
 
             {/* Input de captura rápida */}
             <div className="px-3 py-3 border-b border-gray-800/60 flex-shrink-0 space-y-2">
@@ -180,7 +213,14 @@ export function FloatingNotesPanel() {
                     actividad={n}
                     onClick={() => setEditando(n)}
                     onCambiado={() => startTransition(() => recargar())}
-                    onProgramar={() => setProgramando(n)}
+                    onProgramar={() => setProgramando([n])}
+                    seleccionMode={seleccionMode}
+                    selected={seleccionados.has(n.id)}
+                    onSelect={id => setSeleccionados(prev => {
+                      const next = new Set(prev)
+                      next.has(id) ? next.delete(id) : next.add(id)
+                      return next
+                    })}
                   />
                 ))
               )}
@@ -215,12 +255,17 @@ export function FloatingNotesPanel() {
         />
       )}
 
-      {/* Modal convertir a evento */}
-      {programando && (
+      {/* Modal convertir a evento (single o bulk) */}
+      {programando.length > 0 && (
         <ConvertirEventoModal
-          actividad={programando}
-          onClose={() => setProgramando(null)}
-          onConvertido={() => { setProgramando(null); recargar() }}
+          actividades={programando}
+          onClose={() => setProgramando([])}
+          onConvertido={() => {
+            setProgramando([])
+            setSeleccionMode(false)
+            setSeleccionados(new Set())
+            recargar()
+          }}
         />
       )}
     </>

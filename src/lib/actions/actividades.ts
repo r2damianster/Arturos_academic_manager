@@ -292,6 +292,49 @@ export async function getActividadesParaHoy(): Promise<ActividadConCurso[]> {
 
 // ─── CONVERSIÓN ───────────────────────────────────────────────────────────────
 
+export async function convertirVariasAEvento(
+  ids: string[],
+  opts: { titulo: string; tipo?: string; fecha: string; horaInicio?: string; horaFin?: string },
+): Promise<{ ok?: boolean; eventoId?: string; error?: string }> {
+  if (!ids.length) return { error: 'Sin tareas seleccionadas' }
+  const { supabase, user } = await getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: evento, error: evError } = await supabase
+    .from('eventos_profesor')
+    .insert({
+      profesor_id: user.id,
+      titulo: opts.titulo,
+      tipo: opts.tipo ?? 'tarea',
+      fecha_inicio: opts.fecha,
+      fecha_fin: opts.fecha,
+      hora_inicio: opts.horaInicio ?? null,
+      hora_fin: opts.horaFin ?? null,
+      todo_el_dia: !opts.horaInicio,
+    })
+    .select('id')
+    .single()
+
+  if (evError) return { error: evError.message }
+
+  const { error: actError } = await supabase
+    .from('actividades_inbox')
+    .update({
+      conversion_destino: 'evento',
+      conversion_ref_id: evento.id,
+      conversion_fecha: new Date().toISOString(),
+    })
+    .in('id', ids)
+    .eq('profesor_id', user.id)
+
+  if (actError) return { error: actError.message }
+
+  revalidatePath('/dashboard/actividades')
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/agenda')
+  return { ok: true, eventoId: evento.id }
+}
+
 export async function convertirAEvento(
   id: string,
   opts: { fecha: string; horaInicio?: string; horaFin?: string },

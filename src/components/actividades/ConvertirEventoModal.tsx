@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { convertirAEvento } from '@/lib/actions/actividades'
+import { convertirAEvento, convertirVariasAEvento } from '@/lib/actions/actividades'
 import type { ActividadConCurso } from '@/lib/actions/actividades'
 import type { EventoInput } from '@/lib/actions/eventos'
 
@@ -102,21 +102,23 @@ function TimePicker({ value, onChange, label, minTime }: {
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  actividad: ActividadConCurso
+  /** Single actividad OR multiple for bulk conversion */
+  actividades: ActividadConCurso[]
   onClose: () => void
   onConvertido: () => void
 }
 
-function initForm(actividad: ActividadConCurso): EventoInput {
+function initForm(actividades: ActividadConCurso[]): EventoInput {
   const hoy = new Date()
   const fmt2l = (n: number) => String(n).padStart(2, '0')
-  const fechaDefault = actividad.fecha_vencimiento
-    ? actividad.fecha_vencimiento.slice(0, 10)
+  const single = actividades.length === 1 ? actividades[0] : null
+  const fechaDefault = single?.fecha_vencimiento
+    ? single.fecha_vencimiento.slice(0, 10)
     : `${hoy.getFullYear()}-${fmt2l(hoy.getMonth() + 1)}-${fmt2l(hoy.getDate())}`
   const ini = roundUpTo15()
   return {
-    titulo: actividad.titulo,
-    descripcion: actividad.descripcion ?? '',
+    titulo: single ? single.titulo : '',
+    descripcion: single ? (single.descripcion ?? '') : '',
     tipo: 'tarea',
     fecha_inicio: fechaDefault,
     fecha_fin: fechaDefault,
@@ -132,20 +134,25 @@ function initForm(actividad: ActividadConCurso): EventoInput {
 
 const TIPOS = ['personal', 'académico', 'laboral', 'tarea', 'otro'] as const
 
-export function ConvertirEventoModal({ actividad, onClose, onConvertido }: Props) {
-  const [form, setForm] = useState<EventoInput>(() => initForm(actividad))
+export function ConvertirEventoModal({ actividades, onClose, onConvertido }: Props) {
+  const [form, setForm] = useState<EventoInput>(() => initForm(actividades))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const isBulk = actividades.length > 1
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const res = await convertirAEvento(actividad.id, {
+    const opts = {
       fecha: form.fecha_inicio,
       horaInicio: form.todo_el_dia ? undefined : (form.hora_inicio ?? undefined),
       horaFin: form.todo_el_dia ? undefined : (form.hora_fin ?? undefined),
-    })
+    }
+    const res = isBulk
+      ? await convertirVariasAEvento(actividades.map(a => a.id), { titulo: form.titulo, tipo: form.tipo, ...opts })
+      : await convertirAEvento(actividades[0].id, opts)
     setSaving(false)
     if (res.error) { setError(res.error); return }
     onConvertido()
@@ -160,12 +167,27 @@ export function ConvertirEventoModal({ actividad, onClose, onConvertido }: Props
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="font-semibold text-white">Programar en calendario</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Crear evento a partir de esta tarea</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {isBulk
+                ? `Agrupar ${actividades.length} tareas en un evento`
+                : 'Crear evento a partir de esta tarea'}
+            </p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Lista de tareas incluidas (bulk) */}
+          {isBulk && (
+            <div className="bg-gray-800/50 rounded-xl p-3 space-y-1">
+              {actividades.map(a => (
+                <p key={a.id} className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <span className="text-gray-600">✓</span> {a.titulo}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* Título (editable) */}
           <div>
             <label className="label">Título</label>

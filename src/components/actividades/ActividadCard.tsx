@@ -240,7 +240,7 @@ export function ActividadCard({ actividad, onEditar, onCambiado }: Props) {
 
       {showConvertModal && (
         <ConvertirEventoModal
-          actividad={actividad}
+          actividades={[actividad]}
           onClose={() => setShowConvertModal(false)}
           onConvertido={() => { setShowConvertModal(false); refresh() }}
         />

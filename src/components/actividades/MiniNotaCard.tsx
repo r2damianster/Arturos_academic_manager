@@ -18,9 +18,12 @@ type Props = {
   onClick: () => void
   onCambiado: () => void
   onProgramar?: () => void
+  seleccionMode?: boolean
+  selected?: boolean
+  onSelect?: (id: string) => void
 }
 
-export function MiniNotaCard({ actividad, onClick, onCambiado, onProgramar }: Props) {
+export function MiniNotaCard({ actividad, onClick, onCambiado, onProgramar, seleccionMode, selected, onSelect }: Props) {
   const [loading, setLoading] = useState(false)
   const { border } = getCardStyle(actividad.color)
 
@@ -46,17 +49,27 @@ export function MiniNotaCard({ actividad, onClick, onCambiado, onProgramar }: Pr
 
   return (
     <div
-      onClick={onClick}
+      onClick={seleccionMode ? () => onSelect?.(actividad.id) : onClick}
       className={clsx(
         'group flex items-start gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all',
         'hover:bg-white/5',
-        actividad.color ? border : 'border-gray-800 hover:border-gray-700',
+        seleccionMode && selected
+          ? 'border-brand-500/60 bg-brand-600/10'
+          : actividad.color ? border : 'border-gray-800 hover:border-gray-700',
         loading && 'opacity-50 pointer-events-none',
         actividad.completada && 'opacity-50',
       )}
     >
+      {/* Checkbox en modo selección */}
+      {seleccionMode && (
+        <span className={clsx(
+          'flex-shrink-0 w-4 h-4 mt-0.5 rounded border-2 transition-colors',
+          selected ? 'bg-brand-500 border-brand-500' : 'border-gray-600',
+        )} />
+      )}
+
       {/* Tipo emoji */}
-      <span className="flex-shrink-0 text-sm mt-0.5">{TIPO_EMOJI[actividad.tipo]}</span>
+      {!seleccionMode && <span className="flex-shrink-0 text-sm mt-0.5">{TIPO_EMOJI[actividad.tipo]}</span>}
 
       {/* Contenido */}
       <div className="flex-1 min-w-0">
