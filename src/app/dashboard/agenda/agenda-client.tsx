@@ -8,6 +8,7 @@ import { activarHorario, asignarTutoriaDirecta, eliminarReserva, marcarAsistenci
 import type { Evento, EventoInput } from '@/lib/actions/eventos'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PasarListaModal } from '@/components/agenda/PasarListaModal'
+import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { gestionarDragPlanificacion, type AccionDrag, type ColisionDrag } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -335,9 +336,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
   // DnD Planificación
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dragPayload, setDragPayload] = useState<any | null>(null)
-  const [dndTarget, setDndTarget] = useState<{ cursoId: string; fecha: string; hasPlan: boolean } | null>(null)
+  const [dndTarget, setDndTarget] = useState<{ cursoId: string; fecha: string; hasPlan: boolean; asignatura: string; tema?: string } | null>(null)
   const [isDraggingOver, setIsDraggingOver] = useState<string | null>(null)
-  const [isDndSaving, setIsDndSaving] = useState(false)
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -611,15 +611,10 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
   // ── Drag and Drop ──────────────────────────────────────────────────────────
   
-  async function handleDndSubmit(accion: AccionDrag, colision: ColisionDrag) {
-    if (!dndTarget || !dragPayload) return
-    setIsDndSaving(true)
-    
-    // Preparar el server action
-    const sourceId = dragPayload.id
-    
+  async function handleDndSubmit(accion: AccionDrag, colision: ColisionDrag): Promise<{ error?: string }> {
+    if (!dndTarget || !dragPayload) return { error: 'Sin datos' }
     const { error } = await gestionarDragPlanificacion(
-      sourceId,
+      dragPayload.id,
       dndTarget.cursoId,
       dndTarget.fecha,
       accion,
@@ -627,22 +622,15 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       {
         tema: dragPayload.tema,
         actividades_json: dragPayload.actividades_json,
-        observaciones: dragPayload.observaciones
+        observaciones: dragPayload.observaciones,
       }
     )
-
-    setIsDndSaving(false)
-    setDndTarget(null)
-    setDragPayload(null)
-
     if (!error) {
-      // Forzar recarga de los datos en el front
       setBitacoraMap(new Map())
       setWeekOffset(prev => prev)
       router.refresh()
-    } else {
-      alert("Error moviendo planificación: " + error)
     }
+    return { error }
   }
 
 
@@ -815,7 +803,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
 
                             // Delay state update to prevent React from tearing down the DOM before drag starts
                             requestAnimationFrame(() => {
-                              setDragPayload(payload)
+                              setDragPayload({ ...payload, asignatura: c.cursos?.asignatura ?? '' })
                             })
                           }}
                           onDragOver={(e) => {
@@ -836,7 +824,9 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             setDndTarget({
                               cursoId,
                               fecha: ds,
-                              hasPlan: Boolean(bitEstado)
+                              hasPlan: Boolean(bitEstado),
+                              asignatura: c.cursos?.asignatura ?? '',
+                              tema: bitacoraMap.get(bitKey)?.tema,
                             })
                           }}
                           onClick={e => {
@@ -1299,45 +1289,12 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
       )}
       {/* ── DnD Decision Modal ────────────────────────────────────── */}
       {dndTarget && dragPayload && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
-          onClick={e => { if (e.target === e.currentTarget) { setDndTarget(null); setDragPayload(null) } }}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl">
-            <h3 className="text-lg font-semibold text-white mb-2">Mover Planificación</h3>
-            <p className="text-sm text-gray-400 mb-6 font-medium bg-gray-800/50 p-3 rounded-lg border border-gray-700">
-              "{dragPayload.tema}"
-            </p>
-            
-            <div className="space-y-3">
-              {dndTarget.hasPlan ? (
-                <>
-                  <p className="text-xs font-semibold text-orange-400 tracking-wider uppercase mb-2 mt-4 text-left px-1">La clase destino tiene plan</p>
-                  
-                  <button onClick={() => handleDndSubmit('mover', 'reemplazar')} disabled={isDndSaving}
-                    className="w-full btn-primary py-2.5">Mover y Reemplazar</button>
-                  <button onClick={() => handleDndSubmit('copiar', 'reemplazar')} disabled={isDndSaving}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5">Copiar y Reemplazar</button>
-                  <button onClick={() => handleDndSubmit('mover', 'combinar')} disabled={isDndSaving}
-                    className="w-full btn-primary py-2.5">Mover y Combinar</button>
-                  <button onClick={() => handleDndSubmit('mover', 'cascada')} disabled={isDndSaving}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20">Mover en Cascada 🌊</button>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs font-semibold text-sky-400 tracking-wider uppercase mb-2 mt-4 text-left px-1">Clase de destino libre</p>
-                  <button onClick={() => handleDndSubmit('mover', 'vacio')} disabled={isDndSaving}
-                    className="w-full btn-primary py-2.5">Mover (cambiar de día)</button>
-                  <button onClick={() => handleDndSubmit('copiar', 'vacio')} disabled={isDndSaving}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5">Copiar (repetir plan)</button>
-                  <button onClick={() => handleDndSubmit('mover', 'cascada')} disabled={isDndSaving}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20">Mover en Cascada 🌊</button>
-                </>
-              )}
-            </div>
-
-            <button onClick={() => { setDndTarget(null); setDragPayload(null) }} disabled={isDndSaving} 
-              className="mt-5 text-sm text-gray-500 hover:text-gray-300 font-medium px-4 py-2">Cancelar</button>
-          </div>
-        </div>
+        <PlanDropModal
+          source={{ asignatura: dragPayload.asignatura ?? '', fecha: dragPayload.fecha ?? '', tema: dragPayload.tema }}
+          dest={{ asignatura: dndTarget.asignatura, fecha: dndTarget.fecha, hasPlan: dndTarget.hasPlan, tema: dndTarget.tema }}
+          onConfirm={handleDndSubmit}
+          onClose={() => { setDndTarget(null); setDragPayload(null) }}
+        />
       )}
     </>
   )

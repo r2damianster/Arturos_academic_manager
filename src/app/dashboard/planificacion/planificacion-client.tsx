@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { ReplanificarModal, type ClaseFecha } from '@/components/agenda/ReplanificarModal'
-import { DragDropConfirmModal } from '@/components/agenda/DragDropConfirmModal'
+import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
 import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
@@ -1058,48 +1058,30 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       )}
 
       {dragModalPayload && (
-        <DragDropConfirmModal
+        <PlanDropModal
           source={{ asignatura: dragModalPayload.source.asignatura, fecha: dragModalPayload.source.fecha, tema: dragModalPayload.source.tema }}
-          dest={{
-            asignatura: dragModalPayload.target.asignatura,
-            fecha: dragModalPayload.target.fecha,
-            hasPlan: dragModalPayload.target.hasPlan,
-            tema: dragModalPayload.target.tema,
-          }}
-          onConfirm={async mode => {
-            setDragError(null)
-            const colision = dragModalPayload.target.hasPlan ? 'reemplazar' : 'vacio'
-            if (mode.action !== 'copiar' && mode.action !== 'mover') {
-              return { error: 'Acción inválida' }
-            }
+          dest={{ asignatura: dragModalPayload.target.asignatura, fecha: dragModalPayload.target.fecha, hasPlan: dragModalPayload.target.hasPlan, tema: dragModalPayload.target.tema }}
+          onConfirm={async (accion, colision) => {
             const result = await gestionarDragPlanificacion(
               dragModalPayload.source.id,
               dragModalPayload.target.cursoId,
               dragModalPayload.target.fecha,
-              mode.action,
+              accion,
               colision,
-              {
-                tema: dragModalPayload.source.tema,
-                actividades_json: dragModalPayload.source.actividades_json,
-                observaciones: dragModalPayload.source.observaciones,
-              }
+              { tema: dragModalPayload.source.tema, actividades_json: dragModalPayload.source.actividades_json, observaciones: dragModalPayload.source.observaciones }
             )
-            if (result.error) {
-              setDragError(result.error)
-              return { error: result.error }
+            if (!result.error) {
+              setDragSource(null)
+              setDragTarget(null)
+              loadBitacoras()
             }
-            setDragModalPayload(null)
-            setDragSource(null)
-            setDragTarget(null)
-            loadBitacoras()
-            return {}
+            return result
           }}
           onClose={() => {
             setDragModalPayload(null)
             setDragSource(null)
             setDragTarget(null)
             setDragOverKey(null)
-            setDragError(null)
           }}
         />
       )}

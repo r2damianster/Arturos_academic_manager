@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback, startTransition } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -8,9 +8,10 @@ import {
   PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { copiarPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
 import { PlanificarModal } from './PlanificarModal'
 import { ReplanificarModal, type ClaseFecha } from './ReplanificarModal'
+import { PlanDropModal } from './PlanDropModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,11 +135,13 @@ export function PlanificacionExtensiva({ clases }: Props) {
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
-  const [copyingId, setCopyingId] = useState<string | null>(null)
-  const [dragError, setDragError] = useState<string | null>(null)
   const [dragPendiente, setDragPendiente] = useState<{
     srcCursoId: string; srcFecha: string; srcTema: string
+    srcBitacoraId: string | null
+    srcActividades: { actividad: string; recurso: string }[]
+    srcObservaciones: string | null
     dstCursoId: string; dstFecha: string; dstAsignatura: string
+    dstHasPlan: boolean; dstTema?: string
   } | null>(null)
   // Delete state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -236,7 +239,6 @@ export function PlanificacionExtensiva({ clases }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id))
-    setDragError(null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -251,25 +253,18 @@ export function PlanificacionExtensiva({ clases }: Props) {
 
     if (srcCursoId === dstCursoId && srcFecha === dstFecha) return
 
-    const srcTema = bitacoraMap.get(`${srcCursoId}|${srcFecha}`)?.tema ?? ''
+    const srcEntry = bitacoraMap.get(`${srcCursoId}|${srcFecha}`)
+    const dstEntry  = bitacoraMap.get(`${dstCursoId}|${dstFecha}`)
+    const srcTema = srcEntry?.tema ?? ''
     const dstAsignatura = cursos.find(c => c.id === dstCursoId)?.asignatura ?? ''
-    setDragPendiente({ srcCursoId, srcFecha, srcTema, dstCursoId, dstFecha, dstAsignatura })
-  }
-
-  function confirmDrag() {
-    if (!dragPendiente) return
-    const { srcCursoId, srcFecha, dstCursoId, dstFecha } = dragPendiente
-    setDragPendiente(null)
-    const dstKey = `${dstCursoId}__${dstFecha}`
-    setCopyingId(dstKey)
-    startTransition(async () => {
-      const result = await copiarPlanificacion({
-        sourceCursoId: srcCursoId, sourceFecha: srcFecha,
-        destCursoId: dstCursoId, destFecha: dstFecha,
-      })
-      setCopyingId(null)
-      if (result.error) setDragError(result.error)
-      else loadBitacoras()
+    setDragPendiente({
+      srcCursoId, srcFecha, srcTema,
+      srcBitacoraId: srcEntry?.id ?? null,
+      srcActividades: srcEntry?.actividades_json ?? [],
+      srcObservaciones: srcEntry?.observaciones ?? null,
+      dstCursoId, dstFecha, dstAsignatura,
+      dstHasPlan: Boolean(dstEntry),
+      dstTema: dstEntry?.tema,
     })
   }
 
@@ -287,7 +282,6 @@ export function PlanificacionExtensiva({ clases }: Props) {
     const entry = bitacoraMap.get(`${cursoId}|${fecha}`)
     const curso = cursos.find(c => c.id === cursoId)
     const dragId = `${cursoId}__${fecha}`
-    const isCopying = copyingId === dragId
     const isCumplido = entry?.estado === 'cumplido'
     const isPlanned  = entry?.estado === 'planificado'
 
@@ -303,9 +297,9 @@ export function PlanificacionExtensiva({ clases }: Props) {
     )
 
     return (
-      <div className={`relative px-3 py-2 rounded-lg border space-y-1.5 transition-opacity ${
-        isCopying ? 'opacity-50' : ''
-      } ${isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-sky-900/20 border-sky-500/30'}`}>
+      <div className={`relative px-3 py-2 rounded-lg border space-y-1.5 ${
+        isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-sky-900/20 border-sky-500/30'
+      }`}>
         {cursoBId && <DraggableHandle id={dragId} />}
         <div className="flex items-start justify-between gap-2 pr-5">
           <div className="min-w-0 flex-1">
@@ -456,37 +450,28 @@ export function PlanificacionExtensiva({ clases }: Props) {
           )}
 
           {cursoBId && (
-            <p className="text-[10px] text-gray-500 self-end pb-1">Arrastra ⠿ para copiar un plan al otro curso</p>
+            <p className="text-[10px] text-gray-500 self-end pb-1">Arrastra ⠿ para mover/copiar un plan al otro curso</p>
           )}
         </div>
 
-        {/* Confirmación de drag pendiente */}
         {dragPendiente && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-amber-900/20 border border-amber-600/40 rounded-xl">
-            <div className="min-w-0">
-              <p className="text-amber-300 text-sm font-medium">¿Copiar este plan?</p>
-              <p className="text-gray-400 text-xs mt-0.5 truncate">
-                {dragPendiente.srcTema ? `"${dragPendiente.srcTema}"` : 'Plan sin tema'} → {dragPendiente.dstAsignatura} ({dragPendiente.dstFecha})
-              </p>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <button onClick={confirmDrag}
-                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium transition-colors">
-                Copiar
-              </button>
-              <button onClick={() => setDragPendiente(null)}
-                className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-400 hover:text-gray-200 text-sm transition-colors">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {dragError && (
-          <div className="flex items-center justify-between px-3 py-2 bg-red-900/20 border border-red-700/40 rounded-lg">
-            <p className="text-red-400 text-xs">{dragError}</p>
-            <button onClick={() => setDragError(null)} className="text-red-600 hover:text-red-400 text-xs ml-3">✕</button>
-          </div>
+          <PlanDropModal
+            source={{ asignatura: cursos.find(c => c.id === dragPendiente.srcCursoId)?.asignatura ?? '', fecha: dragPendiente.srcFecha, tema: dragPendiente.srcTema }}
+            dest={{ asignatura: dragPendiente.dstAsignatura, fecha: dragPendiente.dstFecha, hasPlan: dragPendiente.dstHasPlan, tema: dragPendiente.dstTema }}
+            onConfirm={async (accion, colision) => {
+              const result = await gestionarDragPlanificacion(
+                dragPendiente.srcBitacoraId,
+                dragPendiente.dstCursoId,
+                dragPendiente.dstFecha,
+                accion,
+                colision,
+                { tema: dragPendiente.srcTema, actividades_json: dragPendiente.srcActividades, observaciones: dragPendiente.srcObservaciones }
+              )
+              if (!result.error) loadBitacoras()
+              return result
+            }}
+            onClose={() => setDragPendiente(null)}
+          />
         )}
 
         {/* Columnas */}
