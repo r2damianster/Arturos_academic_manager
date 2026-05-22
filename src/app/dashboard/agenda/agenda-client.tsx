@@ -1328,6 +1328,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                     className="w-full btn-primary py-2.5">Mover (cambiar de día)</button>
                   <button onClick={() => handleDndSubmit('copiar', 'vacio')} disabled={isDndSaving}
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5">Copiar (repetir plan)</button>
+                  <button onClick={() => handleDndSubmit('mover', 'cascada')} disabled={isDndSaving}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20">Mover en Cascada 🌊</button>
                 </>
               )}
             </div>
