@@ -548,6 +548,15 @@ export function ModoClaseClient({
   // Ficha del estudiante
   const [fichaId, setFichaId] = useState<string | null>(null)
 
+  // Vista de asistencia: todos (compacto) | uno (focalizado)
+  const [asistenciaVista, setAsistenciaVista] = useState<'todos' | 'uno'>('todos')
+  const [unoIdx, setUnoIdx] = useState(0)
+
+  const NIVEL_COLORS_A = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
+  const NIVEL_LABELS_A = ['', '1·Nula', '2·Baja', '3·Media', '4·Alta', '5·Excel']
+  const safeIdx = Math.min(unoIdx, Math.max(0, students.length - 1))
+  const estudianteUno = students[safeIdx] ?? null
+
   function togglePart(estudianteId: string) {
     setPartAbierto(prev => {
       const next = new Set(prev)
@@ -1268,83 +1277,228 @@ export function ModoClaseClient({
 
           {/* Panel Asistencia */}
           {tabDerecha === 'asistencia' && (<>
-          {/* Participación masiva */}
-          {/* Participación masiva */}
-          <div className="flex-shrink-0 px-3 pt-2 pb-1 border-b border-gray-800/60">
-            <button
-              onClick={expandirTodosParticipacion}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
-            >
-              ★ Abrir participación de todos
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-            {students.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>
-            ) : (
-              students.map(s => {
-                const estado = asistencia[s.id]
-                const abierto = partAbierto.has(s.id)
-                const pd = partData[s.id]
-                const nivelActual = pd?.nivel ?? null
-                const NIVEL_COLORS = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
-                const NIVEL_LABELS = ['', '1·Nula', '2·Baja', '3·Media', '4·Alta', '5·Excel']
-                return (
-                  <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
-                    <div className="flex items-center gap-2 px-2 py-1.5">
-                      <span className="flex-1 text-sm text-gray-300 truncate flex items-center gap-2">
-                        {formatNombreCorto(s.nombre)}
-                        {s.tutoria && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
-                            📘
-                          </span>
-                        )}
-                      </span>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button onClick={() => marcarAsistencia(s.id, 'Presente')} title="Presente"
-                          className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-emerald-900 hover:text-emerald-400'}`}>P</button>
-                        <button onClick={() => marcarAsistencia(s.id, 'Atraso')} title="Atraso"
-                          className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Atraso' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-amber-900 hover:text-amber-400'}`}>A</button>
-                        <button onClick={() => marcarAsistencia(s.id, 'Ausente')} title="Ausente"
-                          className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Ausente' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-red-900 hover:text-red-400'}`}>F</button>
-                        {/* Botón participación */}
-                        <button onClick={() => togglePart(s.id)} title="Participación"
-                          className={`w-7 h-7 rounded text-xs font-bold transition-colors ${abierto || nivelActual ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-brand-900 hover:text-brand-400'}`}>
-                          {nivelActual ?? '★'}
-                        </button>
-                        {/* Botón ficha */}
-                        <button onClick={() => setFichaId(s.id)} title="Ver ficha del estudiante"
-                          className="w-7 h-7 rounded text-xs font-bold transition-colors bg-gray-800 text-gray-500 hover:bg-gray-700 hover:text-brand-400">
-                          ⓘ
-                        </button>
-                      </div>
-                    </div>
-                    {/* Panel de participación expandible */}
-                    {abierto && (
-                      <div className="px-2 pb-2 space-y-1.5">
-                        <div className="flex gap-1">
-                          {[1,2,3,4,5].map(n => (
-                            <button key={n} onClick={() => setNivelPart(s.id, n)} title={NIVEL_LABELS[n]}
-                              className={`flex-1 h-6 rounded text-[10px] font-bold transition-colors ${nivelActual === n ? `${NIVEL_COLORS[n]} text-white` : 'bg-gray-800 text-gray-500 hover:text-white'}`}>
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          type="text"
-                          value={pd?.obs ?? ''}
-                          onChange={e => setObsPart(s.id, e.target.value)}
-                          onBlur={() => guardarObsPart(s.id)}
-                          placeholder="Observación…"
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })
+          {/* Toolbar: toggle vista + acción masiva */}
+          <div className="flex-shrink-0 px-3 pt-2 pb-2 border-b border-gray-800/60 space-y-2">
+            {/* Toggle vista */}
+            <div className="flex gap-1 bg-gray-800/60 rounded-lg p-0.5">
+              <button
+                onClick={() => setAsistenciaVista('todos')}
+                className={`flex-1 text-xs py-1 rounded-md transition-colors font-medium ${asistenciaVista === 'todos' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Lista
+              </button>
+              <button
+                onClick={() => { setAsistenciaVista('uno'); setUnoIdx(0) }}
+                className={`flex-1 text-xs py-1 rounded-md transition-colors font-medium ${asistenciaVista === 'uno' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Uno por uno
+              </button>
+            </div>
+            {/* Acción masiva solo en vista lista */}
+            {asistenciaVista === 'todos' && (
+              <button
+                onClick={expandirTodosParticipacion}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
+              >
+                ★ Abrir participación de todos
+              </button>
             )}
           </div>
+
+          {/* ── VISTA LISTA (compacta) ── */}
+          {asistenciaVista === 'todos' && (
+            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+              {students.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>
+              ) : (
+                students.map(s => {
+                  const estado = asistencia[s.id]
+                  const abierto = partAbierto.has(s.id)
+                  const pd = partData[s.id]
+                  const nivelActual = pd?.nivel ?? null
+                  return (
+                    <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        <span className="flex-1 text-sm text-gray-300 truncate flex items-center gap-2">
+                          {formatNombreCorto(s.nombre)}
+                          {s.tutoria && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
+                              📘
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={() => marcarAsistencia(s.id, 'Presente')} title="Presente"
+                            className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Presente' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-emerald-900 hover:text-emerald-400'}`}>P</button>
+                          <button onClick={() => marcarAsistencia(s.id, 'Atraso')} title="Atraso"
+                            className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Atraso' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-amber-900 hover:text-amber-400'}`}>A</button>
+                          <button onClick={() => marcarAsistencia(s.id, 'Ausente')} title="Ausente"
+                            className={`w-7 h-7 rounded text-xs font-bold transition-colors ${estado === 'Ausente' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-red-900 hover:text-red-400'}`}>F</button>
+                          <button onClick={() => togglePart(s.id)} title="Participación"
+                            className={`w-7 h-7 rounded text-xs font-bold transition-colors ${abierto || nivelActual ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-500 hover:bg-brand-900 hover:text-brand-400'}`}>
+                            {nivelActual ?? '★'}
+                          </button>
+                          <button onClick={() => setFichaId(s.id)} title="Ver ficha del estudiante"
+                            className="w-7 h-7 rounded text-xs font-bold transition-colors bg-gray-800 text-gray-500 hover:bg-gray-700 hover:text-brand-400">
+                            ⓘ
+                          </button>
+                        </div>
+                      </div>
+                      {abierto && (
+                        <div className="px-2 pb-2 space-y-1.5">
+                          <div className="flex gap-1">
+                            {[1,2,3,4,5].map(n => (
+                              <button key={n} onClick={() => setNivelPart(s.id, n)} title={NIVEL_LABELS_A[n]}
+                                className={`flex-1 h-6 rounded text-[10px] font-bold transition-colors ${nivelActual === n ? `${NIVEL_COLORS_A[n]} text-white` : 'bg-gray-800 text-gray-500 hover:text-white'}`}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            value={pd?.obs ?? ''}
+                            onChange={e => setObsPart(s.id, e.target.value)}
+                            onBlur={() => guardarObsPart(s.id)}
+                            placeholder="Observación…"
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+
+          {/* ── VISTA UNO POR UNO ── */}
+          {asistenciaVista === 'uno' && estudianteUno && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Mini dots de progreso */}
+              <div className="flex-shrink-0 px-3 py-2 flex flex-wrap gap-1 justify-center">
+                {students.map((s, i) => {
+                  const est = asistencia[s.id]
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setUnoIdx(i)}
+                      title={s.nombre}
+                      className={`w-3 h-3 rounded-sm transition-all ${
+                        i === safeIdx ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-950' : ''
+                      } ${
+                        est === 'Presente' ? 'bg-emerald-600/70'
+                        : est === 'Atraso'  ? 'bg-amber-600/70'
+                        : est === 'Ausente' ? 'bg-red-600/70'
+                        : 'bg-gray-700'
+                      }`}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Tarjeta focalizada */}
+              <div className="flex-1 overflow-y-auto px-3 pb-2">
+                <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 space-y-4">
+                  {/* Nombre + contador + ficha */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-white leading-tight truncate">{estudianteUno.nombre}</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        {safeIdx + 1} de {students.length}
+                        {estudianteUno.tutoria && (
+                          <span className="ml-2 px-1.5 py-0.5 bg-blue-900/40 border border-blue-800 rounded text-[10px] text-blue-400">📘</span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setFichaId(estudianteUno.id)}
+                      title="Ver ficha del estudiante"
+                      className="shrink-0 w-7 h-7 rounded-full bg-gray-800 text-gray-500 hover:text-brand-400 hover:bg-gray-700 flex items-center justify-center text-xs transition-colors"
+                    >
+                      ⓘ
+                    </button>
+                  </div>
+
+                  {/* Botones P / A / F */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { est: 'Presente' as EstadoA, label: 'Presente', active: 'bg-emerald-600 text-white border-emerald-500', inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-emerald-700 hover:text-emerald-400' },
+                      { est: 'Atraso'   as EstadoA, label: 'Atraso',   active: 'bg-amber-600 text-white border-amber-500',   inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-amber-700 hover:text-amber-400' },
+                      { est: 'Ausente'  as EstadoA, label: 'Falta',    active: 'bg-red-600 text-white border-red-500',       inactive: 'bg-gray-800 text-gray-400 border-gray-700 hover:border-red-700 hover:text-red-400' },
+                    ]).map(b => (
+                      <button
+                        key={b.label}
+                        onClick={() => marcarAsistencia(estudianteUno.id, b.est!)}
+                        className={`py-2.5 rounded-lg border text-xs font-bold transition-all ${
+                          asistencia[estudianteUno.id] === b.est ? b.active : b.inactive
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Participación */}
+                  {asistencia[estudianteUno.id] !== 'Ausente' && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Participación</p>
+                      <div className="flex gap-1">
+                        {[1,2,3,4,5].map(n => {
+                          const nivelActual = partData[estudianteUno.id]?.nivel ?? null
+                          return (
+                            <button
+                              key={n}
+                              onClick={() => setNivelPart(estudianteUno.id, n)}
+                              title={NIVEL_LABELS_A[n]}
+                              className={`flex-1 h-8 rounded text-xs font-bold transition-colors ${
+                                nivelActual === n
+                                  ? `${NIVEL_COLORS_A[n]} text-white`
+                                  : 'bg-gray-800 text-gray-500 hover:text-white'
+                              }`}
+                            >
+                              {n}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <input
+                        type="text"
+                        value={partData[estudianteUno.id]?.obs ?? ''}
+                        onChange={e => setObsPart(estudianteUno.id, e.target.value)}
+                        onBlur={() => guardarObsPart(estudianteUno.id)}
+                        placeholder="Observación de participación…"
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Navegación anterior / siguiente */}
+              <div className="flex-shrink-0 flex gap-2 px-3 pb-3">
+                <button
+                  onClick={() => setUnoIdx(i => Math.max(0, i - 1))}
+                  disabled={safeIdx === 0}
+                  className="flex-1 py-2 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  onClick={() => setUnoIdx(i => Math.min(students.length - 1, i + 1))}
+                  disabled={safeIdx === students.length - 1}
+                  className="flex-1 py-2 text-xs rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition-colors"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {asistenciaVista === 'uno' && students.length === 0 && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-gray-500 text-sm">Sin estudiantes</p>
+            </div>
+          )}
 
           {/* Leyenda */}
           <div className="flex-shrink-0 border-t border-gray-800 px-4 py-2 flex gap-3 text-xs text-gray-600">
