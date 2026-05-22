@@ -21,7 +21,7 @@ export default async function EditarCursoPage({
   const [cursoRes, clasesRes, profesorRes, logrosRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).eq('profesor_id', user.id).single(),
     db.from('horarios_clases')
-      .select('dia_semana, hora_inicio, hora_fin, tipo, centro_computo')
+      .select('dia_semana, hora_inicio, hora_fin, tipo, centro_computo, obligatoria')
       .eq('curso_id', cursoId)
       .order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('institucion').eq('id', user.id).maybeSingle(),
