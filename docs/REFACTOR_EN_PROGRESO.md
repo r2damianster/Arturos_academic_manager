@@ -77,15 +77,26 @@
 
 ---
 
-## Cambios pendientes (próximas fases)
+---
 
-Ver `docs/AUDITORIA_DUPLICADOS.md §4` para lista completa.
+### [2026-05-22] Fase 4 — useCollapsible hook + email helper
 
-| # | Acción | Archivos afectados | Complejidad |
-|---|---|---|---|
-| 10 | Extraer `<AsistenciaGrid>` compartido | `pase-lista-client.tsx`, `PasarListaModal.tsx`, `modo-clase-client.tsx` | Alta (nuevo componente) |
-| 11 | Unificar slot-machines en `Ruleta.tsx` | `modo-clase-client.tsx`, `Ruleta.tsx` | Media (cambio de API) |
-| 12 | Extraer `<CollapsiblePanel storageKey>` | `SummaryPanel`, `TodayPanel`, `AgendaSection`, `TutoriasPendientesPanel` | Media |
+#### 10. `useCollapsible` hook extraído (`src/lib/hooks/use-collapsible.ts`)
+- **Qué era:** 9 líneas idénticas de boilerplate (`useState` + `useEffect` localStorage + `toggle`) repetidas en 3 paneles.
+- **Estado:** hook `useCollapsible(storageKey, defaultOpen)` creado. Usado en `SummaryPanel` (`false`), `TodayPanel` (`true`), `AgendaSection` (`true`).
+- **`TutoriasPendientesPanel`:** no tenía collapse — no afectado.
+- **Riesgo si falla:** paneles no recuerdan estado → siempre abren en el valor `defaultOpen`. Verificar que el import `@/lib/hooks/use-collapsible` resuelve correctamente.
+
+---
+
+## Cambios pendientes
+
+Ver `docs/AUDITORIA_DUPLICADOS.md §4` para detalles.
+
+| # | Acción | Complejidad |
+|---|---|---|
+| Extraer `<AsistenciaGrid>` | Nuevo componente compartido para 3 superficies de asistencia | Alta |
+| Unificar slot-machines | Extender `Ruleta.tsx` API + reemplazar RuletaGrupos/sortearExpositor inline | Media |
 
 ---
 

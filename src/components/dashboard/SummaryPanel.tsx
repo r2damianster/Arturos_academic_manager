@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useCollapsible } from '@/lib/hooks/use-collapsible'
 
 interface Props {
   totalCursos: number
@@ -11,18 +11,7 @@ interface Props {
 }
 
 export function SummaryPanel({ totalCursos, totalEstudiantes, asistenciaHoy, cursosRecientes }: Props) {
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('summary-panel-open')
-    if (saved !== null) setOpen(saved === 'true')
-  }, [])
-
-  function toggle() {
-    const next = !open
-    setOpen(next)
-    localStorage.setItem('summary-panel-open', String(next))
-  }
+  const { open, toggle } = useCollapsible('summary-panel-open', false)
 
   return (
     <div className="card">

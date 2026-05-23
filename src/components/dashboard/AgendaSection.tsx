@@ -1,23 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { AgendaClient } from '@/app/dashboard/agenda/agenda-client'
+import { useCollapsible } from '@/lib/hooks/use-collapsible'
 
 type Props = React.ComponentProps<typeof AgendaClient>
 
 export function AgendaSection(props: Props) {
-  const [open, setOpen] = useState(true)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('agenda-section-open')
-    if (saved !== null) setOpen(saved === 'true')
-  }, [])
-
-  function toggle() {
-    const next = !open
-    setOpen(next)
-    localStorage.setItem('agenda-section-open', String(next))
-  }
+  const { open, toggle } = useCollapsible('agenda-section-open', true)
 
   return (
     <div>

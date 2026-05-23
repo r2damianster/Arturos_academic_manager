@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition } from 'react'
+import { useCollapsible } from '@/lib/hooks/use-collapsible'
 import { marcarAsistenciaReserva } from '@/lib/actions/tutorias'
 
 // ── Raw data types ────────────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ const COLORS: Record<string, { border: string; badge: string }> = {
 
 export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Props) {
   const [dayOffset, setDayOffset] = useState(0)
-  const [open, setOpen]           = useState(true)
+  const { open, toggle } = useCollapsible('today-panel-open', true)
   const [mostrarTodos, setMostrarTodos] = useState(false)
   const [asistioMap, setAsistioMap] = useState<Record<number, boolean | null>>({})
   const [, startTransition] = useTransition()
@@ -117,17 +118,6 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       const res = await marcarAsistenciaReserva(reservaId, asistio)
       if (res?.error) setAsistioMap(prev => ({ ...prev, [reservaId]: undefined as unknown as boolean | null }))
     })
-  }
-
-  useEffect(() => {
-    const saved = localStorage.getItem('today-panel-open')
-    if (saved !== null) setOpen(saved === 'true')
-  }, [])
-
-  function toggle() {
-    const next = !open
-    setOpen(next)
-    localStorage.setItem('today-panel-open', String(next))
   }
 
   // Target date
