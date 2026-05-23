@@ -212,6 +212,35 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 
 ---
 
+## Features recientes (2026-05-23 — sesión 22)
+
+### "Notas en curso" — integración en pase de lista y modo clase
+
+#### Pase de lista (`/dashboard/cursos/[cursoId]/pase-lista`)
+- **MOD** `src/app/dashboard/cursos/[cursoId]/pase-lista/page.tsx` — query `calificaciones_items` con `.eq('fuente', 'en_curso')`, computa `resumenEnCurso: Record<string, { total: number; conNota: number }>` por estudiante, pasa a `PaseListaWrapper`.
+- **MOD** `src/components/pase-lista/pase-lista-wrapper.tsx` — prop `resumenEnCurso` threaded hacia `PaseListaClient`.
+- **MOD** `src/components/pase-lista/pase-lista-client.tsx` — badge "Notas en curso: X/Y" en stats por estudiante con color semáforo (rojo < 50% / amarillo < 80% / verde ≥ 80%).
+
+#### Modo clase — columna de asistencia (`modo-clase-client.tsx`)
+- **MOD** `src/app/dashboard/modo-clase/[bitacoraId]/modo-clase-client.tsx`:
+  - Columna derecha ampliada `md:w-80` → `md:w-96`.
+  - **Estado a nivel de componente**: `ecAbierto: Set<string>`, `ecEditando`, `ecPending` (useTransition), `ecItems/ecActividades/ecIndex` calculados desde `itemsEnCurso` prop.
+  - **Botón 📊 por estudiante**: naranja (`bg-amber-700`) cuando tiene pendientes, gris cuando todo calificado, violeta cuando expandido.
+  - **Sección expandible por estudiante (vista Lista)**: tabla de 2 columnas mostrando SOLO ítems sin nota. Edición inline — Enter/✓ guarda, Escape cancela. Llama `upsertItemEnCurso`. Si todas calificadas: texto verde "✓ Todas las actividades calificadas".
+  - **Barra de herramientas**: botón ★ toggle participación + botón 📊 toggle "Notas en curso" (abre/cierra todos).
+  - **Vista Uno por uno**: sección "Notas en curso" tras Participación — misma tabla de pendientes con edición inline.
+  - **VistaGrupo**: props opcionales `ecActividades?`, `ecIndex?`, `ecEditando?`, `setEcEditando?`, `guardarEcNota?`, `ecPending?` — muestra notas pendientes por integrante.
+  - **Rename**: "En Curso" → "Notas en curso" en toda la UI del componente.
+  - **`toggleTodosParticipacion`**: renombrado desde `expandirTodosParticipacion`, ahora verdadero toggle (cierra si todos están abiertos).
+
+#### Aislamiento IA verificado
+- **VERIFICADO** `calificaciones-tabs.tsx` líneas 39-40: `itemsMoodle = items.filter(fuente in ['moodle','manual'])`, `itemsEnCurso = items.filter(fuente === 'en_curso')`. `ItemsTab` solo recibe `itemsMoodle`. ✓
+- **VERIFICADO** `RiesgoPanel` + `cursos/[cursoId]/page.tsx`: riesgo calculado solo desde tabla `asistencia` (pct < 75%). Sin acceso a `calificaciones_items`. ✓
+- **VERIFICADO** `generar-contenido.ts`: cero referencias a `calificaciones_items` ni `en_curso`. Funciones Groq reciben solo datos de encuesta/asistencia/trabajos. ✓
+- **REGLA**: ítems `fuente='en_curso'` son actividades calificadas en tiempo real de clase. NUNCA deben alimentar análisis de riesgo, citaciones, ni funciones IA — son datos de proceso, no evaluativos formales.
+
+---
+
 ## Features recientes (2026-05-22 — sesiones 15-20)
 
 ### Inbox de Notas / Actividades (`/dashboard/actividades`)
