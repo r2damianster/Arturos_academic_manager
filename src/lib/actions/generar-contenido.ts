@@ -256,6 +256,38 @@ export async function generarGuiaSemanal(params: {
   return { guia: result.content, error: result.error }
 }
 
+export async function generarPerfilPedagogico(params: {
+  contexto: string
+  asignatura: string
+}): Promise<{ perfil: string; error?: string }> {
+  const result = await callGroq([
+    {
+      role: 'system',
+      content: `Eres un pedagogo universitario experto en diseño instruccional.
+Recibirás datos socioeconómicos y de comportamiento digital de un grupo de estudiantes universitarios.
+Genera exactamente 3 párrafos (sin numeración, sin encabezados) con una estrategia pedagógica concreta:
+
+Párrafo 1 — PERFIL DEL GRUPO: describe brevemente quiénes son los estudiantes según los datos (situación económica, acceso a tecnología, relación con la lectura/escritura y la IA).
+
+Párrafo 2 — OPORTUNIDADES: identifica 2-3 fortalezas o características aprovechables pedagógicamente.
+
+Párrafo 3 — RECOMENDACIONES: sugiere 3 estrategias concretas y accionables adaptadas a este perfil específico (metodologías, tipos de actividades, evaluaciones). Sé directo y específico.
+
+REGLAS:
+- Solo texto plano, sin markdown, sin asteriscos, sin encabezados
+- Español universitario formal
+- Máximo 250 palabras en total
+- Basarte SOLO en los datos proporcionados, no inventar`,
+    },
+    {
+      role: 'user',
+      content: `Asignatura: ${params.asignatura}\n\n${params.contexto}`,
+    },
+  ])
+
+  return { perfil: result.content, error: result.error }
+}
+
 export async function corregirPlan(params: {
   texto: string
 }): Promise<{ corregido: string; error?: string }> {

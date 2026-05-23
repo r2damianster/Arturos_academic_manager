@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { EncuestaTablaCliente } from '@/components/cursos/encuesta-tabla-cliente'
+import { PerfilPedagogicoPanel } from '@/components/cursos/PerfilPedagogicoPanel'
 import type { FilaEncuesta } from '@/components/cursos/encuesta-tabla-cliente'
 import type { Tables } from '@/types/database.types'
 
@@ -129,6 +130,20 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
   }).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
   const conProblemas = filas.filter(f => f.problemas).length
+
+  const perfilContexto = [
+    `Respuestas: ${total} de ${estudiantes.length} estudiantes`,
+    `Trabaja: ${pctTrabaja}% | Foráneo: ${pctForaneo}%`,
+    `Tecnología: laptop ${pctLaptop}%, PC escritorio ${pctPC}%, sin computadora ${pctSinPC}%, nivel promedio ${nivelTechProm ?? '—'}/5`,
+    `Móvil: ${distMovil.filter(d => d.valor !== '—').map(d => `${d.valor} ${pct(d.n, total)}%`).join(', ')}`,
+    `Satisfacción con carrera: actual ${promCarreraActual ?? '—'}/5, ${pctCarreraAlta}% alta satisfacción`,
+    `Lectura: ${promLibros ?? '—'} libros/año | Gusto por escritura: ${promEscritura ?? '—'}/5`,
+    `Uso IA global: ${promIAGlobal ?? '—'}/5`,
+    `IA más usada: ${iaPromedios.slice(0, 3).map(f => `${f.label} (${f.prom ?? '—'})`).join(', ')}`,
+    `IA menos usada: ${iaPromedios.slice(-3).map(f => `${f.label} (${f.prom ?? '—'})`).join(', ')}`,
+    `Carreras: ${distCarrera.slice(0, 4).map(d => `${d.valor} (${pct(d.n, total)}%)`).join(', ')}`,
+    `Modalidad: ${distModalidad.slice(0, 3).map(d => `${d.valor} ${pct(d.n, total)}%`).join(', ')}`,
+  ].join('\n')
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -377,6 +392,9 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
               ))}
             </div>
           </div>
+
+          {/* Perfil pedagógico IA */}
+          <PerfilPedagogicoPanel asignatura={curso.asignatura} contexto={perfilContexto} />
 
           {/* Tabla individual con filtro */}
           <div className="card overflow-hidden">
