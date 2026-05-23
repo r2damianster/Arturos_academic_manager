@@ -52,26 +52,32 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 /dashboard/cursos                  → Lista de cursos + botón "+ Nuevo Curso" en header
 /dashboard/cursos/nuevo            → Formulario crear curso (accesible desde /cursos, no desde sidebar)
 /dashboard/cursos/[cursoId]        → Detalle curso: métricas, módulos, tabla estudiantes
+/dashboard/cursos/[cursoId]/editar → Edición completa del curso — 6 tabs: Info | Calendario | Horarios | Evaluación | Logros | Zona peligrosa
 /dashboard/cursos/[cursoId]/encuesta → Perfil del grupo: datos socioeconómicos, uso IA
-/dashboard/cursos/[cursoId]/asistencia → Reporte de asistencia (tabla cruzada)
+/dashboard/cursos/[cursoId]/asistencia → Reporte de asistencia (tabla cruzada paginada)
 /dashboard/cursos/[cursoId]/calificaciones → Evaluaciones: notas, participación y resumen
+/dashboard/cursos/[cursoId]/calificaciones/config → Configuración: num_parciales y nombres_tareas
 /dashboard/cursos/[cursoId]/trabajos → Asignación y seguimiento de trabajos
 /dashboard/cursos/[cursoId]/pase-lista → Bitácora + asistencia (con date picker para editar pasadas)
 /dashboard/estudiantes             → Ficha individual de estudiante
+/dashboard/actividades             → Inbox de notas/tareas/recordatorios estilo Google Keep
 /dashboard/agenda                  → redirige a /dashboard (agenda integrada en el Panel)
-/dashboard/tutorias                → Horarios disponibles + reservas
+/dashboard/tutorias                → Horarios disponibles + reservas + tabs Historial/Citaciones
 /dashboard/modo-clase              → redirige a /dashboard/planificacion
-/dashboard/modo-clase/[bitacoraId] → Vista de clase en tiempo real (herramientas: ruleta, agrupación, tabs móvil)
+/dashboard/modo-clase/[bitacoraId] → Vista de clase en tiempo real (herramientas: ruleta, agrupación, ficha estudiante, tabs móvil)
 /dashboard/herramientas            → Ruleta y agrupación de estudiantes
-/dashboard/planificacion           → Mis Clases: panel "Hoy" con acciones directas + grid semanal + "▶ Iniciar clase" en celdas
+/dashboard/planificacion           → Mis Clases: panel "Hoy" + grid semanal + Generador IA + "▶ Iniciar clase" en celdas
 /dashboard/config                  → Página "Administración": perfil del profesor + tabs admin (si rol=admin)
 /dashboard/config?tab=admin        → Tab "Panel Admin": gestión de usuarios y permisos
 /dashboard/admin                   → redirige a /dashboard/config?tab=admin
-/student/                          → Portal del estudiante (onboarding, calendario, perfil)
-/student/tutorias                  → Reserva de tutorías (estudiante)
+/student/                          → Portal del estudiante (onboarding, calendario, perfil, grupos)
+/student/tutorias                  → Reserva de tutorías con modalidad (presencial/virtual/otro)
+/student/evidencias                → Ensamblador de evidencias PDF
 /tutoria-action/                   → Confirmación pública por email token
 /auth/login                        → Login/registro
 /auth/callback                     → Handler OAuth/PKCE
+/api/generar-docx                  → Convierte guía de texto a .docx descargable (librería docx)
+/api/generar-pdf                   → Convierte guía de texto a PDF descargable (pdf-lib)
 ```
 
 ## Agentes disponibles (`.claude/agents/`)
@@ -105,6 +111,10 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 | `NEXT_PUBLIC_SUPABASE_URL` | Cliente browser y server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cliente autenticado normal |
 | `SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()` — bypasea RLS |
+| `GROQ_API_KEY` | Generador IA (`generar-contenido.ts`) — requerido en producción |
+| `GROQ_MODEL` | Modelo Groq (opcional, default `llama-3.3-70b-versatile`) |
+| `RESEND_API_KEY` | Envío de emails de citación a tutoría (`citaciones.ts`) |
+| `RESEND_FROM_EMAIL` | Dirección remitente para emails de citación |
 
 ## Migraciones (`supabase/migrations/`)
 ```
@@ -127,13 +137,108 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260425_encuesta_rls_profesor       → RLS para encuesta_estudiante (aplicada via SQL Editor)
 20260426_grupos_clase                → Tablas grupo_categorias, grupos_clase, grupo_integrantes, grupo_participacion + RLS completo
 20260426_grupos_student_rls         → Política adicional para que estudiantes vean conteos de grupos abiertos
+20260501_add_observacion_cursos     → Columna observacion TEXT en cursos
+20260501_add_institucion_cursos     → Columna institucion TEXT en cursos
+20260501_add_horas_tutoria_ofrecidas → Columna horas_ofrecidas en horarios
+20260501_add_tutor_horas_semana     → Tabla tutor_horas_semana (acumulado por curso/semana)
+20260503_fix_calcular_semana        → Corrección RPC calcular_semana
+20260503_fix_semanas_historico      → Recalcula semana en participacion/asistencia (semanas ISO)
+20260503_add_citaciones_tutoria     → Tabla citaciones_tutoria con RLS (estados: pendiente|agendada|asistida|no_asistida|cumplida)
+20260509_plantillas_grupos          → Columnas es_plantilla/plantilla_nombre en grupos_clase
+20260509_limit_reservas_por_semana  → RPC reservar_tutoria: max 1 reserva activa por semana por estudiante
+20260509_cancelar_con_ventana_horaria → Funciones SECURITY DEFINER: cancelar_mi_reserva (ventana 1h) y marcar_no_asistire
+20260514_fix_participacion_unique_constraint → UNIQUE INDEX en participacion(curso_id, estudiante_id, fecha) — fix crítico
+20260514_historial_tutorias         → Columnas profesor_id, origen, curso_id, hora_inicio/fin_manual en reservas; horario_id nullable
+20260519_actividades_inbox          → Tabla actividades_inbox con RLS y trigger updated_at
+20260519_actividades_keep_style     → Rediseño schema: archivada, pinned, completada, color, checklist_items JSONB
+20260520_add_modalidad_reservas     → Columnas modalidad (presencial|virtual|otro) y link_zoom en reservas; RPC actualizada
+20260521_add_logros_aprendizaje     → Tabla logros_aprendizaje(id, curso_id, descripcion, orden) con RLS
+20260522_add_obligatoria_horarios_clases → Columna obligatoria BOOLEAN DEFAULT FALSE en horarios_clases
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
 Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas extras no en el schema inicial):
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
-- **Deuda técnica**: `encuesta_estudiante` en los tipos no refleja todos los campos `uso_ia_*` con tipado estricto — hay `as any` en la página de encuesta
+- **Deuda técnica acumulada** (tablas/columnas no reflejadas en los tipos, usan `as any`):
+  - `actividades_inbox` — tabla nueva completa (color, checklist_items JSONB, pinned, completada, archivada)
+  - `citaciones_tutoria` — tabla nueva completa
+  - `logros_aprendizaje` — tabla nueva completa
+  - `reservas.modalidad`, `reservas.link_zoom`, `reservas.profesor_id`, `reservas.origen`, `reservas.curso_id` — columnas nuevas
+  - `horarios_clases.obligatoria` — columna nueva
+  - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
+
+## Features recientes (2026-05-22 — sesiones 15-20)
+
+### Inbox de Notas / Actividades (`/dashboard/actividades`)
+- **FEAT** Tabla `actividades_inbox` con tipos `nota | tarea | recordatorio`, colores (rojo|naranja|amarillo|verde|teal|azul|morado), `pinned`, `completada`, `archivada`, `checklist_items JSONB`, `fecha_vencimiento`, `curso_id`. RLS completo.
+- **FEAT** `src/lib/actions/actividades.ts` — CRUD completo + checklist (addItem/toggle/remove/save) + convertirAEvento + convertirVariasAEvento + getActividades + getCounts + getActividadesParaHoy + getUltimasNotas.
+- **FEAT** `src/app/dashboard/actividades/page.tsx` + `actividades-client.tsx` — vista con filtros por tipo/curso/color/búsqueda, toggle archivadas, botones QuickAdd y EditarPanel.
+- **FEAT** Componentes: `ActividadCard`, `QuickAddModal`, `EditarActividadPanel`, `ChecklistEditor`, `ColorPicker`, `ConvertirEventoModal`, `MiniNotaCard`.
+- **FEAT** `src/components/actividades/FloatingNotesPanel.tsx` — panel flotante persistente en todo el dashboard (oculto en `/modo-clase` y `/actividades`). Crear nota rápida, ver últimas 8, selección múltiple para convertir a evento. Estado en `localStorage`.
+- **MOD** `src/app/dashboard/layout.tsx` — `FloatingNotesPanel` inyectado globalmente.
+
+### Sistema de Citaciones a Tutoría
+- **FEAT** Tabla `citaciones_tutoria(id, profesor_id, curso_id, estudiante_id, fecha_citacion, razon, detalle_razon, estado, reserva_id)`. Estados: `pendiente | agendada | asistida | no_asistida | cumplida`.
+- **FEAT** `src/lib/actions/citaciones.ts` — `citarEstudiante`, `actualizarEstadoCitacion`, `getCitacionesPorCurso`, `obtenerCitacionesPendientesEstudiante`, `enviarEmailCitacion` (Resend, sin que el profesor abra su correo), `agendarCitacion`.
+- **FEAT** `src/components/tutorias/CitacionesTab.tsx` — tabla de citaciones activas con transiciones de estado inline.
+
+### Historial de Tutorías
+- **FEAT** `reservas` nuevas columnas: `profesor_id`, `origen TEXT DEFAULT 'agendada'`, `curso_id`, `hora_inicio_manual`, `hora_fin_manual`. `horario_id` ahora nullable (permite entradas manuales).
+- **FEAT** `src/lib/actions/tutorias.ts` — `registrarTutoriaManual`, `getHistorialTutorias` (join con citaciones_tutoria).
+- **FEAT** `src/components/tutorias/HistorialTab.tsx` — filtros por curso/institución/fecha/origen/estado, exportación CSV.
+- **MOD** `src/app/dashboard/tutorias/tutorias-page-client.tsx` — 3 tabs: **Horarios** | **Historial** | **Citaciones**.
+
+### Generador IA con Groq (`/dashboard/planificacion`)
+- **FEAT** `src/lib/actions/generar-contenido.ts` — Groq API (`llama-3.3-70b-versatile`): `generarHtmlSemanal` (HTML estilo Moodle LMS con restricciones estrictas: no inventar referencias, video YouTube como CTA, iframe solo para Google Slides), `generarGuiaSemanal` (texto plano con competencias blandas, rúbrica 4 niveles, logros institucionales opcionales), `mejorarContenido` (chat de refinamiento con historial).
+- **FEAT** `src/components/planificacion/GeneradorPanel.tsx` — panel 3 pasos: selección curso+semana → configuración tipo+instrucción → resultado con preview + descarga .txt/.docx/.pdf + modo chat.
+- **FEAT** `src/app/api/generar-docx/route.ts` — text→`.docx` via librería `docx`. Parsea encabezados MAYÚSCULAS, bullets, campos clave:valor.
+- **FEAT** `src/app/api/generar-pdf/route.ts` — text→PDF via `pdf-lib`. Tipografía A4 con word-wrap.
+- **MOD** `planificacion-client.tsx` — botón "Generador IA" en header abre `GeneradorPanel` como overlay.
+- **REQUERIDO EN VERCEL**: `GROQ_API_KEY` (obligatorio), `GROQ_MODEL` (opcional).
+
+### Logros de Aprendizaje por Curso
+- **FEAT** Tabla `logros_aprendizaje(id, curso_id, descripcion, orden)` con RLS.
+- **FEAT** `src/lib/actions/logros.ts` — `getLogros`, `addLogro`, `updateLogro`, `deleteLogro`, `reorderLogros`.
+- Usados en `GeneradorPanel` como objetivos institucionales del curso.
+
+### Edición completa de curso (`/dashboard/cursos/[cursoId]/editar`)
+- **FEAT** `src/app/dashboard/cursos/[cursoId]/editar/page.tsx` — RSC con 6 tabs vía `editar-client.tsx`: **Información | Calendario | Horarios | Evaluación | Logros | Zona peligrosa**.
+- Tab Logros: lista drag-reorderable con CRUD inline. Tab Peligro: eliminar curso.
+
+### Ficha de Estudiante — Drawer Universal
+- **FEAT** `src/components/ficha-estudiante/FichaEstudianteDrawer.tsx` — drawer lateral con tabs `resumen | trabajos | participación | encuesta`. Incluye "Citar a tutoría" con selector de razón. Toggle datos sensibles con `useSensibleToggle`.
+- **FEAT** `src/lib/actions/ficha-estudiante.ts` — `getFichaEstudiante(estudianteId, cursoId, bitacoraId?)` retorna `FichaEstudianteData`: asistencia, participación, trabajos, citaciones, grupoActual.
+- **FEAT** `src/lib/hooks/use-sensible-toggle.ts` — persiste en `localStorage`, sincronizado entre pestañas via `StorageEvent`.
+- **MOD** `pase-lista-client.tsx`, `AsistenciaPorEstudiante.tsx`, `modo-clase-client.tsx` — botón por estudiante abre el drawer.
+
+### PlanDropModal — Drag entre días/cursos mejorado
+- **FEAT** `src/components/agenda/PlanDropModal.tsx` — modal de confirmación para drag con opciones: Mover / Copiar / Mover en Cascada (destino libre) o Reemplazar / Combinar / Cascada (destino con plan).
+- **MOD** `src/lib/actions/bitacora.ts` — tipos exportados `AccionDrag` y `ColisionDrag`. `gestionarDragPlanificacion` refactorizado. Nueva action `trasladarActividades(sourceBitacoraId, indices[], targetBitacoraId, mode)`.
+- **MOD** `planificacion-client.tsx` y `PlanificacionExtensiva.tsx` — ambos usan `PlanDropModal`.
+
+### Modalidad en Reservas de Tutoría
+- **FEAT** `reservas.modalidad TEXT DEFAULT 'presencial'` (check: `presencial | virtual | otro`) + `reservas.link_zoom TEXT`. RPC `reservar_tutoria` actualizada con `p_modalidad` y `p_link_zoom`.
+- **MOD** `src/app/student/tutorias/tutorias-booking.tsx` — selector modalidad + campo link_zoom condicional.
+
+### Límites y ventana de cancelación en reservas
+- **FEAT** `reservar_tutoria` RPC: máx 1 reserva activa por semana (lunes-domingo ISO). Error claro si ya tiene una.
+- **FEAT** `cancelar_mi_reserva(p_reserva_id)` SECURITY DEFINER: solo permite cancelar con >1h de anticipación. `marcar_no_asistire`: registra inasistencia si ya pasó el corte.
+
+### Campo obligatoria en horarios de clase
+- **FEAT** `horarios_clases.obligatoria BOOLEAN NOT NULL DEFAULT FALSE`. Visible en `HorarioClase` interface y en `TodayPanel`.
+
+### Plantillas de Grupos
+- **FEAT** `grupos_clase.es_plantilla BOOLEAN DEFAULT false` + `grupos_clase.plantilla_nombre TEXT`. Prop `plantillas` y `gruposUltimaSesion` en `modo-clase-client.tsx`.
+
+### Fix crítico — participación única
+- **FIX** `UNIQUE INDEX participacion_curso_estudiante_fecha_key` — sin este índice el upsert en `registrarParticipacion` fallaba silenciosamente. Registros previos al 2026-05-14 pueden estar incompletos.
+
+### Sidebar — orden actualizado (sesión 15+)
+- Orden actual: **Panel → Clases → Tutorías → Mis Cursos → Herramientas** · Footer: **Administración**
+- **Tutorias** re-agregado al sidebar (había sido removido en sesión 7). Verificar siempre que `sidebar.tsx` y `mobile-nav.tsx` estén sincronizados.
+
+---
 
 ## Features recientes (2026-05-01 — sesión 14)
 
@@ -381,60 +486,39 @@ END; $$;
 
 ## Features próximas sesiones
 
-### Seguimiento avanzado de citaciones a tutoría
-- **Nueva tabla `citaciones_tutoria`**: Historial de citaciones por estudiante para evitar sobreescribir un simple booleano.
-- **Razones de citación**: `inasistencia`, `bajo_desempeño`, `asignacion_trabajo`, `otro` + campo de detalle libre.
-- **Ciclo de vida (Estados)**: `pendiente` (citado pero sin agendar), `agendada` (vinculada a una reserva), `asistida`, `no_asistida`, y `cumplida/mejorado` (cuando el profesor da por cerrado el caso).
-- **Vista mensual/por período**: Pantalla dedicada para que el profesor sepa exactamente quiénes han sido citados en el mes, quiénes asistieron y quiénes siguen pendientes.
-
 ### PDF de evidencias estudiantil — enriquecer con datos del curso
 Al inicio del PDF generado por el estudiante, incluir:
 - Porcentaje de asistencia y registro por semana
 - Actividades calificadas
 - Asistencia a tutorías reservadas (asistió/faltó)
-- **Ranking de participación disimulado**: mostrar frases predefinidas por rango (ej: nivel 4-5 → "Tu participación refleja un compromiso activo con el aprendizaje"; nivel 1-2 → "Se identifican oportunidades para fortalecer la participación") — el profesor reconoce el nivel, el estudiante no lo ve como calificación. Podría incorporar las observaciones del profesor.
+- **Ranking de participación disimulado**: frases predefinidas por rango (nivel 4-5 → "Tu participación refleja compromiso activo"; nivel 1-2 → "Se identifican oportunidades para fortalecer la participación"). El profesor reconoce el nivel, el estudiante no lo ve como calificación.
 
 ### Reporte PDF del profesor
-El profesor puede generar un PDF por estudiante/curso con: notas de participación, observaciones, asistencia, si faltó a tutoría agendada, etc.
-
-### Email automático al asignar tutoría
-Al hacer clic en "Citar a tutoría" desde la tabla de estudiantes, enviar automáticamente un correo al estudiante sin que el profesor tenga que abrir el correo. La infraestructura de email ya existe (Resend/Supabase).
+Generar PDF por estudiante/curso con: notas de participación, observaciones, asistencia, si faltó a tutoría agendada.
 
 ### Acceso a reemplazante
-Usuario externo (identificado por email) que cubre al profesor por un período específico. Acceso restringido a: planificación, pase de lista, registro de novedades. Prohibido: editar curso, editar tareas asignadas, descargar archivos Moodle CSV. Requiere: tabla `reemplazantes` (profesor_id, email_reemplazante, fecha_inicio, fecha_fin), middleware que detecta rol y oculta/bloquea funciones restringidas. Implementar como rol separado, no como modificación al rol profesor.
+Usuario externo (identificado por email) que cubre al profesor por período específico. Acceso restringido a: planificación, pase de lista, novedades. Prohibido: editar curso, descargar Moodle CSV. Requiere tabla `reemplazantes(profesor_id, email_reemplazante, fecha_inicio, fecha_fin)` + middleware de rol.
+
+### ~~Seguimiento avanzado de citaciones a tutoría~~ ✅ IMPLEMENTADO
+~~Nueva tabla `citaciones_tutoria`, ciclo de vida pendiente → agendada → asistida → cumplida, vista mensual.~~
 
 ### ~~Edición de curso — completar campos faltantes~~ ✅ IMPLEMENTADO
-~~`EditarCursoPanel` debe incluir: edición de horarios inline (actualmente en `HorariosEditor` separado, el usuario no lo encuentra), campo `institución` editable por curso (actualmente solo read-only del profesor), campo `observacion` libre. Evaluar si `institución` va en tabla `cursos` (nueva columna) o se reutiliza la de `profesores`.~~
-
 ### ~~Nota de participación y observación en asistencia — modo clase~~ ✅ IMPLEMENTADO
-~~Botón ★ por estudiante en la lista general de asistencia. Expande panel con niveles 1-5 (coloreados) + campo observación. Guarda con `registrarParticipacion`. El nivel se muestra en el botón una vez marcado.~~
-
 ### ~~Pase de lista — todos en Presente por defecto~~ ✅ IMPLEMENTADO
-~~Al abrir el pase de lista desde el plan de clases (modo clase), todos los estudiantes deben aparecer pre-marcados como `Presente`.~~
-
 ### ~~Modo extensivo — drag entre cursos~~ ✅ IMPLEMENTADO
-~~Navegación independiente A/B~~ ✅. ~~Arrastrar un plan del Curso B al Curso A (o viceversa) usando `@dnd-kit/core`.~~ ✅
-
 ### ~~Planificación semanal — navegación por día sin mover semana~~ ✅ IMPLEMENTADO
-~~La vista semanal actual mueve toda la semana al navegar. Agregar navegación por día individual (resaltar el día) sin desplazar la ventana de la semana.~~
-
 ### ~~Panel "Hoy" — ocultable en planificación~~ ✅ IMPLEMENTADO
-~~Aplicar el mismo patrón que el dashboard. Ya implementado en `planificacion-client.tsx`.~~
-
 ### ~~Planificación — respetar fechas del curso~~ ✅ IMPLEMENTADO
-~~Botones ← → ahora respetan `fecha_inicio`/`fecha_fin` de los cursos (disabled al llegar al límite).~~
-
 ### ~~Ensamblador de evidencias (portal estudiante)~~ ✅ IMPLEMENTADO
-~~Nueva sección en `/student/` donde el estudiante sube evidencias de su trabajo y genera un PDF maestro. Funcionalidad:~~
-~~- **Drag-and-drop** de archivos (PDFs e imágenes) en zonas categorizadas: Actividades grupales / Actividades individuales, con subcategorías configurables (Brisk, Perusall, Ensayos, u otras que el estudiante defina)~~
-~~- **Generación de PDF maestro** via Serverless Function usando `pdf-lib`: página de encabezado con metadatos del curso + fecha, pie de página con nombre del profesor en cada hoja importada~~
-~~- **Conversión de imágenes a PDF** con `sharp` antes de ensamblar~~
-~~- El PDF resultante se descarga directamente (no se almacena en servidor)~~
-~~- Stack: `pdf-lib` + `sharp` en una API route Next.js (`/api/student/ensamblar-evidencias`)~~
+### ~~Email automático al citar a tutoría~~ ✅ IMPLEMENTADO (via `enviarEmailCitacion` en `citaciones.ts`)
 
-## Bugs pendientes
+## Bugs pendientes y deuda técnica
 
-- **Agenda semanal / vista semanal planificación**: ocultar bloques de clase fuera del rango fecha_inicio/fecha_fin ya aplicado en agenda-client y planificacion-client. Verificar que en ambas vistas esté funcionando en producción.
+- **`database.types.ts` desactualizado**: tablas `actividades_inbox`, `citaciones_tutoria`, `logros_aprendizaje` y columnas nuevas de `reservas` (`modalidad`, `link_zoom`, `profesor_id`, `origen`, `curso_id`) y `horarios_clases.obligatoria` no tienen tipos — se usa `as any`. Actualizar antes de que se acumule más deuda.
+- **Datos de participación pre-2026-05-14 pueden estar corruptos**: el `UNIQUE INDEX` que habilita el upsert no existía antes de esa fecha. Registros de ese período pueden ser incompletos. Auditar con: `SELECT curso_id, estudiante_id, fecha, COUNT(*) FROM participacion GROUP BY 1,2,3 HAVING COUNT(*) > 1`
+- **`mobile-nav.tsx` requiere verificación**: "Tutorías" fue re-agregado al sidebar el 2026-05-21 — confirmar que `mobile-nav.tsx` también lo incluye en la misma posición.
+- **Generador IA en producción**: requiere `GROQ_API_KEY` en Vercel. Sin ella el GeneradorPanel lanza error en producción. También `RESEND_API_KEY` y `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
+- **`horario_id` nullable en `reservas`**: la migración `20260514_historial_tutorias.sql` hace `horario_id` nullable. Verificar que queries en `tutorias-manager.tsx` y `tutorias-page-client.tsx` no asumen NOT NULL.
 
 ## Convenciones críticas
 
@@ -453,8 +537,8 @@ El proyecto de producción (Vercel) es **`hxsnyrutyyavvljxwgku`**. El proyecto l
 **`sidebar.tsx` y `mobile-nav.tsx` tienen arrays `navItems` completamente independientes.**
 Al agregar, eliminar o reordenar un ítem en uno → replicarlo en el otro. Sin esto, los ítems sólo aparecen en desktop o sólo en móvil.
 
-**Orden actual (sesión 7, 2026-04-25):**
-- `navItems` (main): **Panel → Clases → Mis Cursos → Herramientas**
+**Orden actual (sesión 15+, 2026-05-21):**
+- `navItems` (main): **Panel → Clases → Tutorías → Mis Cursos → Herramientas**
 - Footer / bottom del nav: **Administración** → `/dashboard/config`
 
 `Sidebar` y `MobileNav` ya **no reciben `esAdmin`** como prop (eliminado en sesión 7). El rol admin lo maneja la propia página `/dashboard/config` leyendo la BD.
