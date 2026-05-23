@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 
 // ─── Contextual help per page ─────────────────────────────────────────────────
@@ -66,6 +66,7 @@ const FAQS: FAQ[] = [
 interface Message {
   role: 'bot' | 'user'
   text: string
+  typing?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ export function ChatBot() {
     { role: 'bot', text: '¡Hola! Soy tu asistente. ¿En qué te puedo ayudar?' },
   ])
   const [input, setInput]     = useState('')
+  const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -87,12 +89,36 @@ export function ChatBot() {
     setMessages(prev => [...prev, { role: 'bot', text }])
   }
 
-  function handleSuggestion(text: string) {
-    setMessages(prev => [...prev, { role: 'user', text }])
-    respondTo(text)
-  }
+  const callGroqChat = useCallback(async (history: Message[], userText: string) => {
+    setLoading(true)
+    setMessages(prev => [...prev, { role: 'bot', text: '', typing: true }])
+    try {
+      const apiMessages = history
+        .filter(m => !m.typing)
+        .map(m => ({ role: m.role === 'bot' ? 'assistant' as const : 'user' as const, content: m.text }))
+      apiMessages.push({ role: 'user', content: userText })
 
-  function respondTo(text: string) {
+      const res = await fetch('/api/student/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages }),
+      })
+      const data = await res.json()
+      setMessages(prev => [
+        ...prev.filter(m => !m.typing),
+        { role: 'bot', text: data.reply ?? 'Sin respuesta.' },
+      ])
+    } catch {
+      setMessages(prev => [
+        ...prev.filter(m => !m.typing),
+        { role: 'bot', text: 'Error al conectar con el asistente. Intenta de nuevo.' },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  function respondTo(text: string, history: Message[]) {
     const lower = text.toLowerCase()
 
     // Contextual: ¿qué puedo hacer aquí?
@@ -101,29 +127,36 @@ export function ChatBot() {
         ?? (pathname === '/student' ? '/student' : null)
       const help = pageKey ? PAGE_HELP[pageKey] : null
       if (help) {
-        addBot(`En **${help.title}** puedes:\n${help.bullets.map(b => `• ${b}`).join('\n')}`)
+        addBot(`En ${help.title} puedes:\n${help.bullets.map(b => `• ${b}`).join('\n')}`)
       } else {
         addBot('En esta sección puedes navegar el portal estudiantil. Usa el menú superior para ir a Tutorías o tu Perfil.')
       }
       return
     }
 
-    // FAQ matching
+    // FAQ matching — respuesta instantánea sin Groq
     const match = FAQS.find(f =>
       f.q.toLowerCase().split(' ').some(word => word.length > 4 && lower.includes(word))
     )
     if (match) { addBot(match.a); return }
 
-    // Fallback
-    addBot('No estoy seguro de esa respuesta. Prueba con las sugerencias de abajo, o contacta a tu profesor directamente.')
+    // Groq para preguntas con datos personales (asistencia, trabajos, tutorías)
+    callGroqChat(history, text)
+  }
+
+  function handleSuggestion(text: string) {
+    const updated = [...messages, { role: 'user' as const, text }]
+    setMessages(updated)
+    respondTo(text, messages)
   }
 
   function handleSend() {
     const text = input.trim()
-    if (!text) return
-    setMessages(prev => [...prev, { role: 'user', text }])
+    if (!text || loading) return
+    const updated = [...messages, { role: 'user' as const, text }]
+    setMessages(updated)
     setInput('')
-    respondTo(text)
+    respondTo(text, messages)
   }
 
   const suggestions = [
@@ -159,7 +192,13 @@ export function ChatBot() {
                     ? 'bg-brand-600 text-white rounded-br-sm'
                     : 'bg-gray-800 text-gray-200 rounded-bl-sm'
                 }`}>
-                  {m.text}
+                  {m.typing ? (
+                    <span className="flex items-center gap-1 h-4">
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  ) : m.text}
                 </div>
               </div>
             ))}
@@ -186,12 +225,13 @@ export function ChatBot() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="Escribe tu pregunta..."
-              className="flex-1 text-sm bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-500"
+              placeholder={loading ? 'Escribiendo...' : 'Escribe tu pregunta...'}
+              disabled={loading}
+              className="flex-1 text-sm bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-500 disabled:opacity-50"
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || loading}
               className="w-8 h-8 rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
             >
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
