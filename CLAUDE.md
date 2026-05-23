@@ -175,10 +175,9 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 #### Corrección ortográfica con IA en PlanificarModal
 - **FEAT** `corregirPlan({ texto })` en `src/lib/actions/generar-contenido.ts` — Groq con prompt estricto de solo corrección ortográfica y conectores lógicos. NUNCA reescribe ni cambia contenido.
 - **MOD** `src/components/agenda/PlanificarModal.tsx`:
-  - Botón `✦ Corregir` junto al label "Tema" → corrige campo `tema`
-  - Botón `✦ Corregir` junto al label "Observaciones" → corrige campo `observaciones`
-  - Botón `✦ Corregir` en header de sección Actividades → `handleCorregirActividades()` corre `Promise.all` sobre todos los campos `actividad` no vacíos en paralelo. **Nunca toca el campo `recurso`** (URLs no necesitan corrección).
-  - Estado `correcting: 'tema' | 'obs' | 'acts' | null` — deshabilita todos los botones mientras corre.
+  - **Un solo botón** `✦ Corregir ortografía` debajo de la sección Actividades → `handleCorregirTodo()`.
+  - Corre en paralelo: `tema` + `observaciones` + todos los campos `actividad` + campos `recurso` no-URL (`!esUrl(recurso)`). URLs en `recurso` nunca se tocan.
+  - Estado `correcting: 'all' | null` — deshabilita el botón mientras corre.
 
 #### Contexto histórico en generación de guías
 - **MOD** `generarHtmlSemanal` y `generarGuiaSemanal` — nuevo param opcional `cursoId?: string`. Cuando presente, llama `fetchHistorialClases(supabase, cursoId, excludeIds)` que consulta las últimas 2 bitácoras `estado='cumplido'` del curso (excluyendo semanas seleccionadas). Inyecta como "CONTEXTO DE CLASES ANTERIORES" en el prompt con instrucción de NO repetir temas ya cubiertos.
