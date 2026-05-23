@@ -552,6 +552,9 @@ export function ModoClaseClient({
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
 
+  // Vista "En Curso" en lista de asistencia
+  const [verEnCurso, setVerEnCurso] = useState(false)
+
   // Ficha del estudiante (drawer)
   const [fichaId, setFichaId] = useState<string | null>(null)
 
@@ -633,8 +636,9 @@ export function ModoClaseClient({
     })
   }
 
-  function expandirTodosParticipacion() {
-    setPartAbierto(new Set(students.map(s => s.id)))
+  function toggleTodosParticipacion() {
+    const allOpen = students.every(s => partAbierto.has(s.id))
+    setPartAbierto(allOpen ? new Set() : new Set(students.map(s => s.id)))
   }
 
   function marcarAsistencia(estudianteId: string, estado: 'Presente' | 'Ausente' | 'Atraso') {
@@ -1350,19 +1354,46 @@ export function ModoClaseClient({
                 Uno por uno
               </button>
             </div>
-            {/* Acción masiva solo en vista lista */}
+            {/* Acciones masivas solo en vista lista */}
             {asistenciaVista === 'todos' && (
-              <button
-                onClick={expandirTodosParticipacion}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10 transition-colors"
-              >
-                ★ Abrir participación de todos
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={toggleTodosParticipacion}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-xs transition-colors ${
+                    students.every(s => partAbierto.has(s.id))
+                      ? 'border-brand-600 text-brand-400 bg-brand-900/20 hover:bg-brand-900/10'
+                      : 'border-gray-700 text-gray-500 hover:border-brand-600/60 hover:text-brand-400 hover:bg-brand-900/10'
+                  }`}
+                >
+                  ★ {students.every(s => partAbierto.has(s.id)) ? 'Cerrar participación' : 'Abrir participación'}
+                </button>
+                {(itemsEnCurso ?? []).length > 0 && (
+                  <button
+                    onClick={() => setVerEnCurso(v => !v)}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-xs transition-colors ${
+                      verEnCurso
+                        ? 'border-violet-600 text-violet-400 bg-violet-900/20 hover:bg-violet-900/10'
+                        : 'border-gray-700 text-gray-500 hover:border-violet-600/60 hover:text-violet-400 hover:bg-violet-900/10'
+                    }`}
+                  >
+                    📊 {verEnCurso ? 'Cerrar En Curso' : 'Ver En Curso'}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
           {/* ── VISTA LISTA (compacta) ── */}
-          {asistenciaVista === 'todos' && (
+          {asistenciaVista === 'todos' && (() => {
+            // Resumen En Curso por estudiante (computed once per render)
+            const ecItems = itemsEnCurso ?? []
+            const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))]
+            const ecResumen: Record<string, number> = {}
+            for (const s of students) {
+              ecResumen[s.id] = ecItems.filter(i => i.estudiante_id === s.id && i.nota !== null).length
+            }
+            const ecTotal = ecActividades.length
+            return (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
               {students.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>
@@ -1372,6 +1403,7 @@ export function ModoClaseClient({
                   const abierto = partAbierto.has(s.id)
                   const pd = partData[s.id]
                   const nivelActual = pd?.nivel ?? null
+                  const ecConNota = ecResumen[s.id] ?? 0
                   return (
                     <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
                       <div className="flex items-center gap-2 px-2 py-1.5">
@@ -1380,6 +1412,15 @@ export function ModoClaseClient({
                           {s.tutoria && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
                               📘
+                            </span>
+                          )}
+                          {verEnCurso && ecTotal > 0 && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                              ecConNota === ecTotal ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
+                              : ecConNota / ecTotal >= 0.5 ? 'bg-yellow-900/40 text-yellow-300 border-yellow-700'
+                              : 'bg-gray-800 text-gray-400 border-gray-700'
+                            }`}>
+                              {ecConNota}/{ecTotal}
                             </span>
                           )}
                         </span>
@@ -1425,7 +1466,8 @@ export function ModoClaseClient({
                 })
               )}
             </div>
-          )}
+            )
+          })()}
 
           {/* ── VISTA UNO POR UNO ── */}
           {asistenciaVista === 'uno' && estudianteUno && (
