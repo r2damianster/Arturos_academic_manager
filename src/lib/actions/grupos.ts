@@ -114,7 +114,7 @@ export async function moverEstudiante(
   return {}
 }
 
-// ── Profesor: publicar / cerrar grupos de afinidad ───────────
+// ── Profesor: publicar / cerrar / reabrir grupos de afinidad ─
 
 export async function publicarAfinidad(bitacoraId: string): Promise<{ error?: string }> {
   const db = await createClient()
@@ -131,7 +131,119 @@ export async function publicarAfinidad(bitacoraId: string): Promise<{ error?: st
   return {}
 }
 
+// Asigna estudiantes sin grupo a un grupo especial "Sin grupo" y marca su asistencia Ausente.
+// Solo aplica cuando hay bitacoraId (contexto de sesión). Retorna cuántos se asignaron.
+async function asignarSinGrupo(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  profesorId: string,
+  bitacoraId: string,
+  cursoId: string,
+): Promise<number> {
+  const [{ data: todosEstudiantes }, { data: gruposSesion }] = await Promise.all([
+    db.from('estudiantes').select('id').eq('curso_id', cursoId).neq('estado', 'retirado'),
+    db.from('grupos_clase').select('id').eq('bitacora_id', bitacoraId),
+  ])
+
+  const grupoIds = (gruposSesion ?? []).map((g: { id: string }) => g.id)
+
+  const { data: asignados } = grupoIds.length > 0
+    ? await db.from('grupo_integrantes').select('estudiante_id').in('grupo_id', grupoIds)
+    : { data: [] }
+
+  const asignadosSet = new Set((asignados ?? []).map((a: { estudiante_id: string }) => a.estudiante_id))
+  const sinGrupo = (todosEstudiantes ?? []).filter((e: { id: string }) => !asignadosSet.has(e.id))
+
+  if (sinGrupo.length === 0) return 0
+
+  // Buscar o crear el grupo "Sin grupo" para esta sesión
+  let { data: grupoSinGrupo } = await db
+    .from('grupos_clase')
+    .select('id')
+    .eq('bitacora_id', bitacoraId)
+    .eq('nombre', 'Sin grupo')
+    .eq('profesor_id', profesorId)
+    .maybeSingle()
+
+  if (!grupoSinGrupo) {
+    const { data: nuevo } = await db.from('grupos_clase').insert({
+      bitacora_id: bitacoraId,
+      curso_id: cursoId,
+      profesor_id: profesorId,
+      nombre: 'Sin grupo',
+      categoria: null,
+      tipo: 'manual',
+      abierto: false,
+      orden: 999,
+    }).select('id').single()
+    grupoSinGrupo = nuevo
+  }
+
+  if (!grupoSinGrupo) return 0
+
+  // Insertar solo los que no están ya en "Sin grupo" (ignorar duplicados)
+  await db.from('grupo_integrantes').upsert(
+    sinGrupo.map((e: { id: string }) => ({
+      grupo_id: grupoSinGrupo.id,
+      estudiante_id: e.id,
+      asignado_por: 'profesor',
+    })),
+    { onConflict: 'grupo_id,estudiante_id', ignoreDuplicates: true },
+  )
+
+  // Marcar asistencia Ausente solo si no tienen registro para esta fecha
+  const { data: bitacora } = await db
+    .from('bitacora_clase').select('fecha, curso_id').eq('id', bitacoraId).single()
+  if (bitacora) {
+    await db.from('asistencia').upsert(
+      sinGrupo.map((e: { id: string }) => ({
+        curso_id: cursoId,
+        estudiante_id: e.id,
+        fecha: bitacora.fecha,
+        estado: 'Ausente',
+        atraso: false,
+        bitacora_id: bitacoraId,
+      })),
+      { onConflict: 'curso_id,estudiante_id,fecha', ignoreDuplicates: true },
+    )
+  }
+
+  return sinGrupo.length
+}
+
 export async function cerrarAfinidad(
+  bitacoraId: string | null,
+  cursoId?: string,
+): Promise<{ error?: string; sinGrupoCount?: number }> {
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  let q = db.from('grupos_clase').update({ abierto: false })
+    .eq('profesor_id', user.id)
+    .eq('tipo', 'afinidad')
+
+  if (bitacoraId) {
+    q = q.eq('bitacora_id', bitacoraId)
+  } else if (cursoId) {
+    q = q.eq('curso_id', cursoId).is('bitacora_id', null)
+  } else {
+    return { error: 'Se requiere bitacoraId o cursoId' }
+  }
+
+  const { error } = await q
+  if (error) return { error: error.message }
+
+  let sinGrupoCount = 0
+  if (bitacoraId && cursoId) {
+    sinGrupoCount = await asignarSinGrupo(db, user.id, bitacoraId, cursoId)
+  }
+
+  revalidatePath('/student')
+  return { sinGrupoCount }
+}
+
+export async function reabrirAfinidad(
   bitacoraId: string | null,
   cursoId?: string,
 ): Promise<{ error?: string }> {
@@ -139,7 +251,8 @@ export async function cerrarAfinidad(
   const { data: { user } } = await db.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  let q = db.from('grupos_clase').update({ abierto: false })
+  // Solo reabre grupos tipo 'afinidad' — "Sin grupo" es 'manual' y queda cerrado
+  let q = db.from('grupos_clase').update({ abierto: true })
     .eq('profesor_id', user.id)
     .eq('tipo', 'afinidad')
 

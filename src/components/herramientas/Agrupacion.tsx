@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   crearGrupos,
   copiarGruposASesion, guardarComoPlantilla,
-  cerrarAfinidad,
+  cerrarAfinidad, reabrirAfinidad,
 } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
@@ -724,6 +724,7 @@ function TabAfinidad({
   const [isPending, startTransition] = useTransition()
   const [creados, setCreados] = useState(afinidadAbiertaInicial ?? false)
   const [cerrado, setCerrado] = useState(false)
+  const [sinGrupoCount, setSinGrupoCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   function crear() {
@@ -738,7 +739,7 @@ function TabAfinidad({
         cursoId,
       )
       if (result.error) setError(result.error)
-      else { setCreados(true); setCerrado(false) }
+      else { setCreados(true); setCerrado(false); setSinGrupoCount(0) }
     })
   }
 
@@ -746,8 +747,19 @@ function TabAfinidad({
     startTransition(async () => {
       setError(null)
       const result = await cerrarAfinidad(bitacoraId ?? null, cursoId)
+      if (result.error) { setError(result.error); return }
+      setSinGrupoCount(result.sinGrupoCount ?? 0)
+      setCerrado(true)
+      onSaved?.()
+    })
+  }
+
+  function reabrir() {
+    startTransition(async () => {
+      setError(null)
+      const result = await reabrirAfinidad(bitacoraId ?? null, cursoId)
       if (result.error) setError(result.error)
-      else { setCerrado(true); onSaved?.() }
+      else { setCerrado(false); onSaved?.() }
     })
   }
 
@@ -755,13 +767,30 @@ function TabAfinidad({
     return (
       <div className="space-y-4">
         {cerrado ? (
-          <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700 space-y-1">
-            <p className="text-gray-300 font-medium text-sm">
-              ✓ Inscripción cerrada — los grupos quedaron conformados
-            </p>
-            <p className="text-xs text-gray-500">
-              Los estudiantes ya no pueden unirse ni salir de grupos.
-            </p>
+          <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700 space-y-3">
+            <div className="space-y-1">
+              <p className="text-gray-300 font-medium text-sm">
+                ✓ Inscripción cerrada — grupos conformados
+              </p>
+              {sinGrupoCount > 0 && (
+                <p className="text-xs text-amber-400">
+                  {sinGrupoCount} estudiante{sinGrupoCount !== 1 ? 's' : ''} sin grupo asignado →
+                  movidos a &ldquo;Sin grupo&rdquo; con asistencia Ausente (modificable en la lista).
+                </p>
+              )}
+              {sinGrupoCount === 0 && (
+                <p className="text-xs text-gray-500">
+                  Todos los estudiantes quedaron en un grupo.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={reabrir}
+              disabled={isPending}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-indigo-700/80 hover:bg-indigo-600 text-white transition-colors disabled:opacity-40"
+            >
+              {isPending ? 'Reabriendo…' : 'Reabrir inscripción'}
+            </button>
           </div>
         ) : (
           <div className="p-4 rounded-xl bg-emerald-900/30 border border-emerald-700/50 space-y-3">
