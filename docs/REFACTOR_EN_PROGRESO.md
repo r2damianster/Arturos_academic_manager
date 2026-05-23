@@ -5,6 +5,107 @@
 
 ---
 
+## Guía de verificación en producción
+
+Hacer después de cada deploy que incluya cambios de este refactor.
+Orden: del más crítico al más visual. Tiempo estimado: ~10 min.
+
+### ✅ 1. Nav — sidebar y móvil sincronizados (Fase 1 — #3)
+
+**Desktop:**
+- Expandir sidebar hover → ver 5 ítems: Panel · Clases · Tutorías · Mis Cursos · Herramientas
+- Footer del sidebar → Administración
+- Clic en cada ítem → URL correcta + ítem activo resaltado
+
+**Móvil:**
+- Abrir menú hamburguesa → ver 6 ítems: los 5 anteriores + Administración al final
+- Clic en cualquier ítem → cierra el drawer + navega
+
+**Falla si:** un ítem falta en desktop pero aparece en móvil (o viceversa) → import de `nav-items.tsx` roto en uno de los dos.
+
+---
+
+### ✅ 2. Redirect /calificaciones/config (Fase 1 — #4)
+
+- Ir a `/dashboard/cursos/[cualquier-cursoId]/calificaciones/config`
+- **Esperado:** redirect instantáneo a `/dashboard/cursos/[cursoId]/editar?tab=evaluacion` con el tab Evaluación activo
+- **Falla si:** redirect loop, 404, o aterriza en tab incorrecto
+
+---
+
+### ✅ 3. Crear grupos con integrantes (Fase 2 — #5)
+
+- Entrar a modo clase (`/dashboard/modo-clase/[bitacoraId]`)
+- Tab Grupos → "Crear grupos"
+- Tab **Aleatoria**: Generar → "Guardar grupos" → los grupos aparecen con estudiantes asignados
+- Tab **Manual**: Arrastrar estudiantes a grupos → "Guardar grupos" → ídem
+- Tab **Por afinidad**: "Crear grupos de afinidad" → grupos creados vacíos (sin integrantes)
+
+**Falla si:** grupos se guardan sin integrantes en Aleatoria/Manual → `estudianteIds` no se pasa en la llamada.
+
+---
+
+### ✅ 4. Finalizar clase (Fase 2 — #7)
+
+- Iniciar una clase (`/dashboard/modo-clase/[bitacoraId]`)
+- Registrar asistencia de al menos 1 estudiante
+- Clic "Finalizar clase" → confirmar
+
+**Verificar:**
+- La clase aparece como **Cumplida** en `/dashboard/planificacion`
+- La celda del día muestra "Ver resumen" (no "Iniciar clase")
+- `ClaseEnProgresoBar` desaparece del header
+
+**Ruta alternativa:** la barra de progreso (`ClaseEnProgresoBar` en el header) → botón "Finalizar" → mismo resultado.
+
+**Falla si:** clase queda en estado "en progreso" o no actualiza la vista de planificación.
+
+---
+
+### ✅ 5. Emails (Fase 3 — #9)
+
+> Requiere `RESEND_API_KEY` y `RESEND_FROM_EMAIL` configurados en Vercel.
+
+**Email de citación:**
+- Ir a un curso → Ficha de estudiante (drawer) → "Citar a tutoría" → elegir razón → Guardar
+- En `/dashboard/tutorias` tab Citaciones → aparece la citación
+- Clic "Enviar email" → el estudiante recibe email con materia, motivo y fecha
+
+**Email de tutoría directa:**
+- `/dashboard/tutorias` → tab Horarios → horario activo → "Asignar directamente" → completar datos con email válido
+- El estudiante recibe email con fecha y horario confirmados
+
+**Falla silenciosa en tutorias.ts:** el email es non-blocking (try/catch), la reserva se crea igual pero el email no llega → revisar `RESEND_API_KEY` en Vercel.
+**Falla explícita en citaciones.ts:** retorna `{ error: 'Email no configurado' }` → aparece toast de error en el UI.
+
+---
+
+### ✅ 6. Paneles colapsables con memoria (Fase 4 — #10)
+
+- En `/dashboard` (Panel principal):
+  - Colapsar **Resumen** (clic en el botón) → recargar página → sigue colapsado
+  - Colapsar **Panel de hoy** → recargar → sigue colapsado
+  - Colapsar **Agenda semanal** → recargar → sigue colapsada
+- Expandir cada uno → recargar → siguen abiertos
+
+**Falla si:** los paneles siempre abren en su estado por defecto (Resumen cerrado, Hoy/Agenda abiertos) ignorando la preferencia guardada → `useCollapsible` no lee `localStorage` o el import está roto.
+
+---
+
+### ⚠️ Regresiones a vigilar
+
+Cualquier cambio en estas áreas puede indicar un efecto secundario del refactor:
+
+| Área | Qué observar |
+|---|---|
+| Modo clase — grupos | Grupos guardados sin integrantes (ver #3) |
+| Planificación — DnD "Combinar" | `fusionarPlanificacion` es privada; solo accesible via `gestionarDragPlanificacion` |
+| Planificación — Copiar/Mover desde modal | `PlanificarModal` llama directamente `copiarPlanificacion`/`moverPlanificacion` (siguen exportadas) |
+| Nav móvil vs desktop | Diferencia en ítems visibles (ver #1) |
+| Emails | No llegan tras citar o asignar tutoría directa (ver #5) |
+
+---
+
 ## Cambios aplicados
 
 ### [2026-05-22] Fase 1 — Acciones inmediatas
