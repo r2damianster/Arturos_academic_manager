@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { iniciarClase, actualizarActividadesEnVivo, confirmarCumplido, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
-import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
+import { guardarParticipacion, getGruposDeSesion, moverEstudiante } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
@@ -188,6 +188,7 @@ const NIVEL_LABELS = ['', '1', '2', '3', '4', '5']
 function VistGrupo({
   grupo, students, asistencia, onAsistencia, cursoId, fecha, onVolver, isSaved, onSaved,
   ecActividades, ecIndex, ecEditando, setEcEditando, guardarEcNota, ecPending,
+  grupos, bitacoraId, onMoved,
 }: {
   grupo: GrupoItem
   students: Student[]
@@ -204,6 +205,9 @@ function VistGrupo({
   setEcEditando?: (v: { estudianteId: string; nombreItem: string; parcial: number; nota: string } | null) => void
   guardarEcNota?: (estudianteId: string, nombreItem: string, parcial: number, notaStr: string) => void
   ecPending?: boolean
+  grupos?: GrupoItem[]
+  bitacoraId?: string
+  onMoved?: () => void
 }) {
   const [partActivo, setPartActivo] = useState<Set<string>>(new Set())
   const [partMap, setPartMap] = useState<Record<string, { nivel: number | null; obs: string }>>({})
@@ -211,29 +215,67 @@ function VistGrupo({
   const [expositTicker, setExpositTicker] = useState('')
   const [expositGirando, setExpositGirando] = useState(false)
   const [expositElegidoId, setExpositElegidoId] = useState<string | null>(null)
+  const [expositExcluidos, setExpositExcluidos] = useState<Set<string>>(new Set())
+  const [autoExcluirExposit, setAutoExcluirExposit] = useState(true)
+  const [moviendoId, setMoviendoId] = useState<string | null>(null)
+  const [movePending, setMovePending] = useState(false)
 
   const miembros = grupo.grupo_integrantes
     .map(gi => students.find(s => s.id === gi.estudiante_id))
     .filter(Boolean) as Student[]
 
+  const esSinGrupo = grupo.nombre === 'Sin grupo'
+
+  // Auto-marcar Ausente al abrir el grupo "Sin grupo"
+  useEffect(() => {
+    if (esSinGrupo) {
+      miembros.forEach(s => {
+        if (!asistencia[s.id] || asistencia[s.id] === 'Presente') {
+          onAsistencia(s.id, 'Ausente')
+        }
+      })
+    }
+  // Solo al cambiar de grupo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grupo.id])
+
   function sortearExpositor() {
-    if (expositGirando || miembros.length === 0) return
+    if (expositGirando) return
+    let disponibles = miembros.filter(s => !expositExcluidos.has(s.id))
+    // Auto-reset si ya pasaron todos
+    if (disponibles.length === 0) {
+      setExpositExcluidos(new Set())
+      disponibles = miembros
+    }
+    if (disponibles.length === 0) return
     setExpositGirando(true)
     setExpositElegidoId(null)
     let count = 0
     const total = 20
     const id = setInterval(() => {
-      const r = miembros[Math.floor(Math.random() * miembros.length)]
+      const r = disponibles[Math.floor(Math.random() * disponibles.length)]
       setExpositTicker(formatNombreCorto(r.nombre))
       count++
       if (count >= total) {
         clearInterval(id)
-        const winner = miembros[Math.floor(Math.random() * miembros.length)]
+        const winner = disponibles[Math.floor(Math.random() * disponibles.length)]
         setExpositTicker(formatNombreCorto(winner.nombre))
         setExpositElegidoId(winner.id)
         setExpositGirando(false)
+        if (autoExcluirExposit) {
+          setExpositExcluidos(prev => new Set([...prev, winner.id]))
+        }
       }
     }, 75)
+  }
+
+  async function moverA(estudianteId: string, destinoGrupoId: string) {
+    if (!bitacoraId || movePending) return
+    setMovePending(true)
+    const r = await moverEstudiante(estudianteId, destinoGrupoId, bitacoraId)
+    setMovePending(false)
+    setMoviendoId(null)
+    if (!r?.error) onMoved?.()
   }
 
   function togglePart(id: string) {
@@ -288,7 +330,7 @@ function VistGrupo({
       </div>
 
       {/* Sortear expositor */}
-      {miembros.length > 0 && (
+      {miembros.length > 0 && !esSinGrupo && (
         <div className="mb-3 space-y-2">
           <div
             className={`h-11 flex items-center justify-center rounded-xl border text-sm font-bold transition-colors ${
@@ -297,15 +339,33 @@ function VistGrupo({
                 : 'border-gray-700 bg-gray-800/60 text-gray-500'
             }`}
           >
-            {expositTicker || '— sortear expositor —'}
+            {expositTicker || (miembros.every(s => expositExcluidos.has(s.id)) ? '↺ Girar para reiniciar' : '— sortear expositor —')}
           </div>
-          <button
-            onClick={sortearExpositor}
-            disabled={expositGirando}
-            className="w-full py-2 rounded-lg border border-amber-700/60 bg-amber-900/20 text-amber-400 hover:bg-amber-900/40 text-xs font-medium transition-colors disabled:opacity-40"
-          >
-            {expositGirando ? 'Sorteando…' : '🎲 Sortear expositor'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={sortearExpositor}
+              disabled={expositGirando}
+              className="flex-1 py-2 rounded-lg border border-amber-700/60 bg-amber-900/20 text-amber-400 hover:bg-amber-900/40 text-xs font-medium transition-colors disabled:opacity-40"
+            >
+              {expositGirando ? 'Sorteando…' : '🎲 Sortear expositor'}
+            </button>
+            <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer select-none shrink-0">
+              <input type="checkbox" checked={autoExcluirExposit} onChange={e => setAutoExcluirExposit(e.target.checked)} className="accent-amber-500" />
+              No repetir
+            </label>
+          </div>
+          {expositExcluidos.size > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] text-gray-600">Ya sorteados:</span>
+              {miembros.filter(s => expositExcluidos.has(s.id)).map(s => (
+                <button key={s.id} onClick={() => setExpositExcluidos(prev => { const n = new Set(prev); n.delete(s.id); return n })}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-500 line-through hover:text-gray-300 hover:bg-gray-700 transition-colors">
+                  {formatNombreCorto(s.nombre)}
+                </button>
+              ))}
+              <button onClick={() => setExpositExcluidos(new Set())} className="text-[10px] text-amber-700 hover:text-amber-500 transition-colors ml-1">↺</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -344,6 +404,34 @@ function VistGrupo({
                       </button>
                     ))}
                   </div>
+                  {/* Mover a otro grupo */}
+                  {grupos && grupos.length > 1 && bitacoraId && (
+                    <div className="relative shrink-0">
+                      <button
+                        onClick={() => setMoviendoId(moviendoId === s.id ? null : s.id)}
+                        title="Mover a otro grupo"
+                        className="w-7 h-7 rounded text-xs transition-colors bg-gray-700/50 text-gray-500 hover:bg-gray-600 hover:text-gray-300"
+                      >⇄</button>
+                      {moviendoId === s.id && (
+                        <div className="absolute right-0 top-8 z-20 bg-gray-850 border border-gray-600 rounded-xl shadow-xl min-w-[150px] py-1 bg-gray-900">
+                          {grupos.filter(g => g.id !== grupo.id).map(g => (
+                            <button
+                              key={g.id}
+                              disabled={movePending}
+                              onClick={() => moverA(s.id, g.id)}
+                              className={`w-full text-left px-3 py-2 text-xs transition-colors disabled:opacity-40 hover:bg-gray-700 ${
+                                g.nombre === 'Sin grupo'
+                                  ? 'text-red-400 hover:text-red-300'
+                                  : 'text-gray-300 hover:text-white'
+                              }`}
+                            >
+                              → {g.nombre}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* Checkbox participación */}
                 <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
@@ -2181,6 +2269,9 @@ export function ModoClaseClient({
                   setEcEditando={setEcEditando}
                   guardarEcNota={guardarEcNota}
                   ecPending={ecPending}
+                  grupos={grupos}
+                  bitacoraId={bitacoraId}
+                  onMoved={refreshGrupos}
                 />
               ) : (
                 <div className="space-y-4 overflow-y-auto flex-1">
