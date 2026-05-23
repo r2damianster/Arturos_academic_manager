@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { enviarEmail } from '@/lib/email'
 
 // Interfaz para la entrada de citación
 export interface CitacionInput {
@@ -197,10 +198,6 @@ export async function enviarEmailCitacion(citacionId: string) {
   if (!c) return { error: 'Citación no encontrada' }
   if (!c.estudiantes?.email) return { error: 'El estudiante no tiene email registrado' }
 
-  const resendKey = process.env.RESEND_API_KEY
-  const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@tutor.app'
-  if (!resendKey || resendKey === 'TU_RESEND_API_KEY') return { error: 'Email no configurado' }
-
   const RAZONES: Record<string, string> = {
     inasistencia: 'Inasistencia', 'bajo_desempeño': 'Bajo desempeño',
     asignacion_trabajo: 'Asignación de trabajo', otro: 'Otro',
@@ -209,29 +206,21 @@ export async function enviarEmailCitacion(citacionId: string) {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: c.estudiantes.email,
-      subject: `Citación a tutoría — ${c.cursos?.asignatura ?? ''}`,
-      html: `
-        <p>Hola <strong>${c.estudiantes.nombre}</strong>,</p>
-        <p><strong>${prof?.nombre ?? 'Tu profesor'}</strong> te ha citado a una sesión de tutoría.</p>
-        <ul>
-          <li><strong>Materia:</strong> ${c.cursos?.asignatura ?? '—'}</li>
-          <li><strong>Motivo:</strong> ${RAZONES[c.razon] ?? c.razon}</li>
-          ${c.detalle_razon ? `<li><strong>Detalle:</strong> ${c.detalle_razon}</li>` : ''}
-          <li><strong>Fecha de citación:</strong> ${fechaFmt}</li>
-        </ul>
-        <p>Por favor comunícate con tu profesor para coordinar el horario.</p>
-      `,
-    }),
+  return enviarEmail({
+    to: c.estudiantes.email,
+    subject: `Citación a tutoría — ${c.cursos?.asignatura ?? ''}`,
+    html: `
+      <p>Hola <strong>${c.estudiantes.nombre}</strong>,</p>
+      <p><strong>${prof?.nombre ?? 'Tu profesor'}</strong> te ha citado a una sesión de tutoría.</p>
+      <ul>
+        <li><strong>Materia:</strong> ${c.cursos?.asignatura ?? '—'}</li>
+        <li><strong>Motivo:</strong> ${RAZONES[c.razon] ?? c.razon}</li>
+        ${c.detalle_razon ? `<li><strong>Detalle:</strong> ${c.detalle_razon}</li>` : ''}
+        <li><strong>Fecha de citación:</strong> ${fechaFmt}</li>
+      </ul>
+      <p>Por favor comunícate con tu profesor para coordinar el horario.</p>
+    `,
   })
-
-  if (!res.ok) return { error: 'Error al enviar el correo' }
-  return { success: true }
 }
 
 export async function agendarCitacion(params: {

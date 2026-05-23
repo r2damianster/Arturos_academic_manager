@@ -58,17 +58,34 @@
 
 ---
 
+---
+
+### [2026-05-22] Fase 3 — Email helper + fusionarPlanificacion privada
+
+#### 8. `fusionarPlanificacion` convertida a función privada (`src/lib/actions/bitacora.ts`)
+- **Qué era:** export público sin callers externos. Solo usada internamente por `gestionarDragPlanificacion`.
+- **Estado:** removido `export`, función sigue siendo accesible dentro de `bitacora.ts`.
+- **`copiarPlanificacion` y `moverPlanificacion` permanecen exportadas** — `PlanificarModal.tsx` las usa legítimamente para Copiar/Mover no-DnD.
+- **Riesgo si falla:** error `fusionarPlanificacion is not exported` — si alguien la usaba externamente.
+
+#### 9. `src/lib/email.ts` — helper Resend centralizado
+- **Qué era:** dos bloques `fetch('https://api.resend.com/emails', {...})` idénticos en `citaciones.ts` y `tutorias.ts`.
+- **Estado:** nuevo `enviarEmail({ to, subject, html })` en `src/lib/email.ts`. Ambas acciones lo importan.
+- **Callers actualizados:** `citaciones.ts` (`enviarEmailCitacion`), `tutorias.ts` (`asignarTutoriaDirecta`).
+- **Riesgo si falla:** emails no se envían. La función retorna `{ error: 'Email no configurado' }` si falta `RESEND_API_KEY`. En `tutorias.ts` el error es silencioso (try/catch).
+- **Comportamiento conservado:** `tutorias.ts` sigue siendo non-blocking (try/catch). `citaciones.ts` retorna el error al caller.
+
+---
+
 ## Cambios pendientes (próximas fases)
 
-Ver `docs/AUDITORIA_DUPLICADOS.md §4` para lista completa. Los más cercanos:
+Ver `docs/AUDITORIA_DUPLICADOS.md §4` para lista completa.
 
-| # | Acción | Archivos afectados |
-|---|---|---|
-| 8 | Hacer privadas `copiarPlanificacion`, `moverPlanificacion`, `fusionarPlanificacion` | `bitacora.ts` |
-| 9 | Extraer `<AsistenciaGrid>` compartido | `pase-lista-client.tsx`, `PasarListaModal.tsx`, `modo-clase-client.tsx` |
-| 10 | Unificar 3 slot-machines en `Ruleta.tsx` | `modo-clase-client.tsx` |
-| 11 | Extraer `<CollapsiblePanel storageKey>` | `SummaryPanel`, `TodayPanel`, `AgendaSection`, `TutoriasPendientesPanel` |
-| 12 | Extraer `src/lib/email.ts` | `citaciones.ts`, `tutorias.ts` |
+| # | Acción | Archivos afectados | Complejidad |
+|---|---|---|---|
+| 10 | Extraer `<AsistenciaGrid>` compartido | `pase-lista-client.tsx`, `PasarListaModal.tsx`, `modo-clase-client.tsx` | Alta (nuevo componente) |
+| 11 | Unificar slot-machines en `Ruleta.tsx` | `modo-clase-client.tsx`, `Ruleta.tsx` | Media (cambio de API) |
+| 12 | Extraer `<CollapsiblePanel storageKey>` | `SummaryPanel`, `TodayPanel`, `AgendaSection`, `TutoriasPendientesPanel` | Media |
 
 ---
 

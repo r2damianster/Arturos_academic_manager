@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { enviarEmail } from '@/lib/email'
 
 // ─── Duration options ─────────────────────────────────────────────────────────
 
@@ -224,46 +225,36 @@ export async function asignarTutoriaDirecta(params: {
 
   if (error) return { error: error.message }
 
-  // Send email notification (Resend)
+  // Send email notification (Resend) — non-blocking
   try {
-    const resendKey = process.env.RESEND_API_KEY
-    const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@tutor.app'
-    if (resendKey && resendKey !== 'TU_RESEND_API_KEY') {
-      const { horarioId, fecha, estudianteNombre, estudianteEmail, nota } = params
-      // Fetch horario details for email
-      const { data: h } = await db
-        .from('horarios')
-        .select('dia_semana, hora_inicio, hora_fin, profesores(nombre)')
-        .eq('id', horarioId)
-        .single()
+    const { horarioId, fecha, estudianteNombre, estudianteEmail, nota } = params
+    const { data: h } = await db
+      .from('horarios')
+      .select('dia_semana, hora_inicio, hora_fin, profesores(nombre)')
+      .eq('id', horarioId)
+      .single()
 
-      const horaInicio = h?.hora_inicio?.slice(0, 5) ?? ''
-      const horaFin    = h?.hora_fin?.slice(0, 5) ?? ''
-      const profNombre = h?.profesores?.nombre ?? 'tu profesor'
-      const fechaFmt   = new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-      })
+    const horaInicio = h?.hora_inicio?.slice(0, 5) ?? ''
+    const horaFin    = h?.hora_fin?.slice(0, 5) ?? ''
+    const profNombre = h?.profesores?.nombre ?? 'tu profesor'
+    const fechaFmt   = new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    })
 
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: estudianteEmail,
-          subject: `Tutoría asignada: ${fechaFmt}`,
-          html: `
-            <p>Hola <strong>${estudianteNombre}</strong>,</p>
-            <p>${profNombre} te ha asignado una sesión de tutoría:</p>
-            <ul>
-              <li><strong>Fecha:</strong> ${fechaFmt}</li>
-              <li><strong>Horario:</strong> ${horaInicio}–${horaFin}</li>
-              ${nota ? `<li><strong>Nota:</strong> ${nota}</li>` : ''}
-            </ul>
-            <p>La sesión está confirmada. Si necesitas cancelarla, hazlo a través del sistema.</p>
-          `,
-        }),
-      })
-    }
+    await enviarEmail({
+      to: estudianteEmail,
+      subject: `Tutoría asignada: ${fechaFmt}`,
+      html: `
+        <p>Hola <strong>${estudianteNombre}</strong>,</p>
+        <p>${profNombre} te ha asignado una sesión de tutoría:</p>
+        <ul>
+          <li><strong>Fecha:</strong> ${fechaFmt}</li>
+          <li><strong>Horario:</strong> ${horaInicio}–${horaFin}</li>
+          ${nota ? `<li><strong>Nota:</strong> ${nota}</li>` : ''}
+        </ul>
+        <p>La sesión está confirmada. Si necesitas cancelarla, hazlo a través del sistema.</p>
+      `,
+    })
   } catch {
     // Email failure is non-blocking
   }

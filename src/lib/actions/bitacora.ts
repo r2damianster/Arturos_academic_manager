@@ -538,7 +538,7 @@ export async function eliminarPlanificacion(params: {
  * Fusiona la planificación de origen en el destino combinando temas, actividades
  * y observaciones. Opcionalmente elimina el origen si deleteSource=true.
  */
-export async function fusionarPlanificacion(params: {
+async function fusionarPlanificacion(params: {
   sourceCursoId: string
   sourceFecha: string
   destCursoId: string
