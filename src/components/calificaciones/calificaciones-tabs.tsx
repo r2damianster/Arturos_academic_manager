@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Upload, CheckCircle2 } from 'lucide-react'
-import { CalificacionesTable } from './calificaciones-table'
 import { ParticipacionGrid, type ParticipacionRecord } from './participacion-grid'
 import { ResumenEstudiantes, type AsistenciaStats } from './resumen-estudiantes'
 import ItemsTab from './items-tab'
@@ -31,7 +30,7 @@ interface Props {
   imports: any[]
 }
 
-type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion' | 'calificaciones'
+type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion'
 
 export function CalificacionesTabs({
   cursoId, estudiantes, calificaciones, numParciales, nombresTareas, perfiles,
@@ -49,7 +48,6 @@ export function CalificacionesTabs({
     { id: 'items',          label: 'Notas Moodle',      badge: itemsMoodle.length > 0 ? itemsMoodle.length : undefined },
     { id: 'en_curso',       label: 'En Curso',          badge: itemsEnCurso.length > 0 ? itemsEnCurso.length : undefined },
     { id: 'participacion',  label: 'Participación',     badge: participacion.length > 0 ? participacion.length : undefined },
-    { id: 'calificaciones', label: 'Tabla clásica',     badge: undefined },
   ]
 
   return (
@@ -130,22 +128,6 @@ export function CalificacionesTabs({
       {tab === 'participacion' && (
         <ParticipacionGrid estudiantes={estudiantes} registros={participacion} />
       )}
-      {tab === 'calificaciones' && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-500">
-            <span>Tabla clásica (legacy) — sigue activa para edición manual de los 4 componentes fijos por parcial. Las calificaciones de Moodle se gestionan en la pestaña "Calificaciones".</span>
-          </div>
-          <CalificacionesTable
-            cursoId={cursoId}
-            estudiantes={estudiantes as any}
-            calificaciones={calificaciones as any}
-            numParciales={numParciales}
-            nombresTareas={nombresTareas}
-            perfiles={perfiles as any}
-          />
-        </div>
-      )}
-
       {/* Wizard de import */}
       {wizardAbierto && (
         <WizardImportCalificaciones

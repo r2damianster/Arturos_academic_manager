@@ -59,11 +59,7 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
 
   // Evaluación — estado local
   const numParcialesInicial = curso.num_parciales ?? 2
-  const nombresInicial: string[] = Array.isArray(curso.nombres_tareas) && curso.nombres_tareas.length === 4
-    ? curso.nombres_tareas
-    : ['ACD', 'TA', 'PE', 'EX']
   const [numParciales, setNumParciales] = useState(numParcialesInicial)
-  const [nombres, setNombres] = useState(nombresInicial)
   const [pendingReducir, setPendingReducir] = useState(false)
 
   // Zona peligrosa — doble confirmación
@@ -87,7 +83,6 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
 
     if (tab === 'evaluacion') {
       fd.set('num_parciales', String(numParciales))
-      fd.set('nombres_tareas', JSON.stringify(nombres))
       if (numParciales < numParcialesInicial) {
         if (!pendingReducir) {
           setLoading(false)
@@ -271,32 +266,6 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Nombres de componentes */}
-          <div>
-            <label className="label">Nombres de componentes de calificación</label>
-            <p className="text-xs text-gray-500 mb-3">
-              Cada parcial tiene 4 componentes. Aplica para todos los parciales.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {(['Componente 1', 'Componente 2', 'Componente 3', 'Componente 4']).map((label, i) => (
-                <div key={i}>
-                  <label className="label">{label}</label>
-                  <input
-                    className="input"
-                    value={nombres[i]}
-                    onChange={e => {
-                      const n = [...nombres]; n[i] = e.target.value; setNombres(n)
-                    }}
-                    maxLength={8}
-                    placeholder={['ACD', 'TA', 'PE', 'EX'][i]}
-                    required
-                  />
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-2">Ej: ACD (Actividades), TA (Trabajos), PE (Prueba escrita), EX (Examen)</p>
           </div>
 
           {/* Confirmación de borrado de notas */}

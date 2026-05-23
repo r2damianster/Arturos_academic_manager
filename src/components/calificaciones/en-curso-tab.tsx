@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Pencil, Check, X, Trash2, Plus } from 'lucide-react'
+import { formatNombreCorto } from '@/lib/format'
 import {
   upsertItemEnCurso,
   eliminarItem,
@@ -43,7 +44,6 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
   const [isPending, startTransition] = useTransition()
 
   const itemsFiltrados = items.filter(i => i.parcial === parcialActivo && i.fuente === 'en_curso')
-
   const nombresActividades: string[] = [...new Set(itemsFiltrados.map(i => i.nombre_item))].sort()
 
   const indice = new Map<string, CalItem>()
@@ -96,7 +96,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Selector de parcial */}
+      {/* Selector parcial + botón nueva actividad */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-2">
           {Array.from({ length: numParciales }, (_, i) => i + 1).map(p => (
@@ -106,7 +106,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 parcialActivo === p
                   ? 'bg-violet-600 text-white'
-                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
             >
               Parcial {p}
@@ -114,7 +114,6 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
           ))}
         </div>
 
-        {/* Botón agregar actividad */}
         {mostrarInput ? (
           <div className="flex items-center gap-2">
             <input
@@ -122,8 +121,8 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
               value={nuevaActividad}
               onChange={e => setNuevaActividad(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAgregarActividad(); if (e.key === 'Escape') setMostrarInput(false) }}
-              placeholder="Nombre de la actividad (ej: Exposición 1)"
-              className="text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-1.5 w-64 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              placeholder="Ej: Exposición 1, Debate, Tarea extra"
+              className="text-sm rounded-lg border border-gray-700 bg-gray-800 text-gray-100 px-3 py-1.5 w-64 focus:outline-none focus:ring-2 focus:ring-violet-500"
               autoFocus
             />
             <button
@@ -134,7 +133,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
               <Check className="h-4 w-4" />
               Agregar
             </button>
-            <button onClick={() => setMostrarInput(false)} className="p-1.5 text-zinc-400 hover:text-zinc-600">
+            <button onClick={() => setMostrarInput(false)} className="p-1.5 text-gray-500 hover:text-gray-300">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -150,20 +149,20 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
       </div>
 
       {nombresActividades.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-zinc-500 text-sm">Sin actividades en el Parcial {parcialActivo}.</p>
-          <p className="text-zinc-400 text-xs mt-1">Usa "Nueva actividad" para agregar exposiciones, trabajos en clase u otras actividades en curso.</p>
+        <div className="card flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-gray-400 text-sm">Sin actividades en el Parcial {parcialActivo}.</p>
+          <p className="text-gray-600 text-xs mt-1">Usa "Nueva actividad" para agregar exposiciones, trabajos en clase u otras actividades en curso.</p>
         </div>
       ) : (
-        <div className="overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div className="card overflow-auto p-0">
           <table className="text-sm w-full border-collapse">
             <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-800">
-                <th className="text-left px-4 py-2.5 font-medium text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 sticky left-0 bg-zinc-50 dark:bg-zinc-800">
+              <tr className="border-b border-gray-800">
+                <th className="text-left px-4 py-2.5 font-medium text-gray-400 border-b border-gray-800 sticky left-0 bg-gray-900 z-10">
                   Estudiante
                 </th>
                 {nombresActividades.map(nombre => (
-                  <th key={nombre} className="px-2 py-2.5 border-b border-l border-zinc-200 dark:border-zinc-700 text-center min-w-[130px]">
+                  <th key={nombre} className="px-2 py-2.5 border-b border-l border-gray-800 text-center min-w-[130px] bg-gray-900">
                     <div className="flex flex-col items-center gap-1">
                       {renombrando === nombre ? (
                         <div className="flex items-center gap-1">
@@ -172,17 +171,17 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                             value={renombreValor}
                             onChange={e => setRenombreValor(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') handleRenombrar(nombre); if (e.key === 'Escape') setRenombrando(null) }}
-                            className="w-28 text-xs rounded border border-violet-400 px-1 py-0.5 focus:outline-none"
+                            className="w-28 text-xs rounded border border-violet-500 bg-gray-800 text-gray-100 px-1 py-0.5 focus:outline-none"
                             autoFocus
                           />
-                          <button onClick={() => handleRenombrar(nombre)} className="text-green-600 hover:text-green-700"><Check className="h-3 w-3" /></button>
-                          <button onClick={() => setRenombrando(null)} className="text-zinc-400 hover:text-zinc-600"><X className="h-3 w-3" /></button>
+                          <button onClick={() => handleRenombrar(nombre)} className="text-green-400 hover:text-green-300"><Check className="h-3 w-3" /></button>
+                          <button onClick={() => setRenombrando(null)} className="text-gray-500 hover:text-gray-300"><X className="h-3 w-3" /></button>
                         </div>
                       ) : (
                         <button
                           onClick={() => { setRenombrando(nombre); setRenombreValor(nombre) }}
                           title="Clic para renombrar"
-                          className="text-xs font-medium text-zinc-600 dark:text-zinc-400 max-w-[120px] truncate hover:text-violet-600 transition-colors"
+                          className="text-xs font-medium text-gray-300 max-w-[120px] truncate hover:text-violet-400 transition-colors"
                         >
                           {nombre}
                         </button>
@@ -190,7 +189,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                       <button
                         onClick={() => handleEliminarColumna(nombre)}
                         title="Eliminar actividad"
-                        className="text-zinc-300 hover:text-red-500 transition-colors"
+                        className="text-gray-600 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -199,11 +198,11 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-800">
               {estudiantes.map(est => (
-                <tr key={est.id} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                  <td className="px-4 py-2 font-medium text-zinc-700 dark:text-zinc-300 sticky left-0 bg-white dark:bg-zinc-900 border-r border-zinc-100 dark:border-zinc-800 whitespace-nowrap">
-                    {est.nombre}
+                <tr key={est.id} className="hover:bg-gray-800/50 transition-colors">
+                  <td className="px-4 py-2 font-medium text-gray-200 sticky left-0 bg-gray-900 border-r border-gray-800 whitespace-nowrap">
+                    {formatNombreCorto(est.nombre)}
                   </td>
                   {nombresActividades.map(nombre => {
                     const item = indice.get(`${est.id}|${nombre}`)
@@ -211,7 +210,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                     const esteEditando = editando?.itemId === editKey
 
                     return (
-                      <td key={nombre} className="border-l border-zinc-100 dark:border-zinc-800 text-center px-2 py-1.5">
+                      <td key={nombre} className="border-l border-gray-800 text-center px-2 py-1.5">
                         {esteEditando ? (
                           <div className="flex items-center gap-1 justify-center">
                             <input
@@ -223,20 +222,20 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                                 if (e.key === 'Enter') handleGuardar(est.id, nombre, editando!.nota)
                                 if (e.key === 'Escape') setEditando(null)
                               }}
-                              className="w-16 text-center text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-1 py-0.5"
+                              className="w-16 text-center text-xs rounded border border-gray-600 bg-gray-800 text-gray-100 px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500"
                               autoFocus
                             />
-                            <button onClick={() => handleGuardar(est.id, nombre, editando!.nota)} disabled={isPending} className="text-green-600 hover:text-green-700">
+                            <button onClick={() => handleGuardar(est.id, nombre, editando!.nota)} disabled={isPending} className="text-green-400 hover:text-green-300">
                               <Check className="h-4 w-4" />
                             </button>
-                            <button onClick={() => setEditando(null)} className="text-zinc-400 hover:text-zinc-600">
+                            <button onClick={() => setEditando(null)} className="text-gray-500 hover:text-gray-300">
                               <X className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1 justify-center group">
                             <span
-                              className={`font-mono cursor-pointer ${item?.nota == null ? 'text-zinc-300' : 'text-zinc-800 dark:text-zinc-200'}`}
+                              className={`font-mono cursor-pointer ${item?.nota == null ? 'text-gray-600' : 'text-gray-100'}`}
                               onClick={() => setEditando({ itemId: editKey, nota: item?.nota?.toString() ?? '' })}
                               title="Clic para editar"
                             >
@@ -244,7 +243,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                             </span>
                             <button
                               onClick={() => setEditando({ itemId: editKey, nota: item?.nota?.toString() ?? '' })}
-                              className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-violet-600 transition-opacity"
+                              className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-violet-400 transition-opacity"
                             >
                               <Pencil className="h-3 w-3" />
                             </button>
@@ -252,7 +251,7 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
                               <button
                                 onClick={() => handleEliminarCelda(item.id)}
                                 title="Eliminar esta nota"
-                                className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-red-500 transition-opacity"
+                                className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity"
                               >
                                 <X className="h-3 w-3" />
                               </button>
@@ -269,9 +268,9 @@ export default function EnCursoTab({ cursoId, items, estudiantes, numParciales }
         </div>
       )}
 
-      <p className="text-xs text-zinc-400">
-        Actividades en curso — exposiciones, trabajos entregados en clase, evaluaciones parciales no gestionadas en Moodle.
-        Clic en el nombre de la columna para renombrarlo. Estas notas <strong>no se usan</strong> en el análisis IA (que solo usa notas Moodle).
+      <p className="text-xs text-gray-600">
+        Actividades en curso — exposiciones, trabajos entregados en clase, actividades no gestionadas en Moodle.
+        Clic en el nombre de la columna para renombrarlo. Estas notas no se usan en el análisis IA.
       </p>
     </div>
   )
