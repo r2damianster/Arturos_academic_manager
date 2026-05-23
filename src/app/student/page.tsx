@@ -134,7 +134,7 @@ export default async function StudentPage() {
         />
       )}
 
-      {/* Encuestas — only show if survey completed (always true here since layout redirects otherwise) */}
+      {/* Encuestas */}
       <div className="card space-y-3">
         <h2 className="font-semibold text-white text-sm">Encuestas</h2>
         <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-900/20 border border-emerald-800">
@@ -143,6 +143,34 @@ export default async function StudentPage() {
             <p className="text-xs text-gray-500 mt-0.5">Tus datos han sido registrados</p>
           </div>
         </div>
+        {cursos.map(curso => {
+          const respondio = estadoEncuestasParciales[curso.id]
+          if (respondio) {
+            return (
+              <div key={`ep-${curso.id}`} className="flex items-center justify-between p-3 rounded-lg bg-emerald-900/20 border border-emerald-800">
+                <div>
+                  <p className="text-sm font-medium text-emerald-300">✓ Encuesta de progreso completada</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{curso.asignatura}</p>
+                </div>
+              </div>
+            )
+          }
+          if (debeVerEncuesta(curso as any)) {
+            return (
+              <Link key={`ep-${curso.id}`} href={`/student/encuesta-parcial/${curso.id}`}
+                className="flex items-center justify-between p-3 rounded-lg bg-amber-900/20 border border-amber-700 hover:border-amber-500 transition-colors group">
+                <div>
+                  <p className="text-sm font-medium text-amber-300 group-hover:text-amber-200">Encuesta de progreso pendiente</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{curso.asignatura} · ~5 min</p>
+                </div>
+                <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            )
+          }
+          return null
+        })}
       </div>
 
       {/* Tarjeta por cada curso */}

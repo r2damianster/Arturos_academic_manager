@@ -95,6 +95,14 @@ export async function actualizarCurso(
 
   const raw = Object.fromEntries(formData)
 
+  // Convertir campos booleanos enviados como '1'/'0' desde checkboxes
+  if (raw.encuesta_inicial_habilitada !== undefined) {
+    raw.encuesta_inicial_habilitada = (raw.encuesta_inicial_habilitada === '1' || raw.encuesta_inicial_habilitada === 'true') as unknown as string
+  }
+  if (raw.encuesta_parcial_habilitada !== undefined) {
+    raw.encuesta_parcial_habilitada = (raw.encuesta_parcial_habilitada === '1' || raw.encuesta_parcial_habilitada === 'true') as unknown as string
+  }
+
   // nombres_tareas viene como tarea1..tarea4 desde /calificaciones/config
   if (!raw.nombres_tareas && (raw.tarea1 || raw.tarea2 || raw.tarea3 || raw.tarea4)) {
     raw.nombres_tareas = JSON.stringify([

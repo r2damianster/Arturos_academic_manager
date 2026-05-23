@@ -24,6 +24,8 @@ interface Curso {
   horas_teoricas: number
   num_parciales?: number | null
   nombres_tareas?: string[] | null
+  encuesta_inicial_habilitada?: boolean | null
+  encuesta_parcial_habilitada?: boolean | null
 }
 
 interface LogroItem {
@@ -57,6 +59,10 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
+  // Encuestas — estado controlado (checkboxes)
+  const [encuestaInicialHab, setEncuestaInicialHab] = useState(curso.encuesta_inicial_habilitada ?? true)
+  const [encuestaParcialHab, setEncuestaParcialHab] = useState(curso.encuesta_parcial_habilitada ?? true)
+
   // Evaluación — estado local
   const numParcialesInicial = curso.num_parciales ?? 2
   const [numParciales, setNumParciales] = useState(numParcialesInicial)
@@ -80,6 +86,11 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
     setSuccess('')
     setError('')
     const fd = new FormData(e.currentTarget)
+
+    if (tab === 'info') {
+      fd.set('encuesta_inicial_habilitada', encuestaInicialHab ? '1' : '0')
+      fd.set('encuesta_parcial_habilitada', encuestaParcialHab ? '1' : '0')
+    }
 
     if (tab === 'evaluacion') {
       fd.set('num_parciales', String(numParciales))
@@ -177,6 +188,34 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
               defaultValue={curso.observacion ?? ''}
               placeholder="Notas generales, características del grupo, etc." />
           </div>
+          {/* Encuestas */}
+          <div className="pt-4 border-t border-gray-800">
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Encuestas</h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={encuestaInicialHab}
+                  onChange={e => setEncuestaInicialHab(e.target.checked)}
+                  className="w-4 h-4 accent-brand-600"
+                />
+                <span className="text-sm text-gray-300">Habilitar ficha inicial del estudiante</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={encuestaParcialHab}
+                  onChange={e => setEncuestaParcialHab(e.target.checked)}
+                  className="w-4 h-4 accent-brand-600"
+                />
+                <span className="text-sm text-gray-300">
+                  Habilitar encuesta de progreso
+                  <span className="text-gray-500 ml-1">(se activa al 50% del semestre)</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
           <Feedback success={success} error={error} />
           <div className="flex gap-3">
             <button type="submit" disabled={loading} className="btn-primary flex-1">

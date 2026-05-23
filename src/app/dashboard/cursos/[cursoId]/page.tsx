@@ -114,6 +114,28 @@ export default async function CursoDetailPage({
       trabajosActivos: e.trabajosActivos,
     }))
 
+  // Notificación encuesta parcial
+  let encuestaParcialNotif: { mostrar: boolean; respondieron: number; total: number } = { mostrar: false, respondieron: 0, total: 0 }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((curso as any).encuesta_parcial_habilitada && curso.fecha_inicio && curso.fecha_fin) {
+    const inicio = new Date(curso.fecha_inicio).getTime()
+    const fin = new Date(curso.fecha_fin).getTime()
+    const pct = (Date.now() - inicio) / (fin - inicio)
+    if (pct >= 0.5 && pct < 0.75) {
+      const [totalRes, respRes] = await Promise.all([
+        db.from('estudiantes').select('id', { count: 'exact', head: true })
+          .eq('curso_id', cursoId).eq('estado', 'activo'),
+        db.from('encuesta_parcial').select('id', { count: 'exact', head: true })
+          .eq('curso_id', cursoId).eq('tipo', 'mitad'),
+      ])
+      encuestaParcialNotif = {
+        mostrar: true,
+        respondieron: respRes.count ?? 0,
+        total: totalRes.count ?? 0,
+      }
+    }
+  }
+
   // Métricas globales del curso
   const conAsistencia = activos.filter(e => e.pctAsistencia !== null)
   const asistGlobal = conAsistencia.length > 0
@@ -183,6 +205,25 @@ export default async function CursoDetailPage({
           )}
         </div>
       </div>
+
+      {/* Banner encuesta parcial activa */}
+      {encuestaParcialNotif.mostrar && (
+        <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-4 flex items-start gap-3">
+          <span className="text-amber-400 text-lg mt-0.5">📋</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-300 font-medium text-sm">Encuesta de progreso activa esta semana</p>
+            <p className="text-amber-400/70 text-xs mt-0.5">
+              {encuestaParcialNotif.respondieron} de {encuestaParcialNotif.total} estudiantes han respondido
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/cursos/${cursoId}/encuesta-parcial`}
+            className="text-amber-400 text-xs font-medium hover:text-amber-300 whitespace-nowrap"
+          >
+            Ver resultados →
+          </Link>
+        </div>
+      )}
 
       {/* Métricas globales */}
       <div className="grid grid-cols-3 gap-4">
