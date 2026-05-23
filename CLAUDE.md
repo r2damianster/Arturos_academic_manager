@@ -73,6 +73,8 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 /student/                          → Portal del estudiante (onboarding, calendario, perfil, grupos)
 /student/tutorias                  → Reserva de tutorías con modalidad (presencial/virtual/otro)
 /student/evidencias                → Ensamblador de evidencias PDF
+/student/encuesta-parcial/[cursoId]   → Formulario de encuesta de progreso del parcial (bloqueante al 50% del curso)
+/dashboard/cursos/[cursoId]/encuesta-parcial → Resultados de encuesta de progreso del parcial (profesor)
 /tutoria-action/                   → Confirmación pública por email token
 /auth/login                        → Login/registro
 /auth/callback                     → Handler OAuth/PKCE
@@ -154,6 +156,8 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260520_add_modalidad_reservas     → Columnas modalidad (presencial|virtual|otro) y link_zoom en reservas; RPC actualizada
 20260521_add_logros_aprendizaje     → Tabla logros_aprendizaje(id, curso_id, descripcion, orden) con RLS
 20260522_add_obligatoria_horarios_clases → Columna obligatoria BOOLEAN DEFAULT FALSE en horarios_clases
+20260524_cursos_encuesta_config      → Columnas encuesta_inicial_habilitada y encuesta_parcial_habilitada BOOLEAN en cursos
+20260524_encuesta_parcial            → Tabla encuesta_parcial (~60 columnas: perfil, autopercepción, relevancia profesional, satisfacción docente), UNIQUE(estudiante_id, curso_id, tipo), RLS, RPC get_encuestas_parciales_pendientes
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
@@ -167,6 +171,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
   - `reservas.modalidad`, `reservas.link_zoom`, `reservas.profesor_id`, `reservas.origen`, `reservas.curso_id` — columnas nuevas
   - `horarios_clases.obligatoria` — columna nueva
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
+  - `encuesta_parcial` — tabla nueva completa (~60 columnas); `cursos.encuesta_inicial_habilitada` y `cursos.encuesta_parcial_habilitada` — columnas nuevas (ambas sin tipos formales en database.types.ts, usan `as any` donde necesario)
 
 ## Features recientes (2026-05-23 — sesión 21)
 

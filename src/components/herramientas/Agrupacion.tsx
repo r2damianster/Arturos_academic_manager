@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   crearGrupos,
   copiarGruposASesion, guardarComoPlantilla,
+  cerrarAfinidad,
 } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
@@ -263,6 +264,7 @@ export function Agrupacion({
   gruposUltimaSesion,
   plantillas = [],
   onSaved,
+  afinidadAbierta = false,
 }: {
   students: Student[]
   cursoId?: string
@@ -271,6 +273,7 @@ export function Agrupacion({
   gruposUltimaSesion?: GrupoBase[] | null
   plantillas?: PlantillaGrupo[]
   onSaved?: () => void
+  afinidadAbierta?: boolean
 }) {
   const [tab, setTab] = useState<TipoTab>('aleatoria')
 
@@ -454,6 +457,8 @@ export function Agrupacion({
               cursoId={cursoId}
               bitacoraId={bitacoraId}
               categoriaActual={categorias.find(c => c.id === categoriaId)?.nombre ?? null}
+              afinidadAbiertaInicial={afinidadAbierta}
+              onSaved={onSaved}
             />
           )}
         </div>
@@ -705,7 +710,7 @@ function TabManual({
 // ── Tab Por afinidad ──────────────────────────────────────────
 
 function TabAfinidad({
-  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual,
+  activeStudents, configProps, nombresGrupos, cursoId, bitacoraId, categoriaActual, afinidadAbiertaInicial, onSaved,
 }: {
   activeStudents: Student[]
   configProps: Parameters<typeof GrupoConfig>[0]
@@ -713,9 +718,12 @@ function TabAfinidad({
   cursoId: string
   bitacoraId?: string | null
   categoriaActual: string | null
+  afinidadAbiertaInicial?: boolean
+  onSaved?: () => void
 }) {
   const [isPending, startTransition] = useTransition()
-  const [creados, setCreados] = useState(false)
+  const [creados, setCreados] = useState(afinidadAbiertaInicial ?? false)
+  const [cerrado, setCerrado] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function crear() {
@@ -730,21 +738,50 @@ function TabAfinidad({
         cursoId,
       )
       if (result.error) setError(result.error)
-      else setCreados(true)
+      else { setCreados(true); setCerrado(false) }
+    })
+  }
+
+  function cerrar() {
+    startTransition(async () => {
+      setError(null)
+      const result = await cerrarAfinidad(bitacoraId ?? null, cursoId)
+      if (result.error) setError(result.error)
+      else { setCerrado(true); onSaved?.() }
     })
   }
 
   if (creados) {
     return (
       <div className="space-y-4">
-        <div className="p-4 rounded-xl bg-emerald-900/30 border border-emerald-700/50 space-y-2">
-          <p className="text-emerald-300 font-medium text-sm">
-            ✓ Grupos publicados — los estudiantes pueden elegir desde su portal
-          </p>
-          <p className="text-xs text-emerald-400/70">
-            {nombresGrupos.length} grupos creados: {nombresGrupos.join(', ')}
-          </p>
-        </div>
+        {cerrado ? (
+          <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700 space-y-1">
+            <p className="text-gray-300 font-medium text-sm">
+              ✓ Inscripción cerrada — los grupos quedaron conformados
+            </p>
+            <p className="text-xs text-gray-500">
+              Los estudiantes ya no pueden unirse ni salir de grupos.
+            </p>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-emerald-900/30 border border-emerald-700/50 space-y-3">
+            <div className="space-y-1">
+              <p className="text-emerald-300 font-medium text-sm">
+                ✓ Grupos publicados — los estudiantes pueden elegir desde su portal
+              </p>
+              <p className="text-xs text-emerald-400/70">
+                {nombresGrupos.length} grupos creados: {nombresGrupos.join(', ')}
+              </p>
+            </div>
+            <button
+              onClick={cerrar}
+              disabled={isPending}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-amber-700/80 hover:bg-amber-600 text-white transition-colors disabled:opacity-40"
+            >
+              {isPending ? 'Cerrando…' : 'Cerrar inscripción'}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {nombresGrupos.map((nombre, i) => {
@@ -762,12 +799,16 @@ function TabAfinidad({
           })}
         </div>
 
-        <button
-          onClick={() => setCreados(false)}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-        >
-          ← Cambiar configuración
-        </button>
+        {!cerrado && (
+          <button
+            onClick={() => setCreados(false)}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            ← Cambiar configuración
+          </button>
+        )}
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
     )
   }

@@ -131,18 +131,30 @@ export async function publicarAfinidad(bitacoraId: string): Promise<{ error?: st
   return {}
 }
 
-export async function cerrarAfinidad(bitacoraId: string): Promise<{ error?: string }> {
+export async function cerrarAfinidad(
+  bitacoraId: string | null,
+  cursoId?: string,
+): Promise<{ error?: string }> {
   const db = await createClient()
   const { data: { user } } = await db.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  const { error } = await db
-    .from('grupos_clase')
-    .update({ abierto: false })
-    .eq('bitacora_id', bitacoraId)
+  let q = db.from('grupos_clase').update({ abierto: false })
     .eq('profesor_id', user.id)
+    .eq('tipo', 'afinidad')
+
+  if (bitacoraId) {
+    q = q.eq('bitacora_id', bitacoraId)
+  } else if (cursoId) {
+    q = q.eq('curso_id', cursoId).is('bitacora_id', null)
+  } else {
+    return { error: 'Se requiere bitacoraId o cursoId' }
+  }
+
+  const { error } = await q
   if (error) return { error: error.message }
 
+  revalidatePath('/student')
   return {}
 }
 

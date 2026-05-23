@@ -21,7 +21,7 @@ import { upsertItemEnCurso } from '@/lib/actions/calificaciones-items'
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 type GrupoIntegrante = { id: string; estudiante_id: string; estudiantes: { id: string; nombre: string } | null }
-type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; grupo_integrantes: GrupoIntegrante[] }
+type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; tipo?: string; abierto?: boolean; grupo_integrantes: GrupoIntegrante[] }
 type Categoria = { id: string; nombre: string; valores: string[] }
 
 const GRUPO_DOT_COLORS = [
@@ -1152,6 +1152,7 @@ export function ModoClaseClient({
                       gruposUltimaSesion={gruposUltimaSesion}
                       plantillas={plantillas}
                       onSaved={refreshGrupos}
+                      afinidadAbierta={grupos.some(g => g.tipo === 'afinidad' && g.abierto)}
                     />
                     <button
                       onClick={() => { setToolOpen(null); switchToGrupos() }}
@@ -1247,6 +1248,7 @@ export function ModoClaseClient({
                       gruposUltimaSesion={gruposUltimaSesion}
                       plantillas={plantillas}
                       onSaved={refreshGrupos}
+                      afinidadAbierta={grupos.some(g => g.tipo === 'afinidad' && g.abierto)}
                     />
                     <button
                       onClick={() => { setToolOpen(null); switchToGrupos() }}
