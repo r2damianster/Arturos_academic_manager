@@ -41,6 +41,8 @@ export type FichaEstudianteData = {
     ultima: { razon: string; detalle_razon: string | null; estado: string } | null
   }
   grupoActual: { nombre: string; categoria: string } | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  encuestaParcial: Record<string, any> | null
 }
 
 export async function getFichaEstudiante(
@@ -166,6 +168,16 @@ export async function getFichaEstudiante(
     }
   }
 
+  // Encuesta parcial (si existe)
+  const encuestaParcialRes = await db
+    .from('encuesta_parcial')
+    .select('trabaja_actual, tipo_trabajo_actual, horas_trabajo_actual, tiene_laptop_actual, situacion_vivienda_actual, carrera_sigue_deseada, horas_dedicacion_estudio, cambios_perfil, autopercepcion_aprendizaje, esfuerzo_dedicado, comprension_temas_propia, dificultades, created_at, semana_iso, porcentaje_curso')
+    .eq('estudiante_id', estudianteId)
+    .eq('curso_id', cursoId)
+    .eq('tipo', 'mitad')
+    .maybeSingle()
+  const encuestaParcial = encuestaParcialRes.data ?? null
+
   return {
     estudiante,
     encuesta,
@@ -174,5 +186,6 @@ export async function getFichaEstudiante(
     trabajos: { activos, ultimo },
     citaciones: { pendientes, ultima: ultimaCit },
     grupoActual,
+    encuestaParcial,
   }
 }

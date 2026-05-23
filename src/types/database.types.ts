@@ -49,6 +49,8 @@ export type Database = {
           nombres_tareas: Json | null
           observacion: string | null
           institucion: string | null
+          encuesta_inicial_habilitada: boolean
+          encuesta_parcial_habilitada: boolean
           created_at: string
         }
         Insert: {
@@ -66,6 +68,8 @@ export type Database = {
           nombres_tareas?: Json | null
           observacion?: string | null
           institucion?: string | null
+          encuesta_inicial_habilitada?: boolean
+          encuesta_parcial_habilitada?: boolean
           created_at?: string
         }
         Update: {
@@ -81,6 +85,8 @@ export type Database = {
           nombres_tareas?: Json | null
           observacion?: string | null
           institucion?: string | null
+          encuesta_inicial_habilitada?: boolean
+          encuesta_parcial_habilitada?: boolean
         }
         Relationships: [
           {
@@ -1192,6 +1198,209 @@ export type Database = {
         ]
       }
     }
+      encuesta_parcial: {
+        Row: {
+          id: string
+          estudiante_id: string
+          curso_id: string
+          auth_user_id: string
+          tipo: string
+          porcentaje_curso: number | null
+          semana_iso: number | null
+          trabaja_actual: string | null
+          tipo_trabajo_actual: string | null
+          horas_trabajo_actual: number | null
+          tiene_laptop_actual: boolean | null
+          tiene_pc_escritorio_actual: boolean | null
+          comparte_pc_actual: boolean | null
+          sin_computadora_actual: boolean | null
+          dispositivo_movil_actual: string | null
+          nivel_tecnologia_actual: number | null
+          situacion_vivienda_actual: string | null
+          es_foraneo_actual: boolean | null
+          carrera_sigue_deseada: number | null
+          gusto_escritura_actual: number | null
+          uso_ia_comprension_actual: number | null
+          uso_ia_resumen_actual: number | null
+          uso_ia_ideas_actual: number | null
+          uso_ia_redaccion_actual: number | null
+          uso_ia_tareas_actual: number | null
+          uso_ia_verificacion_actual: number | null
+          uso_ia_critico_actual: number | null
+          uso_ia_traduccion_actual: number | null
+          uso_ia_idiomas_actual: number | null
+          horas_dedicacion_estudio: string | null
+          cambios_perfil: Json
+          autopercepcion_aprendizaje: number | null
+          esfuerzo_dedicado: number | null
+          comprension_temas_propia: number | null
+          preparacion_evaluacion: number | null
+          cumplimiento_entregas: number | null
+          dificultades: string[] | null
+          detalle_dificultades: string | null
+          utilidad_profesional: number | null
+          aplicacion_practica: number | null
+          actualidad_contenidos: number | null
+          motivacion_post_curso: number | null
+          claridad_explicaciones: number | null
+          pertinencia_tareas: number | null
+          claridad_instrucciones: number | null
+          ritmo_clase: number | null
+          calidad_recursos: number | null
+          justicia_evaluacion: number | null
+          retroalimentacion_recibida: number | null
+          puntualidad_docente: number | null
+          trato_docente: number | null
+          dominio_tema: number | null
+          estrategias_didacticas: number | null
+          disponibilidad_docente: number | null
+          satisfaccion_tutorias: number | null
+          facilidad_reserva_tutoria: number | null
+          fortalezas_curso: string | null
+          sugerencias_mejora: string | null
+          comentario_libre: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          estudiante_id: string
+          curso_id: string
+          auth_user_id: string
+          tipo?: string
+          porcentaje_curso?: number | null
+          semana_iso?: number | null
+          trabaja_actual?: string | null
+          tipo_trabajo_actual?: string | null
+          horas_trabajo_actual?: number | null
+          tiene_laptop_actual?: boolean | null
+          tiene_pc_escritorio_actual?: boolean | null
+          comparte_pc_actual?: boolean | null
+          sin_computadora_actual?: boolean | null
+          dispositivo_movil_actual?: string | null
+          nivel_tecnologia_actual?: number | null
+          situacion_vivienda_actual?: string | null
+          es_foraneo_actual?: boolean | null
+          carrera_sigue_deseada?: number | null
+          gusto_escritura_actual?: number | null
+          uso_ia_comprension_actual?: number | null
+          uso_ia_resumen_actual?: number | null
+          uso_ia_ideas_actual?: number | null
+          uso_ia_redaccion_actual?: number | null
+          uso_ia_tareas_actual?: number | null
+          uso_ia_verificacion_actual?: number | null
+          uso_ia_critico_actual?: number | null
+          uso_ia_traduccion_actual?: number | null
+          uso_ia_idiomas_actual?: number | null
+          horas_dedicacion_estudio?: string | null
+          cambios_perfil?: Json
+          autopercepcion_aprendizaje?: number | null
+          esfuerzo_dedicado?: number | null
+          comprension_temas_propia?: number | null
+          preparacion_evaluacion?: number | null
+          cumplimiento_entregas?: number | null
+          dificultades?: string[] | null
+          detalle_dificultades?: string | null
+          utilidad_profesional?: number | null
+          aplicacion_practica?: number | null
+          actualidad_contenidos?: number | null
+          motivacion_post_curso?: number | null
+          claridad_explicaciones?: number | null
+          pertinencia_tareas?: number | null
+          claridad_instrucciones?: number | null
+          ritmo_clase?: number | null
+          calidad_recursos?: number | null
+          justicia_evaluacion?: number | null
+          retroalimentacion_recibida?: number | null
+          puntualidad_docente?: number | null
+          trato_docente?: number | null
+          dominio_tema?: number | null
+          estrategias_didacticas?: number | null
+          disponibilidad_docente?: number | null
+          satisfaccion_tutorias?: number | null
+          facilidad_reserva_tutoria?: number | null
+          fortalezas_curso?: string | null
+          sugerencias_mejora?: string | null
+          comentario_libre?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          tipo?: string
+          porcentaje_curso?: number | null
+          semana_iso?: number | null
+          trabaja_actual?: string | null
+          tipo_trabajo_actual?: string | null
+          horas_trabajo_actual?: number | null
+          tiene_laptop_actual?: boolean | null
+          tiene_pc_escritorio_actual?: boolean | null
+          comparte_pc_actual?: boolean | null
+          sin_computadora_actual?: boolean | null
+          dispositivo_movil_actual?: string | null
+          nivel_tecnologia_actual?: number | null
+          situacion_vivienda_actual?: string | null
+          es_foraneo_actual?: boolean | null
+          carrera_sigue_deseada?: number | null
+          gusto_escritura_actual?: number | null
+          uso_ia_comprension_actual?: number | null
+          uso_ia_resumen_actual?: number | null
+          uso_ia_ideas_actual?: number | null
+          uso_ia_redaccion_actual?: number | null
+          uso_ia_tareas_actual?: number | null
+          uso_ia_verificacion_actual?: number | null
+          uso_ia_critico_actual?: number | null
+          uso_ia_traduccion_actual?: number | null
+          uso_ia_idiomas_actual?: number | null
+          horas_dedicacion_estudio?: string | null
+          cambios_perfil?: Json
+          autopercepcion_aprendizaje?: number | null
+          esfuerzo_dedicado?: number | null
+          comprension_temas_propia?: number | null
+          preparacion_evaluacion?: number | null
+          cumplimiento_entregas?: number | null
+          dificultades?: string[] | null
+          detalle_dificultades?: string | null
+          utilidad_profesional?: number | null
+          aplicacion_practica?: number | null
+          actualidad_contenidos?: number | null
+          motivacion_post_curso?: number | null
+          claridad_explicaciones?: number | null
+          pertinencia_tareas?: number | null
+          claridad_instrucciones?: number | null
+          ritmo_clase?: number | null
+          calidad_recursos?: number | null
+          justicia_evaluacion?: number | null
+          retroalimentacion_recibida?: number | null
+          puntualidad_docente?: number | null
+          trato_docente?: number | null
+          dominio_tema?: number | null
+          estrategias_didacticas?: number | null
+          disponibilidad_docente?: number | null
+          satisfaccion_tutorias?: number | null
+          facilidad_reserva_tutoria?: number | null
+          fortalezas_curso?: string | null
+          sugerencias_mejora?: string | null
+          comentario_libre?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encuesta_parcial_estudiante_id_fkey"
+            columns: ["estudiante_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encuesta_parcial_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+    }
     Views: {
       [_ in never]: never
     }
@@ -1223,6 +1432,15 @@ export type Database = {
           atrasos: number
           porcentaje: number
           promedio_part: number
+        }[]
+      }
+      get_encuestas_parciales_pendientes: {
+        Args: {
+          p_auth_user_id: string
+        }
+        Returns: {
+          curso_id: string
+          asignatura: string
         }[]
       }
     }

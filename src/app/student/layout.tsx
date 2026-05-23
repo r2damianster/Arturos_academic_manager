@@ -40,6 +40,18 @@ export default async function StudentLayout({ children }: { children: React.Reac
     if (!encuesta) redirect('/student/onboarding')
   }
 
+  // Bloqueo encuesta parcial
+  const enEncuestaParcial = pathname.startsWith('/student/encuesta-parcial')
+
+  if (!enOnboarding && !enEncuestaParcial) {
+    const { data: pendientes } = await (db as any)
+      .rpc('get_encuestas_parciales_pendientes', { p_auth_user_id: user.id })
+
+    if (pendientes && pendientes.length > 0) {
+      redirect(`/student/encuesta-parcial/${pendientes[0].curso_id}`)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header simple */}

@@ -21,6 +21,8 @@ const CursoFullSchema = z.object({
   horas_teoricas: z.coerce.number().int().min(1).max(200).default(64),
   num_parciales:  z.coerce.number().int().min(1).max(4).default(2),
   nombres_tareas: z.array(z.string().max(8)).length(4).optional(),
+  encuesta_inicial_habilitada: z.boolean().optional(),
+  encuesta_parcial_habilitada: z.boolean().optional(),
 })
 
 type HorarioInput = {
@@ -142,6 +144,8 @@ export async function actualizarCurso(
   if (d.horas_teoricas !== undefined) update.horas_teoricas = d.horas_teoricas
   if (d.num_parciales  !== undefined) update.num_parciales  = d.num_parciales
   if (d.nombres_tareas !== undefined) update.nombres_tareas = d.nombres_tareas
+  if (d.encuesta_inicial_habilitada !== undefined) update.encuesta_inicial_habilitada = d.encuesta_inicial_habilitada
+  if (d.encuesta_parcial_habilitada !== undefined) update.encuesta_parcial_habilitada = d.encuesta_parcial_habilitada
 
   if (Object.keys(update).length === 0) return {}
 

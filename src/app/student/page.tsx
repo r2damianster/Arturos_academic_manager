@@ -5,6 +5,7 @@ import type { Tables } from '@/types/database.types'
 import { MisGrupos } from '@/components/student/MisGrupos'
 import { AutodiagnosticoWidget } from '@/components/student/AutodiagnosticoWidget'
 import { getGruposAbiertosParaEstudiante } from '@/lib/actions/grupos'
+import { getEstadoEncuestasParciales } from '@/lib/actions/encuesta-parcial'
 
 type Estudiante = Tables<'estudiantes'>
 type Curso = Tables<'cursos'>
@@ -41,19 +42,21 @@ export default async function StudentPage() {
   const cursoIds = estudiantes.map(e => e.curso_id)
 
   // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
-  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData, horasTutoriaRes] = await Promise.all([
-    db.from('cursos').select('*').in('id', cursoIds),
+  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData, horasTutoriaRes, estadoEncuestas] = await Promise.all([
+    db.from('cursos').select('*, encuesta_parcial_habilitada').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
     db.from('asistencia').select('estado, estudiante_id').in('estudiante_id', estudianteIds),
     db.from('reservas').select('*, horarios!inner(profesor_id)').eq('auth_user_id', user.id).eq('estado', 'completada').order('fecha', { ascending: false }),
     getGruposAbiertosParaEstudiante(cursoIds),
     db.from('tutor_horas_semana').select('curso_id, fecha_semana, horas').in('curso_id', cursoIds),
+    getEstadoEncuestasParciales(cursoIds),
   ])
 
   const cursos: Curso[] = cursosRes.data ?? []
   const trabajos: Trabajo[] = trabajosRes.data ?? []
   const asistenciaReg: (Asistencia & { estudiante_id: string })[] = asistenciaRes.data ?? []
   const reservasReg: any[] = reservasRes.data ?? []
+  const estadoEncuestasParciales: Record<string, boolean> = estadoEncuestas ?? {}
 
   // Horas de tutoría ofrecidas por curso
   const horasTutoria: { curso_id: string; fecha_semana: string; horas: number }[] = horasTutoriaRes.data ?? []
@@ -62,6 +65,15 @@ export default async function StudentPage() {
     acc[cid] = { totalHoras: filas.reduce((s, f) => s + f.horas, 0), semanas: filas.length }
     return acc
   }, {} as Record<string, { totalHoras: number; semanas: number }>)
+
+  // Helper: ¿debe ver encuesta parcial?
+  function debeVerEncuesta(curso: { fecha_inicio: string | null; fecha_fin: string | null; encuesta_parcial_habilitada?: boolean | null }): boolean {
+    if (!curso.encuesta_parcial_habilitada || !curso.fecha_inicio || !curso.fecha_fin) return false
+    const inicio = new Date(curso.fecha_inicio).getTime()
+    const fin = new Date(curso.fecha_fin).getTime()
+    const pct = (Date.now() - inicio) / (fin - inicio)
+    return pct >= 0.5 && pct <= 1.0
+  }
 
   // Mapas
   const cursosMap = Object.fromEntries(cursos.map(c => [c.id, c]))
