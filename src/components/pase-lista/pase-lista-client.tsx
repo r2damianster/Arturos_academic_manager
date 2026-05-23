@@ -52,6 +52,7 @@ interface Props {
   horasSesion: number
   perfiles: Record<string, EstudiantePerfil>
   horariosTutoria: HorarioTutoria[]
+  resumenEnCurso: Record<string, { total: number; conNota: number }>
 }
 
 const COLORES_BTN: Record<number, string> = {
@@ -72,7 +73,7 @@ const ETIQUETAS: Record<number, string> = {
 function fmt(t: string) { return t?.slice(0, 5) ?? '' }
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
-export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perfiles, horariosTutoria }: Props) {
+export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perfiles, horariosTutoria, resumenEnCurso }: Props) {
   const [paso, setPaso] = useState<Paso>('bitacora')
   const [bitacora, setBitacora] = useState<BitacoraLocal>({ tema: '', actividades: '', materiales: '', observaciones: '' })
   const [indice, setIndice] = useState(0)
@@ -434,12 +435,16 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         {/* Stats del perfil */}
         {(() => {
           const p = perfiles[actual.id]
+          const ec = resumenEnCurso[actual.id]
           const stats = [
             p?.pct_asistencia != null
               ? { label: 'Asistencia', value: `${p.pct_asistencia}%`, color: p.pct_asistencia >= 80 ? 'text-emerald-400' : p.pct_asistencia >= 60 ? 'text-yellow-400' : 'text-red-400' }
               : null,
             p?.promedio != null && p.promedio > 0
               ? { label: 'Promedio', value: String(p.promedio), color: p.promedio >= 7 ? 'text-emerald-400' : p.promedio >= 5 ? 'text-yellow-400' : 'text-red-400' }
+              : null,
+            ec && ec.total > 0
+              ? { label: 'En Curso', value: `${ec.conNota}/${ec.total}`, color: ec.total === 0 ? 'text-gray-400' : ec.conNota / ec.total >= 0.8 ? 'text-emerald-400' : ec.conNota / ec.total >= 0.5 ? 'text-yellow-400' : 'text-red-400' }
               : null,
           ].filter(Boolean)
           return stats.length > 0 ? (

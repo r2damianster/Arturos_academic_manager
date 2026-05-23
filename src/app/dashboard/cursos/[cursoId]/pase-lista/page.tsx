@@ -25,7 +25,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, asistenciaHistRes, calificacionesRes, trabajosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, asistenciaHistRes, calificacionesRes, trabajosRes, itemsEnCursoRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, tutoria, auth_user_id, estado').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('asistencia').select('estudiante_id, estado, observacion_part, fecha').eq('curso_id', cursoId).order('fecha', { ascending: false }),
@@ -34,6 +34,10 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
       .select('id, estudiante_id, tipo, tema, descripcion, estado, fecha_asignacion, progreso')
       .eq('curso_id', cursoId)
       .order('fecha_asignacion', { ascending: false }),
+    db.from('calificaciones_items')
+      .select('estudiante_id, parcial, nombre_item, nota')
+      .eq('curso_id', cursoId)
+      .eq('fuente', 'en_curso'),
   ])
 
   if (!cursoRes.data) notFound()
@@ -154,6 +158,17 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
     perfiles[est.id] = { pct_asistencia, promedio, trabajos_activos, ultimo_trabajo, ultima_observacion, ultima_obs_clase, encuesta }
   }
 
+  // Resumen En Curso por estudiante
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const itemsEnCurso: any[] = itemsEnCursoRes.data ?? []
+  const actividadesEnCurso = [...new Set(itemsEnCurso.map((i: { nombre_item: string }) => i.nombre_item))]
+  const resumenEnCurso: Record<string, { total: number; conNota: number }> = {}
+  for (const est of estudiantes) {
+    const estItems = itemsEnCurso.filter((i: { estudiante_id: string; nota: number | null }) => i.estudiante_id === est.id)
+    const conNota = estItems.filter((i: { nota: number | null }) => i.nota !== null).length
+    resumenEnCurso[est.id] = { total: actividadesEnCurso.length, conNota }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center gap-3">
@@ -195,6 +210,7 @@ export default async function PaseListaPage({ params }: { params: Promise<{ curs
           horasSesion={horasSesion}
           perfiles={perfiles}
           horariosTutoria={horariosTutoria}
+          resumenEnCurso={resumenEnCurso}
         />
       )}
     </div>

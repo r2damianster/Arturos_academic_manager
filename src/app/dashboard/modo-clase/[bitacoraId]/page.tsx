@@ -18,7 +18,7 @@ export default async function ModoClaseActivaPage({
 
   const { data: bitacora } = await db
     .from('bitacora_clase')
-    .select('id, curso_id, fecha, tema, estado, hora_inicio_real, actividades_json, observaciones, cursos(asignatura, codigo)')
+    .select('id, curso_id, fecha, tema, estado, hora_inicio_real, actividades_json, observaciones, cursos(asignatura, codigo, num_parciales)')
     .eq('id', bitacoraId)
     .eq('profesor_id', user.id)
     .single()
@@ -30,7 +30,7 @@ export default async function ModoClaseActivaPage({
   const diaSemana = dayNames[dow]
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas] = await Promise.all([
+  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes] = await Promise.all([
     db
       .from('estudiantes')
       .select('id, nombre, email, tutoria')
@@ -49,6 +49,10 @@ export default async function ModoClaseActivaPage({
     getCategorias(),
     getUltimaSesionConGrupos(bitacora.curso_id, bitacoraId),
     getPlantillasGrupos(),
+    db.from('calificaciones_items')
+      .select('estudiante_id, parcial, nombre_item, nota')
+      .eq('curso_id', bitacora.curso_id)
+      .eq('fuente', 'en_curso'),
   ])
 
   const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean }[]
@@ -85,6 +89,8 @@ export default async function ModoClaseActivaPage({
       categorias={categoriasData}
       gruposUltimaSesion={ultimaSesionGrupos}
       plantillas={plantillas}
+      itemsEnCurso={itemsEnCursoRes.data ?? []}
+      numParciales={bitacora.cursos?.num_parciales ?? 2}
     />
   )
 }

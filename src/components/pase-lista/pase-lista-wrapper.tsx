@@ -27,6 +27,7 @@ interface Props {
   horasSesion: number
   perfiles: Record<string, EstudiantePerfil>
   horariosTutoria: HorarioTutoria[]
+  resumenEnCurso: Record<string, { total: number; conNota: number }>
 }
 
 export function PaseListaWrapper({
@@ -36,6 +37,7 @@ export function PaseListaWrapper({
   horasSesion,
   perfiles,
   horariosTutoria,
+  resumenEnCurso,
 }: Props) {
   const hoy = new Date().toISOString().split('T')[0]
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy)
@@ -68,6 +70,7 @@ export function PaseListaWrapper({
         horasSesion={horasSesion}
         perfiles={perfiles}
         horariosTutoria={horariosTutoria}
+        resumenEnCurso={resumenEnCurso}
       />
     </div>
   )

@@ -15,6 +15,7 @@ import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudi
 import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/ficha-estudiante'
 import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actions'
 import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
+import EnCursoVistaClase from '@/components/modo-clase/EnCursoVistaClase'
 
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -44,6 +45,8 @@ type Props = {
   categorias: Categoria[]
   gruposUltimaSesion?: GrupoBase[] | null
   plantillas?: PlantillaGrupo[]
+  itemsEnCurso?: { estudiante_id: string; parcial: number; nombre_item: string; nota: number | null }[]
+  numParciales?: number
 }
 
 function formatElapsed(secs: number) {
@@ -457,6 +460,7 @@ export function ModoClaseClient({
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
   gruposIniciales, categorias, gruposUltimaSesion, plantillas = [],
+  itemsEnCurso = [], numParciales = 2,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -668,12 +672,12 @@ export function ModoClaseClient({
     const data = await getGruposDeSesion(bitacoraId, cursoId)
     setGrupos(data.grupos as GrupoItem[])
   }
-  const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos'>('asistencia')
+  const [tabDerecha, setTabDerecha] = useState<'asistencia' | 'grupos' | 'en_curso'>('asistencia')
 
   // ── Tab móvil ─────────────────────────────────────────────────────────────
-  const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia' | 'grupos'>('actividades')
+  const [mobileTab, setMobileTab] = useState<'actividades' | 'asistencia' | 'grupos' | 'en_curso'>('actividades')
 
-  function setMobileAndDerecha(tab: 'actividades' | 'asistencia' | 'grupos') {
+  function setMobileAndDerecha(tab: 'actividades' | 'asistencia' | 'grupos' | 'en_curso') {
     setMobileTab(tab)
     if (tab === 'asistencia' || tab === 'grupos') {
       setTabDerecha(tab)
@@ -969,6 +973,14 @@ export function ModoClaseClient({
         >
           Grupos {grupos.length > 0 && `(${grupos.length})`}
         </button>
+        {itemsEnCurso.length > 0 && (
+          <button
+            onClick={() => setMobileAndDerecha('en_curso')}
+            className={`flex-1 py-2.5 text-xs font-medium transition-colors ${mobileTab === 'en_curso' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-600/5' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            En Curso
+          </button>
+        )}
       </div>
 
       {/* Body — dos columnas en desktop, tab en móvil */}
@@ -1309,6 +1321,14 @@ export function ModoClaseClient({
             >
               Grupos {grupos.length > 0 && `(${grupos.length})`}
             </button>
+            {itemsEnCurso.length > 0 && (
+              <button
+                onClick={() => setTabDerecha('en_curso')}
+                className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${tabDerecha === 'en_curso' ? 'text-violet-300 border-b-2 border-violet-500' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                En Curso
+              </button>
+            )}
           </div>
 
           {/* Panel Asistencia */}
@@ -1945,6 +1965,18 @@ export function ModoClaseClient({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Panel En Curso */}
+          {tabDerecha === 'en_curso' && (
+            <div className="flex-1 overflow-hidden">
+              <EnCursoVistaClase
+                cursoId={cursoId}
+                items={itemsEnCurso}
+                estudiantes={students}
+                numParciales={numParciales}
+              />
             </div>
           )}
         </div>
