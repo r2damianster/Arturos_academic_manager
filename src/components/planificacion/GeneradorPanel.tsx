@@ -248,6 +248,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         asignatura,
         semanaNum: semanaFinal,
         instruccionAdicional: instruccion,
+        cursoId: selectedCursoId ?? undefined,
       })
       if (result.error) {
         setGenError(result.error)
@@ -264,6 +265,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         nivel,
         instruccionAdicional: instruccion,
         logroDescripcion: logroSeleccionado?.descripcion,
+        cursoId: selectedCursoId ?? undefined,
       })
       if (result.error) {
         setGenError(result.error)

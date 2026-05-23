@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion, getClasesFuturas } from '@/lib/actions/bitacora'
+import { corregirPlan } from '@/lib/actions/generar-contenido'
 import type { ActividadPlanificada } from '@/types/domain'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -175,10 +176,11 @@ export function PlanificarModal({
 }: PlanificarModalProps) {
   const supabase = createClient()
 
-  const [loading,  setLoading]  = useState(true)
-  const [saving,   setSaving]   = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [existing, setExisting] = useState<BitacoraExistente | null>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const [existing,    setExisting]    = useState<BitacoraExistente | null>(null)
+  const [correcting,  setCorrecting]  = useState<'tema' | 'obs' | null>(null)
 
   const [tema,          setTema]          = useState('')
   const [actividades,   setActividades]   = useState<(ActividadPlanificada & { id: string })[]>([emptyActividad()])
@@ -367,6 +369,20 @@ export function PlanificarModal({
     setActividades(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a))
   }
 
+  // ── Corregir ortografía ─────────────────────────────────────────────────────
+
+  async function handleCorregir(campo: 'tema' | 'obs') {
+    const texto = campo === 'tema' ? tema : observaciones
+    if (!texto.trim()) return
+    setCorrecting(campo)
+    const result = await corregirPlan({ texto })
+    setCorrecting(null)
+    if (!result.error && result.corregido.trim()) {
+      if (campo === 'tema') setTema(result.corregido.trim())
+      else setObservaciones(result.corregido.trim())
+    }
+  }
+
   // ── Copy / Move handler ─────────────────────────────────────────────────────
 
   async function handleCopiar() {
@@ -465,7 +481,16 @@ export function PlanificarModal({
 
               {/* Tema */}
               <div>
-                <label className="label">Tema de la clase *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Tema de la clase *</label>
+                  {!readOnly && tema.trim() && (
+                    <button type="button" onClick={() => handleCorregir('tema')}
+                      disabled={correcting !== null}
+                      className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
+                      {correcting === 'tema' ? '⟳ Corrigiendo…' : '✦ Corregir'}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={tema}
@@ -577,7 +602,16 @@ export function PlanificarModal({
 
               {/* Observaciones */}
               <div>
-                <label className="label">Observaciones (opcional)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Observaciones (opcional)</label>
+                  {!readOnly && observaciones.trim() && (
+                    <button type="button" onClick={() => handleCorregir('obs')}
+                      disabled={correcting !== null}
+                      className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
+                      {correcting === 'obs' ? '⟳ Corrigiendo…' : '✦ Corregir'}
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={observaciones}
                   onChange={e => setObservaciones(e.target.value)}

@@ -146,11 +146,30 @@ function formatBitacorasParaPrompt(bitacoras: BitacoraRaw[]): string {
   }).join('\n\n---\n\n')
 }
 
+async function fetchHistorialClases(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cursoId: string,
+  excludeIds: string[]
+): Promise<string> {
+  const { data } = await supabase
+    .from('bitacora_clase')
+    .select('fecha, tema, actividades_json, observaciones')
+    .eq('curso_id', cursoId)
+    .eq('estado', 'cumplido')
+    .not('id', 'in', `(${excludeIds.join(',')})`)
+    .order('fecha', { ascending: false })
+    .limit(2)
+
+  if (!data?.length) return ''
+  return formatBitacorasParaPrompt([...data].reverse())
+}
+
 export async function generarHtmlSemanal(params: {
   bitacoraIds: string[]
   asignatura: string
   semanaNum: number
   instruccionAdicional?: string
+  cursoId?: string
 }): Promise<{ html: string; error?: string }> {
   const supabase = await createClient()
 
@@ -165,10 +184,16 @@ export async function generarHtmlSemanal(params: {
 
   const clasesTexto = formatBitacorasParaPrompt(bitacoras)
 
+  let historialTexto = ''
+  if (params.cursoId) {
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  }
+
   const userPrompt = [
     params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
     `Genera el HTML completo para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     'Los recursos, videos y materiales ya están incluidos en el campo "recurso" de cada actividad — úsalos para las secciones de Recursos y Multimedia.',
+    historialTexto ? `\nCONTEXTO DE CLASES ANTERIORES (solo como referencia para no repetir temas — NO incluir en el HTML):\n${historialTexto}` : '',
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
@@ -189,6 +214,7 @@ export async function generarGuiaSemanal(params: {
   nivel: 'basico' | 'avanzado'
   instruccionAdicional?: string
   logroDescripcion?: string
+  cursoId?: string
 }): Promise<{ guia: string; error?: string }> {
   const supabase = await createClient()
 
@@ -204,6 +230,11 @@ export async function generarGuiaSemanal(params: {
   const clasesTexto = formatBitacorasParaPrompt(bitacoras)
   const nivelLabel = params.nivel === 'avanzado' ? 'universitario avanzado (último año)' : 'universitario básico / introductorio'
 
+  let historialTexto = ''
+  if (params.cursoId) {
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  }
+
   const userPrompt = [
     params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
     `Crea la guía de estudio para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
@@ -211,6 +242,7 @@ export async function generarGuiaSemanal(params: {
     params.logroDescripcion
       ? `\nLOGRO INSTITUCIONAL (usar exactamente en la sección "LOGRO/OBJETIVO DE APRENDIZAJE AL QUE APORTA"):\n${params.logroDescripcion}`
       : '',
+    historialTexto ? `\nCONTEXTO DE CLASES ANTERIORES (solo para evitar repetir temas ya cubiertos — NO mencionar en la guía):\n${historialTexto}` : '',
     '',
     'CLASES DE ESTA SEMANA:',
     clasesTexto,
@@ -222,6 +254,34 @@ export async function generarGuiaSemanal(params: {
   ])
 
   return { guia: result.content, error: result.error }
+}
+
+export async function corregirPlan(params: {
+  texto: string
+}): Promise<{ corregido: string; error?: string }> {
+  const result = await callGroq([
+    {
+      role: 'system',
+      content: `Eres un corrector ortográfico minimalista. Tu ÚNICA tarea:
+1. Corregir errores ortográficos y de puntuación
+2. Agregar conectores lógicos (por tanto, sin embargo, además, luego, etc.) SOLO donde la frase quede entrecortada o ambigua sin ellos
+
+PROHIBIDO:
+- Reescribir frases
+- Cambiar el significado
+- Agregar contenido nuevo
+- Eliminar contenido
+- Cambiar el estilo o vocabulario
+
+Devuelve ÚNICAMENTE el texto corregido, sin explicaciones, sin comillas, sin prefijos.`,
+    },
+    {
+      role: 'user',
+      content: params.texto,
+    },
+  ])
+
+  return { corregido: result.content, error: result.error }
 }
 
 export async function mejorarContenido(params: {
