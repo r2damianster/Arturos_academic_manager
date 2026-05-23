@@ -187,6 +187,7 @@ const NIVEL_LABELS = ['', '1', '2', '3', '4', '5']
 
 function VistGrupo({
   grupo, students, asistencia, onAsistencia, cursoId, fecha, onVolver, isSaved, onSaved,
+  ecActividades, ecIndex, ecEditando, setEcEditando, guardarEcNota, ecPending,
 }: {
   grupo: GrupoItem
   students: Student[]
@@ -197,6 +198,12 @@ function VistGrupo({
   onVolver: () => void
   isSaved: boolean
   onSaved: () => void
+  ecActividades?: string[]
+  ecIndex?: Map<string, { nota: number | null; parcial: number }>
+  ecEditando?: { estudianteId: string; nombreItem: string; parcial: number; nota: string } | null
+  setEcEditando?: (v: { estudianteId: string; nombreItem: string; parcial: number; nota: string } | null) => void
+  guardarEcNota?: (estudianteId: string, nombreItem: string, parcial: number, notaStr: string) => void
+  ecPending?: boolean
 }) {
   const [partActivo, setPartActivo] = useState<Set<string>>(new Set())
   const [partMap, setPartMap] = useState<Record<string, { nivel: number | null; obs: string }>>({})
@@ -343,6 +350,53 @@ function VistGrupo({
                   <input type="checkbox" checked={conPart} onChange={() => togglePart(s.id)} className="accent-indigo-500" />
                   Calificar participación
                 </label>
+                {/* Notas en curso del miembro */}
+                {(ecActividades ?? []).length > 0 && (() => {
+                  const pendientes = (ecActividades ?? []).filter(a => (ecIndex?.get(`${s.id}|${a}`)?.nota ?? null) === null)
+                  if (pendientes.length === 0) return (
+                    <p className="text-[10px] text-emerald-400 pl-1">📊 Notas al día</p>
+                  )
+                  return (
+                    <div className="pl-1 space-y-1">
+                      <p className="text-[10px] text-gray-500">📊 Notas pend.: <span className="text-violet-400">{pendientes.join(', ')}</span></p>
+                      <div className="flex flex-wrap gap-1">
+                        {pendientes.map(a => {
+                          const entry = ecIndex?.get(`${s.id}|${a}`)
+                          const parcial = entry?.parcial ?? 1
+                          const esteEditando = ecEditando?.estudianteId === s.id && ecEditando?.nombreItem === a
+                          return (
+                            <div key={a} className="flex items-center gap-0.5">
+                              <span className="text-[10px] text-gray-500">{a}:</span>
+                              {esteEditando ? (
+                                <div className="flex items-center gap-0.5">
+                                  <input
+                                    type="number" min={0} max={10} step={0.1}
+                                    value={ecEditando!.nota}
+                                    onChange={e => setEcEditando?.(ecEditando ? { ...ecEditando, nota: e.target.value } : null)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') guardarEcNota?.(s.id, a, parcial, ecEditando!.nota)
+                                      if (e.key === 'Escape') setEcEditando?.(null)
+                                    }}
+                                    className="w-10 text-center text-[10px] rounded border border-gray-600 bg-gray-800 text-gray-100 px-0.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                    autoFocus
+                                  />
+                                  <button onClick={() => guardarEcNota?.(s.id, a, parcial, ecEditando!.nota)} disabled={ecPending} className="text-green-400 text-[10px]">✓</button>
+                                  <button onClick={() => setEcEditando?.(null)} className="text-gray-600 text-[10px]">✕</button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setEcEditando?.({ estudianteId: s.id, nombreItem: a, parcial, nota: '' })}
+                                  className="text-[10px] text-gray-600 hover:text-violet-400 font-mono"
+                                  title="Clic para calificar"
+                                >—</button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
                 {conPart && (
                   <div className="pl-4 space-y-1.5">
                     <div className="flex gap-1">
@@ -557,7 +611,22 @@ export function ModoClaseClient({
   const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())
   const [ecEditando, setEcEditando] = useState<{ estudianteId: string; nombreItem: string; parcial: number; nota: string } | null>(null)
   const [ecPending, startEcTransition] = useTransition()
-  const ecTotal = [...new Set((itemsEnCurso ?? []).map(i => i.nombre_item))].length
+  const ecItems = itemsEnCurso ?? []
+  const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))].sort()
+  const ecIndex = new Map<string, { nota: number | null; parcial: number }>()
+  for (const item of ecItems) {
+    const key = `${item.estudiante_id}|${item.nombre_item}`
+    if (!ecIndex.has(key)) ecIndex.set(key, { nota: item.nota, parcial: item.parcial })
+  }
+  const ecTotal = ecActividades.length
+  function guardarEcNota(estudianteId: string, nombreItem: string, parcial: number, notaStr: string) {
+    const nota = notaStr === '' ? null : parseFloat(notaStr)
+    if (nota !== null && (isNaN(nota) || nota < 0 || nota > 10)) return
+    startEcTransition(async () => {
+      await upsertItemEnCurso({ cursoId, estudianteId, parcial, nombreItem, nota })
+      setEcEditando(null)
+    })
+  }
   function toggleEc(id: string) {
     setEcAbierto(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
@@ -992,7 +1061,7 @@ export function ModoClaseClient({
             onClick={() => setMobileAndDerecha('en_curso')}
             className={`flex-1 py-2.5 text-xs font-medium transition-colors ${mobileTab === 'en_curso' ? 'text-violet-400 border-b-2 border-violet-500 bg-violet-600/5' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            En Curso
+            Notas en curso
           </button>
         )}
       </div>
@@ -1340,7 +1409,7 @@ export function ModoClaseClient({
                 onClick={() => setTabDerecha(tabDerecha === 'en_curso' ? 'asistencia' : 'en_curso')}
                 className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${tabDerecha === 'en_curso' ? 'text-violet-300 border-b-2 border-violet-500' : 'text-gray-500 hover:text-gray-300'}`}
               >
-                En Curso
+                Notas en curso
               </button>
             )}
           </div>
@@ -1386,7 +1455,7 @@ export function ModoClaseClient({
                         : 'border-gray-700 text-gray-500 hover:border-violet-600/60 hover:text-violet-400 hover:bg-violet-900/10'
                     }`}
                   >
-                    📊 {ecAbierto.size === students.length ? 'Cerrar En Curso' : 'Abrir En Curso'}
+                    📊 {ecAbierto.size === students.length ? 'Cerrar notas' : 'Notas en curso'}
                   </button>
                 )}
               </div>
@@ -1395,22 +1464,6 @@ export function ModoClaseClient({
 
           {/* ── VISTA LISTA (compacta) ── */}
           {asistenciaVista === 'todos' && (() => {
-            // En Curso: índice {nota, parcial} por estudiante|actividad
-            const ecItems = itemsEnCurso ?? []
-            const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))].sort()
-            const ecIndex = new Map<string, { nota: number | null; parcial: number }>()
-            for (const item of ecItems) {
-              const key = `${item.estudiante_id}|${item.nombre_item}`
-              if (!ecIndex.has(key)) ecIndex.set(key, { nota: item.nota, parcial: item.parcial })
-            }
-            function guardarEcNota(estudianteId: string, nombreItem: string, parcial: number, notaStr: string) {
-              const nota = notaStr === '' ? null : parseFloat(notaStr)
-              if (nota !== null && (isNaN(nota) || nota < 0 || nota > 10)) return
-              startEcTransition(async () => {
-                await upsertItemEnCurso({ cursoId, estudianteId, parcial, nombreItem, nota })
-                setEcEditando(null)
-              })
-            }
             return (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
               {students.length === 0 ? (
@@ -1643,6 +1696,68 @@ export function ModoClaseClient({
                     />
                   </div>
                 )}
+
+                {/* ── Notas en curso ── */}
+                {ecTotal > 0 && (() => {
+                  const pendientes = ecActividades.filter(a => (ecIndex.get(`${estudianteUno.id}|${a}`)?.nota ?? null) === null)
+                  if (pendientes.length === 0) return (
+                    <p className="text-[10px] text-emerald-400">📊 Todas las notas en curso registradas</p>
+                  )
+                  return (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+                        Notas en curso <span className="text-violet-400 normal-case font-normal">({pendientes.length} pendiente{pendientes.length !== 1 ? 's' : ''})</span>
+                      </p>
+                      <table className="w-full text-[10px] border-collapse">
+                        <thead>
+                          <tr>
+                            {pendientes.map(a => (
+                              <th key={a} className="px-1 py-0.5 text-center text-gray-500 font-medium border border-gray-800">
+                                <span className="truncate block max-w-[56px]" title={a}>{a}</span>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            {pendientes.map(a => {
+                              const entry = ecIndex.get(`${estudianteUno.id}|${a}`)
+                              const parcial = entry?.parcial ?? 1
+                              const esteEditando = ecEditando?.estudianteId === estudianteUno.id && ecEditando?.nombreItem === a
+                              return (
+                                <td key={a} className="px-1 py-0.5 text-center border border-gray-800">
+                                  {esteEditando ? (
+                                    <div className="flex items-center gap-0.5 justify-center">
+                                      <input
+                                        type="number" min={0} max={10} step={0.1}
+                                        value={ecEditando!.nota}
+                                        onChange={e => setEcEditando(prev => prev ? { ...prev, nota: e.target.value } : null)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') guardarEcNota(estudianteUno.id, a, parcial, ecEditando!.nota)
+                                          if (e.key === 'Escape') setEcEditando(null)
+                                        }}
+                                        className="w-10 text-center text-[10px] rounded border border-gray-600 bg-gray-800 text-gray-100 px-0.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                        autoFocus
+                                      />
+                                      <button onClick={() => guardarEcNota(estudianteUno.id, a, parcial, ecEditando!.nota)} disabled={ecPending} className="text-green-400 hover:text-green-300 text-[10px]">✓</button>
+                                      <button onClick={() => setEcEditando(null)} className="text-gray-600 hover:text-gray-400 text-[10px]">✕</button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setEcEditando({ estudianteId: estudianteUno.id, nombreItem: a, parcial, nota: '' })}
+                                      className="text-gray-600 hover:text-violet-400 font-mono w-full text-center"
+                                      title="Clic para calificar"
+                                    >—</button>
+                                  )}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
 
                 {/* ── Datos del estudiante (carga lazy) ── */}
                 {fichaLoading && (
@@ -2005,6 +2120,12 @@ export function ModoClaseClient({
                   onVolver={() => setGrupoActivoId(null)}
                   isSaved={savedGrupos.has(grupoActivoId)}
                   onSaved={() => setSavedGrupos(prev => new Set([...prev, grupoActivoId]))}
+                  ecActividades={ecActividades}
+                  ecIndex={ecIndex}
+                  ecEditando={ecEditando}
+                  setEcEditando={setEcEditando}
+                  guardarEcNota={guardarEcNota}
+                  ecPending={ecPending}
                 />
               ) : (
                 <div className="space-y-4 overflow-y-auto flex-1">
