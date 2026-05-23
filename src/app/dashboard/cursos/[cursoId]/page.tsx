@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
+import { RiesgoPanel } from '@/components/cursos/RiesgoPanel'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -95,6 +96,15 @@ export default async function CursoDetailPage({
 
   const activos   = estudiantesConMetricas.filter(e => e.estado !== 'retirado')
   const retirados = estudiantesConMetricas.filter(e => e.estado === 'retirado')
+
+  const enRiesgo = activos
+    .filter(e => e.pctAsistencia !== null && e.pctAsistencia < 75)
+    .map(e => ({
+      id: e.id,
+      nombre: e.nombre,
+      pctAsistencia: e.pctAsistencia,
+      trabajosActivos: e.trabajosActivos,
+    }))
 
   // Métricas globales del curso
   const conAsistencia = activos.filter(e => e.pctAsistencia !== null)
@@ -200,6 +210,9 @@ export default async function CursoDetailPage({
           </Link>
         ))}
       </div>
+
+      {/* Panel de riesgo */}
+      <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} />
 
       {/* Tabla de estudiantes con métricas */}
       <EstudiantesMetricsTable

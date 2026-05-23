@@ -256,6 +256,65 @@ export async function generarGuiaSemanal(params: {
   return { guia: result.content, error: result.error }
 }
 
+export async function generarPrepTutoria(params: {
+  nombreProfesor: string
+  carreraEstudiante: string | null
+}): Promise<{ sugerencias: string; error?: string }> {
+  const result = await callGroq([
+    {
+      role: 'system',
+      content: `Eres un asistente académico. El estudiante acaba de reservar una tutoría.
+Genera exactamente 3 sugerencias concretas y breves para aprovechar al máximo la sesión.
+Formato: lista numerada (1. 2. 3.), una oración por punto, sin introducción ni conclusión.
+Tono motivador pero directo. En español.`,
+    },
+    {
+      role: 'user',
+      content: `Tutoría con: ${params.nombreProfesor}. Carrera del estudiante: ${params.carreraEstudiante ?? 'universitaria'}.`,
+    },
+  ])
+  return { sugerencias: result.content, error: result.error }
+}
+
+export async function generarAutodiagnostico(params: {
+  asignatura: string
+  pctAsistencia: number | null
+  trabajosActivos: number
+  trabajosCompletados: number
+  tutoriasAsistidas: number
+  tutoriasFaltadas: number
+}): Promise<{ mensaje: string; error?: string }> {
+  const { asignatura, pctAsistencia, trabajosActivos, trabajosCompletados, tutoriasAsistidas, tutoriasFaltadas } = params
+
+  const contexto = [
+    `Asignatura: ${asignatura}`,
+    pctAsistencia !== null ? `Asistencia estimada: ${pctAsistencia}%` : 'Asistencia: sin registros aún',
+    `Trabajos activos (pendiente/en progreso): ${trabajosActivos}`,
+    `Trabajos completados (entregado/aprobado): ${trabajosCompletados}`,
+    `Tutorías asistidas: ${tutoriasAsistidas} | Tutorías faltadas: ${tutoriasFaltadas}`,
+  ].join('\n')
+
+  const result = await callGroq([
+    {
+      role: 'system',
+      content: `Eres un tutor universitario empático. Con los datos del estudiante, escribe exactamente 2-3 oraciones motivacionales y concretas.
+
+REGLAS ESTRICTAS:
+- Solo 2-3 oraciones. Ni más ni menos.
+- Tono positivo y alentador, nunca alarmista ni condescendiente
+- Menciona algo concreto basado en los datos (no frases genéricas)
+- Si la asistencia es < 75%, sugiere mejorarla con tacto
+- Si tiene tutorías faltadas, mencionarlo con amabilidad
+- Si trabajos activos > 3, reconoce la carga
+- Sin saludos, sin títulos, sin listas. Solo párrafo corrido.
+- En español, tono de tutor cercano`,
+    },
+    { role: 'user', content: contexto },
+  ])
+
+  return { mensaje: result.content, error: result.error }
+}
+
 export async function generarPerfilPedagogico(params: {
   contexto: string
   asignatura: string

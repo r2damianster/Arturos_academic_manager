@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 import { MisGrupos } from '@/components/student/MisGrupos'
+import { AutodiagnosticoWidget } from '@/components/student/AutodiagnosticoWidget'
 import { getGruposAbiertosParaEstudiante } from '@/lib/actions/grupos'
 
 type Estudiante = Tables<'estudiantes'>
@@ -271,6 +272,16 @@ export default async function StudentPage() {
             {ts.length === 0 && (
               <p className="text-xs text-gray-600 text-center py-2">Sin trabajos asignados</p>
             )}
+
+            {/* Autodiagnóstico IA */}
+            <AutodiagnosticoWidget
+              asignatura={curso.asignatura}
+              pctAsistencia={pctAsistencia}
+              trabajosActivos={activos.length}
+              trabajosCompletados={ts.filter(t => t.estado === 'Aprobado' || t.estado === 'Entregado').length}
+              tutoriasAsistidas={tutoriasAsistidas}
+              tutoriasFaltadas={tutoriasFaltadas}
+            />
           </div>
         )
       })}

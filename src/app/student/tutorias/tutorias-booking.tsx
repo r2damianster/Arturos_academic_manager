@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { anunciarAsistenciaTutoria, cancelarAnuncioTutoria } from '@/lib/actions/tutorias'
+import { generarPrepTutoria } from '@/lib/actions/generar-contenido'
 
 interface Horario {
   id: number
@@ -137,8 +138,9 @@ export function TutoriasBooking({
   const [loading, setLoading] = useState(false)
   const [canceling,   setCanceling]   = useState<number | null>(null)
   const [noShowing,   setNoShowing]   = useState<number | null>(null)
-  const [error,   setError]   = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [error,          setError]          = useState<string | null>(null)
+  const [success,        setSuccess]        = useState<string | null>(null)
+  const [prepSugerencias, setPrepSugerencias] = useState<string | null>(null)
 
   // Announce state: `horario_clase_id|fecha`
   const [localAnuncios, setLocalAnuncios] = useState<Set<string>>(
@@ -271,6 +273,10 @@ export function TutoriasBooking({
       setReservas(prev => [...prev, newReserva])
       setOccupied(prev => [...prev, { horario_id: selected.horario.id, fecha: sessionDate }])
       setSuccess(`Tutoría agendada: ${selected.horario.dia_semana} ${sessionDate} ${fmt(selected.horario.hora_inicio)}`)
+      setPrepSugerencias(null)
+      const nombreProfesor = selected.horario.profesores?.nombre ?? 'el profesor'
+      generarPrepTutoria({ nombreProfesor, carreraEstudiante: studentInfo.carrera })
+        .then(r => { if (!r.error) setPrepSugerencias(r.sugerencias) })
       setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al confirmar')
@@ -343,6 +349,14 @@ export function TutoriasBooking({
         <div className="px-3 py-2 rounded-lg bg-emerald-900/30 border border-emerald-800 text-emerald-300 text-sm flex justify-between">
           <span>✓ {success}</span>
           <button onClick={() => setSuccess(null)} className="text-emerald-600">✕</button>
+        </div>
+      )}
+
+      {prepSugerencias && (
+        <div className="px-4 py-3 rounded-xl bg-indigo-900/20 border border-indigo-700/40 space-y-2">
+          <p className="text-xs font-medium text-indigo-300">✦ Cómo preparar tu tutoría:</p>
+          <div className="text-sm text-indigo-200 whitespace-pre-line">{prepSugerencias}</div>
+          <button onClick={() => setPrepSugerencias(null)} className="text-[11px] text-indigo-500 hover:text-indigo-400">Cerrar</button>
         </div>
       )}
 
