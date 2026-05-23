@@ -6,6 +6,7 @@ import { CalificacionesTable } from './calificaciones-table'
 import { ParticipacionGrid, type ParticipacionRecord } from './participacion-grid'
 import { ResumenEstudiantes, type AsistenciaStats } from './resumen-estudiantes'
 import ItemsTab from './items-tab'
+import EnCursoTab from './en-curso-tab'
 import HistorialImports from './historial-imports'
 import WizardImportCalificaciones from './import-wizard/wizard-shell'
 
@@ -30,19 +31,23 @@ interface Props {
   imports: any[]
 }
 
-type Tab = 'resumen' | 'items' | 'participacion' | 'calificaciones'
+type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion' | 'calificaciones'
 
 export function CalificacionesTabs({
   cursoId, estudiantes, calificaciones, numParciales, nombresTareas, perfiles,
   participacion, asistenciaMap, calificacionesItems, imports,
 }: Props) {
+  const itemsMoodle = calificacionesItems.filter((i: any) => i.fuente === 'moodle' || i.fuente === 'manual')
+  const itemsEnCurso = calificacionesItems.filter((i: any) => i.fuente === 'en_curso')
+
   const [tab, setTab]                 = useState<Tab>('items')
   const [wizardAbierto, setWizardAbierto] = useState(false)
   const [importadoId, setImportadoId] = useState<string | null>(null)
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: 'resumen',        label: 'Resumen',           badge: estudiantes.length },
-    { id: 'items',          label: 'Calificaciones',    badge: calificacionesItems.length > 0 ? calificacionesItems.length : undefined },
+    { id: 'items',          label: 'Notas Moodle',      badge: itemsMoodle.length > 0 ? itemsMoodle.length : undefined },
+    { id: 'en_curso',       label: 'En Curso',          badge: itemsEnCurso.length > 0 ? itemsEnCurso.length : undefined },
     { id: 'participacion',  label: 'Participación',     badge: participacion.length > 0 ? participacion.length : undefined },
     { id: 'calificaciones', label: 'Tabla clásica',     badge: undefined },
   ]
@@ -109,7 +114,15 @@ export function CalificacionesTabs({
       {tab === 'items' && (
         <ItemsTab
           cursoId={cursoId}
-          items={calificacionesItems}
+          items={itemsMoodle}
+          estudiantes={estudiantes as any}
+          numParciales={numParciales}
+        />
+      )}
+      {tab === 'en_curso' && (
+        <EnCursoTab
+          cursoId={cursoId}
+          items={itemsEnCurso}
           estudiantes={estudiantes as any}
           numParciales={numParciales}
         />
