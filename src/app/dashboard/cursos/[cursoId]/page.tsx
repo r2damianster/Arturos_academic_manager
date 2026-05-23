@@ -27,7 +27,7 @@ export default async function CursoDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes, citacionesRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
       .select('id, nombre, email, tutoria, estado, auth_user_id')
@@ -35,6 +35,10 @@ export default async function CursoDetailPage({
       .order('nombre'),
     db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
     db.from('trabajos_asignados').select('estudiante_id, estado').eq('curso_id', cursoId),
+    db.from('citaciones_tutoria')
+      .select('estudiante_id')
+      .eq('curso_id', cursoId)
+      .in('estado', ['pendiente', 'agendada']),
   ])
 
   const curso = cursoRes.data as Curso | null
@@ -43,6 +47,10 @@ export default async function CursoDetailPage({
   const todosEstudiantes: EstudianteRaw[] = estudiantesRes.data ?? []
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
+  const citadosSet = new Set<string>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (citacionesRes.data ?? []).map((c: any) => c.estudiante_id as string)
+  )
 
   // Encuesta via auth_user_id — RLS permite al profesor leer encuestas de sus estudiantes
   const authIds = todosEstudiantes.map(e => e.auth_user_id).filter(Boolean) as string[]
@@ -98,7 +106,7 @@ export default async function CursoDetailPage({
   const retirados = estudiantesConMetricas.filter(e => e.estado === 'retirado')
 
   const enRiesgo = activos
-    .filter(e => e.pctAsistencia !== null && e.pctAsistencia < 75)
+    .filter(e => e.pctAsistencia !== null && e.pctAsistencia < 75 && !citadosSet.has(e.id))
     .map(e => ({
       id: e.id,
       nombre: e.nombre,
