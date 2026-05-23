@@ -111,7 +111,7 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 | `NEXT_PUBLIC_SUPABASE_URL` | Cliente browser y server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cliente autenticado normal |
 | `SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()` — bypasea RLS |
-| `GROQ_API_KEY` | Generador IA (`generar-contenido.ts`) — requerido en producción |
+| `GROQ_API_KEY` | Groq — requerido para `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria`, `corregirPlan`, `/api/student/chat`. Sin ella todos caen a fallback amigable. |
 | `GROQ_MODEL` | Modelo Groq (opcional, default `llama-3.3-70b-versatile`) |
 | `RESEND_API_KEY` | Envío de emails de citación a tutoría (`citaciones.ts`) |
 | `RESEND_FROM_EMAIL` | Dirección remitente para emails de citación |
@@ -167,6 +167,50 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
   - `reservas.modalidad`, `reservas.link_zoom`, `reservas.profesor_id`, `reservas.origen`, `reservas.curso_id` — columnas nuevas
   - `horarios_clases.obligatoria` — columna nueva
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
+
+## Features recientes (2026-05-23 — sesión 21)
+
+### Integración IA extendida — Groq en toda la app (solo Groq, sin Ollama en producción)
+
+#### Corrección ortográfica con IA en PlanificarModal
+- **FEAT** `corregirPlan({ texto })` en `src/lib/actions/generar-contenido.ts` — Groq con prompt estricto de solo corrección ortográfica y conectores lógicos. NUNCA reescribe ni cambia contenido.
+- **MOD** `src/components/agenda/PlanificarModal.tsx`:
+  - Botón `✦ Corregir` junto al label "Tema" → corrige campo `tema`
+  - Botón `✦ Corregir` junto al label "Observaciones" → corrige campo `observaciones`
+  - Botón `✦ Corregir` en header de sección Actividades → `handleCorregirActividades()` corre `Promise.all` sobre todos los campos `actividad` no vacíos en paralelo. **Nunca toca el campo `recurso`** (URLs no necesitan corrección).
+  - Estado `correcting: 'tema' | 'obs' | 'acts' | null` — deshabilita todos los botones mientras corre.
+
+#### Contexto histórico en generación de guías
+- **MOD** `generarHtmlSemanal` y `generarGuiaSemanal` — nuevo param opcional `cursoId?: string`. Cuando presente, llama `fetchHistorialClases(supabase, cursoId, excludeIds)` que consulta las últimas 2 bitácoras `estado='cumplido'` del curso (excluyendo semanas seleccionadas). Inyecta como "CONTEXTO DE CLASES ANTERIORES" en el prompt con instrucción de NO repetir temas ya cubiertos.
+- **MOD** `src/components/planificacion/GeneradorPanel.tsx` — ambas llamadas incluyen `cursoId: selectedCursoId ?? undefined`.
+
+#### Detección de riesgo + citación masiva en detalle de curso
+- **FEAT** `src/components/cursos/RiesgoPanel.tsx` — panel colapsable ámbar. Muestra estudiantes con asistencia < 75%. Botón "Citar a N estudiantes a tutoría" → secuencial `citarEstudiante()` por cada uno con razones generadas por template (no Groq). Progreso inline `citados/total`. Estados: idle → loading → done (verde) / error.
+- **MOD** `src/app/dashboard/cursos/[cursoId]/page.tsx` — computa `enRiesgo[]` y renderiza `<RiesgoPanel>` antes de `EstudiantesMetricsTable`.
+
+#### Perfil pedagógico del grupo con IA
+- **FEAT** `generarPerfilPedagogico({ contexto, asignatura })` en `generar-contenido.ts` — exactamente 3 párrafos (Perfil / Oportunidades / Recomendaciones), máx 250 palabras, basado SOLO en datos provistos.
+- **FEAT** `src/components/cursos/PerfilPedagogicoPanel.tsx` — botón "✦ Generar perfil" / "Regenerar". Muestra 3 párrafos en card morado. Botón copiar.
+- **MOD** `src/app/dashboard/cursos/[cursoId]/encuesta/page.tsx` — computa `perfilContexto` string desde métricas ya calculadas en RSC (sin queries extras). Inserta `<PerfilPedagogicoPanel>` antes de la tabla individual de estudiantes.
+
+#### Autodiagnóstico estudiantil pre-parcial
+- **FEAT** `generarAutodiagnostico({ asignatura, pctAsistencia, trabajosActivos, trabajosCompletados, tutoriasAsistidas, tutoriasFaltadas })` en `generar-contenido.ts` — 2-3 frases motivacionales en tono de tutor empático, basadas en datos reales del estudiante.
+- **FEAT** `src/components/student/AutodiagnosticoWidget.tsx` — botón "✦ Ver cómo voy en este curso". Resultado en card índigo con botón cerrar.
+- **MOD** `src/app/student/page.tsx` — `AutodiagnosticoWidget` al pie de cada tarjeta de curso.
+
+#### Prep para tutoría tras reserva exitosa
+- **FEAT** `generarPrepTutoria({ nombreProfesor, carreraEstudiante })` en `generar-contenido.ts` — 3 sugerencias numeradas de preparación para el estudiante antes de la sesión.
+- **MOD** `src/app/student/tutorias/tutorias-booking.tsx` — tras `handleConfirm()` exitoso, dispara `generarPrepTutoria()` de forma no bloqueante. Resultado en panel índigo bajo el mensaje de éxito con botón "Cerrar".
+
+#### ChatBot estudiantil con datos reales (Groq)
+- **FEAT** `src/app/api/student/chat/route.ts` — POST endpoint. Autentica usuario, fetch asistencia/trabajos/reservas de todos sus cursos, construye `contexto` string, llama Groq (max_tokens 400, temperatura 0.6). Si GROQ_API_KEY falta → respuesta amigable de fallback.
+- **MOD** `src/components/student/ChatBot.tsx`:
+  - FAQ local primero (instantáneo, sin costo de API) — si matchea, responde directo.
+  - Si no matchea FAQ → POST a `/api/student/chat` con historial de mensajes.
+  - Typing dots animados (`animate-bounce` staggered) mientras espera respuesta.
+  - Input deshabilitado durante carga. Fallback graceful si red falla.
+
+---
 
 ## Features recientes (2026-05-22 — sesiones 15-20)
 
@@ -511,13 +555,20 @@ Usuario externo (identificado por email) que cubre al profesor por período espe
 ### ~~Planificación — respetar fechas del curso~~ ✅ IMPLEMENTADO
 ### ~~Ensamblador de evidencias (portal estudiante)~~ ✅ IMPLEMENTADO
 ### ~~Email automático al citar a tutoría~~ ✅ IMPLEMENTADO (via `enviarEmailCitacion` en `citaciones.ts`)
+### ~~ChatBot estudiantil con datos reales~~ ✅ IMPLEMENTADO (`/api/student/chat` + `ChatBot.tsx` con Groq + FAQ local)
+### ~~Corrección ortográfica IA en planificación~~ ✅ IMPLEMENTADO (`corregirPlan` en `generar-contenido.ts` + botones en `PlanificarModal.tsx`)
+### ~~Contexto histórico en guías semanales~~ ✅ IMPLEMENTADO (`fetchHistorialClases` + param `cursoId` en `generarHtmlSemanal`/`generarGuiaSemanal`)
+### ~~Detección de riesgo + citación masiva~~ ✅ IMPLEMENTADO (`RiesgoPanel.tsx` + detalle de curso)
+### ~~Perfil pedagógico del grupo con IA~~ ✅ IMPLEMENTADO (`PerfilPedagogicoPanel.tsx` + encuesta RSC)
+### ~~Autodiagnóstico estudiantil~~ ✅ IMPLEMENTADO (`AutodiagnosticoWidget.tsx` + `/student/page.tsx`)
+### ~~Prep para tutoría tras reserva~~ ✅ IMPLEMENTADO (`generarPrepTutoria` + panel índigo en `tutorias-booking.tsx`)
 
 ## Bugs pendientes y deuda técnica
 
 - **`database.types.ts` desactualizado**: tablas `actividades_inbox`, `citaciones_tutoria`, `logros_aprendizaje` y columnas nuevas de `reservas` (`modalidad`, `link_zoom`, `profesor_id`, `origen`, `curso_id`) y `horarios_clases.obligatoria` no tienen tipos — se usa `as any`. Actualizar antes de que se acumule más deuda.
 - **Datos de participación pre-2026-05-14 pueden estar corruptos**: el `UNIQUE INDEX` que habilita el upsert no existía antes de esa fecha. Registros de ese período pueden ser incompletos. Auditar con: `SELECT curso_id, estudiante_id, fecha, COUNT(*) FROM participacion GROUP BY 1,2,3 HAVING COUNT(*) > 1`
 - **`mobile-nav.tsx` requiere verificación**: "Tutorías" fue re-agregado al sidebar el 2026-05-21 — confirmar que `mobile-nav.tsx` también lo incluye en la misma posición.
-- **Generador IA en producción**: requiere `GROQ_API_KEY` en Vercel. Sin ella el GeneradorPanel lanza error en producción. También `RESEND_API_KEY` y `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
+- **Groq en producción**: `GROQ_API_KEY` requerida en Vercel para: `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria` y `/api/student/chat`. Sin ella todos caen a fallback amigable. También `RESEND_API_KEY` y `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
 - **`horario_id` nullable en `reservas`**: la migración `20260514_historial_tutorias.sql` hace `horario_id` nullable. Verificar que queries en `tutorias-manager.tsx` y `tutorias-page-client.tsx` no asumen NOT NULL.
 
 ## Convenciones críticas
