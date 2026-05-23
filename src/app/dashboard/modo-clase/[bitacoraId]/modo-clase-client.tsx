@@ -1475,6 +1475,7 @@ export function ModoClaseClient({
                   const ecOpen = ecAbierto.has(s.id)
                   const pd = partData[s.id]
                   const nivelActual = pd?.nivel ?? null
+                  const ecPendCount = ecActividades.filter(a => (ecIndex.get(`${s.id}|${a}`)?.nota ?? null) === null).length
                   return (
                     <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
                       <div className="flex items-center gap-2 px-2 py-1.5">
@@ -1502,8 +1503,14 @@ export function ModoClaseClient({
                             ⓘ
                           </button>
                           {ecActividades.length > 0 && (
-                            <button onClick={() => toggleEc(s.id)} title="Ver En Curso"
-                              className={`w-7 h-7 rounded text-xs font-bold transition-colors ${ecOpen ? 'bg-violet-700 text-white' : 'bg-gray-800 text-gray-500 hover:bg-violet-900 hover:text-violet-400'}`}>
+                            <button onClick={() => toggleEc(s.id)} title={ecPendCount > 0 ? `${ecPendCount} nota(s) pendiente(s)` : 'Notas en curso'}
+                              className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
+                                ecOpen
+                                  ? 'bg-violet-700 text-white'
+                                  : ecPendCount > 0
+                                    ? 'bg-amber-700 text-white hover:bg-amber-600'
+                                    : 'bg-gray-800 text-gray-500 hover:bg-violet-900 hover:text-violet-400'
+                              }`}>
                               📊
                             </button>
                           )}
