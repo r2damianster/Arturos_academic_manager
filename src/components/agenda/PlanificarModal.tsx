@@ -180,7 +180,7 @@ export function PlanificarModal({
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
   const [existing,    setExisting]    = useState<BitacoraExistente | null>(null)
-  const [correcting,  setCorrecting]  = useState<'tema' | 'obs' | null>(null)
+  const [correcting,  setCorrecting]  = useState<'tema' | 'obs' | 'acts' | null>(null)
 
   const [tema,          setTema]          = useState('')
   const [actividades,   setActividades]   = useState<(ActividadPlanificada & { id: string })[]>([emptyActividad()])
@@ -383,6 +383,24 @@ export function PlanificarModal({
     }
   }
 
+  async function handleCorregirActividades() {
+    const conTexto = actividades.filter(a => a.actividad.trim())
+    if (!conTexto.length) return
+    setCorrecting('acts')
+    const resultados = await Promise.all(
+      conTexto.map(a => corregirPlan({ texto: a.actividad }))
+    )
+    setCorrecting(null)
+    setActividades(prev =>
+      prev.map(a => {
+        const idx = conTexto.findIndex(c => c.id === a.id)
+        if (idx === -1) return a
+        const r = resultados[idx]
+        return r.error || !r.corregido.trim() ? a : { ...a, actividad: r.corregido.trim() }
+      })
+    )
+  }
+
   // ── Copy / Move handler ─────────────────────────────────────────────────────
 
   async function handleCopiar() {
@@ -507,10 +525,19 @@ export function PlanificarModal({
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Actividades y recursos</label>
                   {!readOnly && (
-                    <button type="button" onClick={addActividad}
-                      className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
-                      <span className="text-base leading-none">+</span> Agregar fila
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {actividades.some(a => a.actividad.trim()) && (
+                        <button type="button" onClick={handleCorregirActividades}
+                          disabled={correcting !== null}
+                          className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
+                          {correcting === 'acts' ? '⟳ Corrigiendo…' : '✦ Corregir'}
+                        </button>
+                      )}
+                      <button type="button" onClick={addActividad}
+                        className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+                        <span className="text-base leading-none">+</span> Agregar fila
+                      </button>
+                    </div>
                   )}
                 </div>
 
