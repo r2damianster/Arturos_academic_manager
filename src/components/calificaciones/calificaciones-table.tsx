@@ -62,6 +62,7 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numP
     return init
   })
   const [saving, setSaving] = useState<string | null>(null)
+  const [savingAll, setSavingAll] = useState(false)
   const [, startTransition] = useTransition()
   const campos = getCampos(parcial)
 
@@ -78,15 +79,32 @@ export function CalificacionesTable({ cursoId, estudiantes, calificaciones, numP
     })
   }
 
+  function guardarTodos() {
+    setSavingAll(true)
+    startTransition(async () => {
+      await Promise.all(estudiantes.map(est => upsertCalificaciones(cursoId, est.id, datos[est.id] ?? {})))
+      setSavingAll(false)
+    })
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
         {parciales.map(p => (
           <button key={p} onClick={() => setParcial(p)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${parcial === p ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>
             Parcial {p}
           </button>
         ))}
+        </div>
+        <button
+          onClick={guardarTodos}
+          disabled={savingAll || saving !== null}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          {savingAll ? 'Guardando...' : 'Guardar todos'}
+        </button>
       </div>
 
       <div className="card overflow-x-auto p-0">

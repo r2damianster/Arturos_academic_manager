@@ -167,6 +167,16 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
+                          <button
+                            onClick={() => {
+                              if (!confirm(`¿Eliminar la nota de "${item.nombre_item}" para este estudiante?`)) return
+                              startTransition(async () => { await eliminarItem(item.id, cursoId) })
+                            }}
+                            title="Eliminar esta nota"
+                            className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-red-500 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                           {item.fuente === 'manual' && (
                             <span className="w-1.5 h-1.5 rounded-full bg-violet-400" title="Editado manualmente" />
                           )}
