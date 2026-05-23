@@ -1113,8 +1113,54 @@ export function ModoClaseClient({
           {/* Slide actual */}
           <div className="flex-1 overflow-y-auto px-6 py-2 space-y-4">
             {actividades.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-                <p className="mb-3">No hay actividades planificadas para esta clase.</p>
+              <div className="flex flex-col items-center justify-center py-8 text-gray-500 gap-4">
+                <p>No hay actividades planificadas para esta clase.</p>
+                <div className="flex gap-2 flex-wrap justify-center">
+                  <button
+                    onClick={() => setToolOpen(toolOpen === 'ruleta' ? null : 'ruleta')}
+                    className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                      toolOpen === 'ruleta'
+                        ? 'bg-indigo-900/50 border-indigo-600 text-indigo-300'
+                        : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    🎡 {toolOpen === 'ruleta' ? 'Cerrar ruleta' : 'Abrir ruleta'}
+                  </button>
+                  <button
+                    onClick={() => setToolOpen(toolOpen === 'agrupacion' ? null : 'agrupacion')}
+                    className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                      toolOpen === 'agrupacion'
+                        ? 'bg-emerald-900/50 border-emerald-600 text-emerald-300'
+                        : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    👥 {toolOpen === 'agrupacion' ? 'Cerrar grupos' : 'Crear grupos'}
+                  </button>
+                </div>
+                {toolOpen === 'ruleta' && (
+                  <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                    <Ruleta students={students} />
+                  </div>
+                )}
+                {toolOpen === 'agrupacion' && (
+                  <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                    <Agrupacion
+                      students={students}
+                      cursoId={cursoId}
+                      bitacoraId={bitacoraId}
+                      categorias={categorias}
+                      gruposUltimaSesion={gruposUltimaSesion}
+                      plantillas={plantillas}
+                      onSaved={refreshGrupos}
+                    />
+                    <button
+                      onClick={() => { setToolOpen(null); switchToGrupos() }}
+                      className="mt-3 w-full text-sm text-emerald-400 hover:text-emerald-300 border border-emerald-800 hover:border-emerald-600 rounded-lg py-1.5 transition-colors"
+                    >
+                      ✓ Listo — ir a tomar asistencia por grupos →
+                    </button>
+                  </div>
+                )}
               </div>
             ) : slide && editando !== slideIdx ? (
               <div className="card space-y-4">
