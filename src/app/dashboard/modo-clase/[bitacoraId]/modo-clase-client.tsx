@@ -1310,7 +1310,7 @@ export function ModoClaseClient({
         </div>
 
         {/* ── Columna derecha: Asistencia / Grupos ── */}
-        <div className={`w-full md:w-80 flex-shrink-0 flex-col overflow-hidden ${mobileTab !== 'actividades' ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`w-full md:w-96 flex-shrink-0 flex-col overflow-hidden ${mobileTab !== 'actividades' ? 'flex' : 'hidden md:flex'}`}>
           {/* Tabs de la columna derecha */}
           <div className="flex-shrink-0 flex border-b border-gray-800">
             <button
@@ -1327,7 +1327,7 @@ export function ModoClaseClient({
             </button>
             {itemsEnCurso.length > 0 && (
               <button
-                onClick={() => setTabDerecha('en_curso')}
+                onClick={() => setTabDerecha(tabDerecha === 'en_curso' ? 'asistencia' : 'en_curso')}
                 className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${tabDerecha === 'en_curso' ? 'text-violet-300 border-b-2 border-violet-500' : 'text-gray-500 hover:text-gray-300'}`}
               >
                 En Curso
