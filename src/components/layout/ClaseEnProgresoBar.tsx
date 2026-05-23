@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { detenerClase, finalizarClase } from '@/lib/actions/bitacora'
+import { detenerClase, confirmarCumplido } from '@/lib/actions/bitacora'
 
 type Props = {
   bitacoraId: string
@@ -46,7 +46,7 @@ export function ClaseEnProgresoBar({ bitacoraId, cursoNombre, cursoCodigo, tema,
   async function handleFinalizar() {
     setCargando(true)
     startTransition(() => {})
-    await finalizarClase(bitacoraId)
+    await confirmarCumplido(bitacoraId)
     router.push('/dashboard/agenda')
   }
 

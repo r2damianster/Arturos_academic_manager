@@ -34,18 +34,41 @@
 
 ---
 
+---
+
+### [2026-05-22] Fase 2 — Unificación de funciones duplicadas
+
+#### 5. `crearGruposConIntegrantes` eliminada → `crearGrupos` unificada (`src/lib/actions/grupos.ts`)
+- **Qué era:** dos funciones casi idénticas para crear grupos con y sin integrantes.
+- **Estado:** `crearGrupos` ahora acepta `estudianteIds?: string[]` por grupo. Si vacío → grupos vacíos (modo afinidad). `crearGruposConIntegrantes` eliminada.
+- **Callers actualizados:** `Agrupacion.tsx` (2 calls en tabs Aleatoria y Manual).
+- **Riesgo si falla:** error `crearGruposConIntegrantes is not exported` — significa que quedó un caller no actualizado. Los grupos no se crean con integrantes si `estudianteIds` está undefined (comportamiento regresivo).
+
+#### 6. `asignarEstudianteAGrupo` eliminada (`src/lib/actions/grupos.ts`)
+- **Qué era:** 0 callers externos — función sin usar.
+- **Estado:** eliminada. Usar `moverEstudiante(estudianteId, grupoIdDestino, bitacoraId)` si se necesita mover un estudiante entre grupos.
+- **Riesgo si falla:** error `asignarEstudianteAGrupo is not exported`.
+
+#### 7. `finalizarClase` eliminada → `confirmarCumplido` canónica (`src/lib/actions/bitacora.ts`)
+- **Qué era:** dos funciones que seteaban estado=`cumplido`. `finalizarClase` solo aceptaba `observaciones?: string`. `confirmarCumplido` acepta `Partial<PlanificacionData>` (tema, actividades_json, observaciones).
+- **Estado:** `finalizarClase` eliminada. `confirmarCumplido` ahora también revalida `/dashboard/modo-clase`.
+- **Callers actualizados:** `modo-clase-client.tsx` (line 769), `ClaseEnProgresoBar.tsx` (line 49).
+- **Riesgo si falla:** `finalizarClase is not exported` — caller no actualizado. Botón "Finalizar clase" no funciona.
+- **Diferencia de API:** `finalizarClase(bitacoraId, observaciones?)` → `confirmarCumplido(bitacoraId, { observaciones }?)` — si alguien pasa observaciones, ajustar la llamada.
+
+---
+
 ## Cambios pendientes (próximas fases)
 
 Ver `docs/AUDITORIA_DUPLICADOS.md §4` para lista completa. Los más cercanos:
 
 | # | Acción | Archivos afectados |
 |---|---|---|
-| 5 | Unificar `crearGrupos` + `crearGruposConIntegrantes` | `grupos.ts` |
-| 6 | Unificar `asignarEstudianteAGrupo` + `moverEstudiante` | `grupos.ts` |
-| 7 | Unificar `finalizarClase` + `confirmarCumplido` | `bitacora.ts` |
 | 8 | Hacer privadas `copiarPlanificacion`, `moverPlanificacion`, `fusionarPlanificacion` | `bitacora.ts` |
 | 9 | Extraer `<AsistenciaGrid>` compartido | `pase-lista-client.tsx`, `PasarListaModal.tsx`, `modo-clase-client.tsx` |
 | 10 | Unificar 3 slot-machines en `Ruleta.tsx` | `modo-clase-client.tsx` |
+| 11 | Extraer `<CollapsiblePanel storageKey>` | `SummaryPanel`, `TodayPanel`, `AgendaSection`, `TutoriasPendientesPanel` |
+| 12 | Extraer `src/lib/email.ts` | `citaciones.ts`, `tutorias.ts` |
 
 ---
 
@@ -62,3 +85,8 @@ Si ves un error inesperado, verificar si está en esta tabla:
 | Nav desktop e móvil muestran ítems diferentes | Imposible ahora — ambos usan el mismo `NAV_ITEMS` | Si pasa, el import falló en uno y usa fallback |
 | `/calificaciones/config` redirige a lugar incorrecto | Redirect hardcoded a `/editar?tab=evaluacion` | Verificar que tab evaluacion existe en editar-client.tsx |
 | Redirect loop en `/calificaciones/config` | Tab evaluacion no reconocida en editar | Verificar `editar-client.tsx` acepta `tab=evaluacion` |
+| `crearGruposConIntegrantes is not exported` | Fase 2: función eliminada | Usar `crearGrupos(..., [{..., estudianteIds:[]}], ...)` |
+| Grupos creados sin integrantes cuando deberían tenerlos | `estudianteIds` no se pasa en la call | Verificar que el array `estudianteIds` no está undefined en el caller |
+| `asignarEstudianteAGrupo is not exported` | Fase 2: función eliminada (0 callers) | Usar `moverEstudiante(estudianteId, grupoId, bitacoraId)` |
+| `finalizarClase is not exported` | Fase 2: función eliminada | Usar `confirmarCumplido(bitacoraId)` |
+| Botón "Finalizar clase" no funciona / no marca cumplido | Caller aún usa `finalizarClase` | Buscar `finalizarClase` en src/ y migrar a `confirmarCumplido` |

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { iniciarClase, actualizarActividadesEnVivo, finalizarClase, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
+import { iniciarClase, actualizarActividadesEnVivo, confirmarCumplido, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
 import { guardarParticipacion, getGruposDeSesion } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
@@ -766,7 +766,7 @@ export function ModoClaseClient({
       }
     })
     await registrarAsistenciaMasiva(cursoId, fecha, registrosFlush, bitacoraId)
-    await finalizarClase(bitacoraId)
+    await confirmarCumplido(bitacoraId)
     setFinalizando(false)
     setConfirmando(false)
     setClaseGuardada(true)

@@ -189,6 +189,7 @@ export async function confirmarCumplido(
 
   if (error) return { error: error.message }
   revalidateBitacoraViews()
+  revalidatePath('/dashboard/modo-clase')
   return {}
 }
 
@@ -784,29 +785,6 @@ export async function actualizarActividadesEnVivo(
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
-  return {}
-}
-
-export async function finalizarClase(
-  bitacoraId: string,
-  observaciones?: string
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
-
-  const update: Record<string, unknown> = { estado: 'cumplido' }
-  if (observaciones !== undefined) update.observaciones = observaciones
-
-  const { error } = await supabase
-    .from('bitacora_clase')
-    .update(update)
-    .eq('id', bitacoraId)
-    .eq('profesor_id', user.id)
-
-  if (error) return { error: error.message }
-  revalidateBitacoraViews()
-  revalidatePath('/dashboard/modo-clase')
   return {}
 }
 

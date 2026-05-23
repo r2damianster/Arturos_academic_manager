@@ -7,13 +7,14 @@ import { z } from 'zod'
 const GrupoInputSchema = z.object({
   nombre: z.string().min(1),
   orden: z.number().int().default(0),
+  estudianteIds: z.array(z.string()).optional(),
 })
 
 // ── Profesor: crear grupos para una sesión ────────────────────
 
 export async function crearGrupos(
   bitacoraId: string | null,
-  grupos: { nombre: string; orden: number }[],
+  grupos: { nombre: string; orden: number; estudianteIds?: string[] }[],
   tipo: 'aleatoria' | 'manual' | 'afinidad',
   categoria: string | null,
   cursoId: string,
@@ -34,47 +35,8 @@ export async function crearGrupos(
       .eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null).eq('es_plantilla', false)
   }
 
-  const rows = parsed.data.map(g => ({
-    bitacora_id: bitacoraId,
-    curso_id: cursoId,
-    profesor_id: user.id,
-    nombre: g.nombre,
-    categoria,
-    tipo,
-    orden: g.orden,
-    abierto: tipo === 'afinidad',
-  }))
-
-  const { error } = await db.from('grupos_clase').insert(rows)
-  if (error) return { error: error.message }
-
-  revalidatePath('/dashboard/modo-clase')
-  return {}
-}
-
-// ── Crear grupos + asignar integrantes en un paso ────────────
-
-export async function crearGruposConIntegrantes(
-  bitacoraId: string | null,
-  grupos: { nombre: string; orden: number; estudianteIds: string[] }[],
-  tipo: 'aleatoria' | 'manual' | 'afinidad',
-  categoria: string | null,
-  cursoId: string,
-): Promise<{ error?: string }> {
-  const db = await createClient()
-  const { data: { user } } = await db.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  // Limpiar grupos previos (nunca borrar plantillas)
-  if (bitacoraId) {
-    await db.from('grupos_clase').delete().eq('bitacora_id', bitacoraId).eq('profesor_id', user.id).eq('es_plantilla', false)
-  } else {
-    await db.from('grupos_clase').delete().eq('curso_id', cursoId).eq('profesor_id', user.id).is('bitacora_id', null).eq('es_plantilla', false)
-  }
-
-  // Insertar grupos y obtener IDs
   const { data: creados, error: errGrupos } = await db.from('grupos_clase').insert(
-    grupos.map(g => ({
+    parsed.data.map(g => ({
       bitacora_id: bitacoraId,
       curso_id: cursoId,
       profesor_id: user.id,
@@ -88,9 +50,9 @@ export async function crearGruposConIntegrantes(
 
   if (errGrupos || !creados) return { error: errGrupos?.message ?? 'Error creando grupos' }
 
-  // Insertar integrantes
+  // Insertar integrantes si se proporcionaron
   const integrantes = creados.flatMap(g => {
-    const src = grupos.find(src => src.nombre === g.nombre && src.orden === g.orden)
+    const src = parsed.data.find(s => s.nombre === g.nombre && s.orden === g.orden)
     return (src?.estudianteIds ?? []).map(estudianteId => ({
       grupo_id: g.id,
       estudiante_id: estudianteId,
@@ -104,53 +66,6 @@ export async function crearGruposConIntegrantes(
   }
 
   revalidatePath('/dashboard/modo-clase')
-  return {}
-}
-
-// ── Profesor: asignar estudiante a un grupo ───────────────────
-
-export async function asignarEstudianteAGrupo(
-  grupoId: string,
-  estudianteId: string,
-): Promise<{ error?: string }> {
-  const db = await createClient()
-  const { data: { user } } = await db.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  // Verificar que el grupo pertenece al profesor
-  const { data: grupo } = await db
-    .from('grupos_clase')
-    .select('id, bitacora_id')
-    .eq('id', grupoId)
-    .eq('profesor_id', user.id)
-    .single()
-  if (!grupo) return { error: 'Grupo no encontrado' }
-
-  // Quitar al estudiante de cualquier otro grupo de esta sesión primero
-  if (grupo.bitacora_id) {
-    const { data: gruposSesion } = await db
-      .from('grupos_clase')
-      .select('id')
-      .eq('bitacora_id', grupo.bitacora_id)
-      .eq('profesor_id', user.id)
-
-    if (gruposSesion && gruposSesion.length > 0) {
-      const ids = gruposSesion.map(g => g.id)
-      await db
-        .from('grupo_integrantes')
-        .delete()
-        .in('grupo_id', ids)
-        .eq('estudiante_id', estudianteId)
-    }
-  }
-
-  const { error } = await db.from('grupo_integrantes').insert({
-    grupo_id: grupoId,
-    estudiante_id: estudianteId,
-    asignado_por: 'profesor',
-  })
-  if (error) return { error: error.message }
-
   return {}
 }
 

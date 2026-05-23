@@ -6,7 +6,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { formatNombreCorto } from '@/lib/format'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  crearGrupos, crearGruposConIntegrantes,
+  crearGrupos,
   copiarGruposASesion, guardarComoPlantilla,
 } from '@/lib/actions/grupos'
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
@@ -501,7 +501,7 @@ function TabAleatoria({
   function guardar() {
     if (!grupos) return
     startTransition(async () => {
-      const result = await crearGruposConIntegrantes(
+      const result = await crearGrupos(
         bitacoraId ?? null,
         grupos.map((g, i) => ({ nombre: g.nombre, orden: i, estudianteIds: g.members.map(m => m.id) })),
         'aleatoria',
@@ -611,7 +611,7 @@ function TabManual({
 
   function guardar() {
     startTransition(async () => {
-      const result = await crearGruposConIntegrantes(
+      const result = await crearGrupos(
         bitacoraId ?? null,
         nombresGrupos.map((nombre, i) => ({
           nombre,
