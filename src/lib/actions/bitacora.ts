@@ -188,8 +188,18 @@ export async function confirmarCumplido(
     .eq('profesor_id', user.id)
 
   if (error) return { error: error.message }
+
+  // Cerrar grupos de afinidad al finalizar la clase para que desaparezcan del portal estudiante
+  await supabase
+    .from('grupos_clase')
+    .update({ abierto: false })
+    .eq('bitacora_id', bitacoraId)
+    .eq('tipo', 'afinidad')
+    .eq('profesor_id', user.id)
+
   revalidateBitacoraViews()
   revalidatePath('/dashboard/modo-clase')
+  revalidatePath('/student')
   return {}
 }
 

@@ -245,6 +245,42 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 
 ---
 
+## Features recientes (2026-05-24 — sesión 23)
+
+### Encuesta de Progreso de Parcial — portal estudiante y dashboard profesor
+
+#### Activación y bloqueo
+- **REGLA DE NEGOCIO**: La encuesta se activa cuando el curso alcanza el 50% de su duración y . Bloquea el portal del estudiante hasta que sea completada — no puede acceder a ninguna ruta de  mientras tenga encuestas pendientes.
+- **MOD**  — tras el check de onboarding, llama RPC  y redirige a  si retorna resultados.
+
+#### DB
+- **FEAT**  — columnas  y  en .
+- **FEAT**  — tabla  con ~60 columnas: actualizaciones de perfil (trabajo, tech, vivienda, carrera, horas estudio), 9 dimensiones de uso IA (Likert 1-5), autopercepción + checkboxes de dificultad, relevancia profesional, 14 ítems de retroalimentación docente (Likert 1-5) + texto libre. . RLS para profesor y estudiante. RPC .
+
+#### Server Actions
+- **FEAT**  (nuevo) — , , , , , .
+- **MOD**  —  incluye  y ;  maneja conversión booleana y update.
+- **MOD**  —  incluye campo ;  consulta tabla .
+
+#### Portal estudiante
+- **FEAT**  (nuevo) — RSC que valida acceso, verifica , carga respuesta existente.
+- **FEAT**  (nuevo) — wizard de 5 pasos con guardado de borrador en localStorage. Pasos: 1) trabajo/tech/vivienda/carrera/horas estudio, 2) 9 ítems IA Likert + gusto escritura, 3) autopercepción + checkboxes de dificultad, 4) relevancia profesional, 5) 14 ítems retroalimentación docente Likert + texto libre.
+- **MOD**  — badge de estado por curso: verde si completada, ámbar con link si pendiente (rango 50-100% del curso).
+
+#### Dashboard profesor
+- **MOD**  — checkboxes para habilitar/deshabilitar ambos tipos de encuesta en el tab Información.
+- **MOD**  — banner de notificación ámbar cuando 50% ≤ pct < 75% y encuesta habilitada — muestra "N de M estudiantes han respondido" con link a resultados.
+- **FEAT**  (nuevo) — RSC de resultados completos: 4 tarjetas KPI, tablas de promedios por dimensión, comparativa IA con indicadores de cambio, barras de distribución de dificultad.
+- **FEAT**  (nuevo) — tabla colapsable de respuestas individuales.
+
+#### FichaEstudianteDrawer
+- **MOD**  — subsección "Encuesta de progreso" en tab resumen: semana/%, situación laboral, horas estudio, scores de autopercepción con color, chips de dificultad, log cambios_perfil.
+
+#### Impacto pedagógico (EFL / pipeline de datos)
+- La encuesta de progreso cierra el ciclo de datos cuantitativos del parcial: asistencia + participación + calificaciones en curso + autopercepción del estudiante quedan registrados simultáneamente. Los scores de autopercepción lingüística (ítem 1-5 por dimensión) son comparables entre parciales y con la encuesta inicial — permiten calcular delta de autopercepción, correlacionable con STT y fluencia en el marco KEYHOLE.
+
+---
+
 ## Features recientes (2026-05-22 — sesiones 15-20)
 
 ### Inbox de Notas / Actividades (`/dashboard/actividades`)
