@@ -552,8 +552,15 @@ export function ModoClaseClient({
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
 
-  // Vista "En Curso" en lista de asistencia
-  const [verEnCurso, setVerEnCurso] = useState(false)
+  // En Curso expandible por estudiante (inline, como participación)
+  const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())
+  const ecTotal = [...new Set((itemsEnCurso ?? []).map(i => i.nombre_item))].length
+  function toggleEc(id: string) {
+    setEcAbierto(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+  function toggleTodosEc() {
+    setEcAbierto(prev => prev.size === students.length ? new Set() : new Set(students.map(s => s.id)))
+  }
 
   // Ficha del estudiante (drawer)
   const [fichaId, setFichaId] = useState<string | null>(null)
@@ -1367,16 +1374,16 @@ export function ModoClaseClient({
                 >
                   ★ {students.every(s => partAbierto.has(s.id)) ? 'Cerrar participación' : 'Abrir participación'}
                 </button>
-                {(itemsEnCurso ?? []).length > 0 && (
+                {ecTotal > 0 && (
                   <button
-                    onClick={() => setVerEnCurso(v => !v)}
+                    onClick={() => toggleTodosEc()}
                     className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-xs transition-colors ${
-                      verEnCurso
-                        ? 'border-violet-600 text-violet-400 bg-violet-900/20 hover:bg-violet-900/10'
+                      ecAbierto.size === students.length
+                        ? 'border-violet-600 text-violet-400 bg-violet-900/20'
                         : 'border-gray-700 text-gray-500 hover:border-violet-600/60 hover:text-violet-400 hover:bg-violet-900/10'
                     }`}
                   >
-                    📊 {verEnCurso ? 'Cerrar En Curso' : 'Ver En Curso'}
+                    📊 {ecAbierto.size === students.length ? 'Cerrar En Curso' : 'Abrir En Curso'}
                   </button>
                 )}
               </div>
@@ -1385,14 +1392,11 @@ export function ModoClaseClient({
 
           {/* ── VISTA LISTA (compacta) ── */}
           {asistenciaVista === 'todos' && (() => {
-            // Resumen En Curso por estudiante (computed once per render)
+            // En Curso: índice y actividades para tabla inline
             const ecItems = itemsEnCurso ?? []
-            const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))]
-            const ecResumen: Record<string, number> = {}
-            for (const s of students) {
-              ecResumen[s.id] = ecItems.filter(i => i.estudiante_id === s.id && i.nota !== null).length
-            }
-            const ecTotal = ecActividades.length
+            const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))].sort()
+            const ecIndex = new Map<string, number | null>()
+            for (const item of ecItems) ecIndex.set(`${item.estudiante_id}|${item.nombre_item}`, item.nota)
             return (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
               {students.length === 0 ? (
@@ -1401,9 +1405,9 @@ export function ModoClaseClient({
                 students.map(s => {
                   const estado = asistencia[s.id]
                   const abierto = partAbierto.has(s.id)
+                  const ecOpen = ecAbierto.has(s.id)
                   const pd = partData[s.id]
                   const nivelActual = pd?.nivel ?? null
-                  const ecConNota = ecResumen[s.id] ?? 0
                   return (
                     <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
                       <div className="flex items-center gap-2 px-2 py-1.5">
@@ -1412,15 +1416,6 @@ export function ModoClaseClient({
                           {s.tutoria && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
                               📘
-                            </span>
-                          )}
-                          {verEnCurso && ecTotal > 0 && (
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              ecConNota === ecTotal ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
-                              : ecConNota / ecTotal >= 0.5 ? 'bg-yellow-900/40 text-yellow-300 border-yellow-700'
-                              : 'bg-gray-800 text-gray-400 border-gray-700'
-                            }`}>
-                              {ecConNota}/{ecTotal}
                             </span>
                           )}
                         </span>
@@ -1439,6 +1434,12 @@ export function ModoClaseClient({
                             className="w-7 h-7 rounded text-xs font-bold transition-colors bg-gray-800 text-gray-500 hover:bg-gray-700 hover:text-brand-400">
                             ⓘ
                           </button>
+                          {ecActividades.length > 0 && (
+                            <button onClick={() => toggleEc(s.id)} title="Ver En Curso"
+                              className={`w-7 h-7 rounded text-xs font-bold transition-colors ${ecOpen ? 'bg-violet-700 text-white' : 'bg-gray-800 text-gray-500 hover:bg-violet-900 hover:text-violet-400'}`}>
+                              📊
+                            </button>
+                          )}
                         </div>
                       </div>
                       {abierto && (
@@ -1459,6 +1460,35 @@ export function ModoClaseClient({
                             placeholder="Observación…"
                             className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand-600"
                           />
+                        </div>
+                      )}
+                      {/* ── En Curso expandible ── */}
+                      {ecOpen && ecActividades.length > 0 && (
+                        <div className="px-2 pb-2">
+                          <table className="w-full text-[10px] border-collapse">
+                            <thead>
+                              <tr>
+                                {ecActividades.map(a => (
+                                  <th key={a} className="px-1 py-0.5 text-center text-gray-500 font-medium border border-gray-800 max-w-[60px]">
+                                    <span className="truncate block max-w-[56px]" title={a}>{a}</span>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                {ecActividades.map(a => {
+                                  const nota = ecIndex.get(`${s.id}|${a}`) ?? null
+                                  const color = nota === null ? 'text-gray-600' : nota >= 7 ? 'text-emerald-400' : nota >= 5 ? 'text-yellow-400' : 'text-red-400'
+                                  return (
+                                    <td key={a} className={`px-1 py-0.5 text-center font-mono border border-gray-800 ${color}`}>
+                                      {nota === null ? '—' : nota.toFixed(1)}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </div>
