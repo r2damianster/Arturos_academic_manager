@@ -1197,7 +1197,6 @@ export type Database = {
           }
         ]
       }
-    }
       encuesta_parcial: {
         Row: {
           id: string

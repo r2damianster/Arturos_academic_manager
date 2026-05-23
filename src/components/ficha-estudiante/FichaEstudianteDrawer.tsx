@@ -368,6 +368,94 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
             Hay una nota privada del profesor (activa info sensible para verla)
           </p>
         )}
+
+        {/* Encuesta de progreso */}
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(() => { const ep = (data as any).encuestaParcial as Record<string, any> | null | undefined; return (
+          <div className="mt-4 pt-4 border-t border-gray-800">
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">
+              Encuesta de progreso
+              {ep && ep.semana_iso && (
+                <span className="normal-case ml-1 text-gray-600">
+                  · Semana {ep.semana_iso}
+                  {ep.porcentaje_curso != null && ` (${Math.round(ep.porcentaje_curso)}%)`}
+                </span>
+              )}
+            </p>
+
+            {ep ? (
+              <div className="space-y-3">
+                {/* Situación actual */}
+                <div className="space-y-1">
+                  {ep.trabaja_actual && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Situación laboral:</span>
+                      <span className="text-xs text-gray-200 capitalize">
+                        {String(ep.trabaja_actual).replace(/_/g, ' ')}
+                      </span>
+                      {ep.cambios_perfil?.trabajo && (
+                        <span className="text-xs bg-amber-900/40 text-amber-400 px-1.5 py-0.5 rounded">cambio</span>
+                      )}
+                    </div>
+                  )}
+                  {ep.horas_dedicacion_estudio && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Horas de estudio/sem:</span>
+                      <span className="text-xs text-gray-200">
+                        {String(ep.horas_dedicacion_estudio).replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Autopercepción */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {[
+                    { label: 'Aprendizaje', val: ep.autopercepcion_aprendizaje as number | null },
+                    { label: 'Esfuerzo', val: ep.esfuerzo_dedicado as number | null },
+                    { label: 'Comprensión', val: ep.comprension_temas_propia as number | null },
+                  ].filter(item => item.val !== null && item.val !== undefined).map(({ label, val }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{label}:</span>
+                      <span className={`text-xs font-medium ${(val ?? 0) <= 2 ? 'text-red-400' : (val ?? 0) <= 3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {val}/5
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Dificultades */}
+                {Array.isArray(ep.dificultades) && ep.dificultades.length > 0 && !ep.dificultades.includes('ninguna') && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Dificultades reportadas:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(ep.dificultades as string[]).map((d: string) => (
+                        <span key={d} className="text-xs bg-red-900/30 text-red-400 px-1.5 py-0.5 rounded">
+                          {d.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cambios de perfil */}
+                {ep.cambios_perfil && Object.keys(ep.cambios_perfil as object).length > 0 && (
+                  <div className="pt-2 border-t border-gray-800/50">
+                    <p className="text-xs text-amber-400/70 mb-1">Cambios reportados:</p>
+                    {Object.entries(ep.cambios_perfil as Record<string, { anterior: unknown; nuevo: unknown }>).map(([campo, cambio]) => (
+                      <p key={campo} className="text-xs text-gray-500">
+                        <span className="text-gray-400">{campo}:</span>{' '}
+                        {JSON.stringify(cambio.anterior)} → {JSON.stringify(cambio.nuevo)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600">Sin encuesta de progreso</p>
+            )}
+          </div>
+        )})()}
       </div>
     )
   }
