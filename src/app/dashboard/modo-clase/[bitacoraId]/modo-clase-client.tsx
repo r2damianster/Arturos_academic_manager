@@ -16,6 +16,7 @@ import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/fich
 import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actions'
 import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 import EnCursoVistaClase from '@/components/modo-clase/EnCursoVistaClase'
+import { upsertItemEnCurso } from '@/lib/actions/calificaciones-items'
 
 type Student = { id: string; nombre: string; email: string; tutoria: boolean }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
@@ -554,6 +555,8 @@ export function ModoClaseClient({
 
   // En Curso expandible por estudiante (inline, como participación)
   const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())
+  const [ecEditando, setEcEditando] = useState<{ estudianteId: string; nombreItem: string; parcial: number; nota: string } | null>(null)
+  const [ecPending, startEcTransition] = useTransition()
   const ecTotal = [...new Set((itemsEnCurso ?? []).map(i => i.nombre_item))].length
   function toggleEc(id: string) {
     setEcAbierto(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
@@ -1392,11 +1395,22 @@ export function ModoClaseClient({
 
           {/* ── VISTA LISTA (compacta) ── */}
           {asistenciaVista === 'todos' && (() => {
-            // En Curso: índice y actividades para tabla inline
+            // En Curso: índice {nota, parcial} por estudiante|actividad
             const ecItems = itemsEnCurso ?? []
             const ecActividades = [...new Set(ecItems.map(i => i.nombre_item))].sort()
-            const ecIndex = new Map<string, number | null>()
-            for (const item of ecItems) ecIndex.set(`${item.estudiante_id}|${item.nombre_item}`, item.nota)
+            const ecIndex = new Map<string, { nota: number | null; parcial: number }>()
+            for (const item of ecItems) {
+              const key = `${item.estudiante_id}|${item.nombre_item}`
+              if (!ecIndex.has(key)) ecIndex.set(key, { nota: item.nota, parcial: item.parcial })
+            }
+            function guardarEcNota(estudianteId: string, nombreItem: string, parcial: number, notaStr: string) {
+              const nota = notaStr === '' ? null : parseFloat(notaStr)
+              if (nota !== null && (isNaN(nota) || nota < 0 || nota > 10)) return
+              startEcTransition(async () => {
+                await upsertItemEnCurso({ cursoId, estudianteId, parcial, nombreItem, nota })
+                setEcEditando(null)
+              })
+            }
             return (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
               {students.length === 0 ? (
@@ -1463,34 +1477,66 @@ export function ModoClaseClient({
                         </div>
                       )}
                       {/* ── En Curso expandible ── */}
-                      {ecOpen && ecActividades.length > 0 && (
-                        <div className="px-2 pb-2">
-                          <table className="w-full text-[10px] border-collapse">
-                            <thead>
-                              <tr>
-                                {ecActividades.map(a => (
-                                  <th key={a} className="px-1 py-0.5 text-center text-gray-500 font-medium border border-gray-800 max-w-[60px]">
-                                    <span className="truncate block max-w-[56px]" title={a}>{a}</span>
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                {ecActividades.map(a => {
-                                  const nota = ecIndex.get(`${s.id}|${a}`) ?? null
-                                  const color = nota === null ? 'text-gray-600' : nota >= 7 ? 'text-emerald-400' : nota >= 5 ? 'text-yellow-400' : 'text-red-400'
-                                  return (
-                                    <td key={a} className={`px-1 py-0.5 text-center font-mono border border-gray-800 ${color}`}>
-                                      {nota === null ? '—' : nota.toFixed(1)}
-                                    </td>
-                                  )
-                                })}
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                      {ecOpen && ecActividades.length > 0 && (() => {
+                        const pendientes = ecActividades.filter(a => (ecIndex.get(`${s.id}|${a}`)?.nota ?? null) === null)
+                        if (pendientes.length === 0) return (
+                          <div className="px-2 pb-2 text-[10px] text-emerald-400">✓ Todas las actividades calificadas</div>
+                        )
+                        return (
+                          <div className="px-2 pb-2">
+                            <table className="w-full text-[10px] border-collapse">
+                              <thead>
+                                <tr>
+                                  {pendientes.map(a => (
+                                    <th key={a} className="px-1 py-0.5 text-center text-gray-500 font-medium border border-gray-800 max-w-[60px]">
+                                      <span className="truncate block max-w-[56px]" title={a}>{a}</span>
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  {pendientes.map(a => {
+                                    const entry = ecIndex.get(`${s.id}|${a}`)
+                                    const parcial = entry?.parcial ?? 1
+                                    const esteEditando = ecEditando?.estudianteId === s.id && ecEditando?.nombreItem === a
+                                    return (
+                                      <td key={a} className="px-1 py-0.5 text-center border border-gray-800">
+                                        {esteEditando ? (
+                                          <div className="flex items-center gap-0.5 justify-center">
+                                            <input
+                                              type="number" min={0} max={10} step={0.1}
+                                              value={ecEditando!.nota}
+                                              onChange={e => setEcEditando(prev => prev ? { ...prev, nota: e.target.value } : null)}
+                                              onKeyDown={e => {
+                                                if (e.key === 'Enter') guardarEcNota(s.id, a, parcial, ecEditando!.nota)
+                                                if (e.key === 'Escape') setEcEditando(null)
+                                              }}
+                                              className="w-10 text-center text-[10px] rounded border border-gray-600 bg-gray-800 text-gray-100 px-0.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                              autoFocus
+                                            />
+                                            <button onClick={() => guardarEcNota(s.id, a, parcial, ecEditando!.nota)} disabled={ecPending}
+                                              className="text-green-400 hover:text-green-300 text-[10px]">✓</button>
+                                            <button onClick={() => setEcEditando(null)} className="text-gray-600 hover:text-gray-400 text-[10px]">✕</button>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => setEcEditando({ estudianteId: s.id, nombreItem: a, parcial, nota: '' })}
+                                            className="text-gray-600 hover:text-violet-400 font-mono w-full text-center"
+                                            title="Clic para calificar"
+                                          >
+                                            —
+                                          </button>
+                                        )}
+                                      </td>
+                                    )
+                                  })}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })
