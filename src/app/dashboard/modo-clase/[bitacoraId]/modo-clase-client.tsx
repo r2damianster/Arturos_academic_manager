@@ -2012,7 +2012,7 @@ export function ModoClaseClient({
 
           {/* Panel En Curso */}
           {tabDerecha === 'en_curso' && (
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               <EnCursoVistaClase
                 cursoId={cursoId}
                 items={itemsEnCurso}

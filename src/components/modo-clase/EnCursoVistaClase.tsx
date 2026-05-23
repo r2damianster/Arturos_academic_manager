@@ -53,7 +53,7 @@ export default function EnCursoVistaClase({ cursoId, items, estudiantes, numParc
 
   if (actividades.length === 0) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col flex-1 min-h-0">
         <ParcialSelector parcial={parcial} numParciales={numParciales} onChange={setParcial} />
         <div className="flex-1 flex items-center justify-center">
           <p className="text-gray-600 text-xs text-center px-4">
@@ -87,7 +87,7 @@ export default function EnCursoVistaClase({ cursoId, items, estudiantes, numParc
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="flex-shrink-0 px-3 pt-2 pb-2 border-b border-gray-800 space-y-2">
         <ParcialSelector parcial={parcial} numParciales={numParciales} onChange={setParcial} />
         <div className="flex items-center gap-1.5">
