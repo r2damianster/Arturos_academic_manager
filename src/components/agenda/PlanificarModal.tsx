@@ -180,7 +180,7 @@ export function PlanificarModal({
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
   const [existing,    setExisting]    = useState<BitacoraExistente | null>(null)
-  const [correcting,  setCorrecting]  = useState<'tema' | 'obs' | 'acts' | null>(null)
+  const [correcting,  setCorrecting]  = useState<'all' | null>(null)
 
   const [tema,          setTema]          = useState('')
   const [actividades,   setActividades]   = useState<(ActividadPlanificada & { id: string })[]>([emptyActividad()])
@@ -375,43 +375,36 @@ export function PlanificarModal({
     return /^https?:\/\//i.test(s.trim()) || /^www\./i.test(s.trim())
   }
 
-  async function handleCorregir(campo: 'tema' | 'obs') {
-    const texto = campo === 'tema' ? tema : observaciones
-    if (!texto.trim()) return
-    setCorrecting(campo)
-    const result = await corregirPlan({ texto })
-    setCorrecting(null)
-    if (!result.error && result.corregido.trim()) {
-      if (campo === 'tema') setTema(result.corregido.trim())
-      else setObservaciones(result.corregido.trim())
-    }
-  }
-
-  async function handleCorregirActividades() {
+  async function handleCorregirTodo() {
+    setCorrecting('all')
     const candidatas = actividades.filter(
       a => a.actividad.trim() || (a.recurso.trim() && !esUrl(a.recurso))
     )
-    if (!candidatas.length) return
-    setCorrecting('acts')
-    const resultados = await Promise.all(
-      candidatas.map(a => Promise.all([
-        a.actividad.trim()                        ? corregirPlan({ texto: a.actividad }) : Promise.resolve(null),
-        a.recurso.trim() && !esUrl(a.recurso)     ? corregirPlan({ texto: a.recurso })   : Promise.resolve(null),
-      ]))
-    )
+    const [temaR, obsR, ...actResultados] = await Promise.all([
+      tema.trim()           ? corregirPlan({ texto: tema })           : Promise.resolve(null),
+      observaciones.trim()  ? corregirPlan({ texto: observaciones })  : Promise.resolve(null),
+      ...candidatas.map(a => Promise.all([
+        a.actividad.trim()                    ? corregirPlan({ texto: a.actividad }) : Promise.resolve(null),
+        a.recurso.trim() && !esUrl(a.recurso) ? corregirPlan({ texto: a.recurso })   : Promise.resolve(null),
+      ])),
+    ])
     setCorrecting(null)
-    setActividades(prev =>
-      prev.map(a => {
-        const idx = candidatas.findIndex(c => c.id === a.id)
-        if (idx === -1) return a
-        const [actR, recR] = resultados[idx]
-        return {
-          ...a,
-          actividad: actR && !actR.error && actR.corregido.trim() ? actR.corregido.trim() : a.actividad,
-          recurso:   recR && !recR.error && recR.corregido.trim() ? recR.corregido.trim() : a.recurso,
-        }
-      })
-    )
+    if (temaR && !temaR.error && temaR.corregido.trim()) setTema(temaR.corregido.trim())
+    if (obsR  && !obsR.error  && obsR.corregido.trim())  setObservaciones(obsR.corregido.trim())
+    if (candidatas.length) {
+      setActividades(prev =>
+        prev.map(a => {
+          const idx = candidatas.findIndex(c => c.id === a.id)
+          if (idx === -1) return a
+          const [actR, recR] = actResultados[idx] as [Awaited<ReturnType<typeof corregirPlan>> | null, Awaited<ReturnType<typeof corregirPlan>> | null]
+          return {
+            ...a,
+            actividad: actR && !actR.error && actR.corregido.trim() ? actR.corregido.trim() : a.actividad,
+            recurso:   recR && !recR.error && recR.corregido.trim() ? recR.corregido.trim() : a.recurso,
+          }
+        })
+      )
+    }
   }
 
   // ── Copy / Move handler ─────────────────────────────────────────────────────
@@ -514,13 +507,6 @@ export function PlanificarModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="label mb-0">Tema de la clase *</label>
-                  {!readOnly && tema.trim() && (
-                    <button type="button" onClick={() => handleCorregir('tema')}
-                      disabled={correcting !== null}
-                      className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
-                      {correcting === 'tema' ? '⟳ Corrigiendo…' : '✦ Corregir'}
-                    </button>
-                  )}
                 </div>
                 <input
                   type="text"
@@ -569,12 +555,12 @@ export function PlanificarModal({
                     </SortableContext>
                   </DndContext>
 
-                  {!readOnly && actividades.some(a => a.actividad.trim() || (a.recurso.trim() && !esUrl(a.recurso))) && (
+                  {!readOnly && (tema.trim() || observaciones.trim() || actividades.some(a => a.actividad.trim() || (a.recurso.trim() && !esUrl(a.recurso)))) && (
                     <div className="flex justify-end pt-1">
-                      <button type="button" onClick={handleCorregirActividades}
+                      <button type="button" onClick={handleCorregirTodo}
                         disabled={correcting !== null}
                         className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
-                        {correcting === 'acts' ? '⟳ Corrigiendo…' : '✦ Corregir ortografía'}
+                        {correcting === 'all' ? '⟳ Corrigiendo…' : '✦ Corregir ortografía'}
                       </button>
                     </div>
                   )}
@@ -645,13 +631,6 @@ export function PlanificarModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="label mb-0">Observaciones (opcional)</label>
-                  {!readOnly && observaciones.trim() && (
-                    <button type="button" onClick={() => handleCorregir('obs')}
-                      disabled={correcting !== null}
-                      className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
-                      {correcting === 'obs' ? '⟳ Corrigiendo…' : '✦ Corregir'}
-                    </button>
-                  )}
                 </div>
                 <textarea
                   value={observaciones}
