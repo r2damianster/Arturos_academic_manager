@@ -1075,6 +1075,122 @@ export type Database = {
           }
         ]
       }
+      calificaciones_items: {
+        Row: {
+          id: string
+          profesor_id: string
+          curso_id: string
+          estudiante_id: string
+          parcial: number
+          categoria: string | null
+          nombre_item: string
+          tipo: 'tarea' | 'subtotal_categoria' | 'otro'
+          nota: number | null
+          fuente: 'moodle' | 'manual'
+          import_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profesor_id: string
+          curso_id: string
+          estudiante_id: string
+          parcial: number
+          categoria?: string | null
+          nombre_item: string
+          tipo: 'tarea' | 'subtotal_categoria' | 'otro'
+          nota?: number | null
+          fuente?: 'moodle' | 'manual'
+          import_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          parcial?: number
+          categoria?: string | null
+          nombre_item?: string
+          tipo?: 'tarea' | 'subtotal_categoria' | 'otro'
+          nota?: number | null
+          fuente?: 'moodle' | 'manual'
+          import_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calificaciones_items_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calificaciones_items_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "calificaciones_imports"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      calificaciones_imports: {
+        Row: {
+          id: string
+          profesor_id: string
+          curso_id: string
+          archivo_nombre: string
+          hash_archivo: string | null
+          fecha_descarga_moodle: string | null
+          parciales_afectados: number[]
+          columnas_importadas: Json
+          num_estudiantes_match: number
+          num_estudiantes_sin_match: number
+          num_celdas_creadas: number
+          num_celdas_actualizadas: number
+          num_celdas_sin_cambio: number
+          num_celdas_preservadas: number
+          snapshot_antes: Json | null
+          revertido_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profesor_id: string
+          curso_id: string
+          archivo_nombre: string
+          hash_archivo?: string | null
+          fecha_descarga_moodle?: string | null
+          parciales_afectados?: number[]
+          columnas_importadas?: Json
+          num_estudiantes_match?: number
+          num_estudiantes_sin_match?: number
+          num_celdas_creadas?: number
+          num_celdas_actualizadas?: number
+          num_celdas_sin_cambio?: number
+          num_celdas_preservadas?: number
+          snapshot_antes?: Json | null
+          revertido_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          num_estudiantes_match?: number
+          num_estudiantes_sin_match?: number
+          num_celdas_creadas?: number
+          num_celdas_actualizadas?: number
+          num_celdas_sin_cambio?: number
+          num_celdas_preservadas?: number
+          revertido_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calificaciones_imports_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

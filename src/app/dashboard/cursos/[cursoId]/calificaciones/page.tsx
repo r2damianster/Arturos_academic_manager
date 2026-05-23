@@ -9,9 +9,9 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes, itemsRes, importsRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
     db.from('participacion')
       .select('id, estudiante_id, fecha, semana, nivel, observacion')
@@ -20,6 +20,15 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
     db.from('asistencia')
       .select('estudiante_id, estado, atraso')
       .eq('curso_id', cursoId),
+    db.from('calificaciones_items')
+      .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, fuente, updated_at')
+      .eq('curso_id', cursoId)
+      .order('parcial', { ascending: true })
+      .order('nombre_item', { ascending: true }),
+    db.from('calificaciones_imports')
+      .select('id, archivo_nombre, created_at, parciales_afectados, columnas_importadas, num_estudiantes_match, num_estudiantes_sin_match, num_celdas_creadas, num_celdas_actualizadas, num_celdas_sin_cambio, num_celdas_preservadas, revertido_at')
+      .eq('curso_id', cursoId)
+      .order('created_at', { ascending: false }),
   ])
 
   if (!cursoRes.data) notFound()
@@ -29,6 +38,8 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const calificaciones = califRes.data ?? []
   const participacion = participacionRes.data ?? []
   const asistencia = asistenciaRes.data ?? []
+  const calificacionesItems = itemsRes.data ?? []
+  const imports = importsRes.data ?? []
 
   const asistenciaMap: Record<string, {
     total_sesiones: number
@@ -120,6 +131,8 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           perfiles={perfilesMap}
           participacion={participacion}
           asistenciaMap={asistenciaMap}
+          calificacionesItems={calificacionesItems}
+          imports={imports}
         />
       )}
     </div>
