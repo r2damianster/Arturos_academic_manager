@@ -371,6 +371,10 @@ export function PlanificarModal({
 
   // ── Corregir ortografía ─────────────────────────────────────────────────────
 
+  function esUrl(s: string) {
+    return /^https?:\/\//i.test(s.trim()) || /^www\./i.test(s.trim())
+  }
+
   async function handleCorregir(campo: 'tema' | 'obs') {
     const texto = campo === 'tema' ? tema : observaciones
     if (!texto.trim()) return
@@ -384,19 +388,28 @@ export function PlanificarModal({
   }
 
   async function handleCorregirActividades() {
-    const conTexto = actividades.filter(a => a.actividad.trim())
-    if (!conTexto.length) return
+    const candidatas = actividades.filter(
+      a => a.actividad.trim() || (a.recurso.trim() && !esUrl(a.recurso))
+    )
+    if (!candidatas.length) return
     setCorrecting('acts')
     const resultados = await Promise.all(
-      conTexto.map(a => corregirPlan({ texto: a.actividad }))
+      candidatas.map(a => Promise.all([
+        a.actividad.trim()                        ? corregirPlan({ texto: a.actividad }) : Promise.resolve(null),
+        a.recurso.trim() && !esUrl(a.recurso)     ? corregirPlan({ texto: a.recurso })   : Promise.resolve(null),
+      ]))
     )
     setCorrecting(null)
     setActividades(prev =>
       prev.map(a => {
-        const idx = conTexto.findIndex(c => c.id === a.id)
+        const idx = candidatas.findIndex(c => c.id === a.id)
         if (idx === -1) return a
-        const r = resultados[idx]
-        return r.error || !r.corregido.trim() ? a : { ...a, actividad: r.corregido.trim() }
+        const [actR, recR] = resultados[idx]
+        return {
+          ...a,
+          actividad: actR && !actR.error && actR.corregido.trim() ? actR.corregido.trim() : a.actividad,
+          recurso:   recR && !recR.error && recR.corregido.trim() ? recR.corregido.trim() : a.recurso,
+        }
       })
     )
   }
@@ -525,19 +538,10 @@ export function PlanificarModal({
                 <div className="flex items-center justify-between mb-2">
                   <label className="label mb-0">Actividades y recursos</label>
                   {!readOnly && (
-                    <div className="flex items-center gap-3">
-                      {actividades.some(a => a.actividad.trim()) && (
-                        <button type="button" onClick={handleCorregirActividades}
-                          disabled={correcting !== null}
-                          className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
-                          {correcting === 'acts' ? '⟳ Corrigiendo…' : '✦ Corregir'}
-                        </button>
-                      )}
-                      <button type="button" onClick={addActividad}
-                        className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
-                        <span className="text-base leading-none">+</span> Agregar fila
-                      </button>
-                    </div>
+                    <button type="button" onClick={addActividad}
+                      className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+                      <span className="text-base leading-none">+</span> Agregar fila
+                    </button>
                   )}
                 </div>
 
@@ -564,6 +568,16 @@ export function PlanificarModal({
                       ))}
                     </SortableContext>
                   </DndContext>
+
+                  {!readOnly && actividades.some(a => a.actividad.trim() || (a.recurso.trim() && !esUrl(a.recurso))) && (
+                    <div className="flex justify-end pt-1">
+                      <button type="button" onClick={handleCorregirActividades}
+                        disabled={correcting !== null}
+                        className="text-[11px] text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors">
+                        {correcting === 'acts' ? '⟳ Corrigiendo…' : '✦ Corregir ortografía'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
