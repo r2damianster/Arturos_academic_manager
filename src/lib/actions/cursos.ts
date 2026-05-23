@@ -81,50 +81,6 @@ export async function crearCursoBase(
   return { cursoId: curso.id }
 }
 
-// ─── Crear curso (legacy full — mantener para compat) ────────────────────────
-
-export async function crearCursoAction(formData: FormData): Promise<void> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  const raw = Object.fromEntries(formData)
-  const parsed = CursoFullSchema.safeParse(raw)
-  if (!parsed.success) return
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { aula: _aula, nombres_tareas, ...fields } = parsed.data
-  const { data: curso, error } = await supabase.from('cursos')
-    .insert({
-      ...fields,
-      aula: parsed.data.aula || null,
-      fecha_inicio: parsed.data.fecha_inicio || null,
-      fecha_fin: parsed.data.fecha_fin || null,
-      institucion: parsed.data.institucion || null,
-      observacion: parsed.data.observacion || null,
-      profesor_id: user.id,
-    })
-    .select('id').single()
-
-  if (error || !curso) return
-
-  const horariosJson = formData.get('horarios_clases') as string
-  if (horariosJson) {
-    try {
-      const horarios: HorarioInput[] = JSON.parse(horariosJson)
-      if (Array.isArray(horarios) && horarios.length > 0) {
-        await supabase.from('horarios_clases').insert(buildHorariosInserts(horarios, curso.id, user.id))
-      }
-    } catch {
-      // horarios_clases mal formados — continuar
-    }
-  }
-
-  revalidatePath('/dashboard/cursos')
-  revalidatePath('/dashboard')
-  redirect('/dashboard/cursos')
-}
-
 // ─── Actualizar curso (canónico — todos los tabs) ─────────────────────────────
 
 export async function actualizarCurso(

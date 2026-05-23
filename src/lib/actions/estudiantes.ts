@@ -144,7 +144,3 @@ export async function setEstadoEstudiante(
   revalidatePath('/dashboard')
   return {}
 }
-
-export async function eliminarEstudiante(estudianteId: string, cursoId: string): Promise<{ error?: string }> {
-  return setEstadoEstudiante(estudianteId, 'retirado', cursoId)
-}

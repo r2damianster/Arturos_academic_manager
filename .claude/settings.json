@@ -9,6 +9,18 @@
     ]
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/c/Users/User/Documents/Desarrollo Web/gestor-universitario-next/.claude/hooks/check-refactor.js\"",
+            "shell": "bash",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

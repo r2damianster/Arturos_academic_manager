@@ -4,46 +4,14 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
-import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap, Menu, X } from 'lucide-react'
+import { GraduationCap, Menu, X } from 'lucide-react'
+import { NAV_ITEMS, FOOTER_ITEMS } from './nav-items'
 
 interface MobileNavProps {
   nombreProfesor: string
 }
 
-const navItems: { href: string; label: string; match?: string; matchAlso?: string; icon: React.ReactNode }[] = [
-  {
-    href: '/dashboard',
-    label: 'Panel',
-    match: '/dashboard',
-    icon: <LayoutDashboard className="w-5 h-5" strokeWidth={1.5} />,
-  },
-  {
-    href: '/dashboard/planificacion',
-    label: 'Clases',
-    matchAlso: '/dashboard/modo-clase',
-    icon: <Video className="w-5 h-5" strokeWidth={1.5} />,
-  },
-  {
-    href: '/dashboard/tutorias',
-    label: 'Tutorías',
-    icon: <GraduationCap className="w-5 h-5" strokeWidth={1.5} />,
-  },
-  {
-    href: '/dashboard/cursos',
-    label: 'Mis Cursos',
-    icon: <BookOpen className="w-5 h-5" strokeWidth={1.5} />,
-  },
-  {
-    href: '/dashboard/herramientas',
-    label: 'Herramientas',
-    icon: <Wrench className="w-5 h-5" strokeWidth={1.5} />,
-  },
-  {
-    href: '/dashboard/config',
-    label: 'Administración',
-    icon: <UserCog className="w-5 h-5" strokeWidth={1.5} />,
-  },
-]
+const allNavItems = [...NAV_ITEMS, ...FOOTER_ITEMS]
 
 export function MobileNav({ nombreProfesor }: MobileNavProps) {
   const [open, setOpen] = useState(false)
@@ -104,7 +72,7 @@ export function MobileNav({ nombreProfesor }: MobileNavProps) {
 
         {/* Nav items */}
         <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
-          {navItems.map(item => (
+          {allNavItems.map(item => (
             <Link
               key={item.href}
               href={item.href}
