@@ -38,7 +38,7 @@ export function PlanDropModal({ source, dest, onConfirm, onClose }: Props) {
       onClick={e => { if (e.target === e.currentTarget && !saving) onClose() }}
     >
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl">
-        <h3 className="text-lg font-semibold text-white mb-2">Mover planificación</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">Arrastrar planificación</h3>
         <p className="text-sm text-gray-400 mb-3 font-medium bg-gray-800/50 px-3 py-2 rounded-lg border border-gray-700 truncate">
           &ldquo;{source.tema || source.asignatura}&rdquo;
         </p>
@@ -66,10 +66,16 @@ export function PlanDropModal({ source, dest, onConfirm, onClose }: Props) {
                 className="w-full btn-primary py-2.5 disabled:opacity-50">
                 Mover y Combinar
               </button>
-              <button onClick={() => handle('mover', 'cascada')} disabled={saving}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50">
-                Mover en Cascada 🌊
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => handle('mover', 'cascada')} disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50 text-sm">
+                  Mover en Cascada 🌊
+                </button>
+                <button onClick={() => handle('copiar', 'cascada')} disabled={saving}
+                  className="bg-teal-600 hover:bg-teal-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-teal-900/20 disabled:opacity-50 text-sm">
+                  Copiar en Cascada 🌊
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -84,10 +90,16 @@ export function PlanDropModal({ source, dest, onConfirm, onClose }: Props) {
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5 disabled:opacity-50">
                 Copiar (repetir plan)
               </button>
-              <button onClick={() => handle('mover', 'cascada')} disabled={saving}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50">
-                Mover en Cascada 🌊
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => handle('mover', 'cascada')} disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50 text-sm">
+                  Mover en Cascada 🌊
+                </button>
+                <button onClick={() => handle('copiar', 'cascada')} disabled={saving}
+                  className="bg-teal-600 hover:bg-teal-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-teal-900/20 disabled:opacity-50 text-sm">
+                  Copiar en Cascada 🌊
+                </button>
+              </div>
             </>
           )}
         </div>
