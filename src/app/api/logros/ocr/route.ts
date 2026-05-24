@@ -38,7 +38,8 @@ Reglas:
 - Transcribe cada logro tal como aparece en la imagen
 - Corrige errores tipográficos, ortografía y signos de puntuación obvios
 - Capitaliza correctamente (primera letra mayúscula por logro)
-- Elimina numeración o viñetas que sean parte del formato (1., •, -)
+- Si el logro tiene un indicador propio (número como 1. 2. 3., letra como a) b) c), número romano, o cualquier otro marcador que forme parte del enunciado), consérvalo al inicio del texto del logro tal como aparece
+- Elimina SOLO viñetas decorativas sin valor semántico (•, -, *) que no sean parte del enunciado
 - Si no encuentras logros de aprendizaje claros, devuelve: {"logros": []}
 - Responde SOLO con el JSON, sin texto adicional`
 

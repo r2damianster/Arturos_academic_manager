@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { addLogro } from '@/lib/actions/logros'
 
 interface Props {
@@ -33,6 +33,33 @@ export function OcrLogroModal({ cursoId, nextOrden, onInserted, onClose }: Props
     setDragOver(false)
     const f = e.dataTransfer.files[0]
     if (f) handleFile(f)
+  }
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const blob = items[i].getAsFile()
+        if (blob) { handleFile(blob); break }
+      }
+    }
+  }, [])
+
+  async function handleClipboardButton() {
+    try {
+      const clipboardItems = await navigator.clipboard.read()
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'))
+        if (imageType) {
+          const blob = await item.getType(imageType)
+          handleFile(new File([blob], 'clipboard.png', { type: imageType }))
+          return
+        }
+      }
+      setError('No hay imagen en el portapapeles')
+    } catch {
+      setError('No se pudo acceder al portapapeles. Usa Ctrl+V o arrastra la imagen.')
+    }
   }
 
   async function handleAnalyze() {
@@ -73,7 +100,7 @@ export function OcrLogroModal({ cursoId, nextOrden, onInserted, onClose }: Props
   const validLogros = logros?.filter(l => l.trim()) ?? []
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }} onPaste={handlePaste}>
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* Header */}
@@ -90,23 +117,33 @@ export function OcrLogroModal({ cursoId, nextOrden, onInserted, onClose }: Props
 
           {/* Step 1: Dropzone (no file selected) */}
           {!file && (
-            <div
-              onDrop={handleDrop}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onClick={() => inputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors select-none ${dragOver ? 'border-brand-500 bg-brand-900/20' : 'border-gray-700 hover:border-gray-500'}`}
-            >
-              <p className="text-3xl mb-2">📷</p>
-              <p className="text-sm text-gray-400">Arrastra una imagen aquí o haz clic para seleccionar</p>
-              <p className="text-xs text-gray-600 mt-1">PNG · JPG · WEBP · máx 5 MB</p>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-              />
+            <div className="space-y-2">
+              <div
+                onDrop={handleDrop}
+                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onClick={() => inputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors select-none ${dragOver ? 'border-brand-500 bg-brand-900/20' : 'border-gray-700 hover:border-gray-500'}`}
+              >
+                <p className="text-3xl mb-2">📷</p>
+                <p className="text-sm text-gray-400">Arrastra una imagen aquí o haz clic para seleccionar</p>
+                <p className="text-xs text-gray-500 mt-1">También puedes <kbd className="px-1 py-0.5 bg-gray-800 rounded text-gray-300 font-mono text-xs">Ctrl+V</kbd> para pegar directamente</p>
+                <p className="text-xs text-gray-600 mt-1">PNG · JPG · WEBP · máx 5 MB</p>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleClipboardButton}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 text-sm transition-colors"
+              >
+                <span>📋</span> Pegar imagen del portapapeles
+              </button>
             </div>
           )}
 

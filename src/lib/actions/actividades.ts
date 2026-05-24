@@ -386,3 +386,21 @@ export async function convertirAEvento(
   revalidatePath('/dashboard/agenda')
   return { ok: true, eventoId: evento.id }
 }
+
+// ─── Desde plan de clase ───────────────────────────────────────────────────────
+
+export async function convertirActividadPlanAInbox(
+  texto: string,
+  cursoId: string,
+  tema?: string,
+  bitacoraId?: string,
+) {
+  return crearActividad({
+    titulo: texto,
+    descripcion: tema ? `Del plan: ${tema}` : undefined,
+    tipo: 'tarea',
+    prioridad: 'normal',
+    curso_id: cursoId,
+    origen: bitacoraId ? `plan:${bitacoraId}` : 'plan',
+  })
+}

@@ -98,13 +98,15 @@ function generarFechasValidas(dowSet: Set<number>, desde: string, n = 14): strin
 
 // ─── Sortable row ──────────────────────────────────────────────────────────────
 
-function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTransfer }: {
+function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTransfer, onSendToInbox, inboxSent }: {
   act: ActividadPlanificada & { id: string }
   readOnly: boolean
   onUpdate: (field: keyof ActividadPlanificada, value: string) => void
   onRemove: () => void
   canRemove: boolean
   onTransfer?: () => void
+  onSendToInbox?: () => void
+  inboxSent?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: act.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
