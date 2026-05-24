@@ -4,8 +4,10 @@ import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 import { MisGrupos } from '@/components/student/MisGrupos'
 import { AutodiagnosticoWidget } from '@/components/student/AutodiagnosticoWidget'
+import { RegistrosCurso } from '@/components/student/RegistrosCurso'
 import { getGruposAbiertosParaEstudiante } from '@/lib/actions/grupos'
 import { getEstadoEncuestasParciales } from '@/lib/actions/encuesta-parcial'
+import { getRegistrosActivosParaEstudiante } from '@/lib/actions/registros-trabajo'
 
 type Estudiante = Tables<'estudiantes'>
 type Curso = Tables<'cursos'>
@@ -42,7 +44,7 @@ export default async function StudentPage() {
   const cursoIds = estudiantes.map(e => e.curso_id)
 
   // Fetch paralelo de datos — RLS policy `student_read_own_cursos` covers the cursos query
-  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData, horasTutoriaRes, estadoEncuestas] = await Promise.all([
+  const [cursosRes, trabajosRes, asistenciaRes, reservasRes, gruposData, horasTutoriaRes, estadoEncuestas, registrosData] = await Promise.all([
     db.from('cursos').select('*, encuesta_parcial_habilitada').in('id', cursoIds),
     db.from('trabajos_asignados').select('*').in('estudiante_id', estudianteIds).order('fecha_asignacion', { ascending: false }),
     db.from('asistencia').select('estado, estudiante_id').in('estudiante_id', estudianteIds),
@@ -50,6 +52,7 @@ export default async function StudentPage() {
     getGruposAbiertosParaEstudiante(cursoIds),
     db.from('tutor_horas_semana').select('curso_id, fecha_semana, horas').in('curso_id', cursoIds),
     getEstadoEncuestasParciales(cursoIds),
+    getRegistrosActivosParaEstudiante(cursoIds),
   ])
 
   const cursos: Curso[] = cursosRes.data ?? []
@@ -57,6 +60,7 @@ export default async function StudentPage() {
   const asistenciaReg: (Asistencia & { estudiante_id: string })[] = asistenciaRes.data ?? []
   const reservasReg: any[] = reservasRes.data ?? []
   const estadoEncuestasParciales: Record<string, boolean> = estadoEncuestas ?? {}
+  const { registros: registrosActivos, misEnvios } = registrosData
 
   // Horas de tutoría ofrecidas por curso
   const horasTutoria: { curso_id: string; fecha_semana: string; horas: number }[] = horasTutoriaRes.data ?? []
@@ -249,6 +253,14 @@ export default async function StudentPage() {
                 )}
               </div>
             )}
+
+            {/* Registros de trabajo activos */}
+            <RegistrosCurso
+              cursoId={est.curso_id}
+              estudianteId={est.id}
+              registros={registrosActivos.filter(r => r.curso_id === est.curso_id)}
+              misEnvios={misEnvios}
+            />
 
             {/* Trabajos activos */}
             {activos.length > 0 && (

@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { TrabajosManager } from '@/components/trabajos/trabajos-manager'
+import { EnviosRegistroPanel } from '@/components/trabajos/EnviosRegistroPanel'
+import { AbrirRegistroButton } from '@/components/trabajos/AbrirRegistroButton'
+import { getRegistrosPorCurso, getEnviosPorRegistro } from '@/lib/actions/registros-trabajo'
 import type { Tables } from '@/types/database.types'
 
 type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email'>
@@ -12,12 +15,13 @@ export default async function TrabajosPage({ params }: { params: Promise<{ curso
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, trabajosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, trabajosRes, registros] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).order('nombre'),
     db.from('trabajos_asignados')
       .select('id, estudiante_id, tipo, tema, descripcion, estado, fecha_asignacion, observaciones_trabajo(id, observacion, fecha)')
       .eq('curso_id', cursoId),
+    getRegistrosPorCurso(cursoId),
   ])
 
   if (!cursoRes.data) notFound()
@@ -29,6 +33,14 @@ export default async function TrabajosPage({ params }: { params: Promise<{ curso
   const totalActivos = trabajos.filter((t: { estado: string }) =>
     t.estado === 'Pendiente' || t.estado === 'En progreso'
   ).length
+
+  // Cargar envíos de todos los registros en paralelo
+  const enviosPorRegistro: Record<string, Awaited<ReturnType<typeof getEnviosPorRegistro>>> = {}
+  await Promise.all(
+    registros.map(async reg => {
+      enviosPorRegistro[reg.id] = await getEnviosPorRegistro(reg.id)
+    })
+  )
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -44,11 +56,25 @@ export default async function TrabajosPage({ params }: { params: Promise<{ curso
             <p className="text-gray-400 text-sm">{curso.asignatura} · {totalActivos} activos</p>
           </div>
         </div>
-        <Link href={`/dashboard/cursos/${cursoId}/trabajos/nuevo`} className="btn-primary">
-          + Asignar
-        </Link>
+        <div className="flex items-center gap-2">
+          <AbrirRegistroButton cursoId={cursoId} />
+          <Link href={`/dashboard/cursos/${cursoId}/trabajos/nuevo`} className="btn-primary">
+            + Asignar
+          </Link>
+        </div>
       </div>
 
+      {/* Registros de trabajo abiertos */}
+      {registros.length > 0 && (
+        <EnviosRegistroPanel
+          cursoId={cursoId}
+          registros={registros}
+          enviosPorRegistro={enviosPorRegistro}
+          totalEstudiantes={estudiantes.length}
+        />
+      )}
+
+      {/* Trabajos asignados */}
       {estudiantes.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-gray-500">No hay estudiantes en este curso</p>
