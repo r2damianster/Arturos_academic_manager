@@ -7,7 +7,13 @@
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.agents\\\\skills\" -Name -ErrorAction SilentlyContinue)",
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.agents\" -Name)",
       "Read(//mnt/**)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(encuesta_parcial)",
+      "Bash(eventos_profesor)",
+      "Bash(estudiante_id)",
+      "Bash(curso_id)",
+      "Bash(estudiante_id, curso_id, tipo)",
+      "Bash(python \"C:/Users/User/AppData/Local/Temp/insert_schema.py\")"
     ]
   },
   "hooks": {

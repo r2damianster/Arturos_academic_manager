@@ -250,31 +250,31 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ### Encuesta de Progreso de Parcial — portal estudiante y dashboard profesor
 
 #### Activación y bloqueo
-- **REGLA DE NEGOCIO**: La encuesta se activa cuando el curso alcanza el 50% de su duración y . Bloquea el portal del estudiante hasta que sea completada — no puede acceder a ninguna ruta de  mientras tenga encuestas pendientes.
-- **MOD**  — tras el check de onboarding, llama RPC  y redirige a  si retorna resultados.
+- **REGLA DE NEGOCIO**: La encuesta se activa cuando el curso alcanza el 50% de su duración y `encuesta_parcial_habilitada = true`. Bloquea el portal del estudiante hasta que sea completada — no puede acceder a ninguna ruta de `/student/` mientras tenga encuestas pendientes.
+- **MOD** `src/app/student/layout.tsx` — tras el check de onboarding, llama RPC `get_encuestas_parciales_pendientes(auth_user_id)` y redirige a `/student/encuesta-parcial/[cursoId]` si retorna resultados.
 
 #### DB
-- **FEAT**  — columnas  y  en .
-- **FEAT**  — tabla  con ~60 columnas: actualizaciones de perfil (trabajo, tech, vivienda, carrera, horas estudio), 9 dimensiones de uso IA (Likert 1-5), autopercepción + checkboxes de dificultad, relevancia profesional, 14 ítems de retroalimentación docente (Likert 1-5) + texto libre. . RLS para profesor y estudiante. RPC .
+- **FEAT** `supabase/migrations/20260524_cursos_encuesta_config.sql` — columnas `encuesta_inicial_habilitada BOOLEAN DEFAULT false` y `encuesta_parcial_habilitada BOOLEAN DEFAULT false` en `cursos`.
+- **FEAT** `supabase/migrations/20260524_encuesta_parcial.sql` — tabla `encuesta_parcial` con ~60 columnas: actualizaciones de perfil (trabajo, tech, vivienda, carrera, horas estudio), 9 dimensiones de uso IA (Likert 1-5), autopercepción + checkboxes de dificultad, relevancia profesional, 14 ítems de retroalimentación docente (Likert 1-5) + texto libre. `UNIQUE(estudiante_id, curso_id, tipo)`. RLS para profesor y estudiante. RPC `get_encuestas_parciales_pendientes(p_auth_user_id TEXT)`.
 
 #### Server Actions
-- **FEAT**  (nuevo) — , , , , , .
-- **MOD**  —  incluye  y ;  maneja conversión booleana y update.
-- **MOD**  —  incluye campo ;  consulta tabla .
+- **FEAT** `src/lib/actions/encuesta-parcial.ts` (nuevo) — `getEncuestaParcialExistente`, `guardarEncuestaParcial`, `getResultadosEncuestaParcial`, `getDetalleEncuestaParcial`, `getEncuestaParcialParaDrawer`, `getEstadoEncuestasParciales`.
+- **MOD** `src/lib/actions/cursos.ts` — `CursoFullSchema` incluye `encuesta_inicial_habilitada` y `encuesta_parcial_habilitada`; `actualizarCurso` maneja conversión booleana y update.
+- **MOD** `src/lib/actions/ficha-estudiante.ts` — `FichaEstudianteData` incluye campo `encuestaParcial`; `getFichaEstudiante` consulta tabla `encuesta_parcial`.
 
 #### Portal estudiante
-- **FEAT**  (nuevo) — RSC que valida acceso, verifica , carga respuesta existente.
-- **FEAT**  (nuevo) — wizard de 5 pasos con guardado de borrador en localStorage. Pasos: 1) trabajo/tech/vivienda/carrera/horas estudio, 2) 9 ítems IA Likert + gusto escritura, 3) autopercepción + checkboxes de dificultad, 4) relevancia profesional, 5) 14 ítems retroalimentación docente Likert + texto libre.
-- **MOD**  — badge de estado por curso: verde si completada, ámbar con link si pendiente (rango 50-100% del curso).
+- **FEAT** `src/app/student/encuesta-parcial/[cursoId]/page.tsx` (nuevo) — RSC que valida acceso, verifica `encuesta_parcial_habilitada`, carga respuesta existente.
+- **FEAT** `src/app/student/encuesta-parcial/[cursoId]/encuesta-parcial-form.tsx` (nuevo) — wizard de 5 pasos con guardado de borrador en localStorage. Pasos: 1) trabajo/tech/vivienda/carrera/horas estudio, 2) 9 ítems IA Likert + gusto escritura, 3) autopercepción + checkboxes de dificultad, 4) relevancia profesional, 5) 14 ítems retroalimentación docente Likert + texto libre.
+- **MOD** `src/app/student/page.tsx` — badge de estado por curso: verde si completada, ámbar con link si pendiente (rango 50-100% del curso).
 
 #### Dashboard profesor
-- **MOD**  — checkboxes para habilitar/deshabilitar ambos tipos de encuesta en el tab Información.
-- **MOD**  — banner de notificación ámbar cuando 50% ≤ pct < 75% y encuesta habilitada — muestra "N de M estudiantes han respondido" con link a resultados.
-- **FEAT**  (nuevo) — RSC de resultados completos: 4 tarjetas KPI, tablas de promedios por dimensión, comparativa IA con indicadores de cambio, barras de distribución de dificultad.
-- **FEAT**  (nuevo) — tabla colapsable de respuestas individuales.
+- **MOD** `src/app/dashboard/cursos/[cursoId]/editar/editar-client.tsx` — checkboxes para habilitar/deshabilitar ambos tipos de encuesta en el tab Información.
+- **MOD** `src/app/dashboard/cursos/[cursoId]/page.tsx` — banner de notificación ámbar cuando 50% ≤ pct < 75% y encuesta habilitada — muestra "N de M estudiantes han respondido" con link a resultados.
+- **FEAT** `src/app/dashboard/cursos/[cursoId]/encuesta-parcial/page.tsx` (nuevo) — RSC de resultados completos: 4 tarjetas KPI, tablas de promedios por dimensión, comparativa IA con indicadores de cambio, barras de distribución de dificultad.
+- **FEAT** `src/app/dashboard/cursos/[cursoId]/encuesta-parcial/encuesta-parcial-detail-client.tsx` (nuevo) — tabla colapsable de respuestas individuales.
 
 #### FichaEstudianteDrawer
-- **MOD**  — subsección "Encuesta de progreso" en tab resumen: semana/%, situación laboral, horas estudio, scores de autopercepción con color, chips de dificultad, log cambios_perfil.
+- **MOD** `src/components/ficha-estudiante/FichaEstudianteDrawer.tsx` — subsección "Encuesta de progreso" en tab resumen: semana/%, situación laboral, horas estudio, scores de autopercepción con color, chips de dificultad, log cambios_perfil.
 
 #### Impacto pedagógico (EFL / pipeline de datos)
 - La encuesta de progreso cierra el ciclo de datos cuantitativos del parcial: asistencia + participación + calificaciones en curso + autopercepción del estudiante quedan registrados simultáneamente. Los scores de autopercepción lingüística (ítem 1-5 por dimensión) son comparables entre parciales y con la encuesta inicial — permiten calcular delta de autopercepción, correlacionable con STT y fluencia en el marco KEYHOLE.
