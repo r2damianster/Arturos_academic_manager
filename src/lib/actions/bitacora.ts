@@ -800,7 +800,7 @@ export async function actualizarActividadesEnVivo(
 
 // ─── Traslado de actividades entre planes ─────────────────────────────────────
 
-export async function getClasesFuturas(bitacoraId: string): Promise<{
+export async function getClasesFuturas(bitacoraId: string, targetCursoId?: string): Promise<{
   id: string
   fecha: string
   tema: string | null
@@ -818,14 +818,25 @@ export async function getClasesFuturas(bitacoraId: string): Promise<{
 
   if (!current) return []
 
-  const { data: futuras } = await supabase
+  const cursoId = targetCursoId ?? current.curso_id
+  const isCrossCourse = targetCursoId && targetCursoId !== current.curso_id
+
+  let query = supabase
     .from('bitacora_clase')
     .select('id, fecha, tema')
-    .eq('curso_id', current.curso_id)
+    .eq('curso_id', cursoId)
     .eq('profesor_id', user.id)
-    .gt('fecha', current.fecha)
     .order('fecha', { ascending: true })
 
+  if (!isCrossCourse) {
+    query = query.gt('fecha', current.fecha)
+  } else {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    query = query.gte('fecha', today.toISOString().slice(0, 10))
+  }
+
+  const { data: futuras } = await query
   return futuras ?? []
 }
 

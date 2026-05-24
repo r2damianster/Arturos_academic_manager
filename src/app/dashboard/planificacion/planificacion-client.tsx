@@ -166,17 +166,19 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
 
   // ── Traslado de actividades desde planificación ──────────────────────────
   type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
-  const [trasladoPanel, setTrasladoPanel] = useState<{ bitacoraId: string; actividades: { actividad: string; recurso: string }[] } | null>(null)
+  const [trasladoPanel, setTrasladoPanel] = useState<{ bitacoraId: string; sourceCursoId: string; actividades: { actividad: string; recurso: string }[] } | null>(null)
   const [trasladoDestinos, setTrasladoDestinos] = useState<ClaseDestinoInfo[] | 'loading' | null>(null)
   const [trasladoTargetId, setTrasladoTargetId] = useState<string | null>(null)
+  const [trasladoCursoId, setTrasladoCursoId] = useState<string | null>(null)
   const [trasladoMode, setTrasladoMode] = useState<'move' | 'copy'>('move')
   const [selectedTrasladoIdx, setSelectedTrasladoIdx] = useState<Set<number>>(new Set())
   const [trasladoSaving, setTrasladoSaving] = useState(false)
   const [trasladoError, setTrasladoError] = useState<string | null>(null)
   const [trasladoOk, setTrasladoOk] = useState(false)
 
-  async function abrirTrasladoPlan(bitacoraId: string, actividades: { actividad: string; recurso: string }[]) {
-    setTrasladoPanel({ bitacoraId, actividades })
+  async function abrirTrasladoPlan(bitacoraId: string, actividades: { actividad: string; recurso: string }[], sourceCursoId: string) {
+    setTrasladoPanel({ bitacoraId, sourceCursoId, actividades })
+    setTrasladoCursoId(sourceCursoId)
     setSelectedTrasladoIdx(new Set())
     setTrasladoOk(false)
     setTrasladoError(null)
@@ -184,6 +186,17 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
     setTrasladoDestinos('loading')
     setTrasladoTargetId(null)
     const futuras = await getClasesFuturas(bitacoraId)
+    setTrasladoDestinos(futuras.length > 0 ? futuras : null)
+    if (futuras.length > 0) setTrasladoTargetId(futuras[0].id)
+  }
+
+  async function handleTrasladoCursoChange(newCursoId: string) {
+    if (!trasladoPanel) return
+    setTrasladoCursoId(newCursoId)
+    setTrasladoTargetId(null)
+    setTrasladoDestinos('loading')
+    const isSameCourse = newCursoId === trasladoPanel.sourceCursoId
+    const futuras = await getClasesFuturas(trasladoPanel.bitacoraId, isSameCourse ? undefined : newCursoId)
     setTrasladoDestinos(futuras.length > 0 ? futuras : null)
     if (futuras.length > 0) setTrasladoTargetId(futuras[0].id)
   }
@@ -208,6 +221,18 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       setTrasladoOk(false)
     }, 2000)
   }
+
+  const cursosUnicos = useMemo(() => {
+    const seen = new Set<string>()
+    const result: { id: string; asignatura: string }[] = []
+    for (const c of clases) {
+      if (!seen.has(c.curso_id) && c.cursos) {
+        seen.add(c.curso_id)
+        result.push({ id: c.curso_id, asignatura: c.cursos.asignatura })
+      }
+    }
+    return result
+  }, [clases])
 
   const weekDates = useMemo(() => getWeekFromDate(new Date(selectedDate + 'T12:00:00')), [selectedDate])
 
@@ -454,7 +479,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
             </Link>
             {entry.actividades_json?.length > 0 && (
               <button
-                onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json) }}
+                onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
                 className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                 title="Trasladar actividades a otro plan"
               >
@@ -488,7 +513,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
           </Link>
           {entry.actividades_json?.length > 0 && (
             <button
-              onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json) }}
+              onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
               className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
               title="Trasladar actividades a otro plan"
             >
@@ -581,7 +606,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                         </Link>
                         {entry.actividades_json?.length > 0 && (
                           <button
-                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json)}
+                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json, grupo.curso.id)}
                             className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                           >
                             → Trasladar act.
@@ -636,7 +661,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                         </button>
                         {entry.actividades_json?.length > 0 && (
                           <button
-                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json)}
+                            onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json, grupo.curso.id)}
                             className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                           >
                             → Trasladar act.
@@ -1106,16 +1131,33 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
               <button onClick={() => setTrasladoPanel(null)} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
             </div>
 
+            {cursosUnicos.length > 1 && (
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500">Curso destino:</p>
+                <select
+                  value={trasladoCursoId ?? ''}
+                  onChange={e => handleTrasladoCursoChange(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
+                >
+                  {cursosUnicos.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.asignatura}{c.id === trasladoPanel?.sourceCursoId ? ' (este curso)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {trasladoDestinos === 'loading' && (
               <p className="text-xs text-gray-500">Buscando clases futuras…</p>
             )}
             {trasladoDestinos === null && (
-              <p className="text-xs text-red-400">No hay clases futuras planificadas para este curso.</p>
+              <p className="text-xs text-red-400">No hay clases futuras planificadas en ese curso.</p>
             )}
             {trasladoDestinos && trasladoDestinos !== 'loading' && (
               <>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Destino:</p>
+                  <p className="text-xs text-gray-500">Clase destino:</p>
                   <select
                     value={trasladoTargetId ?? ''}
                     onChange={e => setTrasladoTargetId(e.target.value)}
