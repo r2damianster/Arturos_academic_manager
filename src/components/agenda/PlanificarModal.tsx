@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { guardarPlanificacion, copiarPlanificacion, moverPlanificacion, getClasesFuturas } from '@/lib/actions/bitacora'
 import { corregirPlan } from '@/lib/actions/generar-contenido'
+import { convertirActividadPlanAInbox } from '@/lib/actions/actividades'
 import type { ActividadPlanificada } from '@/types/domain'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -145,6 +146,13 @@ function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTra
       />
       {!readOnly ? (
         <div className="flex items-center gap-1">
+          {onSendToInbox && (
+            <button type="button" onClick={inboxSent ? undefined : onSendToInbox}
+              title={inboxSent ? 'Añadida a notas' : 'Añadir a notas/actividades'}
+              className={`w-6 h-6 flex items-center justify-center transition-colors rounded text-xs ${inboxSent ? 'text-emerald-500 cursor-default' : 'text-gray-600 hover:text-blue-400'}`}>
+              {inboxSent ? '✓' : '↗'}
+            </button>
+          )}
           {onTransfer && (
             <button type="button" onClick={onTransfer}
               title="Trasladar esta actividad a otro plan"
@@ -183,6 +191,8 @@ export function PlanificarModal({
   const [error,       setError]       = useState<string | null>(null)
   const [existing,    setExisting]    = useState<BitacoraExistente | null>(null)
   const [correcting,  setCorrecting]  = useState<'all' | null>(null)
+  const [inboxSent,   setInboxSent]   = useState<Set<string>>(new Set())
+  const [, startInboxTransition] = useTransition()
 
   const [tema,          setTema]          = useState('')
   const [actividades,   setActividades]   = useState<(ActividadPlanificada & { id: string })[]>([emptyActividad()])
@@ -377,6 +387,14 @@ export function PlanificarModal({
     return /^https?:\/\//i.test(s.trim()) || /^www\./i.test(s.trim())
   }
 
+  function handleEnviarAInbox(act: ActividadPlanificada & { id: string }) {
+    if (!act.actividad.trim()) return
+    startInboxTransition(async () => {
+      await convertirActividadPlanAInbox(act.actividad, cursoId, tema.trim() || undefined, existing?.id)
+      setInboxSent(prev => new Set(prev).add(act.id))
+    })
+  }
+
   async function handleCorregirTodo() {
     setCorrecting('all')
     const candidatas = actividades.filter(
@@ -552,6 +570,8 @@ export function PlanificarModal({
                           onRemove={() => removeActividad(act.id)}
                           canRemove={actividades.length > 1}
                           onTransfer={existing && !readOnly ? () => abrirTrasladoAct(act.id) : undefined}
+                          onSendToInbox={!readOnly && act.actividad.trim() ? () => handleEnviarAInbox(act) : undefined}
+                          inboxSent={inboxSent.has(act.id)}
                         />
                       ))}
                     </SortableContext>
