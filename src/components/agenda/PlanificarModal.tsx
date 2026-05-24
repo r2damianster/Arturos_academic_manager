@@ -146,18 +146,18 @@ function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTra
       />
       {!readOnly ? (
         <div className="flex items-center gap-1">
-          {onSendToInbox && (
-            <button type="button" onClick={inboxSent ? undefined : onSendToInbox}
-              title={inboxSent ? 'Añadida a notas' : 'Añadir a notas/actividades'}
-              className={`w-6 h-6 flex items-center justify-center transition-colors rounded text-xs ${inboxSent ? 'text-emerald-500 cursor-default' : 'text-gray-600 hover:text-blue-400'}`}>
-              {inboxSent ? '✓' : '↗'}
-            </button>
-          )}
           {onTransfer && (
             <button type="button" onClick={onTransfer}
               title="Trasladar esta actividad a otro plan"
               className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-amber-400 transition-colors rounded text-xs">
               →
+            </button>
+          )}
+          {onSendToInbox && (
+            <button type="button" onClick={inboxSent ? undefined : onSendToInbox}
+              title={inboxSent ? 'Añadida a notas' : 'Añadir a notas/actividades'}
+              className={`w-6 h-6 flex items-center justify-center transition-colors rounded text-xs ${inboxSent ? 'text-emerald-500 cursor-default' : 'text-gray-600 hover:text-blue-400'}`}>
+              {inboxSent ? '✓' : '↗'}
             </button>
           )}
           <button type="button" onClick={onRemove}
