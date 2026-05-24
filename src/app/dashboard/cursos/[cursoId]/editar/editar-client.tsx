@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { actualizarCurso, eliminarCurso } from '@/lib/actions/cursos'
 import { addLogro, updateLogro, deleteLogro } from '@/lib/actions/logros'
+import { OcrLogroModal } from '@/components/logros/OcrLogroModal'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
 import type { HorarioClase } from '@/components/cursos/horarios-form-fields'
 
@@ -399,6 +400,7 @@ function LogrosTab({ cursoId, logrosInit }: { cursoId: string; logrosInit: Logro
   const [editTexto, setEditTexto] = useState('')
   const [saving, setSaving] = useState(false)
   const [errMsg, setErrMsg] = useState('')
+  const [ocrOpen, setOcrOpen] = useState(false)
 
   async function handleAdd() {
     if (!nuevoTexto.trim()) return
@@ -504,7 +506,17 @@ function LogrosTab({ cursoId, logrosInit }: { cursoId: string; logrosInit: Logro
 
       {/* Agregar */}
       <div className="space-y-2 pt-2 border-t border-gray-800">
-        <label className="label">Agregar logro</label>
+        <div className="flex items-center justify-between">
+          <label className="label">Agregar logro</label>
+          <button
+            type="button"
+            onClick={() => setOcrOpen(true)}
+            className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1"
+            title="Importar desde imagen con IA"
+          >
+            📷 Desde imagen
+          </button>
+        </div>
         <textarea
           className="input text-sm resize-none"
           rows={3}
@@ -523,6 +535,15 @@ function LogrosTab({ cursoId, logrosInit }: { cursoId: string; logrosInit: Logro
           {adding ? 'Agregando…' : '+ Agregar logro'}
         </button>
       </div>
+
+      {ocrOpen && (
+        <OcrLogroModal
+          cursoId={cursoId}
+          nextOrden={logros.length}
+          onInserted={inserted => setLogros(prev => [...prev, ...inserted])}
+          onClose={() => setOcrOpen(false)}
+        />
+      )}
     </div>
   )
 }
