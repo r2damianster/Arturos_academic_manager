@@ -10,7 +10,6 @@ import {
 } from '@dnd-kit/core'
 import { gestionarDragPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
 import { PlanificarModal } from './PlanificarModal'
-import { ReplanificarModal, type ClaseFecha } from './ReplanificarModal'
 import { PlanDropModal } from './PlanDropModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -130,7 +129,6 @@ export function PlanificacionExtensiva({ clases }: Props) {
   const [offsetB, setOffsetB] = useState(0)
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [planificarModal, setPlanificarModal] = useState<{ clase: Clase; fecha: string } | null>(null)
-  const [replanificarModal, setReplanificarModal] = useState<{ cursoId: string; asignatura: string; fecha: string; tema: string; claseFechas: ClaseFecha[] } | null>(null)
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -326,24 +324,6 @@ export function PlanificacionExtensiva({ clases }: Props) {
               >
                 ▶ Iniciar
               </Link>
-              <button
-                onClick={() => {
-                  const desde = new Date(fecha + 'T12:00:00')
-                  desde.setDate(desde.getDate() + 1)
-                  const hasta = curso?.fecha_fin
-                    ? new Date(curso.fecha_fin + 'T12:00:00')
-                    : new Date(Date.now() + 180 * 86400000)
-                  const futuras = generarFechasClase(clases, cursoId, desde, hasta)
-                  const claseFechas: ClaseFecha[] = futuras.map(({ fecha: f }) => {
-                    const bk = bitacoraMap.get(`${cursoId}|${f}`)
-                    return { fecha: f, hasPlan: Boolean(bk), tema: bk?.tema }
-                  })
-                  setReplanificarModal({ cursoId, asignatura: curso?.asignatura ?? '', fecha, tema: entry.tema, claseFechas })
-                }}
-                className="text-[10px] px-2 py-0.5 rounded border border-amber-600/30 text-amber-400 hover:bg-amber-900/20 transition-colors"
-              >
-                Replanif.
-              </button>
             </>
           )}
           {isCumplido && (
@@ -558,23 +538,11 @@ export function PlanificacionExtensiva({ clases }: Props) {
             fecha={planificarModal.fecha}
             horaInicio={planificarModal.clase.hora_inicio}
             horaFin={planificarModal.clase.hora_fin}
-            clases={clases}
             onClose={() => setPlanificarModal(null)}
             onSaved={() => { setPlanificarModal(null); loadBitacoras() }}
           />
         )}
 
-        {replanificarModal && (
-          <ReplanificarModal
-            cursoId={replanificarModal.cursoId}
-            asignatura={replanificarModal.asignatura}
-            origenFecha={replanificarModal.fecha}
-            origenTema={replanificarModal.tema}
-            claseFechas={replanificarModal.claseFechas}
-            onClose={() => setReplanificarModal(null)}
-            onDone={() => { setReplanificarModal(null); loadBitacoras() }}
-          />
-        )}
       </div>
 
       <DragOverlay dropAnimation={null}>
