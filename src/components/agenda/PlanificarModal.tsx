@@ -33,6 +33,7 @@ interface PlanificarModalProps {
   onClose: () => void
   onSaved: () => void
   clases?: ClaseParaCopiar[]
+  todosCursos?: { id: string; asignatura: string }[]
   readOnly?: boolean
   allowCopyMove?: boolean
 }
@@ -182,7 +183,7 @@ function withIds(acts: ActividadPlanificada[]): (ActividadPlanificada & { id: st
 }
 
 export function PlanificarModal({
-  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = [], readOnly = false, allowCopyMove = true
+  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, clases = [], todosCursos = [], readOnly = false, allowCopyMove = true
 }: PlanificarModalProps) {
   const supabase = createClient()
 
@@ -212,6 +213,7 @@ export function PlanificarModal({
   const [txActId,       setTxActId]       = useState<string | null>(null)   // act.id seleccionada
   const [txDestinos,    setTxDestinos]    = useState<ClaseDestinoInfo[] | 'loading' | null>(null)
   const [txTargetId,    setTxTargetId]    = useState<string | null>(null)
+  const [txCursoId,     setTxCursoId]     = useState<string | null>(null)
   const [txMode,        setTxMode]        = useState<'move' | 'copy'>('move')
   const [txSaving,      setTxSaving]      = useState(false)
   const [txError,       setTxError]       = useState<string | null>(null)
@@ -219,6 +221,7 @@ export function PlanificarModal({
 
   async function abrirTrasladoAct(actId: string) {
     setTxActId(actId)
+    setTxCursoId(cursoId)
     setTxOk(false)
     setTxError(null)
     setTxMode('move')
@@ -226,6 +229,17 @@ export function PlanificarModal({
     setTxTargetId(null)
     if (!existing) return
     const futuras = await getClasesFuturas(existing.id)
+    setTxDestinos(futuras.length > 0 ? futuras : null)
+    if (futuras.length > 0) setTxTargetId(futuras[0].id)
+  }
+
+  async function handleTxCursoChange(newCursoId: string) {
+    if (!existing) return
+    setTxCursoId(newCursoId)
+    setTxTargetId(null)
+    setTxDestinos('loading')
+    const isSame = newCursoId === cursoId
+    const futuras = await getClasesFuturas(existing.id, isSame ? undefined : newCursoId)
     setTxDestinos(futuras.length > 0 ? futuras : null)
     if (futuras.length > 0) setTxTargetId(futuras[0].id)
   }
@@ -603,8 +617,24 @@ export function PlanificarModal({
                         <span className="text-gray-500">Actividad: </span>{actObj.actividad || '(sin nombre)'}
                       </p>
                     )}
+                    {todosCursos.length > 1 && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-gray-500">Curso destino:</p>
+                        <select
+                          value={txCursoId ?? ''}
+                          onChange={e => handleTxCursoChange(e.target.value)}
+                          className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
+                        >
+                          {todosCursos.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.asignatura}{c.id === cursoId ? ' (este curso)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     {txDestinos === 'loading' && <p className="text-xs text-gray-500">Buscando clases futuras…</p>}
-                    {txDestinos === null && <p className="text-xs text-red-400">No hay clases futuras planificadas para este curso.</p>}
+                    {txDestinos === null && <p className="text-xs text-red-400">No hay clases futuras planificadas en ese curso.</p>}
                     {txDestinos && txDestinos !== 'loading' && (
                       <>
                         <div className="space-y-1">
