@@ -93,12 +93,18 @@ function truncarTema(tema: string, maxWords = 8): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+interface CursoSimple {
+  id: string
+  asignatura: string
+}
+
 interface Props {
   clases: Clase[]
+  cursos: CursoSimple[]
   profesorId: string
 }
 
-export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) {
+export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -221,18 +227,6 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
       setTrasladoOk(false)
     }, 2000)
   }
-
-  const cursosUnicos = useMemo(() => {
-    const seen = new Set<string>()
-    const result: { id: string; asignatura: string }[] = []
-    for (const c of clases) {
-      if (!seen.has(c.curso_id) && c.cursos) {
-        seen.add(c.curso_id)
-        result.push({ id: c.curso_id, asignatura: c.cursos.asignatura })
-      }
-    }
-    return result
-  }, [clases])
 
   const weekDates = useMemo(() => getWeekFromDate(new Date(selectedDate + 'T12:00:00')), [selectedDate])
 
@@ -1131,7 +1125,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
               <button onClick={() => setTrasladoPanel(null)} className="text-gray-500 hover:text-gray-300 text-lg leading-none">✕</button>
             </div>
 
-            {cursosUnicos.length > 1 && (
+            {cursos.length > 1 && (
               <div className="space-y-1">
                 <p className="text-xs text-gray-500">Curso destino:</p>
                 <select
@@ -1139,7 +1133,7 @@ export function PlanificacionClient({ clases, profesorId: _profesorId }: Props) 
                   onChange={e => handleTrasladoCursoChange(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-600"
                 >
-                  {cursosUnicos.map(c => (
+                  {cursos.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.asignatura}{c.id === trasladoPanel?.sourceCursoId ? ' (este curso)' : ''}
                     </option>

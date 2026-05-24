@@ -9,10 +9,17 @@ export default async function PlanificacionPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: clases } = await db
-    .from('horarios_clases')
-    .select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, curso_id, cursos(id, asignatura, fecha_inicio, fecha_fin)')
-    .eq('profesor_id', user.id)
+  const [{ data: clases }, { data: todosCursos }] = await Promise.all([
+    db
+      .from('horarios_clases')
+      .select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, curso_id, cursos(id, asignatura, fecha_inicio, fecha_fin)')
+      .eq('profesor_id', user.id),
+    supabase
+      .from('cursos')
+      .select('id, asignatura')
+      .eq('profesor_id', user.id)
+      .order('asignatura', { ascending: true }),
+  ])
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -21,7 +28,7 @@ export default async function PlanificacionPage() {
         <p className="text-gray-400 text-sm mt-1">Planifica, inicia y realiza seguimiento de tus clases</p>
       </div>
       <Suspense>
-        <PlanificacionClient clases={clases ?? []} profesorId={user.id} />
+        <PlanificacionClient clases={clases ?? []} cursos={todosCursos ?? []} profesorId={user.id} />
       </Suspense>
     </div>
   )
