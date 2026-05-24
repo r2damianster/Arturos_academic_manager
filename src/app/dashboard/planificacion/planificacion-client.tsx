@@ -1008,6 +1008,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           fecha={planificarModal.fecha}
           horaInicio={planificarModal.clase.hora_inicio}
           horaFin={planificarModal.clase.hora_fin}
+          todosCursos={cursos}
           onClose={() => setPlanificarModal(null)}
           onSaved={() => {
             setPlanificarModal(null)
@@ -1046,7 +1047,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       )}
 
       {viewMode === 'extensivo' && (
-        <PlanificacionExtensiva clases={clases} />
+        <PlanificacionExtensiva clases={clases} todosCursos={cursos} />
       )}
 
       {showGenerador && (

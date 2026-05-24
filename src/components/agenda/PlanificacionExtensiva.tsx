@@ -108,9 +108,10 @@ function DroppableSlot({ id, isOver, children }: { id: string; isOver: boolean; 
 
 interface Props {
   clases: Clase[]
+  todosCursos?: { id: string; asignatura: string }[]
 }
 
-export function PlanificacionExtensiva({ clases }: Props) {
+export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createClient() as any
 
@@ -538,6 +539,7 @@ export function PlanificacionExtensiva({ clases }: Props) {
             fecha={planificarModal.fecha}
             horaInicio={planificarModal.clase.hora_inicio}
             horaFin={planificarModal.clase.hora_fin}
+            todosCursos={todosCursos}
             onClose={() => setPlanificarModal(null)}
             onSaved={() => { setPlanificarModal(null); loadBitacoras() }}
           />
