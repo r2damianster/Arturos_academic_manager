@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { actualizarRegistroTrabajo, revisarEnvio, type RegistroTrabajo, type EnvioRegistro } from '@/lib/actions/registros-trabajo'
+import { actualizarRegistroTrabajo, revisarEnvio, eliminarRegistroTrabajo, type RegistroTrabajo, type EnvioRegistro } from '@/lib/actions/registros-trabajo'
 
 type EnvioConNombre = EnvioRegistro & { estudiante: { nombre: string } | null }
 
@@ -24,6 +24,7 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
   const [comentarios, setComentarios] = useState<Record<string, string>>({})
   const [pending, startTransition] = useTransition()
   const [accionEnvio, setAccionEnvio] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   function toggleExpanded(id: string) {
     setExpanded(prev => prev === id ? null : id)
@@ -34,6 +35,14 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
     startTransition(async () => {
       await revisarEnvio(envioId, cursoId, estado, comentarios[envioId])
       setAccionEnvio(null)
+      router.refresh()
+    })
+  }
+
+  function handleEliminar(registroId: string) {
+    startTransition(async () => {
+      await eliminarRegistroTrabajo(registroId, cursoId)
+      setConfirmDelete(null)
       router.refresh()
     })
   }
@@ -91,7 +100,7 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
                 </p>
               </button>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 {reg.activo ? (
                   <button
                     onClick={() => handleCerrar(reg.id)}
@@ -109,6 +118,41 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
                     Reabrir
                   </button>
                 )}
+
+                {/* Eliminar con confirm inline */}
+                {confirmDelete === reg.id ? (
+                  <span className="flex items-center gap-1">
+                    <span className="text-[10px] text-gray-500">
+                      {(enviosPorRegistro[reg.id] ?? []).filter(e => e.estado === 'pendiente').length > 0
+                        ? `${(enviosPorRegistro[reg.id] ?? []).filter(e => e.estado === 'pendiente').length} pendiente(s) se perderán`
+                        : '¿Eliminar?'}
+                    </span>
+                    <button
+                      onClick={() => handleEliminar(reg.id)}
+                      disabled={pending}
+                      className="text-[11px] text-red-400 hover:text-red-300 font-medium px-1.5 py-0.5 rounded hover:bg-red-900/20 transition-colors"
+                    >
+                      Sí
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="text-[11px] text-gray-500 hover:text-gray-300 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      No
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(reg.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors p-1 rounded"
+                    title="Eliminar registro"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+
                 <button onClick={() => toggleExpanded(reg.id)} className="text-gray-600 hover:text-gray-400 transition-colors p-1">
                   <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

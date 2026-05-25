@@ -272,6 +272,27 @@ export async function enviarRegistro(
   return { autoAprobado: registro.validacion_automatica }
 }
 
+export async function eliminarRegistroTrabajo(
+  registroId: string,
+  cursoId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const { error } = await db.from('registros_trabajo')
+    .delete()
+    .eq('id', registroId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
+  return {}
+}
+
 // ── IA ───────────────────────────────────────────────────────────────────────
 
 export async function mejorarCriteriosIA(
