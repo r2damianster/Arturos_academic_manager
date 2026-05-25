@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { TutoriasManager } from './tutorias-manager'
 import { HistorialTab } from '@/components/tutorias/HistorialTab'
 import { CitacionesTab } from '@/components/tutorias/CitacionesTab'
-import type { ReservaHistorial } from '@/lib/actions/tutorias'
+import type { ReservaHistorial, TipoTutoria } from '@/lib/actions/tutorias'
 
 interface Horario {
   id: number
@@ -84,6 +84,7 @@ interface Props {
   profesorNombre: string
   historial: ReservaHistorial[]
   citaciones: Citacion[]
+  tiposTutoria: TipoTutoria[]
 }
 
 type Tab = 'citaciones' | 'historial' | 'horarios'
@@ -97,6 +98,7 @@ export function TutoriasPageClient({
   profesorNombre,
   historial,
   citaciones,
+  tiposTutoria,
 }: Props) {
   const [tab, setTab] = useState<Tab>('citaciones')
 
@@ -155,6 +157,7 @@ export function TutoriasPageClient({
           clases={clases}
           estudiantes={estudiantes}
           profesorNombre={profesorNombre}
+          tiposTutoria={tiposTutoria}
         />
       )}
     </div>

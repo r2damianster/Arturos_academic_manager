@@ -32,7 +32,11 @@ function getMondayStr(date: Date): string {
   return d.toISOString().split('T')[0]
 }
 
-export async function activarHorario(horarioId: number, duracion: string) {
+export async function activarHorario(
+  horarioId: number,
+  duracion: string,
+  opciones?: { permitirMultiples?: boolean; bufferMinutos?: number }
+) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
@@ -49,9 +53,22 @@ export async function activarHorario(horarioId: number, duracion: string) {
 
   const activado_el = new Date().toISOString().split('T')[0]
 
+  const updatePayload: Record<string, unknown> = {
+    estado: 'disponible',
+    disponible_hasta,
+    activado_el,
+  }
+
+  if (opciones?.permitirMultiples !== undefined) {
+    updatePayload.permitir_multiples = opciones.permitirMultiples
+  }
+  if (opciones?.bufferMinutos !== undefined) {
+    updatePayload.buffer_minutos = opciones.bufferMinutos
+  }
+
   const { data, error } = await db
     .from('horarios')
-    .update({ estado: 'disponible', disponible_hasta, activado_el })
+    .update(updatePayload)
     .eq('id', horarioId)
     .select('id, hora_inicio, hora_fin')
 
@@ -191,12 +208,43 @@ export async function asignarTutoriaDirecta(params: {
   estudianteCarrera?: string | null
   estudianteTelefono?: string | null
   nota?: string | null
+  tipoTutoriaId?: number | null
 }) {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  // Check for existing reserva at same slot+date
+  // Fetch horario to check permitir_multiples
+  const { data: horario } = await db
+    .from('horarios')
+    .select('id, hora_inicio, hora_fin, permitir_multiples, profesores(nombre)')
+    .eq('id', params.horarioId)
+    .single()
+
+  // If permitir_multiples, delegate to RPC which handles sub-slot calculation
+  if (horario?.permitir_multiples && params.tipoTutoriaId) {
+    const { data: rpcData, error: rpcError } = await db.rpc('reservar_tutoria', {
+      p_horario_id:       params.horarioId,
+      p_fecha:            params.fecha,
+      p_auth_user_id:     params.authUserId,
+      p_nombre:           params.estudianteNombre,
+      p_carrera:          params.estudianteCarrera ?? '',
+      p_email:            params.estudianteEmail,
+      p_telefono:         params.estudianteTelefono ?? '',
+      p_notas:            params.nota ?? null,
+      p_tipo_tutoria_id:  params.tipoTutoriaId,
+    })
+    if (rpcError) return { error: rpcError.message }
+    // Update estado to confirmada (RPC creates as 'pendiente')
+    if (rpcData) {
+      await db.from('reservas').update({ estado: 'confirmada' }).eq('id', rpcData)
+    }
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/tutorias')
+    return { ok: true, reservaId: rpcData }
+  }
+
+  // Single-booking path: check for existing reserva at same slot+date
   const { data: existing } = await db
     .from('reservas')
     .select('id, estado')
@@ -207,19 +255,25 @@ export async function asignarTutoriaDirecta(params: {
 
   if (existing) return { error: 'Ya existe una reserva para este horario y fecha.' }
 
+  const insertPayload: Record<string, unknown> = {
+    horario_id:         params.horarioId,
+    fecha:              params.fecha,
+    auth_user_id:       params.authUserId,
+    estudiante_nombre:  params.estudianteNombre,
+    estudiante_carrera: params.estudianteCarrera ?? '',
+    email:              params.estudianteEmail,
+    telefono:           params.estudianteTelefono ?? '',
+    notas:              params.nota ?? null,
+    estado:             'confirmada',
+  }
+
+  if (params.tipoTutoriaId) {
+    insertPayload.tipo_tutoria_id = params.tipoTutoriaId
+  }
+
   const { data: reserva, error } = await db
     .from('reservas')
-    .insert({
-      horario_id:         params.horarioId,
-      fecha:              params.fecha,
-      auth_user_id:       params.authUserId,
-      estudiante_nombre:  params.estudianteNombre,
-      estudiante_carrera: params.estudianteCarrera ?? '',
-      email:              params.estudianteEmail,
-      telefono:           params.estudianteTelefono ?? '',
-      notas:              params.nota ?? null,
-      estado:             'confirmada',
-    })
+    .insert(insertPayload)
     .select('id')
     .single()
 
@@ -467,4 +521,230 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     institucion:         r.cursos?.institucion ?? null,
     citacion_razon:      r.citaciones_tutoria?.[0]?.razon ?? null,
   }))
+}
+
+// ─── Tipos de tutoría ─────────────────────────────────────────────────────────
+
+export type TipoTutoria = {
+  id: number
+  nombre: string
+  duracion_minutos: number
+  descripcion: string | null
+  activo: boolean
+  orden: number
+  es_global: boolean
+}
+
+/**
+ * Retorna los tipos de tutoría globales (profesor_id IS NULL) más los
+ * tipos propios del profesor autenticado (o del profesorId indicado).
+ */
+export async function getTiposTutoria(profesorId?: string): Promise<{
+  tipos: TipoTutoria[]
+  error?: string
+}> {
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { tipos: [], error: 'No autenticado' }
+
+  const targetProfesorId = profesorId ?? user.id
+
+  // Traer globales + propios del profesor en una sola query
+  const { data, error } = await db
+    .from('tipos_tutoria')
+    .select('id, nombre, duracion_minutos, descripcion, activo, orden, profesor_id')
+    .or(`profesor_id.is.null,profesor_id.eq.${targetProfesorId}`)
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+
+  if (error) return { tipos: [], error: error.message }
+
+  const tipos: TipoTutoria[] = (data ?? []).map((t: {
+    id: number
+    nombre: string
+    duracion_minutos: number
+    descripcion: string | null
+    activo: boolean
+    orden: number
+    profesor_id: string | null
+  }) => ({
+    id:               t.id,
+    nombre:           t.nombre,
+    duracion_minutos: t.duracion_minutos,
+    descripcion:      t.descripcion,
+    activo:           t.activo,
+    orden:            t.orden,
+    es_global:        t.profesor_id === null,
+  }))
+
+  return { tipos }
+}
+
+/**
+ * Crea un tipo de tutoría propio del profesor autenticado.
+ */
+export async function crearTipoTutoria(input: {
+  nombre: string
+  duracion_minutos: number
+  descripcion?: string
+}): Promise<{ id?: number; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  if (!input.nombre?.trim()) return { error: 'El nombre es obligatorio' }
+  if (!input.duracion_minutos || input.duracion_minutos < 5) {
+    return { error: 'La duración mínima es 5 minutos' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  // Obtener el mayor orden actual para este profesor
+  const { data: last } = await db
+    .from('tipos_tutoria')
+    .select('orden')
+    .eq('profesor_id', user.id)
+    .order('orden', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const nuevoOrden = (last?.orden ?? 0) + 1
+
+  const { data, error } = await db
+    .from('tipos_tutoria')
+    .insert({
+      profesor_id:      user.id,
+      nombre:           input.nombre.trim(),
+      duracion_minutos: input.duracion_minutos,
+      descripcion:      input.descripcion?.trim() ?? null,
+      activo:           true,
+      orden:            nuevoOrden,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/tutorias')
+  return { id: data?.id }
+}
+
+/**
+ * Actualiza un tipo de tutoría propio del profesor.
+ * No permite modificar tipos globales (profesor_id IS NULL).
+ */
+export async function actualizarTipoTutoria(
+  id: number,
+  input: {
+    nombre?: string
+    duracion_minutos?: number
+    descripcion?: string
+    activo?: boolean
+    orden?: number
+  }
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  // Verificar que el tipo pertenece al profesor (protección extra sobre RLS)
+  const { data: existing } = await db
+    .from('tipos_tutoria')
+    .select('profesor_id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!existing) return { error: 'Tipo no encontrado' }
+  if (existing.profesor_id === null) return { error: 'No puedes editar tipos globales' }
+  if (existing.profesor_id !== user.id) return { error: 'Sin permiso para editar este tipo' }
+
+  const updatePayload: Record<string, unknown> = {}
+  if (input.nombre !== undefined)           updatePayload.nombre = input.nombre.trim()
+  if (input.duracion_minutos !== undefined) updatePayload.duracion_minutos = input.duracion_minutos
+  if (input.descripcion !== undefined)      updatePayload.descripcion = input.descripcion.trim() || null
+  if (input.activo !== undefined)           updatePayload.activo = input.activo
+  if (input.orden !== undefined)            updatePayload.orden = input.orden
+
+  if (Object.keys(updatePayload).length === 0) return {}
+
+  const { error } = await db
+    .from('tipos_tutoria')
+    .update(updatePayload)
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/tutorias')
+  return {}
+}
+
+/**
+ * Elimina un tipo de tutoría propio del profesor.
+ * No permite eliminar tipos globales.
+ */
+export async function eliminarTipoTutoria(id: number): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  // Verificar propiedad antes de eliminar
+  const { data: existing } = await db
+    .from('tipos_tutoria')
+    .select('profesor_id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!existing) return { error: 'Tipo no encontrado' }
+  if (existing.profesor_id === null) return { error: 'No puedes eliminar tipos globales' }
+  if (existing.profesor_id !== user.id) return { error: 'Sin permiso para eliminar este tipo' }
+
+  const { error } = await db
+    .from('tipos_tutoria')
+    .delete()
+    .eq('id', id)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/tutorias')
+  return {}
+}
+
+/**
+ * Reordena los tipos de tutoría propios del profesor en batch.
+ * `ids` es el array de IDs en el orden deseado (índice 0 → orden 1).
+ */
+export async function reordenarTiposTutoria(ids: number[]): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const updates = ids.map((id, index) =>
+    db
+      .from('tipos_tutoria')
+      .update({ orden: index + 1 })
+      .eq('id', id)
+      .eq('profesor_id', user.id) // solo puede reordenar los suyos
+  )
+
+  const results = await Promise.all(updates)
+  const firstError = results.find((r) => r.error)
+  if (firstError?.error) return { error: firstError.error.message }
+
+  revalidatePath('/dashboard/tutorias')
+  return {}
 }

@@ -2,6 +2,17 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { TutoriasBooking } from './tutorias-booking'
+import { getTiposTutoria, type TipoTutoria } from '@/lib/actions/tutorias'
+
+export type SlotOccupancy = {
+  horario_id: number
+  fecha: string
+  reservas_count: number
+  minutos_usados: number
+  minutos_totales: number
+  esta_lleno: boolean
+  permite_multiples: boolean
+}
 
 export default async function TutoriasPage() {
   const supabase = await createClient()
@@ -49,15 +60,20 @@ export default async function TutoriasPage() {
   const horarios = horariosData ?? []
   const horarioIds: number[] = horarios.map((h: { id: number }) => h.id)
 
-  // Fetch ALL pending reservas for these slots (to show occupancy per date)
-  // Uses SECURITY DEFINER function to bypass RLS — only returns horario_id + fecha,
-  // no private data from other students is exposed.
-  let occupiedSlots: { horario_id: number; fecha: string }[] = []
+  // Fetch occupancy data for these slots (new RPC returns rich objects per date)
+  // Uses SECURITY DEFINER function to bypass RLS — no private student data exposed.
+  let occupiedSlots: SlotOccupancy[] = []
   if (horarioIds.length > 0) {
     const { data: occData } = await db
-      .rpc('get_occupied_slots', { p_horario_ids: horarioIds })
+      .rpc('get_occupied_slots', { p_horario_ids: horarioIds, p_fecha: hoy })
     occupiedSlots = occData ?? []
   }
+
+  // Fetch tipos de tutoría para el profesor (globales + propios)
+  const primerProfesorId = profesorIds[0] ?? undefined
+  const { tipos: tiposTutoria } = primerProfesorId
+    ? await getTiposTutoria(primerProfesorId)
+    : { tipos: [] }
 
   // IDs de cursos del estudiante (para filtrar tutorías de curso abiertas)
   const estudianteCursoIds: string[] = estudiantes
@@ -169,6 +185,7 @@ export default async function TutoriasPage() {
           estudianteCursoIds={estudianteCursoIds}
           estudianteByCurso={estudianteByCurso}
           misAnuncios={misAnuncios}
+          tiposTutoria={tiposTutoria}
         />
       </div>
     </div>

@@ -514,6 +514,44 @@ export type Database = {
           }
         ]
       }
+      tipos_tutoria: {
+        Row: {
+          id: number
+          profesor_id: string | null
+          nombre: string
+          duracion_minutos: number
+          descripcion: string | null
+          activo: boolean
+          orden: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          profesor_id?: string | null
+          nombre: string
+          duracion_minutos: number
+          descripcion?: string | null
+          activo?: boolean
+          orden?: number
+          created_at?: string
+        }
+        Update: {
+          nombre?: string
+          duracion_minutos?: number
+          descripcion?: string | null
+          activo?: boolean
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipos_tutoria_profesor_id_fkey"
+            columns: ["profesor_id"]
+            isOneToOne: false
+            referencedRelation: "profesores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       horarios: {
         Row: {
           id: number
@@ -523,6 +561,8 @@ export type Database = {
           hora_fin: string
           estado: string
           disponible_hasta: string | null
+          permitir_multiples: boolean
+          buffer_minutos: number
           created_at: string
         }
         Insert: {
@@ -533,11 +573,15 @@ export type Database = {
           hora_fin: string
           estado?: string
           disponible_hasta?: string | null
+          permitir_multiples?: boolean
+          buffer_minutos?: number
           created_at?: string
         }
         Update: {
           estado?: string
           disponible_hasta?: string | null
+          permitir_multiples?: boolean
+          buffer_minutos?: number
         }
         Relationships: [
           {
@@ -569,6 +613,10 @@ export type Database = {
           hora_fin_manual: string | null
           modalidad: string
           link_zoom: string | null
+          tipo_tutoria_id: number | null
+          hora_inicio_reserva: string | null
+          hora_fin_reserva: string | null
+          duracion_minutos: number | null
         }
         Insert: {
           id?: number
@@ -589,6 +637,10 @@ export type Database = {
           hora_fin_manual?: string | null
           modalidad?: string
           link_zoom?: string | null
+          tipo_tutoria_id?: number | null
+          hora_inicio_reserva?: string | null
+          hora_fin_reserva?: string | null
+          duracion_minutos?: number | null
         }
         Update: {
           estado?: string
@@ -600,6 +652,10 @@ export type Database = {
           hora_fin_manual?: string | null
           modalidad?: string
           link_zoom?: string | null
+          tipo_tutoria_id?: number | null
+          hora_inicio_reserva?: string | null
+          hora_fin_reserva?: string | null
+          duracion_minutos?: number | null
         }
         Relationships: [
           {

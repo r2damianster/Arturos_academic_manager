@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { activarHorario, asignarTutoriaDirecta, type DuracionTutoria } from '@/lib/actions/tutorias'
+import {
+  activarHorario,
+  asignarTutoriaDirecta,
+  crearTipoTutoria,
+  actualizarTipoTutoria,
+  eliminarTipoTutoria,
+  type DuracionTutoria,
+  type TipoTutoria,
+} from '@/lib/actions/tutorias'
 
 interface Horario {
   id: number
@@ -12,6 +20,8 @@ interface Horario {
   estado: string   // 'disponible' | 'no_disponible'
   profesor_id: string
   disponible_hasta: string | null
+  permite_multiples?: boolean | null
+  buffer_minutos?: number | null
 }
 
 interface Reserva {
@@ -64,6 +74,7 @@ interface Props {
   clases: Clase[]
   estudiantes: Estudiante[]
   profesorNombre: string
+  tiposTutoria?: TipoTutoria[]
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -175,7 +186,7 @@ function getDynamicSlots(horarios: { hora_inicio: string; hora_fin: string }[], 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasManager({ horarios: init, reservas: initRes, clases, estudiantes, profesorNombre }: Props) {
+export function TutoriasManager({ horarios: init, reservas: initRes, clases, estudiantes, profesorNombre, tiposTutoria = [] }: Props) {
   const supabase = createClient()
   const [horarios, setHorarios]     = useState<Horario[]>(init)
   const [reservas, setReservas]     = useState<Reserva[]>(initRes)
@@ -192,6 +203,19 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const [durSaving, setDurSaving]   = useState(false)
   const [savingId,  setSavingId]    = useState<number | null>(null) // horario being saved
   const [durConflicto, setDurConflicto] = useState<string | null>(null) // nombre asignatura con tutoria_curso
+
+  // Multi-booking options inside duration picker
+  const [durPermitirMultiples, setDurPermitirMultiples] = useState(false)
+  const [durBufferMinutos, setDurBufferMinutos]         = useState(2)
+
+  // Tipos de tutoría CRUD
+  const [showTipos, setShowTipos]           = useState(false)
+  const [tiposLocal, setTiposLocal]         = useState<TipoTutoria[]>(tiposTutoria)
+  const [tipoEditId, setTipoEditId]         = useState<number | null>(null)
+  const [tipoNombre, setTipoNombre]         = useState('')
+  const [tipoDuracion, setTipoDuracion]     = useState(20)
+  const [tipoSaving, setTipoSaving]         = useState(false)
+  const [tipoMsg, setTipoMsg]               = useState<string | null>(null)
 
   // Direct assignment panel
   const [showAssign, setShowAssign] = useState(false)
@@ -355,7 +379,10 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
       x.id === h.id ? { ...x, estado: 'disponible', disponible_hasta: null } : x
     ))
 
-    const res = await activarHorario(h.id, duracion as DuracionTutoria)
+    const res = await activarHorario(h.id, duracion as DuracionTutoria, {
+      permitirMultiples: durPermitirMultiples,
+      bufferMinutos: durPermitirMultiples ? durBufferMinutos : undefined,
+    })
     setDurSaving(false); setSavingId(null)
 
     if (res.error) {
@@ -368,6 +395,9 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
     setHorarios(prev => prev.map(x =>
       x.id === h.id ? { ...x, estado: 'disponible', disponible_hasta: res.disponible_hasta ?? null } : x
     ))
+    // Reset multi-booking options after saving
+    setDurPermitirMultiples(false)
+    setDurBufferMinutos(2)
   }
 
   // ── Professor actions on reservas ──────────────────────────────────────────
@@ -613,6 +643,33 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                   </p>
                 </div>
               )}
+              {/* Multi-booking options */}
+              <div className="border border-gray-700 rounded-lg px-3 py-2.5 space-y-2.5 bg-gray-800/60">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 accent-brand-500"
+                    checked={durPermitirMultiples}
+                    onChange={e => setDurPermitirMultiples(e.target.checked)}
+                  />
+                  <span className="text-xs text-gray-300">Permitir múltiples estudiantes por turno</span>
+                </label>
+                {durPermitirMultiples && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <span className="text-xs text-gray-500">Buffer entre turnos:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={30}
+                      className="input text-xs w-16 py-1"
+                      value={durBufferMinutos}
+                      onChange={e => setDurBufferMinutos(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <span className="text-xs text-gray-500">min</span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-wrap gap-2">
                 {durDateStr && (
                   <button
@@ -874,12 +931,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                             <button
                               onClick={() => !isSaving && toggleSlot(h, dateStr)}
                               disabled={isSaving}
-                              className={`w-full h-5 rounded border transition-colors ${
+                              title={h.permite_multiples ? 'Multi-turno activo' : undefined}
+                              className={`w-full h-5 rounded border transition-colors relative ${
                                 isSaving
                                   ? 'border-emerald-700/40 bg-emerald-900/20 opacity-60 cursor-wait'
                                   : 'border-emerald-800/60 bg-emerald-900/30 hover:bg-emerald-700/50'
                               }`}
-                            />
+                            >
+                              {h.permite_multiples && !isSaving && (
+                                <span className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 -mt-0.5 -mr-0.5" title="Multi-turno" />
+                              )}
+                            </button>
                           </td>
                         )
                       })}
@@ -1094,6 +1156,159 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
           )}
         </div>
       )}
+
+      {/* ── Tipos de tutoría ──────────────────────────────────────────────── */}
+      <div className="card space-y-3">
+        <button
+          onClick={() => { setShowTipos(v => !v); setTipoMsg(null) }}
+          className="flex items-center gap-2 w-full text-left"
+        >
+          <svg className={`w-3.5 h-3.5 text-brand-400 transition-transform ${showTipos ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="text-xs font-semibold text-white">Tipos de tutoría</span>
+          <span className="text-[10px] text-gray-500 ml-1">({tiposLocal.length})</span>
+        </button>
+
+        {showTipos && (
+          <div className="space-y-3 pt-1">
+            {tipoMsg && (
+              <div className={`text-xs px-3 py-2 rounded-lg border ${
+                tipoMsg.startsWith('✓')
+                  ? 'bg-emerald-900/30 border-emerald-800 text-emerald-300'
+                  : 'bg-red-900/30 border-red-800 text-red-300'
+              }`}>{tipoMsg}</div>
+            )}
+
+            {/* Tabla de tipos */}
+            {tiposLocal.length > 0 && (
+              <div className="border border-gray-800 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-800 bg-gray-800/40">
+                      <th className="text-left px-3 py-2 text-gray-400 font-medium">Tipo</th>
+                      <th className="text-center px-3 py-2 text-gray-400 font-medium">Duración</th>
+                      <th className="text-right px-3 py-2 text-gray-400 font-medium">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {tiposLocal.map(tipo => (
+                      <tr key={tipo.id} className="hover:bg-gray-800/20 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-200">{tipo.nombre}</span>
+                            {tipo.es_global && (
+                              <span className="text-[9px] bg-blue-900/40 border border-blue-800 text-blue-400 px-1 py-0.5 rounded">Global</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-center text-gray-400">{tipo.duracion_minutos} min</td>
+                        <td className="px-3 py-2 text-right">
+                          {!tipo.es_global && (
+                            <div className="flex gap-1 justify-end">
+                              <button
+                                onClick={() => {
+                                  setTipoEditId(tipo.id)
+                                  setTipoNombre(tipo.nombre)
+                                  setTipoDuracion(tipo.duracion_minutos)
+                                }}
+                                className="text-[10px] text-gray-400 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-700 transition-colors"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`¿Eliminar "${tipo.nombre}"?`)) return
+                                  const res = await eliminarTipoTutoria(tipo.id)
+                                  if (res.error) { setTipoMsg(`❌ ${res.error}`); return }
+                                  setTiposLocal(prev => prev.filter(t => t.id !== tipo.id))
+                                  setTipoMsg('✓ Tipo eliminado')
+                                }}
+                                className="text-[10px] text-red-400 border border-red-900 px-2 py-0.5 rounded hover:bg-red-950 transition-colors"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Form: crear o editar */}
+            <div className="border border-gray-700 rounded-lg px-3 py-3 space-y-2.5 bg-gray-800/30">
+              <p className="text-xs font-semibold text-gray-400">
+                {tipoEditId ? 'Editar tipo' : '+ Agregar tipo'}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-xs">Nombre</label>
+                  <input
+                    type="text"
+                    className="input text-xs"
+                    placeholder="Ej: Duda rápida o aclaración"
+                    value={tipoNombre}
+                    onChange={e => setTipoNombre(e.target.value)}
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Duración (minutos)</label>
+                  <input
+                    type="number"
+                    className="input text-xs"
+                    min={5}
+                    max={180}
+                    value={tipoDuracion}
+                    onChange={e => setTipoDuracion(Math.max(5, parseInt(e.target.value) || 5))}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  disabled={!tipoNombre.trim() || tipoSaving}
+                  onClick={async () => {
+                    if (!tipoNombre.trim()) return
+                    setTipoSaving(true); setTipoMsg(null)
+                    if (tipoEditId) {
+                      const res = await actualizarTipoTutoria(tipoEditId, { nombre: tipoNombre.trim(), duracion_minutos: tipoDuracion })
+                      if (res.error) { setTipoMsg(`❌ ${res.error}`) }
+                      else {
+                        setTiposLocal(prev => prev.map(t => t.id === tipoEditId ? { ...t, nombre: tipoNombre.trim(), duracion_minutos: tipoDuracion } : t))
+                        setTipoMsg('✓ Tipo actualizado')
+                        setTipoEditId(null); setTipoNombre(''); setTipoDuracion(20)
+                      }
+                    } else {
+                      const res = await crearTipoTutoria({ nombre: tipoNombre.trim(), duracion_minutos: tipoDuracion })
+                      if (res.error) { setTipoMsg(`❌ ${res.error}`) }
+                      else {
+                        setTiposLocal(prev => [...prev, { id: res.id!, nombre: tipoNombre.trim(), duracion_minutos: tipoDuracion, descripcion: null, es_global: false, activo: true, orden: prev.length + 1 }])
+                        setTipoMsg('✓ Tipo creado')
+                        setTipoNombre(''); setTipoDuracion(20)
+                      }
+                    }
+                    setTipoSaving(false)
+                  }}
+                  className="btn-primary text-xs disabled:opacity-40"
+                >
+                  {tipoSaving ? '...' : tipoEditId ? 'Guardar cambios' : 'Crear tipo'}
+                </button>
+                {tipoEditId && (
+                  <button
+                    onClick={() => { setTipoEditId(null); setTipoNombre(''); setTipoDuracion(20) }}
+                    className="text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded hover:bg-gray-800 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Close grid popover on outside click (durPicker is inline — no overlay needed) */}
       {popover && (

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TutoriasPageClient } from './tutorias-page-client'
-import { getHistorialTutorias } from '@/lib/actions/tutorias'
+import { getHistorialTutorias, getTiposTutoria } from '@/lib/actions/tutorias'
 
 export default async function TutoriasPage() {
   const supabase = await createClient()
@@ -20,6 +20,7 @@ export default async function TutoriasPage() {
     { data: profesor },
     historial,
     { data: citaciones },
+    tiposTutoriaResult,
   ] = await Promise.all([
     db.from('horarios')
       .select('*')
@@ -67,6 +68,8 @@ export default async function TutoriasPage() {
       `)
       .eq('profesor_id', user.id)
       .order('fecha_citacion', { ascending: false }),
+
+    getTiposTutoria(),
   ])
 
   return (
@@ -79,6 +82,7 @@ export default async function TutoriasPage() {
       profesorNombre={profesor?.nombre ?? ''}
       historial={historial}
       citaciones={citaciones ?? []}
+      tiposTutoria={tiposTutoriaResult.tipos}
     />
   )
 }

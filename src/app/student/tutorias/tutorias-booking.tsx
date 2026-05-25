@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { anunciarAsistenciaTutoria, cancelarAnuncioTutoria } from '@/lib/actions/tutorias'
+import { anunciarAsistenciaTutoria, cancelarAnuncioTutoria, type TipoTutoria } from '@/lib/actions/tutorias'
 import { generarPrepTutoria } from '@/lib/actions/generar-contenido'
+import type { SlotOccupancy } from './page'
 
 interface Horario {
   id: number
@@ -13,6 +14,8 @@ interface Horario {
   hora_fin: string
   estado: string
   disponible_hasta: string | null
+  permite_multiples?: boolean | null
+  buffer_minutos?: number | null
   profesores: { nombre: string } | null
 }
 
@@ -26,8 +29,6 @@ interface Reserva {
   link_zoom: string | null
   horarios: { dia_semana: string; hora_inicio: string; hora_fin: string } | null
 }
-
-interface OccupiedSlot { horario_id: number; fecha: string }
 
 interface Clase {
   id: string
@@ -48,12 +49,13 @@ interface StudentInfo {
 interface Props {
   horarios: Horario[]
   clases: Clase[]
-  occupiedSlots: OccupiedSlot[]
+  occupiedSlots: SlotOccupancy[]
   misReservas: Reserva[]
   studentInfo: StudentInfo
   estudianteCursoIds: string[]
   estudianteByCurso: Record<string, string>
   misAnuncios: { horario_clase_id: string; fecha: string; estudiante_id: string }[]
+  tiposTutoria: TipoTutoria[]
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -98,7 +100,7 @@ function fmt(t: string) { return t?.slice(0, 5) ?? '' }
 
 function isSlotActiveOnDate(h: Horario, dateStr: string, today: string): boolean {
   if (h.estado !== 'disponible') return false
-  if (dateStr < today) return false          // nunca mostrar fechas pasadas
+  if (dateStr < today) return false
   if (!h.disponible_hasta) return true
   return dateStr <= h.disponible_hasta
 }
@@ -124,17 +126,19 @@ export function TutoriasBooking({
   estudianteCursoIds,
   estudianteByCurso,
   misAnuncios,
+  tiposTutoria,
 }: Props) {
   const supabase = createClient()
   const [horarios]  = useState<Horario[]>(initH)
   const [clases]    = useState<Clase[]>(initClases)
-  const [occupied, setOccupied] = useState<OccupiedSlot[]>(initOcc)
+  const [occupancy, setOccupancy] = useState<SlotOccupancy[]>(initOcc)
   const [reservas, setReservas] = useState<Reserva[]>(initR)
   const [weekOffset, setWeekOffset] = useState(0)
   const [selected, setSelected] = useState<{ horario: Horario; date: Date } | null>(null)
   const [notas,     setNotas]     = useState('')
   const [modalidad, setModalidad] = useState<'presencial' | 'virtual' | 'otro'>('presencial')
   const [linkZoom,  setLinkZoom]  = useState('')
+  const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [canceling,   setCanceling]   = useState<number | null>(null)
   const [noShowing,   setNoShowing]   = useState<number | null>(null)
@@ -166,12 +170,31 @@ export function TutoriasBooking({
   const slotMap = new Map<string, Horario>()
   for (const h of profHorarios) slotMap.set(`${h.dia_semana}|${fmt(h.hora_inicio)}`, h)
 
-  // Occupied set: `horarioId|dateStr`
-  const occupiedSet = new Set(occupied.map(o => `${o.horario_id}|${o.fecha}`))
+  // My reservas set: `horarioId|dateStr`
+  const mySet = new Set(reservas.map(r => `${r.horario_id}|${r.fecha}`))
+
+  // Occupancy lookup: `horarioId|dateStr` → SlotOccupancy
+  const occupancyMap = new Map<string, SlotOccupancy>()
+  for (const o of occupancy) {
+    occupancyMap.set(`${o.horario_id}|${o.fecha}`, o)
+  }
+
+  // ── Slot status helper ────────────────────────────────────────────────────
+  type SlotStatus = 'libre' | 'parcial' | 'lleno' | 'propio'
+
+  function getSlotStatus(horarioId: number, dateStr: string): SlotStatus {
+    const key = `${horarioId}|${dateStr}`
+    if (mySet.has(key)) return 'propio'
+    const occ = occupancyMap.get(key)
+    if (!occ) return 'libre'
+    if (!occ.permite_multiples) return 'lleno'
+    if (occ.esta_lleno) return 'lleno'
+    return 'parcial'
+  }
 
   // Clases map for active professor: `dia|time` → Clase
   const profClases = clases.filter(c => c.profesor_id === activePid)
-  const claseMap = new Map<string, Clase>() // `dia|time` → Clase
+  const claseMap = new Map<string, Clase>()
   for (const c of profClases) {
     const start = fmt(c.hora_inicio)
     const end = fmt(c.hora_fin)
@@ -181,9 +204,6 @@ export function TutoriasBooking({
       }
     }
   }
-
-  // My reservas set: `horarioId|dateStr`
-  const mySet = new Set(reservas.map(r => `${r.horario_id}|${r.fecha}`))
 
   // Active days: any tutoria slot OR any class from the student's own course
   const activeDias = weekDates.filter(date => {
@@ -200,7 +220,6 @@ export function TutoriasBooking({
   async function handleAnuncio(clase: Clase, dateStr: string) {
     const key = `${clase.id}|${dateStr}`
     const isAnnounced = localAnuncios.has(key)
-    // Resolve the correct estudiante_id for this class's course
     const estudianteId = (clase.curso_id && estudianteByCurso[clase.curso_id])
       ? estudianteByCurso[clase.curso_id]
       : Object.values(estudianteByCurso)[0] ?? ''
@@ -208,20 +227,12 @@ export function TutoriasBooking({
     setError(null)
     try {
       if (isAnnounced) {
-        const res = await cancelarAnuncioTutoria({
-          horarioClaseId: clase.id,
-          estudianteId,
-          fecha: dateStr,
-        })
+        const res = await cancelarAnuncioTutoria({ horarioClaseId: clase.id, estudianteId, fecha: dateStr })
         if (res.error) throw new Error(res.error)
         setLocalAnuncios(prev => { const s = new Set(prev); s.delete(key); return s })
         setSuccess('Asistencia cancelada.')
       } else {
-        const res = await anunciarAsistenciaTutoria({
-          horarioClaseId: clase.id,
-          estudianteId,
-          fecha: dateStr,
-        })
+        const res = await anunciarAsistenciaTutoria({ horarioClaseId: clase.id, estudianteId, fecha: dateStr })
         if (res.error) throw new Error(res.error)
         setLocalAnuncios(prev => new Set([...prev, key]))
         setSuccess('¡Asistencia confirmada!')
@@ -238,22 +249,31 @@ export function TutoriasBooking({
     if (!selected) return
     setLoading(true); setError(null)
     const sessionDate = toDateStr(selected.date)
+    const selectedTipo = tiposTutoria.find(t => t.id === selectedTipoId) ?? null
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error: rpcErr } = await (supabase as any).rpc('reservar_tutoria', {
-        p_horario_id:   selected.horario.id,
-        p_nombre:       studentInfo.nombre,
-        p_carrera:      studentInfo.carrera ?? '',
-        p_email:        studentInfo.email,
-        p_telefono:     studentInfo.telefono ?? '',
-        p_auth_user_id: studentInfo.auth_user_id,
-        p_notas:        notas || null,
-        p_fecha:        sessionDate,
-        p_modalidad:    modalidad,
-        p_link_zoom:    modalidad === 'virtual' && linkZoom.trim() ? linkZoom.trim() : null,
+        p_horario_id:       selected.horario.id,
+        p_nombre:           studentInfo.nombre,
+        p_carrera:          studentInfo.carrera ?? '',
+        p_email:            studentInfo.email,
+        p_telefono:         studentInfo.telefono ?? '',
+        p_auth_user_id:     studentInfo.auth_user_id,
+        p_notas:            notas || null,
+        p_fecha:            sessionDate,
+        p_modalidad:        modalidad,
+        p_link_zoom:        modalidad === 'virtual' && linkZoom.trim() ? linkZoom.trim() : null,
+        p_tipo_tutoria_id:  selectedTipoId ?? null,
+        p_duracion_minutos: selectedTipo?.duracion_minutos ?? null,
       })
       if (rpcErr) throw new Error(rpcErr.message)
-      const result = data as { ok: boolean; error?: string; reserva_id?: number }
+      const result = data as {
+        ok: boolean
+        error?: string
+        reserva_id?: number
+        hora_inicio?: string
+        hora_fin?: string
+      }
       if (!result.ok) throw new Error(result.error ?? 'Error al reservar')
 
       const newReserva: Reserva = {
@@ -271,13 +291,39 @@ export function TutoriasBooking({
         },
       }
       setReservas(prev => [...prev, newReserva])
-      setOccupied(prev => [...prev, { horario_id: selected.horario.id, fecha: sessionDate }])
-      setSuccess(`Tutoría agendada: ${selected.horario.dia_semana} ${sessionDate} ${fmt(selected.horario.hora_inicio)}`)
+
+      // Update occupancy optimistically
+      setOccupancy(prev => {
+        const key = `${selected.horario.id}|${sessionDate}`
+        const existing = prev.find(o => `${o.horario_id}|${o.fecha}` === key)
+        if (existing) {
+          return prev.map(o =>
+            `${o.horario_id}|${o.fecha}` === key
+              ? { ...o, reservas_count: o.reservas_count + 1, minutos_usados: o.minutos_usados + (selectedTipo?.duracion_minutos ?? 0) }
+              : o
+          )
+        }
+        return [...prev, {
+          horario_id: selected.horario.id,
+          fecha: sessionDate,
+          reservas_count: 1,
+          minutos_usados: selectedTipo?.duracion_minutos ?? 0,
+          minutos_totales: 60,
+          esta_lleno: false,
+          permite_multiples: selected.horario.permite_multiples ?? false,
+        }]
+      })
+
+      // Success message with sub-slot info if available
+      const horaMsg = result.hora_inicio && result.hora_fin
+        ? `Tu tutoría está confirmada para las ${result.hora_inicio} – ${result.hora_fin}`
+        : `Tutoría agendada: ${selected.horario.dia_semana} ${sessionDate} ${fmt(selected.horario.hora_inicio)}`
+      setSuccess(horaMsg)
       setPrepSugerencias(null)
       const nombreProfesor = selected.horario.profesores?.nombre ?? 'el profesor'
       generarPrepTutoria({ nombreProfesor, carreraEstudiante: studentInfo.carrera })
         .then(r => { if (!r.error) setPrepSugerencias(r.sugerencias) })
-      setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('')
+      setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom(''); setSelectedTipoId(null)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al confirmar')
     } finally {
@@ -285,7 +331,6 @@ export function TutoriasBooking({
     }
   }
 
-  // Determina qué acción mostrar según tiempo restante
   function getReservaAction(r: Reserva): 'cancel' | 'no-show' | 'past' {
     if (!r.fecha || !r.horarios?.hora_inicio || !r.horarios?.hora_fin) return 'cancel'
     const now = Date.now()
@@ -296,17 +341,24 @@ export function TutoriasBooking({
     return 'cancel'
   }
 
-  // ── Cancel booking ─────────────────────────────────────────────────────────
   async function handleCancelar(r: Reserva) {
     setCanceling(r.id); setError(null)
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error: rpcErr } = await (supabase as any).rpc('cancelar_mi_reserva', { p_reserva_id: r.id })
       if (rpcErr) throw new Error(rpcErr.message)
-      const result = data as { ok: boolean; error?: string; use_no_asistire?: boolean }
+      const result = data as { ok: boolean; error?: string }
       if (!result.ok) throw new Error(result.error ?? 'Error al cancelar')
       setReservas(prev => prev.filter(x => x.id !== r.id))
-      setOccupied(prev => prev.filter(o => !(o.horario_id === r.horario_id && o.fecha === r.fecha)))
+      setOccupancy(prev => {
+        const key = `${r.horario_id}|${r.fecha}`
+        return prev
+          .map(o => `${o.horario_id}|${o.fecha}` === key
+            ? { ...o, reservas_count: Math.max(0, o.reservas_count - 1), esta_lleno: false }
+            : o
+          )
+          .filter(o => `${o.horario_id}|${o.fecha}` !== key || o.reservas_count > 0)
+      })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cancelar')
     } finally {
@@ -314,7 +366,6 @@ export function TutoriasBooking({
     }
   }
 
-  // ── No-show booking ────────────────────────────────────────────────────────
   async function handleNoAsistire(r: Reserva) {
     setNoShowing(r.id); setError(null)
     try {
@@ -324,13 +375,37 @@ export function TutoriasBooking({
       const result = data as { ok: boolean; error?: string }
       if (!result.ok) throw new Error(result.error ?? 'Error al marcar')
       setReservas(prev => prev.filter(x => x.id !== r.id))
-      setOccupied(prev => prev.filter(o => !(o.horario_id === r.horario_id && o.fecha === r.fecha)))
+      setOccupancy(prev => {
+        const key = `${r.horario_id}|${r.fecha}`
+        return prev.map(o =>
+          `${o.horario_id}|${o.fecha}` === key
+            ? { ...o, reservas_count: Math.max(0, o.reservas_count - 1), esta_lleno: false }
+            : o
+        )
+      })
       setSuccess('Registrado como "No asistiré". El profesor verá la inasistencia.')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al marcar inasistencia')
     } finally {
       setNoShowing(null)
     }
+  }
+
+  // ── Estimated turn time for multi-slot ───────────────────────────────────
+  function getEstimatedTime(occ: SlotOccupancy | null, selectedTipo: TipoTutoria | null): string | null {
+    if (!occ || !occ.permite_multiples || !occ.minutos_usados) return null
+    const slotHorario = profHorarios.find(h => h.id === occ.horario_id)
+    if (!slotHorario) return `~${occ.minutos_usados} min de espera estimada`
+    const [hh, mm] = slotHorario.hora_inicio.split(':').map(Number)
+    const startMin = hh * 60 + mm + occ.minutos_usados
+    const startH = Math.floor(startMin / 60)
+    const startM = startMin % 60
+    const dur = selectedTipo?.duracion_minutos ?? 20
+    const endMin = startMin + dur
+    const endH = Math.floor(endMin / 60)
+    const endM = endMin % 60
+    const f2 = (h: number, m: number) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+    return `${f2(startH, startM)} – ${f2(endH, endM)}`
   }
 
   if (horarios.length === 0 && profClases.length === 0) {
@@ -473,6 +548,7 @@ export function TutoriasBooking({
         <div className="flex gap-3 text-[10px] text-gray-500 flex-wrap">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-indigo-950/50 border border-indigo-800/60 inline-block"/>Clase</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-900/60 border border-emerald-600 inline-block"/>Disponible</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-900/60 border border-amber-600 inline-block"/>Parcial</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-900/60 border border-orange-600 inline-block"/>Tutoría de curso</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-violet-900/60 border border-violet-700 inline-block"/>Agendado</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-900/60 border border-blue-700 inline-block"/>Tu reserva</span>
@@ -522,24 +598,22 @@ export function TutoriasBooking({
                         const slot    = slotMap.get(`${diaKey}|${time}`)
                         const clase   = claseMap.get(`${diaKey}|${time}`)
 
-                        const slotKey  = `${slot?.id}|${dateStr}`
-                        const isMine   = slot ? mySet.has(slotKey) : false
-                        const isOccupied = slot ? (occupiedSet.has(slotKey) && !isMine) : false
                         const activeOnDate = slot ? isSlotActiveOnDate(slot, dateStr, todayStr) : false
+                        const status: SlotStatus = (slot && activeOnDate)
+                          ? getSlotStatus(slot.id, dateStr)
+                          : 'libre'
 
-                        // Any class belonging to the student's own course
-                        const isPropiaCurso = !!clase && estudianteCursoIds.includes(clase.curso_id ?? '')
-                        // tutoria_curso of student's own course — orange announce
+                        const isPropiaCurso  = !!clase && estudianteCursoIds.includes(clase.curso_id ?? '')
                         const isTutoriaCurso = isPropiaCurso && clase!.tipo === 'tutoria_curso'
-                        // any other class type of student's own course (clase, centro_computo, etc.)
-                        const isClasePropia = isPropiaCurso && !isTutoriaCurso
-                        // class of a different course — show as blocked
-                        const isOtroCurso = !!clase && !isPropiaCurso
+                        const isClasePropia  = isPropiaCurso && !isTutoriaCurso
 
-                        // No slot + no own class → empty cell
-                        if (!activeOnDate && !isMine && !isPropiaCurso) return <td key={dateStr} className="px-1 py-0.5" />
+                        // Empty cell when no slot active and no own class
+                        if (!activeOnDate && status !== 'propio' && !isPropiaCurso) {
+                          return <td key={dateStr} className="px-1 py-0.5" />
+                        }
 
-                        if (isMine) {
+                        // Tu reserva
+                        if (status === 'propio') {
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
                               <div className="h-7 rounded border border-blue-700 bg-blue-900/40 flex items-center justify-center">
@@ -549,7 +623,7 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // tutoria_curso — orange announce button
+                        // tutoria_curso announce button
                         if (isTutoriaCurso) {
                           const anuncioKey = `${clase!.id}|${dateStr}`
                           const isAnnounced = localAnuncios.has(anuncioKey)
@@ -574,14 +648,52 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Tutoring slot active → show disponible/occupied BEFORE hiding for other-course classes
-                        if (slot && activeOnDate && !isOccupied) {
+                        // Lleno
+                        if (status === 'lleno') {
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
+                                <span className="text-violet-500 text-[9px]">Agendado</span>
+                              </div>
+                            </td>
+                          )
+                        }
+
+                        // Parcial — ámbar, aún reservable
+                        if (status === 'parcial' && slot) {
+                          const occ = occupancyMap.get(`${slot.id}|${dateStr}`) ?? null
+                          const minRestantes = occ ? occ.minutos_totales - occ.minutos_usados : null
                           const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
                           return (
                             <td key={dateStr} className="px-1 py-0.5">
                               <button
                                 onClick={() => {
-                                  if (isSelected) { setSelected(null) } else { setSelected({ horario: slot, date }); setNotas(''); setError(null) }
+                                  if (isSelected) { setSelected(null) }
+                                  else { setSelected({ horario: slot, date }); setNotas(''); setError(null); setSelectedTipoId(null) }
+                                }}
+                                title={minRestantes ? `${minRestantes} min disponibles` : 'Parcialmente ocupado'}
+                                className={`w-full h-7 rounded border text-[9px] font-medium transition-colors flex flex-col items-center justify-center leading-tight ${
+                                  isSelected
+                                    ? 'bg-amber-500/80 border-amber-400 text-white ring-1 ring-amber-400'
+                                    : 'bg-amber-900/40 border-amber-700 text-amber-300 hover:bg-amber-700/50'
+                                }`}
+                              >
+                                <span>{fmt(slot.hora_inicio)}</span>
+                                {minRestantes !== null && <span className="text-[7px] opacity-80">{minRestantes}m libre</span>}
+                              </button>
+                            </td>
+                          )
+                        }
+
+                        // Libre — verde
+                        if (slot && activeOnDate) {
+                          const isSelected = selected?.horario.id === slot.id && toDateStr(selected.date) === dateStr
+                          return (
+                            <td key={dateStr} className="px-1 py-0.5">
+                              <button
+                                onClick={() => {
+                                  if (isSelected) { setSelected(null) }
+                                  else { setSelected({ horario: slot, date }); setNotas(''); setError(null); setSelectedTipoId(null) }
                                 }}
                                 className={`w-full h-7 rounded border text-[9px] font-medium transition-colors ${
                                   isSelected
@@ -595,21 +707,7 @@ export function TutoriasBooking({
                           )
                         }
 
-                        // Occupied by another student
-                        if (isOccupied) {
-                          return (
-                            <td key={dateStr} className="px-1 py-0.5">
-                              <div className="h-7 rounded border border-violet-900 bg-violet-950/40 flex items-center justify-center pointer-events-none">
-                                <span className="text-violet-500 text-[9px]">Agendado</span>
-                              </div>
-                            </td>
-                          )
-                        }
-
-                        // Class of another course — invisible (no tutoring slot here)
-                        if (isOtroCurso) return <td key={dateStr} className="px-1 py-0.5" />
-
-                        // Class of student's own course (clase, centro_computo, etc.)
+                        // Clase propia
                         if (isClasePropia) {
                           const label =
                             clase!.centro_computo ? 'Centro Cómputo'
@@ -636,154 +734,221 @@ export function TutoriasBooking({
       </div>
 
       {/* Sidebar overlay */}
-      {selected && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
-            onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
-          />
+      {selected && (() => {
+        const occ = occupancyMap.get(`${selected.horario.id}|${toDateStr(selected.date)}`) ?? null
+        const selectedTipo = tiposTutoria.find(t => t.id === selectedTipoId) ?? null
+        const slotStatus = getSlotStatus(selected.horario.id, toDateStr(selected.date))
+        const isParcial = slotStatus === 'parcial'
+        const estimatedTime = isParcial ? getEstimatedTime(occ, selectedTipo) : null
+        const companerosCount = occ?.reservas_count ?? 0
 
-          {/* Slide-over panel */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm flex flex-col bg-gray-900 border-l border-gray-700 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <div>
-                <h3 className="font-semibold text-white">Agendar tutoría</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Reserva una sesión con tu profesor</p>
-              </div>
-              <button
-                onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
-                className="text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg p-1.5 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        return (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+              onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom(''); setSelectedTipoId(null) }}
+            />
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-              {/* Date & time */}
-              <div className="rounded-xl bg-emerald-900/20 border border-emerald-800/50 px-4 py-3 space-y-1">
-                <p className="text-white font-semibold capitalize">
-                  {selected.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </p>
-                <p className="text-emerald-300 text-sm">
-                  {fmt(selected.horario.hora_inicio)} – {fmt(selected.horario.hora_fin)}
-                </p>
-                <p className="text-gray-400 text-xs">
-                  Prof. {selected.horario.profesores?.nombre ?? '—'}
-                </p>
+            {/* Slide-over panel */}
+            <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm flex flex-col bg-gray-900 border-l border-gray-700 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <div>
+                  <h3 className="font-semibold text-white">Agendar tutoría</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Reserva una sesión con tu profesor</p>
+                </div>
+                <button
+                  onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom(''); setSelectedTipoId(null) }}
+                  className="text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg p-1.5 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              {/* Student info */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tus datos</p>
-                <div className="rounded-lg bg-gray-800/60 border border-gray-700 divide-y divide-gray-700">
-                  <div className="px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Nombre</span>
-                    <span className="text-sm text-gray-200 font-medium">{studentInfo.nombre}</span>
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+                {/* Date & time info */}
+                <div className={`rounded-xl border px-4 py-3 space-y-1 ${
+                  isParcial
+                    ? 'bg-amber-900/20 border-amber-800/50'
+                    : 'bg-emerald-900/20 border-emerald-800/50'
+                }`}>
+                  <p className="text-white font-semibold capitalize">
+                    {selected.date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </p>
+                  <p className={`text-sm ${isParcial ? 'text-amber-300' : 'text-emerald-300'}`}>
+                    {fmt(selected.horario.hora_inicio)} – {fmt(selected.horario.hora_fin)}
+                  </p>
+                  <p className="text-gray-400 text-xs">
+                    Prof. {selected.horario.profesores?.nombre ?? '—'}
+                  </p>
+                  {selected.horario.permite_multiples && (
+                    <span className="inline-block text-[10px] bg-amber-900/30 border border-amber-700/50 text-amber-400 px-1.5 py-0.5 rounded mt-1">
+                      Multi-turno
+                    </span>
+                  )}
+                </div>
+
+                {/* Tipo de tutoría */}
+                {tiposTutoria.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      ¿Para qué necesitas la tutoría?
+                    </p>
+                    <div className="space-y-1.5">
+                      {tiposTutoria.map(tipo => (
+                        <button
+                          key={tipo.id}
+                          type="button"
+                          onClick={() => setSelectedTipoId(tipo.id === selectedTipoId ? null : tipo.id)}
+                          className={`w-full flex items-center justify-between border-2 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                            selectedTipoId === tipo.id
+                              ? 'border-blue-500 bg-blue-950/50 text-blue-200'
+                              : 'border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600 hover:bg-gray-800/60'
+                          }`}
+                        >
+                          <span className="text-sm">{tipo.nombre}</span>
+                          <span className={`text-xs font-medium ml-2 flex-shrink-0 ${
+                            selectedTipoId === tipo.id ? 'text-blue-400' : 'text-gray-500'
+                          }`}>
+                            {tipo.duracion_minutos} min
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Correo</span>
-                    <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.email}</span>
+                )}
+
+                {/* Turno estimado (solo en slots multi-turno parcialmente ocupados) */}
+                {isParcial && occ && (
+                  <div className="rounded-lg bg-amber-950/30 border border-amber-700/40 px-3 py-2.5 space-y-1">
+                    {estimatedTime && (
+                      <p className="text-xs text-amber-300">
+                        <span className="font-medium">Tu turno estimado:</span> {estimatedTime}
+                      </p>
+                    )}
+                    {companerosCount > 0 && (
+                      <p className="text-xs text-amber-400/80">
+                        {companerosCount === 1
+                          ? '1 compañero ya tiene turno en este horario'
+                          : `${companerosCount} compañeros ya tienen turno en este horario`}
+                      </p>
+                    )}
                   </div>
-                  {studentInfo.carrera && (
+                )}
+
+                {/* Student info */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tus datos</p>
+                  <div className="rounded-lg bg-gray-800/60 border border-gray-700 divide-y divide-gray-700">
                     <div className="px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Carrera</span>
-                      <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.carrera}</span>
+                      <span className="text-xs text-gray-500">Nombre</span>
+                      <span className="text-sm text-gray-200 font-medium">{studentInfo.nombre}</span>
+                    </div>
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Correo</span>
+                      <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.email}</span>
+                    </div>
+                    {studentInfo.carrera && (
+                      <div className="px-3 py-2 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Carrera</span>
+                        <span className="text-xs text-gray-300 truncate max-w-[160px]">{studentInfo.carrera}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modalidad */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Modalidad</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: 'presencial', label: 'Presencial', icon: '🏫' },
+                      { value: 'virtual',    label: 'Virtual',    icon: '💻' },
+                      { value: 'otro',       label: 'Otro',       icon: '📋' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setModalidad(opt.value)}
+                        className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                          modalidad === opt.value
+                            ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
+                            : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >
+                        <span className="text-base">{opt.icon}</span>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {modalidad === 'virtual' && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500" htmlFor="zoom-input">
+                        Link de Zoom <span className="text-gray-700">(opcional)</span>
+                      </label>
+                      <input
+                        id="zoom-input"
+                        type="url"
+                        className="input text-sm w-full"
+                        placeholder="https://zoom.us/j/..."
+                        value={linkZoom}
+                        onChange={e => setLinkZoom(e.target.value)}
+                      />
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Modalidad */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Modalidad</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: 'presencial', label: 'Presencial', icon: '🏫' },
-                    { value: 'virtual',    label: 'Virtual',    icon: '💻' },
-                    { value: 'otro',       label: 'Otro',       icon: '📋' },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setModalidad(opt.value)}
-                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
-                        modalidad === opt.value
-                          ? 'bg-emerald-900/40 border-emerald-600 text-emerald-300'
-                          : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:border-gray-500'
-                      }`}
-                    >
-                      <span className="text-base">{opt.icon}</span>
-                      {opt.label}
-                    </button>
-                  ))}
+                {/* Notas */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="notas-input">
+                    Motivo / Notas <span className="text-gray-700 normal-case font-normal">(opcional)</span>
+                  </label>
+                  <textarea
+                    id="notas-input"
+                    className="input resize-none text-sm w-full"
+                    rows={3}
+                    placeholder="Ej. Tengo dudas sobre el ensayo del tema 3..."
+                    value={notas}
+                    onChange={e => setNotas(e.target.value)}
+                    maxLength={300}
+                  />
+                  <p className="text-right text-[10px] text-gray-600">{notas.length}/300</p>
                 </div>
-                {modalidad === 'virtual' && (
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-500" htmlFor="zoom-input">
-                      Link de Zoom <span className="text-gray-700">(opcional)</span>
-                    </label>
-                    <input
-                      id="zoom-input"
-                      type="url"
-                      className="input text-sm w-full"
-                      placeholder="https://zoom.us/j/..."
-                      value={linkZoom}
-                      onChange={e => setLinkZoom(e.target.value)}
-                    />
+
+                {/* Error inline */}
+                {error && (
+                  <div className="px-3 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
+                    {error}
                   </div>
                 )}
               </div>
 
-              {/* Notas */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="notas-input">
-                  Motivo / Notas <span className="text-gray-700 normal-case font-normal">(opcional)</span>
-                </label>
-                <textarea
-                  id="notas-input"
-                  className="input resize-none text-sm w-full"
-                  rows={3}
-                  placeholder="Ej. Tengo dudas sobre el ensayo del tema 3..."
-                  value={notas}
-                  onChange={e => setNotas(e.target.value)}
-                  maxLength={300}
-                />
-                <p className="text-right text-[10px] text-gray-600">{notas.length}/300</p>
+              {/* Footer actions */}
+              <div className="px-5 py-4 border-t border-gray-800 space-y-2">
+                <button
+                  onClick={handleConfirm}
+                  disabled={loading}
+                  className="btn-primary w-full text-sm py-3 disabled:opacity-60"
+                >
+                  {loading ? 'Confirmando...' : '✓ Confirmar reserva'}
+                </button>
+                <button
+                  onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom(''); setSelectedTipoId(null) }}
+                  disabled={loading}
+                  className="btn-ghost w-full text-sm disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
               </div>
-
-              {/* Error inline */}
-              {error && (
-                <div className="px-3 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
-                  {error}
-                </div>
-              )}
             </div>
-
-            {/* Footer actions */}
-            <div className="px-5 py-4 border-t border-gray-800 space-y-2">
-              <button
-                onClick={handleConfirm}
-                disabled={loading}
-                className="btn-primary w-full text-sm py-3 disabled:opacity-60"
-              >
-                {loading ? 'Confirmando...' : '✓ Confirmar reserva'}
-              </button>
-              <button
-                onClick={() => { setSelected(null); setNotas(''); setModalidad('presencial'); setLinkZoom('') }}
-                disabled={loading}
-                className="btn-ghost w-full text-sm disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      })()}
     </div>
   )
 }
