@@ -62,10 +62,16 @@ export function PlanDropModal({ source, dest, onConfirm, onClose }: Props) {
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5 disabled:opacity-50">
                 Copiar y Reemplazar
               </button>
-              <button onClick={() => handle('mover', 'combinar')} disabled={saving}
-                className="w-full btn-primary py-2.5 disabled:opacity-50">
-                Mover y Combinar
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => handle('mover', 'combinar')} disabled={saving}
+                  className="btn-primary py-2.5 disabled:opacity-50 text-sm">
+                  Mover y Combinar
+                </button>
+                <button onClick={() => handle('copiar', 'combinar')} disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all py-2.5 disabled:opacity-50 text-sm">
+                  Copiar y Combinar
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => handle('mover', 'cascada')} disabled={saving}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all py-2.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50 text-sm">
