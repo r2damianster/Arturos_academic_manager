@@ -250,15 +250,36 @@ export async function enviarRegistro(
 
   const estadoInicial = registro.validacion_automatica ? 'aprobado' : 'pendiente'
 
-  const { error } = await db.from('envios_registro').insert({
-    registro_id: registroId,
-    estudiante_id: estudianteId,
-    titulo,
-    descripcion: descripcion || null,
-    estado: estadoInicial,
-    revisado_at: registro.validacion_automatica ? new Date().toISOString() : null,
-  })
-  if (error) return { error: error.message }
+  // Si ya hay un envío rechazado, actualizarlo (no crear duplicado)
+  const { data: envioRechazado } = await db.from('envios_registro')
+    .select('id')
+    .eq('registro_id', registroId)
+    .eq('estudiante_id', estudianteId)
+    .eq('estado', 'rechazado')
+    .maybeSingle()
+
+  if (envioRechazado) {
+    const { error } = await db.from('envios_registro')
+      .update({
+        titulo,
+        descripcion: descripcion || null,
+        estado: estadoInicial,
+        comentario_profesor: null,
+        revisado_at: registro.validacion_automatica ? new Date().toISOString() : null,
+      })
+      .eq('id', envioRechazado.id)
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await db.from('envios_registro').insert({
+      registro_id: registroId,
+      estudiante_id: estudianteId,
+      titulo,
+      descripcion: descripcion || null,
+      estado: estadoInicial,
+      revisado_at: registro.validacion_automatica ? new Date().toISOString() : null,
+    })
+    if (error) return { error: error.message }
+  }
 
   // Si auto-aprobado → crear trabajo
   if (registro.validacion_automatica) {
