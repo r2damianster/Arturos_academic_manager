@@ -14,8 +14,9 @@ interface Props {
 }
 
 const ESTADO_COLOR: Record<string, string> = {
-  pendiente: 'text-yellow-400 bg-yellow-900/30 border-yellow-800',
-  aprobado:  'text-emerald-400 bg-emerald-900/30 border-emerald-800',
+  pendiente:  'text-yellow-400 bg-yellow-900/30 border-yellow-800',
+  aprobado:   'text-emerald-400 bg-emerald-900/30 border-emerald-800',
+  rechazado:  'text-red-400 bg-red-900/30 border-red-800',
 }
 
 export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, totalEstudiantes }: Props) {
@@ -71,6 +72,7 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
         const envios = enviosPorRegistro[reg.id] ?? []
         const pendientes = envios.filter(e => e.estado === 'pendiente').length
         const aprobados = envios.filter(e => e.estado === 'aprobado').length
+        const rechazados = envios.filter(e => e.estado === 'rechazado').length
         const isOpen = expanded === reg.id
 
         return (
@@ -97,6 +99,7 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
                   {envios.length} de {totalEstudiantes} enviaron
                   {pendientes > 0 && <span className="text-yellow-400 ml-1.5">· {pendientes} pendiente{pendientes !== 1 ? 's' : ''}</span>}
                   {aprobados > 0 && <span className="text-emerald-400 ml-1.5">· {aprobados} aprobado{aprobados !== 1 ? 's' : ''}</span>}
+                  {rechazados > 0 && <span className="text-red-400 ml-1.5">· {rechazados} rechazado{rechazados !== 1 ? 's' : ''}</span>}
                 </p>
               </button>
 

@@ -150,8 +150,13 @@ export async function revisarEnvio(
   if (!envio || envio.registro?.profesor_id !== user.id) return { error: 'Sin permiso' }
 
   if (estado === 'rechazado') {
-    // Rechazar = eliminar el envío (el estudiante puede reenviar desde cero)
-    const { error } = await db.from('envios_registro').delete().eq('id', envioId)
+    const { error } = await db.from('envios_registro')
+      .update({
+        estado: 'rechazado',
+        comentario_profesor: comentario || null,
+        revisado_at: new Date().toISOString(),
+      })
+      .eq('id', envioId)
     if (error) return { error: error.message }
     revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
     return {}

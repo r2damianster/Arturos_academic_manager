@@ -63,8 +63,18 @@ export function RegistrosCurso({ estudianteId, registros, misEnvios }: Props) {
                     En revisión
                   </span>
                 )}
+                {envio?.estado === 'rechazado' && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium flex-shrink-0 text-red-400 bg-red-900/20 border-red-800">
+                    ✕ Rechazado
+                  </span>
+                )}
               </div>
 
+              {envio?.estado === 'rechazado' && envio.comentario_profesor && (
+                <p className="text-xs text-red-300 mt-1.5 bg-red-900/10 border border-red-800/30 rounded-lg px-2 py-1">
+                  💬 {envio.comentario_profesor}
+                </p>
+              )}
               {exito ? (
                 <p className="text-xs text-emerald-400 mt-2">{exito}</p>
               ) : !yaEnvio && (
