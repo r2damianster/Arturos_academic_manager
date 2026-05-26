@@ -336,6 +336,7 @@ export async function enviarRegistro(
     })
   }
 
+  revalidatePath(`/dashboard/cursos/${registro.curso_id}/trabajos`)
   return { autoAprobado: registro.validacion_automatica }
 }
 
