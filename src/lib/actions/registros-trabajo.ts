@@ -190,6 +190,47 @@ export async function revisarEnvio(
   return {}
 }
 
+export async function revertirEnvio(
+  envioId: string,
+  cursoId: string,
+  estadoActual: 'aprobado' | 'rechazado'
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: envio } = await db.from('envios_registro')
+    .select('*, registro:registro_id(profesor_id, curso_id, tipo)')
+    .eq('id', envioId)
+    .single()
+
+  if (!envio || envio.registro?.profesor_id !== user.id) return { error: 'Sin permiso' }
+
+  const { error } = await db.from('envios_registro')
+    .update({ estado: 'pendiente', comentario_profesor: null, revisado_at: null })
+    .eq('id', envioId)
+
+  if (error) return { error: error.message }
+
+  // Si estaba aprobado, eliminar el trabajo_asignado correspondiente
+  if (estadoActual === 'aprobado') {
+    await supabase.from('trabajos_asignados')
+      .delete()
+      .eq('profesor_id', user.id)
+      .eq('curso_id', envio.registro.curso_id)
+      .eq('estudiante_id', envio.estudiante_id)
+      .eq('tipo', envio.registro.tipo)
+      .eq('tema', envio.titulo)
+      .eq('estado', 'Pendiente')
+  }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/trabajos`)
+  return {}
+}
+
 // ── ESTUDIANTE ───────────────────────────────────────────────────────────────
 
 export async function getRegistrosActivosParaEstudiante(

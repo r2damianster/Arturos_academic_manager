@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { actualizarRegistroTrabajo, revisarEnvio, eliminarRegistroTrabajo, type RegistroTrabajo, type EnvioRegistro } from '@/lib/actions/registros-trabajo'
+import { actualizarRegistroTrabajo, revisarEnvio, revertirEnvio, eliminarRegistroTrabajo, type RegistroTrabajo, type EnvioRegistro } from '@/lib/actions/registros-trabajo'
 
 type EnvioConNombre = EnvioRegistro & { estudiante: { nombre: string } | null }
 
@@ -35,6 +35,15 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
     setAccionEnvio(envioId)
     startTransition(async () => {
       await revisarEnvio(envioId, cursoId, estado, comentarios[envioId])
+      setAccionEnvio(null)
+      router.refresh()
+    })
+  }
+
+  function handleRevertir(envioId: string, estadoActual: 'aprobado' | 'rechazado') {
+    setAccionEnvio(envioId)
+    startTransition(async () => {
+      await revertirEnvio(envioId, cursoId, estadoActual)
       setAccionEnvio(null)
       router.refresh()
     })
@@ -233,6 +242,16 @@ export function EnviosRegistroPanel({ cursoId, registros, enviosPorRegistro, tot
 
                       {envio.comentario_profesor && (
                         <p className="text-xs text-gray-500 italic border-l-2 border-gray-700 pl-2">{envio.comentario_profesor}</p>
+                      )}
+
+                      {(envio.estado === 'aprobado' || envio.estado === 'rechazado') && (
+                        <button
+                          onClick={() => handleRevertir(envio.id, envio.estado as 'aprobado' | 'rechazado')}
+                          disabled={pending && accionEnvio === envio.id}
+                          className="text-[11px] text-gray-600 hover:text-yellow-400 transition-colors disabled:opacity-50"
+                        >
+                          {pending && accionEnvio === envio.id ? '...' : '↩ Revertir a pendiente'}
+                        </button>
                       )}
                     </div>
                   ))
