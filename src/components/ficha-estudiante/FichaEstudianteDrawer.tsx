@@ -6,7 +6,7 @@ import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actio
 import { citarEstudiante } from '@/lib/actions/citaciones'
 import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 
-type Tab = 'resumen' | 'trabajos' | 'participacion' | 'encuesta'
+type Tab = 'resumen' | 'trabajos' | 'participacion' | 'encuesta' | 'trayectoria'
 
 const RAZONES_CITACION = [
   { value: 'inasistencia', label: 'Inasistencia' },
@@ -162,6 +162,104 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
     if (pct >= 80) return 'text-emerald-400'
     if (pct >= 60) return 'text-yellow-400'
     return 'text-red-400'
+  }
+
+  // ── TAB: Trayectoria ────────────────────────────────────────────────────────
+
+  function TabTrayectoria() {
+    if (!data) return null
+    const { trayectoria } = data
+    if (trayectoria.semanas.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-600 text-sm">Sin datos de asistencia registrados</div>
+      )
+    }
+
+    function asistColor(pct: number | null): string {
+      if (pct === null) return 'text-gray-600'
+      if (pct >= 80) return 'text-emerald-400'
+      if (pct >= 60) return 'text-yellow-400'
+      return 'text-red-400'
+    }
+
+    function partColor(avg: number | null): string {
+      if (avg === null) return 'text-gray-600'
+      if (avg >= 4) return 'text-emerald-400'
+      if (avg >= 3) return 'text-lime-400'
+      if (avg >= 2) return 'text-yellow-400'
+      return 'text-red-400'
+    }
+
+    return (
+      <div className="space-y-3">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Evolución semana a semana</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-gray-600 border-b border-gray-800">
+                <th className="text-left pb-1.5 font-medium">Semana</th>
+                <th className="text-center pb-1.5 font-medium">Asistencia</th>
+                <th className="text-center pb-1.5 font-medium">P/A</th>
+                <th className="text-center pb-1.5 font-medium">Particip.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800/40">
+              {trayectoria.semanas.map(s => (
+                <tr key={s.semana} className="hover:bg-gray-800/20">
+                  <td className="py-1.5 text-gray-500 font-mono">{s.semana}</td>
+                  <td className="py-1.5 text-center">
+                    {s.pctAsistencia !== null ? (
+                      <span className={`font-bold ${asistColor(s.pctAsistencia)}`}>{s.pctAsistencia}%</span>
+                    ) : (
+                      <span className="text-gray-700">—</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 text-center text-gray-500">
+                    {s.total > 0 ? `${s.presentes}/${s.total}` : '—'}
+                  </td>
+                  <td className="py-1.5 text-center">
+                    {s.participacionAvg !== null ? (
+                      <span className={`font-bold ${partColor(s.participacionAvg)}`}>{s.participacionAvg}</span>
+                    ) : (
+                      <span className="text-gray-700">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Mini-resumen al pie */}
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          {(() => {
+            const semanasConAsist = trayectoria.semanas.filter(s => s.pctAsistencia !== null)
+            const tendencia = semanasConAsist.length >= 2
+              ? semanasConAsist[semanasConAsist.length - 1].pctAsistencia! - semanasConAsist[0].pctAsistencia!
+              : null
+            const semanasConPart = trayectoria.semanas.filter(s => s.participacionAvg !== null)
+            const partTend = semanasConPart.length >= 2
+              ? semanasConPart[semanasConPart.length - 1].participacionAvg! - semanasConPart[0].participacionAvg!
+              : null
+            return (
+              <>
+                <div className="bg-gray-800/40 rounded-lg p-2 text-center">
+                  <p className="text-[10px] text-gray-500">Tendencia asistencia</p>
+                  <p className={`text-sm font-bold ${tendencia === null ? 'text-gray-600' : tendencia > 0 ? 'text-emerald-400' : tendencia < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                    {tendencia === null ? '—' : tendencia > 0 ? `↑ +${Math.round(tendencia)}%` : tendencia < 0 ? `↓ ${Math.round(tendencia)}%` : '= Estable'}
+                  </p>
+                </div>
+                <div className="bg-gray-800/40 rounded-lg p-2 text-center">
+                  <p className="text-[10px] text-gray-500">Tendencia participación</p>
+                  <p className={`text-sm font-bold ${partTend === null ? 'text-gray-600' : partTend > 0.2 ? 'text-emerald-400' : partTend < -0.2 ? 'text-red-400' : 'text-gray-400'}`}>
+                    {partTend === null ? '—' : partTend > 0.2 ? `↑ +${partTend.toFixed(1)}` : partTend < -0.2 ? `↓ ${partTend.toFixed(1)}` : '= Estable'}
+                  </p>
+                </div>
+              </>
+            )
+          })()}
+        </div>
+      </div>
+    )
   }
 
   // ── TAB: Resumen ────────────────────────────────────────────────────────────
@@ -696,7 +794,7 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
 
           {/* Tabs */}
           <div className="flex gap-1 px-3 pb-2">
-            {(['resumen', 'trabajos', 'participacion', 'encuesta'] as Tab[]).map(t => (
+            {(['resumen', 'trabajos', 'participacion', 'encuesta', 'trayectoria'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -706,7 +804,7 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                {t === 'resumen' ? 'Resumen' : t === 'trabajos' ? 'Trabajos' : t === 'participacion' ? 'Participación' : 'Encuesta'}
+                {t === 'resumen' ? 'Resumen' : t === 'trabajos' ? 'Trabajos' : t === 'participacion' ? 'Participación' : t === 'encuesta' ? 'Encuesta' : 'Trayectoria'}
               </button>
             ))}
           </div>
@@ -730,6 +828,7 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
               {tab === 'trabajos' && <TabTrabajos />}
               {tab === 'participacion' && <TabParticipacion />}
               {tab === 'encuesta' && <TabEncuesta />}
+              {tab === 'trayectoria' && <TabTrayectoria />}
             </>
           )}
         </div>

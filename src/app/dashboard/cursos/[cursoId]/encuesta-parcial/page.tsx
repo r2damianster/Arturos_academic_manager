@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getResultadosEncuestaParcial, getDetalleEncuestaParcial } from '@/lib/actions/encuesta-parcial'
+import { getResultadosEncuestaParcial, getDetalleEncuestaParcial, getComparativaAutopercepcion } from '@/lib/actions/encuesta-parcial'
 import { EncuestaParcialDetalleClient } from './encuesta-parcial-detail-client'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -136,9 +136,10 @@ export default async function EncuestaParcialProfesorPage({
 
   if (!curso) redirect('/dashboard/cursos')
 
-  const [resultados, detalle] = await Promise.all([
+  const [resultados, detalle, comparativaAuto] = await Promise.all([
     getResultadosEncuestaParcial(cursoId),
     getDetalleEncuestaParcial(cursoId),
+    getComparativaAutopercepcion(cursoId),
   ])
 
   const sinRespuestas = !resultados || resultados.total_respondieron === 0
@@ -323,6 +324,78 @@ export default async function EncuestaParcialProfesorPage({
                             <span className={`font-medium ${colorProm(vals.actual)}`}>
                               {vals.actual ?? '—'}
                             </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Comparativa Autopercepción — Inicial vs Parcial */}
+          {comparativaAuto && comparativaAuto.campos.length > 0 && (
+            <div className="card space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-gray-200 text-sm">Autopercepción Lingüística — Evolución</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {Object.values(comparativaAuto.inicial).some(v => v !== null)
+                      ? 'Encuesta inicial → Encuesta de progreso (mitad del curso)'
+                      : 'Solo datos de encuesta de progreso — no hay datos iniciales para comparar'}
+                  </p>
+                </div>
+                <span className="text-xs bg-indigo-900/30 text-indigo-400 border border-indigo-800/40 px-2 py-0.5 rounded-full flex-shrink-0">KEYHOLE</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-gray-800">
+                      <th className="text-left pb-2 font-medium">Dimensión</th>
+                      <th className="text-center pb-2 font-medium w-20">Inicial</th>
+                      <th className="text-center pb-2 font-medium w-8"></th>
+                      <th className="text-center pb-2 font-medium w-20">Parcial</th>
+                      <th className="text-center pb-2 font-medium w-16">Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/50">
+                    {comparativaAuto.campos.map(({ key, label }) => {
+                      const ini = comparativaAuto.inicial[key]
+                      const par = comparativaAuto.parcial[key]
+                      const diff = ini !== null && par !== null ? Math.round((par - ini) * 10) / 10 : null
+                      return (
+                        <tr key={key} className="py-1">
+                          <td className="py-1.5 text-gray-400">{label}</td>
+                          <td className="py-1.5 text-center">
+                            <span className={`font-medium ${ini !== null && ini <= 2.5 ? 'text-red-400' : ini !== null && ini <= 3.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {ini ?? <span className="text-gray-600">—</span>}
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-center">
+                            {diff === null ? (
+                              <span className="text-gray-600">=</span>
+                            ) : diff > 0.1 ? (
+                              <span className="text-emerald-400">↑</span>
+                            ) : diff < -0.1 ? (
+                              <span className="text-red-400">↓</span>
+                            ) : (
+                              <span className="text-gray-500">=</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-center">
+                            <span className={`font-medium ${par !== null && par <= 2.5 ? 'text-red-400' : par !== null && par <= 3.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {par ?? <span className="text-gray-600">—</span>}
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-center">
+                            {diff !== null ? (
+                              <span className={`font-mono text-xs font-bold ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                                {diff > 0 ? '+' : ''}{diff}
+                              </span>
+                            ) : (
+                              <span className="text-gray-600 text-xs">—</span>
+                            )}
                           </td>
                         </tr>
                       )

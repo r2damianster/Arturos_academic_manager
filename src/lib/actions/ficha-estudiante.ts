@@ -43,6 +43,16 @@ export type FichaEstudianteData = {
   grupoActual: { nombre: string; categoria: string } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   encuestaParcial: Record<string, any> | null
+  trayectoria: {
+    semanas: {
+      semana: string
+      fechaRef: string
+      presentes: number
+      total: number
+      pctAsistencia: number | null
+      participacionAvg: number | null
+    }[]
+  }
 }
 
 export async function getFichaEstudiante(
@@ -74,7 +84,7 @@ export async function getFichaEstudiante(
       .eq('estudiante_id', estudianteId)
       .eq('curso_id', cursoId)
       .order('fecha', { ascending: false })
-      .limit(5),
+      .limit(200),
     db.from('trabajos_asignados')
       .select('id, tipo, tema, estado, progreso, fecha_asignacion, observaciones_trabajo(observacion, fecha)')
       .eq('estudiante_id', estudianteId)
@@ -168,6 +178,59 @@ export async function getFichaEstudiante(
     }
   }
 
+  // Trayectoria semanal
+  function getISOWeekKey(dateStr: string): { key: string; fechaRef: string } {
+    const d = new Date(dateStr + 'T12:00:00')
+    const dayOfWeek = d.getDay() || 7
+    const thursday = new Date(d)
+    thursday.setDate(d.getDate() + 4 - dayOfWeek)
+    const yearStart = new Date(thursday.getFullYear(), 0, 1)
+    const weekNum = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+    const lunes = new Date(d)
+    lunes.setDate(d.getDate() - (dayOfWeek - 1))
+    return {
+      key: `${thursday.getFullYear()}-S${weekNum.toString().padStart(2, '0')}`,
+      fechaRef: lunes.toISOString().split('T')[0],
+    }
+  }
+
+  const semanaAsist: Record<string, { key: string; fechaRef: string; presentes: number; total: number }> = {}
+  for (const a of asistRows) {
+    const { key, fechaRef } = getISOWeekKey(a.fecha)
+    if (!semanaAsist[key]) semanaAsist[key] = { key, fechaRef, presentes: 0, total: 0 }
+    semanaAsist[key].total++
+    if (a.estado === 'Presente') semanaAsist[key].presentes++
+  }
+
+  const semanaPartic: Record<string, number[]> = {}
+  for (const p of partRows) {
+    if (p.nivel == null) continue
+    const { key } = getISOWeekKey(p.fecha)
+    if (!semanaPartic[key]) semanaPartic[key] = []
+    semanaPartic[key].push(p.nivel)
+  }
+
+  const semanasKeys = Array.from(new Set([
+    ...Object.keys(semanaAsist),
+    ...Object.keys(semanaPartic),
+  ])).sort()
+
+  const trayectoriaSemanas = semanasKeys.map(key => {
+    const a = semanaAsist[key]
+    const niveles = semanaPartic[key] ?? []
+    const participacionAvg = niveles.length > 0
+      ? Math.round(niveles.reduce((s, n) => s + n, 0) / niveles.length * 10) / 10
+      : null
+    return {
+      semana: key.split('-')[1],
+      fechaRef: a?.fechaRef ?? key,
+      presentes: a?.presentes ?? 0,
+      total: a?.total ?? 0,
+      pctAsistencia: a && a.total > 0 ? Math.round((a.presentes / a.total) * 100) : null,
+      participacionAvg,
+    }
+  })
+
   // Encuesta parcial (si existe)
   const encuestaParcialRes = await db
     .from('encuesta_parcial')
@@ -187,5 +250,6 @@ export async function getFichaEstudiante(
     citaciones: { pendientes, ultima: ultimaCit },
     grupoActual,
     encuestaParcial,
+    trayectoria: { semanas: trayectoriaSemanas },
   }
 }

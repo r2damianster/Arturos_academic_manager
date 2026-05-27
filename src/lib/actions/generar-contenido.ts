@@ -391,3 +391,47 @@ export async function mejorarContenido(params: {
     { role: 'user', content: userPrompt },
   ])
 }
+
+export async function generarRetroalimentacionFormativa(params: {
+  asignatura: string
+  pctAsistencia: number | null
+  trabajosCompletados: number
+  trabajosActivos: number
+  trabajosTotal: number
+  tutoriasAsistidas: number
+  tutoriasFaltadas: number
+}): Promise<{ retroalimentacion: string; error?: string }> {
+  const {
+    asignatura,
+    pctAsistencia,
+    trabajosCompletados,
+    trabajosActivos,
+    trabajosTotal,
+    tutoriasAsistidas,
+    tutoriasFaltadas,
+  } = params
+
+  const context = [
+    `Asignatura: ${asignatura}`,
+    `Asistencia: ${pctAsistencia !== null ? `${pctAsistencia}%` : 'sin datos'}`,
+    `Trabajos: ${trabajosCompletados} completados de ${trabajosTotal} total, ${trabajosActivos} en progreso`,
+    `Tutorías: ${tutoriasAsistidas} asistidas, ${tutoriasFaltadas} no asistidas`,
+  ].join('. ')
+
+  const result = await callGroq([
+    {
+      role: 'system',
+      content: `Eres un tutor académico empático. Generas retroalimentación formativa breve (máximo 180 palabras) basada SOLO en datos reales. Estructura: exactamente 3 párrafos cortos. Párrafo 1 (Fortalezas): destaca lo positivo observable. Párrafo 2 (Oportunidades): señala UN área concreta de mejora. Párrafo 3 (Estrategias): sugiere DOS acciones específicas para las próximas semanas. Tono: constructivo, motivador, nunca peyorativo. Sin saludos, sin despedidas, sin listas con viñetas, solo prosa.`,
+    },
+    {
+      role: 'user',
+      content: `Genera retroalimentación formativa para un estudiante con estos datos: ${context}`,
+    },
+  ])
+
+  if (result.error || !result.content) {
+    return { retroalimentacion: '', error: result.error ?? 'Sin respuesta' }
+  }
+
+  return { retroalimentacion: result.content.trim() }
+}

@@ -58,6 +58,34 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Reemplazante temporal — detectar y restringir acceso
+  if (user && pathname.startsWith('/dashboard')) {
+    const userEmail = user.email ?? ''
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: reemplazanteRows } = await (supabase as any).rpc('get_reemplazante_info', { p_email: userEmail })
+    const reemplazanteInfo = reemplazanteRows && reemplazanteRows.length > 0 ? reemplazanteRows[0] : null
+
+    if (reemplazanteInfo) {
+      // Rutas bloqueadas para reemplazantes
+      const bloqueado =
+        pathname.includes('/editar') ||
+        pathname.includes('/calificaciones') ||
+        pathname.includes('/encuesta-parcial') ||
+        pathname.startsWith('/dashboard/config') ||
+        pathname.startsWith('/dashboard/cursos/nuevo')
+
+      if (bloqueado) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        url.searchParams.set('acceso', 'restringido')
+        return NextResponse.redirect(url)
+      }
+
+      supabaseResponse.headers.set('x-es-reemplazante', 'true')
+      supabaseResponse.headers.set('x-reemplazante-profesor-id', reemplazanteInfo.profesor_id)
+    }
+  }
+
   // Forward pathname so server layouts can read it
   supabaseResponse.headers.set('x-pathname', pathname)
 

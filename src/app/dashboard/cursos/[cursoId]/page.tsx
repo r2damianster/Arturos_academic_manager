@@ -3,6 +3,9 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
 import { RiesgoPanel } from '@/components/cursos/RiesgoPanel'
+import { ExportDatasetButton } from '@/components/cursos/ExportDatasetButton'
+import { CierreParcialesPanel } from '@/components/cursos/CierreParcialesPanel'
+import { getSnapshotsParcial } from '@/lib/actions/parcial'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -27,7 +30,7 @@ export default async function CursoDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes, citacionesRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes, citacionesRes, participacionRes, notasEnCursoRes, snapshots] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
       .select('id, nombre, email, tutoria, estado, auth_user_id')
@@ -39,6 +42,9 @@ export default async function CursoDetailPage({
       .select('estudiante_id')
       .eq('curso_id', cursoId)
       .in('estado', ['pendiente', 'agendada']),
+    db.from('participacion').select('estudiante_id, nivel').eq('curso_id', cursoId),
+    db.from('calificaciones_items').select('estudiante_id, nota').eq('curso_id', cursoId).eq('fuente', 'en_curso'),
+    getSnapshotsParcial(cursoId),
   ])
 
   const curso = cursoRes.data as Curso | null
@@ -47,6 +53,8 @@ export default async function CursoDetailPage({
   const todosEstudiantes: EstudianteRaw[] = estudiantesRes.data ?? []
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
+  const participaciones: { estudiante_id: string; nivel: number }[] = participacionRes.data ?? []
+  const notasEnCurso: { estudiante_id: string; nota: number | null }[] = notasEnCursoRes.data ?? []
   const citadosSet = new Set<string>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (citacionesRes.data ?? []).map((c: any) => c.estudiante_id as string)
@@ -84,6 +92,27 @@ export default async function CursoDetailPage({
     }
   }
 
+  // Participación promedio por estudiante
+  const participacionMap: Record<string, number> = {}
+  {
+    const grupos: Record<string, number[]> = {}
+    for (const p of participaciones) {
+      if (!grupos[p.estudiante_id]) grupos[p.estudiante_id] = []
+      grupos[p.estudiante_id].push(p.nivel)
+    }
+    for (const [id, niveles] of Object.entries(grupos)) {
+      participacionMap[id] = Math.round((niveles.reduce((s, n) => s + n, 0) / niveles.length) * 10) / 10
+    }
+  }
+
+  // Notas en curso: pct completadas
+  const notasEnCursoMap: Record<string, { total: number; completadas: number }> = {}
+  for (const n of notasEnCurso) {
+    if (!notasEnCursoMap[n.estudiante_id]) notasEnCursoMap[n.estudiante_id] = { total: 0, completadas: 0 }
+    notasEnCursoMap[n.estudiante_id].total++
+    if (n.nota !== null) notasEnCursoMap[n.estudiante_id].completadas++
+  }
+
   // Construir lista con métricas
   const estudiantesConMetricas = todosEstudiantes.map(est => {
     const asist = asistMap[est.id]
@@ -99,20 +128,41 @@ export default async function CursoDetailPage({
       pctAsistencia,
       trabajosActivos: trabajosMap[est.id] ?? 0,
       tieneEncuesta: est.auth_user_id ? encuestaSet.has(est.auth_user_id) : false,
+      participacionPromedio: participacionMap[est.id] ?? null,
+      notasEnCursoPct: notasEnCursoMap[est.id]
+        ? Math.round((notasEnCursoMap[est.id].completadas / notasEnCursoMap[est.id].total) * 100)
+        : null,
     }
   })
 
   const activos   = estudiantesConMetricas.filter(e => e.estado !== 'retirado')
   const retirados = estudiantesConMetricas.filter(e => e.estado === 'retirado')
 
+  function contarFactores(e: { pctAsistencia: number | null; trabajosActivos: number; participacionPromedio: number | null; notasEnCursoPct: number | null }): number {
+    let f = 0
+    if (e.pctAsistencia !== null && e.pctAsistencia < 75) f++
+    if (e.participacionPromedio !== null && e.participacionPromedio < 2.5) f++
+    if (e.notasEnCursoPct !== null && e.notasEnCursoPct < 50) f++
+    if (e.trabajosActivos >= 3) f++
+    return f
+  }
+
   const enRiesgo = activos
-    .filter(e => e.pctAsistencia !== null && e.pctAsistencia < 75 && !citadosSet.has(e.id))
+    .filter(e => {
+      if (citadosSet.has(e.id)) return false
+      const factores = contarFactores(e)
+      return (e.pctAsistencia !== null && e.pctAsistencia < 60) || factores >= 2
+    })
     .map(e => ({
       id: e.id,
       nombre: e.nombre,
       pctAsistencia: e.pctAsistencia,
       trabajosActivos: e.trabajosActivos,
+      participacionPromedio: e.participacionPromedio,
+      notasEnCursoPct: e.notasEnCursoPct,
+      factoresRiesgo: contarFactores(e),
     }))
+    .sort((a, b) => b.factoresRiesgo - a.factoresRiesgo)
 
   // Notificación encuesta parcial
   let encuestaParcialNotif: { mostrar: boolean; respondieron: number; total: number } = { mostrar: false, respondieron: 0, total: 0 }
@@ -182,6 +232,9 @@ export default async function CursoDetailPage({
               </svg>
               Editar curso
             </Link>
+            <div className="mt-1">
+              <ExportDatasetButton cursoId={cursoId} />
+            </div>
           </div>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(curso as any).aula && (
@@ -262,6 +315,13 @@ export default async function CursoDetailPage({
 
       {/* Panel de riesgo */}
       <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} />
+
+      {/* Cierre de parciales */}
+      <CierreParcialesPanel
+        cursoId={cursoId}
+        numParciales={(curso as any).num_parciales ?? 2}
+        snapshots={snapshots}
+      />
 
       {/* Tabla de estudiantes con métricas */}
       <EstudiantesMetricsTable

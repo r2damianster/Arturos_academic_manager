@@ -243,3 +243,93 @@ export async function eliminarCurso(cursoId: string): Promise<void> {
   revalidatePath('/dashboard/cursos')
   redirect('/dashboard/cursos')
 }
+
+// ─── Export dataset investigación ─────────────────────────────────────────────
+
+export async function exportarDatasetInvestigacion(cursoId: string): Promise<{ csv?: string; error?: string }> {
+  try {
+    const supabase = await createClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    // Verificar que el curso pertenece al profesor
+    const { data: curso } = await db.from('cursos').select('id, asignatura').eq('id', cursoId).eq('profesor_id', user.id).single()
+    if (!curso) return { error: 'Curso no encontrado' }
+
+    const [estudiantesRes, asistenciaRes, participacionRes, trabajosRes, notasEnCursoRes, encuestaParcialRes] = await Promise.all([
+      db.from('estudiantes').select('id').eq('curso_id', cursoId).eq('estado', 'activo'),
+      db.from('asistencia').select('estudiante_id, estado').eq('curso_id', cursoId),
+      db.from('participacion').select('estudiante_id, nivel').eq('curso_id', cursoId),
+      db.from('trabajos_asignados').select('estudiante_id, estado').eq('curso_id', cursoId),
+      db.from('calificaciones_items').select('estudiante_id, nota').eq('curso_id', cursoId).eq('fuente', 'en_curso'),
+      db.from('encuesta_parcial').select('estudiante_id, autopercepcion_aprendizaje, esfuerzo_dedicado, comprension_temas_propia, preparacion_evaluacion, cumplimiento_entregas').eq('curso_id', cursoId),
+    ])
+
+    const estudiantes: { id: string }[] = estudiantesRes.data ?? []
+    const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
+    const participaciones: { estudiante_id: string; nivel: number }[] = participacionRes.data ?? []
+    const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []
+    const notasItems: { estudiante_id: string; nota: number | null }[] = notasEnCursoRes.data ?? []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const encuestas: any[] = encuestaParcialRes.data ?? []
+
+    // Mapas por estudiante
+    const asistMap: Record<string, { presentes: number; total: number }> = {}
+    for (const a of asistencias) {
+      if (!asistMap[a.estudiante_id]) asistMap[a.estudiante_id] = { presentes: 0, total: 0 }
+      asistMap[a.estudiante_id].total++
+      if (a.estado === 'Presente') asistMap[a.estudiante_id].presentes++
+    }
+    const partMap: Record<string, number[]> = {}
+    for (const p of participaciones) {
+      if (!partMap[p.estudiante_id]) partMap[p.estudiante_id] = []
+      partMap[p.estudiante_id].push(p.nivel)
+    }
+    const trabajosMap: Record<string, { completados: number; activos: number }> = {}
+    for (const t of trabajos) {
+      if (!trabajosMap[t.estudiante_id]) trabajosMap[t.estudiante_id] = { completados: 0, activos: 0 }
+      if (t.estado === 'Aprobado' || t.estado === 'Entregado') trabajosMap[t.estudiante_id].completados++
+      if (t.estado === 'Pendiente' || t.estado === 'En progreso') trabajosMap[t.estudiante_id].activos++
+    }
+    const notasMap: Record<string, { total: number; completadas: number }> = {}
+    for (const n of notasItems) {
+      if (!notasMap[n.estudiante_id]) notasMap[n.estudiante_id] = { total: 0, completadas: 0 }
+      notasMap[n.estudiante_id].total++
+      if (n.nota !== null) notasMap[n.estudiante_id].completadas++
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const encuestaMap: Record<string, any> = {}
+    for (const e of encuestas) encuestaMap[e.estudiante_id] = e
+
+    const header = 'id_anonimizado,asistencia_pct,participacion_avg,trabajos_completados,trabajos_activos,notas_en_curso_pct,autopercepcion_aprendizaje,esfuerzo_dedicado,comprension_temas_propia,preparacion_evaluacion,cumplimiento_entregas'
+    const rows = estudiantes.map(est => {
+      const asist = asistMap[est.id]
+      const asistPct = asist && asist.total > 0 ? Math.round((asist.presentes / asist.total) * 100) : ''
+      const niveles = partMap[est.id] ?? []
+      const partAvg = niveles.length > 0 ? Math.round(niveles.reduce((s, n) => s + n, 0) / niveles.length * 10) / 10 : ''
+      const trab = trabajosMap[est.id]
+      const notas = notasMap[est.id]
+      const notasPct = notas && notas.total > 0 ? Math.round((notas.completadas / notas.total) * 100) : ''
+      const enc = encuestaMap[est.id]
+      return [
+        est.id.slice(0, 8),
+        asistPct,
+        partAvg,
+        trab?.completados ?? '',
+        trab?.activos ?? '',
+        notasPct,
+        enc?.autopercepcion_aprendizaje ?? '',
+        enc?.esfuerzo_dedicado ?? '',
+        enc?.comprension_temas_propia ?? '',
+        enc?.preparacion_evaluacion ?? '',
+        enc?.cumplimiento_entregas ?? '',
+      ].join(',')
+    })
+
+    return { csv: [header, ...rows].join('\n') }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error desconocido' }
+  }
+}

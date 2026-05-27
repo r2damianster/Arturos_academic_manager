@@ -4,6 +4,8 @@ import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 import { MisGrupos } from '@/components/student/MisGrupos'
 import { AutodiagnosticoWidget } from '@/components/student/AutodiagnosticoWidget'
+import { MiProgreso } from '@/components/student/MiProgreso'
+import { RetroalimentacionWidget } from '@/components/student/RetroalimentacionWidget'
 import { RegistrosCurso } from '@/components/student/RegistrosCurso'
 import { getGruposAbiertosParaEstudiante } from '@/lib/actions/grupos'
 import { getEstadoEncuestasParciales } from '@/lib/actions/encuesta-parcial'
@@ -184,6 +186,8 @@ export default async function StudentPage() {
 
         const ts = trabajosPorEstudiante.get(est.id) ?? []
         const activos = ts.filter(t => t.estado === 'Pendiente' || t.estado === 'En progreso')
+        const completados = ts.filter(t => t.estado === 'Aprobado' || t.estado === 'Entregado').length
+        const trabajosTotal = ts.length
         const regAsis = asistenciaReg.filter(r => r.estudiante_id === est.id)
         const presentes = regAsis.filter(r => r.estado === 'Presente').length
         const pctAsistencia = regAsis.length > 0 ? Math.round(presentes / regAsis.length * 100) : null
@@ -325,12 +329,34 @@ export default async function StudentPage() {
               <p className="text-xs text-gray-600 text-center py-2">Sin trabajos asignados</p>
             )}
 
+            {/* Mi Progreso longitudinal */}
+            <MiProgreso
+              asignatura={curso.asignatura}
+              pctAsistencia={pctAsistencia}
+              trabajosCompletados={completados}
+              trabajosActivos={activos.length}
+              trabajosTotal={trabajosTotal}
+              tutoriasAsistidas={tutoriasAsistidas}
+              tutoriasFaltadas={tutoriasFaltadas}
+            />
+
             {/* Autodiagnóstico IA */}
             <AutodiagnosticoWidget
               asignatura={curso.asignatura}
               pctAsistencia={pctAsistencia}
               trabajosActivos={activos.length}
-              trabajosCompletados={ts.filter(t => t.estado === 'Aprobado' || t.estado === 'Entregado').length}
+              trabajosCompletados={completados}
+              tutoriasAsistidas={tutoriasAsistidas}
+              tutoriasFaltadas={tutoriasFaltadas}
+            />
+
+            {/* Retroalimentación formativa IA */}
+            <RetroalimentacionWidget
+              asignatura={curso.asignatura}
+              pctAsistencia={pctAsistencia}
+              trabajosCompletados={completados}
+              trabajosActivos={activos.length}
+              trabajosTotal={trabajosTotal}
               tutoriasAsistidas={tutoriasAsistidas}
               tutoriasFaltadas={tutoriasFaltadas}
             />

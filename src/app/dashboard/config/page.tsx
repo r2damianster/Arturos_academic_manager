@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProfesoresManager } from '@/components/admin/profesores-manager'
 import { CopyButton } from '@/components/admin/copy-button'
+import { ReemplazantesPanel } from '@/components/config/ReemplazantesPanel'
+import { getReemplazantes } from '@/lib/actions/reemplazantes'
 
 interface Profesor {
   id: string
@@ -61,6 +63,10 @@ export default async function ConfigPage({
   let totalEstudiantes = 0
   let totalCursos = 0
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gestor-universitario-next.vercel.app'
+
+  const [reemplazantes] = await Promise.all([
+    getReemplazantes(),
+  ])
 
   if (activeTab === 'admin') {
     const profesoresRes = await db.from('profesores').select('*').order('created_at')
@@ -168,6 +174,11 @@ export default async function ConfigPage({
             <button type="submit" className="btn-primary">Guardar cambios</button>
           </div>
         </form>
+      )}
+
+      {/* Reemplazantes — visible para todos los profesores en tab perfil */}
+      {activeTab === 'perfil' && (
+        <ReemplazantesPanel reemplazantes={reemplazantes} />
       )}
 
       {/* Contenido: Administración */}

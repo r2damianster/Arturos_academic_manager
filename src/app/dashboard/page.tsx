@@ -4,6 +4,8 @@ import { TodayPanel } from '@/components/dashboard/TodayPanel'
 import { AgendaSection } from '@/components/dashboard/AgendaSection'
 import { TutoriasPendientesPanel } from '@/components/dashboard/TutoriasPendientesPanel'
 import { limpiarHorariosVencidos } from '@/lib/actions/tutorias'
+import { NotificacionesPanel } from '@/components/dashboard/NotificacionesPanel'
+import { getNotificacionesProactivas } from '@/lib/actions/notificaciones'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -27,6 +29,7 @@ export default async function DashboardPage() {
     horariosRes,
     profesorRes,
     estudiantesRes,
+    notificacionesData,
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -37,6 +40,7 @@ export default async function DashboardPage() {
     db.from('horarios').select('*').eq('profesor_id', user.id).order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
+    getNotificacionesProactivas(),
   ])
 
   // Reservas de tutorías
@@ -114,6 +118,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      <NotificacionesPanel notificaciones={notificacionesData} />
       <SummaryPanel
         totalCursos={cursosCountRes.count ?? 0}
         totalEstudiantes={estudiantesCountRes.count ?? 0}

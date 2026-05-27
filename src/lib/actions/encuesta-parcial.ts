@@ -445,3 +445,129 @@ export async function getEstadoEncuestasParciales(cursoIds: string[]): Promise<R
   }
   return resultado
 }
+
+export async function getComparativaAutopercepcion(cursoId: string): Promise<{
+  campos: { key: string; label: string }[]
+  inicial: Record<string, number | null>
+  parcial: Record<string, number | null>
+} | null> {
+  try {
+    const supabase = await createClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    // Verificar que el curso pertenece al profesor
+    const { data: curso } = await db
+      .from('cursos')
+      .select('id')
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+      .single()
+    if (!curso) return null
+
+    // Promedio de autopercepción en encuesta_parcial (tipo='mitad')
+    const { data: parcialData } = await db
+      .from('encuesta_parcial')
+      .select('autopercepcion_aprendizaje, esfuerzo_dedicado, comprension_temas_propia, preparacion_evaluacion, cumplimiento_entregas')
+      .eq('curso_id', cursoId)
+      .eq('tipo', 'mitad')
+
+    const parcial: Record<string, number | null> = {
+      autopercepcion_aprendizaje: null,
+      esfuerzo_dedicado: null,
+      comprension_temas_propia: null,
+      preparacion_evaluacion: null,
+      cumplimiento_entregas: null,
+    }
+
+    if (parcialData && parcialData.length > 0) {
+      for (const key of Object.keys(parcial)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vals = (parcialData as any[]).map((r: any) => r[key]).filter((v: any): v is number => typeof v === 'number')
+        parcial[key] = vals.length > 0
+          ? Math.round(vals.reduce((s: number, n: number) => s + n, 0) / vals.length * 10) / 10
+          : null
+      }
+    }
+
+    // Intentar obtener autopercepción inicial desde encuesta_estudiante
+    const { data: estudiantesData } = await db
+      .from('estudiantes')
+      .select('auth_user_id')
+      .eq('curso_id', cursoId)
+      .not('auth_user_id', 'is', null)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const authIds = ((estudiantesData ?? []) as any[]).map((e: any) => e.auth_user_id).filter(Boolean)
+
+    const inicial: Record<string, number | null> = {
+      autopercepcion_aprendizaje: null,
+      esfuerzo_dedicado: null,
+      comprension_temas_propia: null,
+      preparacion_evaluacion: null,
+      cumplimiento_entregas: null,
+    }
+
+    if (authIds.length > 0) {
+      try {
+        // Verificar qué campos existen en encuesta_estudiante tomando una fila de muestra
+        const { data: inicialSample } = await db
+          .from('encuesta_estudiante')
+          .select('*')
+          .in('auth_user_id', authIds)
+          .limit(1)
+
+        if (inicialSample && inicialSample.length > 0) {
+          const sampleRow = inicialSample[0]
+          const campoMapping: Record<string, string> = {
+            autopercepcion_aprendizaje: 'autopercepcion_aprendizaje',
+            esfuerzo_dedicado: 'esfuerzo_dedicado',
+            comprension_temas_propia: 'comprension_temas_propia',
+            preparacion_evaluacion: 'preparacion_evaluacion',
+            cumplimiento_entregas: 'cumplimiento_entregas',
+          }
+
+          // Solo leer campos que realmente existen en la tabla
+          const camposExistentes = Object.entries(campoMapping)
+            .filter(([, srcKey]) => srcKey in sampleRow)
+            .map(([destKey, srcKey]) => ({ destKey, srcKey }))
+
+          if (camposExistentes.length > 0) {
+            const selectFields = camposExistentes.map(c => c.srcKey).join(', ')
+            const { data: allInicialData } = await db
+              .from('encuesta_estudiante')
+              .select(selectFields)
+              .in('auth_user_id', authIds)
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (allInicialData && (allInicialData as any[]).length > 0) {
+              for (const { destKey, srcKey } of camposExistentes) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const vals = (allInicialData as any[]).map((r: any) => r[srcKey]).filter((v: any): v is number => typeof v === 'number')
+                if (vals.length > 0) {
+                  inicial[destKey] = Math.round(vals.reduce((s: number, n: number) => s + n, 0) / vals.length * 10) / 10
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // encuesta_estudiante no tiene estos campos — inicial queda en null
+      }
+    }
+
+    const campos = [
+      { key: 'autopercepcion_aprendizaje', label: 'Nivel de aprendizaje percibido' },
+      { key: 'esfuerzo_dedicado', label: 'Esfuerzo dedicado al curso' },
+      { key: 'comprension_temas_propia', label: 'Comprensión de los temas' },
+      { key: 'preparacion_evaluacion', label: 'Preparación para evaluaciones' },
+      { key: 'cumplimiento_entregas', label: 'Cumplimiento de entregas' },
+    ]
+
+    return { campos, inicial, parcial }
+  } catch {
+    return null
+  }
+}
