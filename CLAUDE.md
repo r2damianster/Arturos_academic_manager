@@ -36,6 +36,24 @@ git push origin main
 
 ---
 
+## Filosofía del aplicativo
+
+Este aplicativo **complementa** plataformas institucionales existentes (Moodle, campus virtual, etc.) — no las replica. El supuesto de diseño es que el profesor ya usa otras herramientas para registros formales (notas finales, entregas evaluadas, certificación de asistencia oficial). Lo que este sistema aporta es:
+
+- **Centralización**: un único lugar para ver al estudiante como persona completa — asistencia, participación, tutorías, perfil socioeconómico, encuestas, grupos, trabajos en proceso.
+- **Seguimiento de proceso**: captura datos que las plataformas formales no contemplan (participación en tiempo real de clase, notas "en curso" previas a su registro formal, diagnósticos intermedios, historial de tutorías).
+- **Acompañamiento integral**: visibilidad del trayecto del estudiante, no solo sus calificaciones finales. Permite al profesor detectar riesgo, citar a tutoría, generar perfiles y tomar decisiones pedagógicas informadas.
+
+### Principio reflexivo para nuevas funcionalidades
+
+Antes de implementar una nueva función, el rol de la IA es acompañar al creador en esta reflexión — **sin bloquear la decisión**:
+
+> ¿Esta función captura algo que las plataformas existentes no recogen, o facilita presentar/cruzar resultados de manera que aporte al seguimiento integral del estudiante? ¿O estamos duplicando un flujo que ya existe en Moodle/campus y que obligaría al profesor a registrar lo mismo en dos lugares?
+
+El criterio no es "¿existe esto en Moodle?" sino **"¿aporta genuinamente al seguimiento centralizado e integral, o genera doble trabajo?"**. Si la respuesta no es clara, conviene señalarlo.
+
+---
+
 ## Proyecto
 App Next.js 15 para gestión docente universitaria — cursos, asistencia, calificaciones, tutorías, agenda y portal del estudiante.
 
