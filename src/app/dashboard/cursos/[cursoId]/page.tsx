@@ -6,6 +6,7 @@ import { RiesgoPanel } from '@/components/cursos/RiesgoPanel'
 import { EncuestaBanner } from '@/components/cursos/EncuestaBanner'
 import { ExportDatasetButton } from '@/components/cursos/ExportDatasetButton'
 import { CierreParcialesPanel } from '@/components/cursos/CierreParcialesPanel'
+import { RiesgoHistoricoPanel } from '@/components/cursos/RiesgoHistoricoPanel'
 import { getSnapshotsParcial } from '@/lib/actions/parcial'
 import type { Tables } from '@/types/database.types'
 
@@ -174,6 +175,37 @@ export default async function CursoDetailPage({
     }))
     .sort((a, b) => b.factoresRiesgo - a.factoresRiesgo)
 
+  // Alerta preventiva desde último snapshot cerrado
+  let enRiesgoHistorico: Array<{
+    id: string; nombre: string; pct_asistencia: number | null;
+    participacion_avg: number | null; notas_en_curso_pct: number | null; factores: number;
+  }> = []
+  let parcialHistorico = 0
+  if (snapshots.length > 0) {
+    const lastSnap = snapshots[snapshots.length - 1]
+    parcialHistorico = lastSnap.numero_parcial
+    const numParciales = (curso as any).num_parciales ?? 2
+    if (parcialHistorico < numParciales) {
+      enRiesgoHistorico = lastSnap.resumen.por_estudiante
+        .filter(est => {
+          if (citadosSet.has(est.id)) return false
+          let f = 0
+          if (est.pct_asistencia !== null && est.pct_asistencia < 75) f++
+          if (est.participacion_avg !== null && est.participacion_avg < 2.5) f++
+          if (est.notas_en_curso_pct !== null && est.notas_en_curso_pct < 50) f++
+          return f >= 2
+        })
+        .map(est => {
+          let f = 0
+          if (est.pct_asistencia !== null && est.pct_asistencia < 75) f++
+          if (est.participacion_avg !== null && est.participacion_avg < 2.5) f++
+          if (est.notas_en_curso_pct !== null && est.notas_en_curso_pct < 50) f++
+          return { id: est.id, nombre: est.nombre, pct_asistencia: est.pct_asistencia, participacion_avg: est.participacion_avg, notas_en_curso_pct: est.notas_en_curso_pct, factores: f }
+        })
+        .sort((a, b) => b.factores - a.factores)
+    }
+  }
+
   // Notificación encuesta parcial
   let encuestaParcialNotif: { mostrar: boolean; respondieron: number; total: number } = { mostrar: false, respondieron: 0, total: 0 }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -314,8 +346,11 @@ export default async function CursoDetailPage({
         ))}
       </div>
 
-      {/* Panel de riesgo */}
+      {/* Panel de riesgo actual */}
       <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} silenciado={riesgoSilenciado} />
+
+      {/* Alerta preventiva post-parcial */}
+      <RiesgoHistoricoPanel cursoId={cursoId} numeroParcial={parcialHistorico} estudiantes={enRiesgoHistorico} />
 
       {/* Cierre de parciales */}
       <CierreParcialesPanel
