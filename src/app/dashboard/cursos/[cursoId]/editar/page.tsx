@@ -34,6 +34,19 @@ export default async function EditarCursoPage({
 
   if (!cursoRes.data) notFound()
 
+  // Resolver nombres de estudiantes excluidos del panel de riesgo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const alertas = (cursoRes.data as any).alertas_silenciadas ?? {}
+  const excluidos: string[] = Array.isArray(alertas.riesgo_excluidos) ? alertas.riesgo_excluidos : []
+  let estudiantesExcluidos: { id: string; nombre: string }[] = []
+  if (excluidos.length > 0) {
+    const { data: excData } = await db.from('estudiantes')
+      .select('id, nombre')
+      .in('id', excluidos)
+      .eq('curso_id', cursoId)
+    estudiantesExcluidos = excData ?? []
+  }
+
   return (
     <EditarClient
       cursoId={cursoId}
@@ -44,6 +57,7 @@ export default async function EditarCursoPage({
       logros={logrosRes.data ?? [] as any}
       profesorInstitucion={profesorRes?.data?.institucion ?? null}
       defaultTab={tab ?? 'info'}
+      estudiantesExcluidos={estudiantesExcluidos}
     />
   )
 }

@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics-table'
 import { RiesgoPanel } from '@/components/cursos/RiesgoPanel'
+import { EncuestaBanner } from '@/components/cursos/EncuestaBanner'
 import { ExportDatasetButton } from '@/components/cursos/ExportDatasetButton'
 import { CierreParcialesPanel } from '@/components/cursos/CierreParcialesPanel'
 import { getSnapshotsParcial } from '@/lib/actions/parcial'
@@ -147,9 +148,18 @@ export default async function CursoDetailPage({
     return f
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const alertasSilenciadas = ((curso as any).alertas_silenciadas ?? {}) as Record<string, unknown>
+  const riesgoExcluidos = new Set<string>(
+    Array.isArray(alertasSilenciadas.riesgo_excluidos) ? alertasSilenciadas.riesgo_excluidos as string[] : []
+  )
+  const riesgoSilenciado = alertasSilenciadas.riesgo === true
+  const encuestaSilenciada = alertasSilenciadas.encuesta_parcial === true
+
   const enRiesgo = activos
     .filter(e => {
       if (citadosSet.has(e.id)) return false
+      if (riesgoExcluidos.has(e.id)) return false
       const factores = contarFactores(e)
       return (e.pctAsistencia !== null && e.pctAsistencia < 60) || factores >= 2
     })
@@ -259,23 +269,14 @@ export default async function CursoDetailPage({
         </div>
       </div>
 
-      {/* Banner encuesta parcial activa */}
-      {encuestaParcialNotif.mostrar && (
-        <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-4 flex items-start gap-3">
-          <span className="text-amber-400 text-lg mt-0.5">📋</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-amber-300 font-medium text-sm">Encuesta de progreso activa esta semana</p>
-            <p className="text-amber-400/70 text-xs mt-0.5">
-              {encuestaParcialNotif.respondieron} de {encuestaParcialNotif.total} estudiantes han respondido
-            </p>
-          </div>
-          <Link
-            href={`/dashboard/cursos/${cursoId}/encuesta-parcial`}
-            className="text-amber-400 text-xs font-medium hover:text-amber-300 whitespace-nowrap"
-          >
-            Ver resultados →
-          </Link>
-        </div>
+      {/* Banner encuesta parcial */}
+      {(encuestaParcialNotif.mostrar || encuestaSilenciada) && (
+        <EncuestaBanner
+          cursoId={cursoId}
+          respondieron={encuestaParcialNotif.respondieron}
+          total={encuestaParcialNotif.total}
+          silenciado={encuestaSilenciada}
+        />
       )}
 
       {/* Métricas globales */}
@@ -314,7 +315,7 @@ export default async function CursoDetailPage({
       </div>
 
       {/* Panel de riesgo */}
-      <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} />
+      <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} silenciado={riesgoSilenciado} />
 
       {/* Cierre de parciales */}
       <CierreParcialesPanel

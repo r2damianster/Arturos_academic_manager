@@ -333,3 +333,132 @@ export async function exportarDatasetInvestigacion(cursoId: string): Promise<{ c
     return { error: e instanceof Error ? e.message : 'Error desconocido' }
   }
 }
+
+// ─── Alertas silenciadas ──────────────────────────────────────────────────────
+
+type TipoAlerta = 'riesgo' | 'encuesta_parcial'
+
+async function _getAlertasSilenciadas(db: ReturnType<typeof Object.create>, cursoId: string, userId: string) {
+  const { data } = await db.from('cursos')
+    .select('alertas_silenciadas')
+    .eq('id', cursoId)
+    .eq('profesor_id', userId)
+    .single()
+  return (data?.alertas_silenciadas ?? {}) as Record<string, unknown>
+}
+
+export async function silenciarAlerta(
+  cursoId: string,
+  tipo: TipoAlerta,
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient()
+    const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    const actual = await _getAlertasSilenciadas(db, cursoId, user.id)
+    const nuevo = { ...actual, [tipo]: true }
+
+    const { error } = await db.from('cursos')
+      .update({ alertas_silenciadas: nuevo })
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/dashboard/cursos/${cursoId}`)
+    return {}
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error' }
+  }
+}
+
+export async function restaurarAlerta(
+  cursoId: string,
+  tipo?: TipoAlerta,
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient()
+    const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    let nuevo: Record<string, unknown>
+    if (tipo) {
+      const actual = await _getAlertasSilenciadas(db, cursoId, user.id)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [tipo]: _removed, ...rest } = actual
+      nuevo = rest
+    } else {
+      nuevo = {}
+    }
+
+    const { error } = await db.from('cursos')
+      .update({ alertas_silenciadas: nuevo })
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/dashboard/cursos/${cursoId}`)
+    revalidatePath(`/dashboard/cursos/${cursoId}/editar`)
+    return {}
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error' }
+  }
+}
+
+export async function excluirEstudianteDeRiesgo(
+  cursoId: string,
+  estudianteId: string,
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient()
+    const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    const actual = await _getAlertasSilenciadas(db, cursoId, user.id)
+    const excluidos = Array.isArray(actual.riesgo_excluidos) ? actual.riesgo_excluidos as string[] : []
+    if (!excluidos.includes(estudianteId)) excluidos.push(estudianteId)
+    const nuevo = { ...actual, riesgo_excluidos: excluidos }
+
+    const { error } = await db.from('cursos')
+      .update({ alertas_silenciadas: nuevo })
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/dashboard/cursos/${cursoId}`)
+    return {}
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error' }
+  }
+}
+
+export async function reincluirEstudianteEnRiesgo(
+  cursoId: string,
+  estudianteId: string,
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient()
+    const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    const actual = await _getAlertasSilenciadas(db, cursoId, user.id)
+    const excluidos = Array.isArray(actual.riesgo_excluidos) ? actual.riesgo_excluidos as string[] : []
+    const nuevo = { ...actual, riesgo_excluidos: excluidos.filter(id => id !== estudianteId) }
+
+    const { error } = await db.from('cursos')
+      .update({ alertas_silenciadas: nuevo })
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/dashboard/cursos/${cursoId}`)
+    revalidatePath(`/dashboard/cursos/${cursoId}/editar`)
+    return {}
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error' }
+  }
+}

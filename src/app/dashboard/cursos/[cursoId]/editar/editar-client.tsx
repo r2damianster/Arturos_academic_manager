@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { actualizarCurso, eliminarCurso } from '@/lib/actions/cursos'
+import { actualizarCurso, eliminarCurso, restaurarAlerta, reincluirEstudianteEnRiesgo } from '@/lib/actions/cursos'
 import { addLogro, updateLogro, deleteLogro } from '@/lib/actions/logros'
 import { OcrLogroModal } from '@/components/logros/OcrLogroModal'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
@@ -27,6 +27,7 @@ interface Curso {
   nombres_tareas?: string[] | null
   encuesta_inicial_habilitada?: boolean | null
   encuesta_parcial_habilitada?: boolean | null
+  alertas_silenciadas?: Record<string, unknown> | null
 }
 
 interface LogroItem {
@@ -42,6 +43,7 @@ interface Props {
   logros: LogroItem[]
   profesorInstitucion?: string | null
   defaultTab: string
+  estudiantesExcluidos?: { id: string; nombre: string }[]
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -53,7 +55,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'peligro',    label: '⚠ Zona peligrosa' },
 ]
 
-export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profesorInstitucion, defaultTab }: Props) {
+export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profesorInstitucion, defaultTab, estudiantesExcluidos = [] }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>((TABS.find(t => t.id === defaultTab)?.id) ?? 'info')
   const [loading, setLoading] = useState(false)
@@ -68,6 +70,10 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
   const numParcialesInicial = curso.num_parciales ?? 2
   const [numParciales, setNumParciales] = useState(numParcialesInicial)
   const [pendingReducir, setPendingReducir] = useState(false)
+
+  // Alertas silenciadas
+  const alertas = (curso.alertas_silenciadas ?? {}) as Record<string, unknown>
+  const [alertaPending, startAlerta] = useTransition()
 
   // Zona peligrosa — doble confirmación
   const [deleteStep, setDeleteStep] = useState(0)
@@ -214,6 +220,72 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
                   <span className="text-gray-500 ml-1">(se activa al 50% del semestre)</span>
                 </span>
               </label>
+            </div>
+          </div>
+
+          {/* Alertas automáticas */}
+          <div className="pt-4 border-t border-gray-800">
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Alertas automáticas</h3>
+            <div className="space-y-3">
+              {/* Panel de riesgo */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-300">Panel de riesgo académico</p>
+                  <p className="text-xs text-gray-500">Estudiantes con factores de alerta (asistencia, participación, notas)</p>
+                </div>
+                {alertas.riesgo === true ? (
+                  <button
+                    type="button"
+                    disabled={alertaPending}
+                    onClick={() => startAlerta(() => { restaurarAlerta(cursoId, 'riesgo').then(() => {}) })}
+                    className="text-xs text-amber-400 hover:text-amber-300 whitespace-nowrap disabled:opacity-50"
+                  >
+                    Silenciado · Restaurar
+                  </button>
+                ) : (
+                  <span className="text-xs text-emerald-500">Activo</span>
+                )}
+              </div>
+
+              {/* Estudiantes excluidos del riesgo */}
+              {estudiantesExcluidos.length > 0 && (
+                <div className="pl-3 border-l border-gray-700 space-y-1.5">
+                  <p className="text-xs text-gray-500">Estudiantes ocultos del panel de riesgo:</p>
+                  {estudiantesExcluidos.map(est => (
+                    <div key={est.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-300">{est.nombre}</span>
+                      <button
+                        type="button"
+                        disabled={alertaPending}
+                        onClick={() => startAlerta(() => { reincluirEstudianteEnRiesgo(cursoId, est.id).then(() => {}) })}
+                        className="text-xs text-gray-500 hover:text-gray-300 disabled:opacity-50"
+                      >
+                        Reincluir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Banner encuesta */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-300">Banner de encuesta de progreso</p>
+                  <p className="text-xs text-gray-500">Aparece cuando el curso supera el 50% de duración</p>
+                </div>
+                {alertas.encuesta_parcial === true ? (
+                  <button
+                    type="button"
+                    disabled={alertaPending}
+                    onClick={() => startAlerta(() => { restaurarAlerta(cursoId, 'encuesta_parcial').then(() => {}) })}
+                    className="text-xs text-amber-400 hover:text-amber-300 whitespace-nowrap disabled:opacity-50"
+                  >
+                    Silenciado · Restaurar
+                  </button>
+                ) : (
+                  <span className="text-xs text-emerald-500">Activo</span>
+                )}
+              </div>
             </div>
           </div>
 

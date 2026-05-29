@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { citarEstudiante } from '@/lib/actions/citaciones'
+import { silenciarAlerta, restaurarAlerta, excluirEstudianteDeRiesgo } from '@/lib/actions/cursos'
 
 export interface EstudianteEnRiesgo {
   id: string
@@ -16,6 +17,7 @@ export interface EstudianteEnRiesgo {
 interface Props {
   cursoId: string
   estudiantes: EstudianteEnRiesgo[]
+  silenciado?: boolean
 }
 
 function razonYDetalle(e: EstudianteEnRiesgo): { razon: string; detalleRazon: string } {
@@ -37,11 +39,32 @@ function razonYDetalle(e: EstudianteEnRiesgo): { razon: string; detalleRazon: st
 
 type Estado = 'idle' | 'loading' | 'done' | 'error'
 
-export function RiesgoPanel({ cursoId, estudiantes }: Props) {
+export function RiesgoPanel({ cursoId, estudiantes, silenciado = false }: Props) {
   const [estado,    setEstado]    = useState<Estado>('idle')
   const [citados,   setCitados]   = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+  const [silPending, startSil]    = useTransition()
+  const [excPending, startExc]    = useTransition()
 
+  // ── Strip cuando panel completo está silenciado ───────────────────────────
+  if (silenciado) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/40 text-xs text-gray-500">
+        <span>⚠ Panel de riesgo silenciado</span>
+        <span className="text-gray-700">·</span>
+        <button
+          type="button"
+          disabled={silPending}
+          onClick={() => startSil(() => { restaurarAlerta(cursoId, 'riesgo').then(() => {}) })}
+          className="text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+        >
+          Mostrar de nuevo →
+        </button>
+      </div>
+    )
+  }
+
+  // ── Sin estudiantes en riesgo (luego de filtrar excluidos) ────────────────
   if (estudiantes.length === 0) return null
 
   const maxFactores = Math.max(...estudiantes.map(e => e.factoresRiesgo))
@@ -57,16 +80,11 @@ export function RiesgoPanel({ cursoId, estudiantes }: Props) {
     ? 'w-full text-sm bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2'
     : 'w-full text-sm bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2'
 
-  // Descripción dinámica de factores detectados
   const factoresDetectados: string[] = []
-  const hayAsistencia  = estudiantes.some(e => e.pctAsistencia !== null && e.pctAsistencia < 75)
-  const hayParticipacion = estudiantes.some(e => e.participacionPromedio !== null && e.participacionPromedio < 2.5)
-  const hayNotas       = estudiantes.some(e => e.notasEnCursoPct !== null && e.notasEnCursoPct < 50)
-  const hayTrabajos    = estudiantes.some(e => e.trabajosActivos >= 3)
-  if (hayAsistencia)   factoresDetectados.push('asistencia')
-  if (hayParticipacion) factoresDetectados.push('participación')
-  if (hayNotas)        factoresDetectados.push('notas en curso')
-  if (hayTrabajos)     factoresDetectados.push('trabajos')
+  if (estudiantes.some(e => e.pctAsistencia !== null && e.pctAsistencia < 75))           factoresDetectados.push('asistencia')
+  if (estudiantes.some(e => e.participacionPromedio !== null && e.participacionPromedio < 2.5)) factoresDetectados.push('participación')
+  if (estudiantes.some(e => e.notasEnCursoPct !== null && e.notasEnCursoPct < 50))       factoresDetectados.push('notas en curso')
+  if (estudiantes.some(e => e.trabajosActivos >= 3))                                      factoresDetectados.push('trabajos')
 
   async function handleCitarTodos() {
     setEstado('loading')
@@ -83,12 +101,12 @@ export function RiesgoPanel({ cursoId, estudiantes }: Props) {
 
   return (
     <div className={panelClasses}>
-      <button
-        type="button"
-        onClick={() => setCollapsed(c => !c)}
-        className={`w-full flex items-center justify-between px-4 py-3 text-sm ${headerTextClass} ${headerHoverClass} transition-colors`}
-      >
-        <span className="flex items-center gap-2 font-medium">
+      <div className={`w-full flex items-center justify-between px-4 py-3 text-sm ${headerTextClass}`}>
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          className={`flex-1 flex items-center gap-2 font-medium text-left ${headerHoverClass} transition-colors rounded-l`}
+        >
           <span>⚠</span>
           {estudiantes.length} {estudiantes.length === 1 ? 'estudiante' : 'estudiantes'} en riesgo
           {factoresDetectados.length > 0 && (
@@ -96,23 +114,50 @@ export function RiesgoPanel({ cursoId, estudiantes }: Props) {
               ({factoresDetectados.join(' · ')})
             </span>
           )}
-        </span>
-        <span className={`${arrowClass} text-xs`}>{collapsed ? '▼' : '▲'}</span>
-      </button>
+        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            disabled={silPending}
+            onClick={() => startSil(() => { silenciarAlerta(cursoId, 'riesgo').then(() => {}) })}
+            className={`text-xs ${arrowClass} hover:opacity-70 transition-opacity disabled:opacity-30`}
+            title="Silenciar este panel"
+          >
+            Silenciar
+          </button>
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            className={`${arrowClass} text-xs px-1`}
+          >
+            {collapsed ? '▼' : '▲'}
+          </button>
+        </div>
+      </div>
 
       {!collapsed && (
         <div className={`px-4 pb-4 space-y-3 ${borderTopClass}`}>
           <div className="mt-3 space-y-2">
             {estudiantes.map(est => (
               <div key={est.id} className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="text-sm text-gray-200 truncate block">{est.nombre}</span>
-                  {est.factoresRiesgo >= 3 && (
-                    <span className="text-xs text-red-400 font-medium">{est.factoresRiesgo} factores</span>
-                  )}
+                <div className="min-w-0 flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={excPending}
+                    onClick={() => startExc(() => { excluirEstudianteDeRiesgo(cursoId, est.id).then(() => {}) })}
+                    className="text-gray-600 hover:text-gray-400 transition-colors text-base leading-none flex-shrink-0 disabled:opacity-30"
+                    title="Ocultar este estudiante del panel"
+                  >
+                    ×
+                  </button>
+                  <div className="min-w-0">
+                    <span className="text-sm text-gray-200 truncate block">{est.nombre}</span>
+                    {est.factoresRiesgo >= 3 && (
+                      <span className="text-xs text-red-400 font-medium">{est.factoresRiesgo} factores</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap justify-end flex-shrink-0">
-                  {/* Asistencia */}
                   {est.pctAsistencia !== null && est.pctAsistencia < 75 && (
                     <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
                       est.pctAsistencia < 60
@@ -122,19 +167,16 @@ export function RiesgoPanel({ cursoId, estudiantes }: Props) {
                       asist. {est.pctAsistencia}%
                     </span>
                   )}
-                  {/* Participación */}
                   {est.participacionPromedio !== null && est.participacionPromedio < 2.5 && (
                     <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-orange-900/40 text-orange-400">
                       part. {est.participacionPromedio}/5
                     </span>
                   )}
-                  {/* Notas en curso */}
                   {est.notasEnCursoPct !== null && est.notasEnCursoPct < 50 && (
                     <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-purple-900/40 text-purple-400">
                       notas {est.notasEnCursoPct}%
                     </span>
                   )}
-                  {/* Trabajos acumulados */}
                   {est.trabajosActivos >= 3 && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-400">
                       {est.trabajosActivos} trabajos
