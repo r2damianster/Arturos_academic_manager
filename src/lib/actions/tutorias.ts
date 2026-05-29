@@ -476,7 +476,7 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     .from('reservas')
     .select(`
       id, fecha, estudiante_nombre, estudiante_carrera, email, notas, estado, origen,
-      curso_id, hora_inicio_manual, hora_fin_manual,
+      auth_user_id, curso_id, hora_inicio_manual, hora_fin_manual,
       horarios ( hora_inicio, hora_fin ),
       cursos ( asignatura, institucion ),
       citaciones_tutoria ( razon )
@@ -488,6 +488,26 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     return []
   }
 
+  // Derive curso_id for student-booked reservas (RPC doesn't store it)
+  // by looking up the student's enrollment via auth_user_id
+  const sinCurso = (data ?? []).filter((r: { curso_id: string | null; auth_user_id: string | null }) =>
+    !r.curso_id && r.auth_user_id
+  )
+  const authIds = [...new Set(sinCurso.map((r: { auth_user_id: string }) => r.auth_user_id))]
+
+  const cursoByAuthId: Record<string, string> = {}
+  if (authIds.length > 0) {
+    const { data: ests } = await db
+      .from('estudiantes')
+      .select('auth_user_id, curso_id')
+      .in('auth_user_id', authIds)
+      .eq('profesor_id', user.id)
+      .not('curso_id', 'is', null)
+    for (const e of (ests ?? []) as { auth_user_id: string; curso_id: string }[]) {
+      if (e.auth_user_id && e.curso_id) cursoByAuthId[e.auth_user_id] = e.curso_id
+    }
+  }
+
   return (data ?? []).map((r: {
     id: number
     fecha: string
@@ -497,6 +517,7 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     notas: string | null
     estado: string
     origen: string
+    auth_user_id: string | null
     curso_id: string | null
     hora_inicio_manual: string | null
     hora_fin_manual: string | null
@@ -512,7 +533,7 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     notas:               r.notas,
     estado:              r.estado,
     origen:              r.origen ?? 'agendada',
-    curso_id:            r.curso_id,
+    curso_id:            r.curso_id ?? (r.auth_user_id ? cursoByAuthId[r.auth_user_id] ?? null : null),
     hora_inicio_manual:  r.hora_inicio_manual,
     hora_fin_manual:     r.hora_fin_manual,
     horario_hora_inicio: r.horarios?.hora_inicio ?? null,
