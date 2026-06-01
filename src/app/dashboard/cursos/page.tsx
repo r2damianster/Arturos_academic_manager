@@ -20,15 +20,15 @@ export default async function CursosPage() {
     cursosArray.map(async curso => {
       const esTutorados = curso.tipo === 'tutorados'
       const [estudiantesResult, semanaResult] = await Promise.all([
-        db.from('estudiantes').select('nombres, apellidos').eq('curso_id', curso.id),
+        db.from('estudiantes').select('nombre').eq('curso_id', curso.id),
         esTutorados ? Promise.resolve({ data: null }) : db.rpc('calcular_semana', { p_curso_id: curso.id }),
       ])
-      const estudiantes: { nombres: string; apellidos: string }[] = estudiantesResult.data ?? []
+      const estudiantes: { nombre: string }[] = estudiantesResult.data ?? []
       return {
         ...curso,
         num_estudiantes: estudiantes.length,
         semana: esTutorados ? null : (semanaResult.data ?? null),
-        estudiantes_nombres: estudiantes.map(e => `${e.nombres} ${e.apellidos}`),
+        estudiantes_nombres: estudiantes.map(e => e.nombre),
       } as CursoRow
     })
   )
