@@ -28,10 +28,11 @@ export async function getNotificacionesProactivas(): Promise<Notificacion[]> {
     try {
       const { data: cursos } = await db
         .from('cursos')
-        .select('id, asignatura')
+        .select('id, asignatura, alertas_silenciadas')
         .eq('profesor_id', user.id)
 
-      for (const curso of (cursos ?? []) as { id: string; asignatura: string }[]) {
+      for (const curso of (cursos ?? []) as { id: string; asignatura: string; alertas_silenciadas?: Record<string, unknown> | null }[]) {
+        if (curso.alertas_silenciadas?.riesgo) continue
         const [asistRes, citadosRes, estudiantesRes] = await Promise.all([
           db.from('asistencia').select('estudiante_id, estado').eq('curso_id', curso.id),
           db.from('citaciones_tutoria')
@@ -77,11 +78,12 @@ export async function getNotificacionesProactivas(): Promise<Notificacion[]> {
     try {
       const { data: cursosEncuesta } = await db
         .from('cursos')
-        .select('id, asignatura, fecha_inicio, fecha_fin, encuesta_parcial_habilitada')
+        .select('id, asignatura, fecha_inicio, fecha_fin, encuesta_parcial_habilitada, alertas_silenciadas')
         .eq('profesor_id', user.id)
 
       for (const curso of (cursosEncuesta ?? []) as any[]) {
         if (!curso.encuesta_parcial_habilitada || !curso.fecha_inicio || !curso.fecha_fin) continue
+        if (curso.alertas_silenciadas?.encuesta_parcial) continue
         const inicio = new Date(curso.fecha_inicio).getTime()
         const fin = new Date(curso.fecha_fin).getTime()
         const pct = (Date.now() - inicio) / (fin - inicio)

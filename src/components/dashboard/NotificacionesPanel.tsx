@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import type { Notificacion } from '@/lib/actions/notificaciones'
+import { silenciarAlerta } from '@/lib/actions/cursos'
 
 const NIVEL_CONFIG = {
   critica: {
@@ -31,17 +32,26 @@ export function NotificacionesPanel({ notificaciones }: { notificaciones: Notifi
 
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem('notif_dismissed')
+      const stored = localStorage.getItem('notif_dismissed')
       if (stored) setDismissed(new Set(JSON.parse(stored)))
     } catch { /* ok */ }
     setLoaded(true)
   }, [])
 
-  function dismiss(id: string) {
+  function dismiss(id: string, tipo: Notificacion['tipo']) {
+    // Persist to DB for course-specific notifications
+    if (tipo === 'riesgo_critico' && id.startsWith('riesgo_')) {
+      const cursoId = id.slice('riesgo_'.length)
+      silenciarAlerta(cursoId, 'riesgo').catch(() => {})
+    } else if (tipo === 'encuesta_pendiente' && id.startsWith('encuesta_')) {
+      const cursoId = id.slice('encuesta_'.length)
+      silenciarAlerta(cursoId, 'encuesta_parcial').catch(() => {})
+    }
+
     setDismissed(prev => {
       const next = new Set(prev)
       next.add(id)
-      try { sessionStorage.setItem('notif_dismissed', JSON.stringify([...next])) } catch { /* ok */ }
+      try { localStorage.setItem('notif_dismissed', JSON.stringify([...next])) } catch { /* ok */ }
       return next
     })
   }
@@ -63,7 +73,7 @@ export function NotificacionesPanel({ notificaciones }: { notificaciones: Notifi
               <p className={`text-xs mt-0.5 ${cfg.descColor}`}>{notif.descripcion}</p>
             </div>
             <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(notif.id) }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(notif.id, notif.tipo) }}
               className="text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0 text-sm mt-0.5"
               aria-label="Descartar"
             >
