@@ -8,6 +8,7 @@ import ItemsTab from './items-tab'
 import EnCursoTab from './en-curso-tab'
 import HistorialImports from './historial-imports'
 import WizardImportCalificaciones from './import-wizard/wizard-shell'
+import { AsistenciaGridClient } from '@/components/cursos/asistencia-grid-client'
 
 interface Estudiante {
   id: string

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { CalificacionesTabs } from '@/components/calificaciones/calificaciones-tabs'
+import { calcularHorasDesdeHorario } from '@/lib/moodle-csv'
 
 export default async function CalificacionesPage({ params }: { params: Promise<{ cursoId: string }> }) {
   const { cursoId } = await params
@@ -9,7 +10,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes, itemsRes, importsRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes, itemsRes, importsRes, bitacorasRes, horariosRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
@@ -18,8 +19,9 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .eq('curso_id', cursoId)
       .order('fecha', { ascending: true }),
     db.from('asistencia')
-      .select('estudiante_id, estado, atraso')
-      .eq('curso_id', cursoId),
+      .select('estudiante_id, estado, atraso, fecha')
+      .eq('curso_id', cursoId)
+      .order('fecha'),
     db.from('calificaciones_items')
       .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, fuente, updated_at')
       .eq('curso_id', cursoId)
@@ -29,6 +31,8 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .select('id, archivo_nombre, created_at, parciales_afectados, columnas_importadas, num_estudiantes_match, num_estudiantes_sin_match, num_celdas_creadas, num_celdas_actualizadas, num_celdas_sin_cambio, num_celdas_preservadas, revertido_at')
       .eq('curso_id', cursoId)
       .order('created_at', { ascending: false }),
+    db.from('bitacora_clase').select('fecha').eq('curso_id', cursoId).eq('estado', 'cumplido'),
+    db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
   ])
 
   if (!cursoRes.data) notFound()
@@ -40,6 +44,25 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   const asistencia = asistenciaRes.data ?? []
   const calificacionesItems = itemsRes.data ?? []
   const imports = importsRes.data ?? []
+
+  // Grid data for asistencia tab
+  const bitacoraFechas: string[] = (bitacorasRes.data ?? []).map((b: any) => b.fecha)
+  const fechasAsistencia = Array.from(new Set([
+    ...asistencia.map((r: any) => r.fecha).filter(Boolean),
+    ...bitacoraFechas,
+  ])).sort() as string[]
+
+  const mapaAsistenciaFechas: Record<string, Record<string, { estado: string }>> = {}
+  for (const reg of asistencia) {
+    if (!reg.fecha) continue
+    if (!mapaAsistenciaFechas[reg.estudiante_id]) mapaAsistenciaFechas[reg.estudiante_id] = {}
+    mapaAsistenciaFechas[reg.estudiante_id][reg.fecha] = { estado: reg.estado }
+  }
+
+  const horasPorDia: Record<string, number> = {}
+  for (const h of (horariosRes.data ?? []) as { dia_semana: string; hora_inicio: string; hora_fin: string }[]) {
+    horasPorDia[h.dia_semana] = calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
+  }
 
   const asistenciaMap: Record<string, {
     total_sesiones: number
@@ -124,6 +147,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       ) : (
         <CalificacionesTabs
           cursoId={cursoId}
+          cursoCodigo={curso.codigo}
           estudiantes={estudiantes}
           calificaciones={mapaCalif}
           numParciales={numParciales}
@@ -133,6 +157,9 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           asistenciaMap={asistenciaMap}
           calificacionesItems={calificacionesItems}
           imports={imports}
+          fechas={fechasAsistencia}
+          mapaAsistencia={mapaAsistenciaFechas}
+          horasPorDia={horasPorDia}
         />
       )}
     </div>
