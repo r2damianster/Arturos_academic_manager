@@ -63,7 +63,7 @@ export function NotificacionesPanel({ notificaciones }: { notificaciones: Notifi
               <p className={`text-xs mt-0.5 ${cfg.descColor}`}>{notif.descripcion}</p>
             </div>
             <button
-              onClick={(e) => { e.preventDefault(); dismiss(notif.id) }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismiss(notif.id) }}
               className="text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0 text-sm mt-0.5"
               aria-label="Descartar"
             >
