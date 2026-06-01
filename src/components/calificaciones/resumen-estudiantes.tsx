@@ -120,14 +120,17 @@ export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones,
                 </div>
 
                 <div className="rounded-2xl bg-slate-950 p-3 border border-amber-900/40">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600/80">En Curso</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600/80">Califs. En Curso</p>
                   <p className="mt-3 text-2xl font-semibold text-amber-400">
-                    {ecEst.length > 0 ? `${ecConNota.length}/${ecEst.length}` : '—'}
+                    {(() => {
+                      const avg = ecConNota.length > 0 ? promedioNumeros(ecConNota.map((i: any) => i.nota)) : null
+                      return avg != null ? avg.toFixed(1) : '—'
+                    })()}
                   </p>
                   <p className="text-sm text-gray-400">
-                    {ecPct != null ? `${ecPct}% calificado` : 'Sin actividades'}
+                    {ecEst.length > 0 ? `${ecConNota.length}/${ecEst.length} · ${ecPct}%` : 'Sin actividades'}
                   </p>
-                  <p className="mt-2 text-xs text-gray-500">Actividades en clase</p>
+                  <p className="mt-2 text-xs text-gray-500">Promedio actividades en clase</p>
                 </div>
               </div>
             </article>
