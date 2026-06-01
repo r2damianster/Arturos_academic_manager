@@ -1,13 +1,13 @@
 export type EstadoAsistencia = 'Presente' | 'Ausente' | 'Atraso' | null | string
 
 export function buildMoodleCSV(
-  students: { id: string; email: string }[],
+  students: { id: string; email: string; estado?: string }[],
   attendance: Record<string, EstadoAsistencia>,
   hourIndex: number  // 0-based; determines cómo se trata "Atraso"
 ): string {
   const lines = ['username,status']
   for (const s of students) {
-    const estado = attendance[s.id]
+    const estado = s.estado === 'retirado' ? 'Ausente' : attendance[s.id]
     let status: string
     if (estado === 'Presente') {
       status = ''

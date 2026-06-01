@@ -33,7 +33,7 @@ export default async function ModoClaseActivaPage({
   const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes] = await Promise.all([
     db
       .from('estudiantes')
-      .select('id, nombre, email, tutoria')
+      .select('id, nombre, email, tutoria, estado')
       .eq('curso_id', bitacora.curso_id)
       .order('nombre'),
     db
@@ -55,7 +55,7 @@ export default async function ModoClaseActivaPage({
       .eq('fuente', 'en_curso'),
   ])
 
-  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean }[]
+  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }[]
   const asistenciaInicial = (asistenciaRes.data ?? []) as { estudiante_id: string; estado: string; atraso: boolean }[]
   const actividades: ActividadPlanificada[] = (bitacora.actividades_json as ActividadPlanificada[] | null) ?? []
 

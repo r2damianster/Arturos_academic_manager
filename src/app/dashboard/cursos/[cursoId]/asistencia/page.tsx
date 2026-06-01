@@ -6,7 +6,7 @@ import { AsistenciaGridClient } from '@/components/cursos/asistencia-grid-client
 import { calcularHorasDesdeHorario } from '@/lib/moodle-csv'
 
 type RegistroAsistencia = Tables<'asistencia'>
-type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email'>
+type Estudiante = Pick<Tables<'estudiantes'>, 'id' | 'nombre' | 'email' | 'estado'>
 
 export default async function AsistenciaPage({ params }: { params: Promise<{ cursoId: string }> }) {
   const { cursoId } = await params
@@ -16,7 +16,7 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
 
   const [cursoRes, estudiantesRes, registrosRes, horariosRes, bitacorasRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
-    db.from('estudiantes').select('id, nombre, email').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
+    db.from('estudiantes').select('id, nombre, email, estado').eq('curso_id', cursoId).order('nombre'),
     db.from('asistencia').select('*').eq('curso_id', cursoId).order('fecha'),
     db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
     db.from('bitacora_clase').select('fecha').eq('curso_id', cursoId).eq('estado', 'cumplido'),
@@ -63,7 +63,7 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="stat-card"><span className="stat-value">{estudiantes.length}</span><span className="stat-label">Estudiantes</span></div>
+        <div className="stat-card"><span className="stat-value">{estudiantes.filter(e => e.estado !== 'retirado').length}</span><span className="stat-label">Estudiantes</span></div>
         <div className="stat-card"><span className="stat-value">{fechas.length}</span><span className="stat-label">Sesiones</span></div>
         <div className="stat-card"><span className="stat-value">{pctGlobal}%</span><span className="stat-label">Asistencia global</span></div>
         <div className="stat-card"><span className="stat-value">{totalAusentes}</span><span className="stat-label">Total ausencias</span></div>

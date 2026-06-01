@@ -18,7 +18,7 @@ import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 import EnCursoVistaClase from '@/components/modo-clase/EnCursoVistaClase'
 import { upsertItemEnCurso } from '@/lib/actions/calificaciones-items'
 
-type Student = { id: string; nombre: string; email: string; tutoria: boolean }
+type Student = { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 type GrupoIntegrante = { id: string; estudiante_id: string; estudiantes: { id: string; nombre: string } | null }
 type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; tipo?: string; abierto?: boolean; grupo_integrantes: GrupoIntegrante[] }
@@ -686,7 +686,7 @@ export function ModoClaseClient({
   // ── Asistencia ─────────────────────────────────────────────────────────────
   const [asistencia, setAsistencia] = useState<Record<string, EstadoA>>(() => {
     const map: Record<string, EstadoA> = {}
-    for (const s of students) map[s.id] = 'Presente'
+    for (const s of students) map[s.id] = s.estado === 'retirado' ? 'Ausente' : 'Presente'
     for (const a of asistenciaInicial) map[a.estudiante_id] = a.estado as EstadoA
     return map
   })

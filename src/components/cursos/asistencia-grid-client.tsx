@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
 
-type Estudiante = { id: string; nombre: string; email: string }
+type Estudiante = { id: string; nombre: string; email: string; estado?: string }
 type Registro = { estado: string }
 type MapaAsistencia = Record<string, Record<string, Registro>>
 type HorasPorDia = Record<string, number>
@@ -189,20 +189,26 @@ export function AsistenciaGridClient({
             </thead>
             <tbody className="divide-y divide-gray-800">
               {estudiantes.map(est => {
+                const retirado = est.estado === 'retirado'
                 const regEst = mapaAsistencia[est.id] ?? {}
                 const sesionesConReg = fechas.filter(f => regEst[f]).length
                 const presentesEst = fechas.filter(f => regEst[f]?.estado === 'Presente').length
                 const pctEst = sesionesConReg > 0 ? Math.round((presentesEst / sesionesConReg) * 100) : null
 
                 return (
-                  <tr key={est.id} className="hover:bg-gray-800/50 transition-colors group">
+                  <tr key={est.id} className={`hover:bg-gray-800/50 transition-colors group ${retirado ? 'opacity-50' : ''}`}>
                     <td className="py-3 px-4 sticky left-0 bg-gray-900 group-hover:bg-gray-800/50">
-                      <Link
-                        href={`/dashboard/estudiantes/${est.id}`}
-                        className="font-medium text-gray-200 hover:text-white block truncate max-w-[140px]"
-                      >
-                        {formatNombreCorto(est.nombre)}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/dashboard/estudiantes/${est.id}`}
+                          className="font-medium text-gray-200 hover:text-white block truncate max-w-[130px]"
+                        >
+                          {formatNombreCorto(est.nombre)}
+                        </Link>
+                        {retirado && (
+                          <span className="flex-shrink-0 text-[10px] px-1 py-0.5 rounded bg-gray-700 text-gray-400">ret.</span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 truncate max-w-[140px]">{est.email}</p>
                     </td>
                     {visibleFechas.map(fecha => {
