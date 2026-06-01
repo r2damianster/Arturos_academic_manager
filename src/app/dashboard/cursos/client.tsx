@@ -122,13 +122,13 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-2xl font-bold text-white">{curso.num_estudiantes}</p>
-                      <p className="text-xs text-gray-500">estudiantes</p>
-                      {curso.semana && curso.semana !== 'Curso finalizado' && (
+                      <p className="text-xs text-gray-500">{curso.tipo === 'tutorados' ? 'tutorados' : 'estudiantes'}</p>
+                      {curso.semana && curso.semana !== 'Curso finalizado' && curso.tipo !== 'tutorados' && (
                         <span className="inline-block mt-1 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded-full">
                           {curso.semana}
                         </span>
                       )}
-                      {curso.semana === 'Curso finalizado' && (
+                      {curso.semana === 'Curso finalizado' && curso.tipo !== 'tutorados' && (
                         <span className="inline-block mt-1 text-xs bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
                           Finalizado
                         </span>

@@ -18,11 +18,12 @@ export default async function CursosPage() {
 
   const cursosConCount: CursoRow[] = await Promise.all(
     cursosArray.map(async curso => {
-      const [{ count }, { data: semanaData }] = await Promise.all([
+      const esTutorados = curso.tipo === 'tutorados'
+      const [{ count }, semanaResult] = await Promise.all([
         db.from('estudiantes').select('*', { count: 'exact', head: true }).eq('curso_id', curso.id),
-        db.rpc('calcular_semana', { p_curso_id: curso.id }),
+        esTutorados ? Promise.resolve({ data: null }) : db.rpc('calcular_semana', { p_curso_id: curso.id }),
       ])
-      return { ...curso, num_estudiantes: count ?? 0, semana: semanaData ?? null } as CursoRow
+      return { ...curso, num_estudiantes: count ?? 0, semana: esTutorados ? null : (semanaResult.data ?? null) } as CursoRow
     })
   )
 
