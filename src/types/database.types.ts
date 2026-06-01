@@ -51,6 +51,7 @@ export type Database = {
           institucion: string | null
           encuesta_inicial_habilitada: boolean
           encuesta_parcial_habilitada: boolean
+          tipo: string
           created_at: string
         }
         Insert: {
@@ -70,6 +71,7 @@ export type Database = {
           institucion?: string | null
           encuesta_inicial_habilitada?: boolean
           encuesta_parcial_habilitada?: boolean
+          tipo?: string
           created_at?: string
         }
         Update: {
@@ -87,6 +89,7 @@ export type Database = {
           institucion?: string | null
           encuesta_inicial_habilitada?: boolean
           encuesta_parcial_habilitada?: boolean
+          tipo?: string
         }
         Relationships: [
           {

@@ -28,6 +28,7 @@ interface Curso {
   encuesta_inicial_habilitada?: boolean | null
   encuesta_parcial_habilitada?: boolean | null
   alertas_silenciadas?: Record<string, unknown> | null
+  tipo?: string | null
 }
 
 interface LogroItem {
@@ -62,6 +63,9 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
+  // Tipo de curso
+  const [esTutorados, setEsTutorados] = useState(curso.tipo === 'tutorados')
+
   // Encuestas — estado controlado (checkboxes)
   const [encuestaInicialHab, setEncuestaInicialHab] = useState(curso.encuesta_inicial_habilitada ?? true)
   const [encuestaParcialHab, setEncuestaParcialHab] = useState(curso.encuesta_parcial_habilitada ?? true)
@@ -95,6 +99,7 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
     const fd = new FormData(e.currentTarget)
 
     if (tab === 'info') {
+      fd.set('tipo', esTutorados ? 'tutorados' : 'regular')
       fd.set('encuesta_inicial_habilitada', encuestaInicialHab ? '1' : '0')
       fd.set('encuesta_parcial_habilitada', encuestaParcialHab ? '1' : '0')
     }
@@ -195,6 +200,23 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
               defaultValue={curso.observacion ?? ''}
               placeholder="Notas generales, características del grupo, etc." />
           </div>
+          {/* Tipo de curso */}
+          <div className="pt-4 border-t border-gray-800">
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Tipo de curso</h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={esTutorados}
+                onChange={e => setEsTutorados(e.target.checked)}
+                className="w-4 h-4 accent-purple-600" />
+              <div>
+                <span className="text-sm text-gray-300">Grupo de tutorados (asesoría de trabajos)</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Activa el modo de seguimiento individual: progreso, horario diferenciado, bitácora de sesiones.
+                  No muestra pase de lista ni calificaciones.
+                </p>
+              </div>
+            </label>
+          </div>
+
           {/* Encuestas */}
           <div className="pt-4 border-t border-gray-800">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Encuestas</h3>

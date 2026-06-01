@@ -1,4 +1,4 @@
-import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap } from 'lucide-react'
+import { LayoutDashboard, Video, BookOpen, Wrench, UserCog, GraduationCap, Users } from 'lucide-react'
 
 export interface NavItem {
   href: string
@@ -25,6 +25,11 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/dashboard/tutorias',
     label: 'Tutorías',
     icon: <GraduationCap className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
+  },
+  {
+    href: '/dashboard/tutorados',
+    label: 'Tutorados',
+    icon: <Users className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />,
   },
   {
     href: '/dashboard/cursos',

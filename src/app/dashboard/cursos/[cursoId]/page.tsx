@@ -52,6 +52,10 @@ export default async function CursoDetailPage({
   const curso = cursoRes.data as Curso | null
   if (!curso) notFound()
 
+  // Cursos tipo 'tutorados' van a su propia vista especializada
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((curso as any).tipo === 'tutorados') redirect(`/dashboard/cursos/${cursoId}/tutorados`)
+
   const todosEstudiantes: EstudianteRaw[] = estudiantesRes.data ?? []
   const asistencias: { estudiante_id: string; estado: string }[] = asistenciaRes.data ?? []
   const trabajos: { estudiante_id: string; estado: string }[] = trabajosRes.data ?? []

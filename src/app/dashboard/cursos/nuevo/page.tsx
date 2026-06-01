@@ -104,6 +104,7 @@ export default function NuevoCursoPage() {
   const [codigo, setCodigo] = useState('')
   const [codigoManual, setCodigoManual] = useState(false)
   const [numParciales, setNumParciales] = useState(2)
+  const [esTutorados, setEsTutorados] = useState(false)
 
   // Step 3 — Evaluación
   const [nombres, setNombres] = useState(['ACD', 'TA', 'PE', 'EX'])
@@ -117,6 +118,7 @@ export default function NuevoCursoPage() {
     setLoading(true); setError('')
     const fd = new FormData(e.currentTarget)
     fd.set('num_parciales', String(numParciales))
+    fd.set('tipo', esTutorados ? 'tutorados' : 'regular')
     const res = await crearCursoBase(fd)
     setLoading(false)
     if (res.error) { setError(res.error); return }
@@ -241,6 +243,20 @@ export default function NuevoCursoPage() {
             <label className="label">Observaciones</label>
             <textarea name="observacion" className="input" rows={2} maxLength={500}
               placeholder="Notas generales, características del grupo, etc." />
+          </div>
+
+          <div className="pt-2 border-t border-gray-800">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={esTutorados}
+                onChange={e => setEsTutorados(e.target.checked)}
+                className="w-4 h-4 accent-purple-600" />
+              <div>
+                <span className="text-sm text-gray-300">Grupo de tutorados (asesoría de trabajos)</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Seguimiento individual de tesis, artículos o proyectos. No usa pase de lista ni calificaciones.
+                </p>
+              </div>
+            </label>
           </div>
 
           <div className="flex gap-2">

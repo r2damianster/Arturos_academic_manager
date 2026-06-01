@@ -23,6 +23,7 @@ const CursoFullSchema = z.object({
   nombres_tareas: z.array(z.string().max(8)).length(4).optional(),
   encuesta_inicial_habilitada: z.boolean().optional(),
   encuesta_parcial_habilitada: z.boolean().optional(),
+  tipo:           z.enum(['regular', 'tutorados']).optional(),
 })
 
 type HorarioInput = {
@@ -59,7 +60,7 @@ export async function crearCursoBase(
   const parsed = CursoFullSchema.pick({
     codigo: true, asignatura: true, periodo: true,
     institucion: true, aula: true, observacion: true,
-    num_parciales: true,
+    num_parciales: true, tipo: true,
   }).safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: 'Datos inválidos: ' + parsed.error.issues[0]?.message }
 
@@ -72,6 +73,7 @@ export async function crearCursoBase(
       aula:        parsed.data.aula || null,
       observacion: parsed.data.observacion || null,
       num_parciales: parsed.data.num_parciales ?? 2,
+      tipo:        parsed.data.tipo ?? 'regular',
       profesor_id: user.id,
     })
     .select('id').single()
@@ -154,6 +156,7 @@ export async function actualizarCurso(
   if (d.nombres_tareas !== undefined) update.nombres_tareas = d.nombres_tareas
   if (d.encuesta_inicial_habilitada !== undefined) update.encuesta_inicial_habilitada = d.encuesta_inicial_habilitada
   if (d.encuesta_parcial_habilitada !== undefined) update.encuesta_parcial_habilitada = d.encuesta_parcial_habilitada
+  if (d.tipo                        !== undefined) update.tipo                        = d.tipo
 
   if (Object.keys(update).length === 0) return {}
 
