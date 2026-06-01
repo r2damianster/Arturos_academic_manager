@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 
-type CursoConEstudiantes = Tables<'cursos'> & { num_estudiantes: number; semana: string | null }
+type CursoConEstudiantes = Tables<'cursos'> & { num_estudiantes: number; semana: string | null; estudiantes_nombres: string[] }
 
 export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
   const [busqueda, setBusqueda] = useState('')
@@ -16,14 +16,30 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
   }, [cursos])
 
   const cursosFiltrados = useMemo(() => {
-    return cursos.filter(curso => {
-      const matchBusqueda =
-        busqueda === '' ||
-        curso.asignatura.toLowerCase().includes(busqueda.toLowerCase()) ||
-        curso.codigo.toLowerCase().includes(busqueda.toLowerCase())
-      const matchPeriodo = periodoFiltro === '' || curso.periodo === periodoFiltro
-      return matchBusqueda && matchPeriodo
-    })
+    const q = busqueda.toLowerCase()
+    return cursos
+      .filter(curso => {
+        const matchCurso =
+          q === '' ||
+          curso.asignatura.toLowerCase().includes(q) ||
+          curso.codigo.toLowerCase().includes(q) ||
+          (curso.periodo ?? '').toLowerCase().includes(q)
+        const matchEstudiante = q !== '' && curso.estudiantes_nombres.some(n => n.toLowerCase().includes(q))
+        const matchPeriodo = periodoFiltro === '' || curso.periodo === periodoFiltro
+        return (matchCurso || matchEstudiante) && matchPeriodo
+      })
+      .map(curso => {
+        const q2 = busqueda.toLowerCase()
+        const matchesPorCurso =
+          q2 === '' ||
+          curso.asignatura.toLowerCase().includes(q2) ||
+          curso.codigo.toLowerCase().includes(q2) ||
+          (curso.periodo ?? '').toLowerCase().includes(q2)
+        const coincidentes = q2 !== '' && !matchesPorCurso
+          ? curso.estudiantes_nombres.filter(n => n.toLowerCase().includes(q2))
+          : []
+        return { ...curso, _coincidentes: coincidentes }
+      })
   }, [cursos, busqueda, periodoFiltro])
 
   const hayFiltrosActivos = busqueda !== '' || periodoFiltro !== ''
@@ -46,7 +62,7 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            placeholder="Buscar por asignatura o código..."
+            placeholder="Buscar por asignatura, código, periodo o estudiante..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             className="input flex-1"
@@ -78,7 +94,7 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {cursosFiltrados.map(curso => (
+            {(cursosFiltrados as (CursoConEstudiantes & { _coincidentes: string[] })[]).map(curso => (
               <div key={curso.id} className={`card card-lift ${curso.tipo === 'tutorados' ? 'border-purple-800/60 bg-purple-950/10' : ''}`}>
                 {/* Fila superior: código · periodo · lápiz */}
                 <div className="flex items-center gap-2 mb-2">
@@ -136,6 +152,13 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
                     </div>
                   </div>
                 </Link>
+
+                {curso._coincidentes.length > 0 && (
+                  <p className="mt-2 text-xs text-blue-400/80 truncate">
+                    👤 {curso._coincidentes.slice(0, 2).join(', ')}
+                    {curso._coincidentes.length > 2 && ` +${curso._coincidentes.length - 2} más`}
+                  </p>
+                )}
 
               </div>
             ))}

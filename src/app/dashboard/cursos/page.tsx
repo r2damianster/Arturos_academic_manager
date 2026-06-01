@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/types/database.types'
 import { CursosClient } from './client'
 
-type CursoRow = Tables<'cursos'> & { num_estudiantes: number; semana: string | null }
+type CursoRow = Tables<'cursos'> & { num_estudiantes: number; semana: string | null; estudiantes_nombres: string[] }
 
 export default async function CursosPage() {
   const supabase = await createClient()
@@ -19,11 +19,17 @@ export default async function CursosPage() {
   const cursosConCount: CursoRow[] = await Promise.all(
     cursosArray.map(async curso => {
       const esTutorados = curso.tipo === 'tutorados'
-      const [{ count }, semanaResult] = await Promise.all([
-        db.from('estudiantes').select('*', { count: 'exact', head: true }).eq('curso_id', curso.id),
+      const [estudiantesResult, semanaResult] = await Promise.all([
+        db.from('estudiantes').select('nombres, apellidos').eq('curso_id', curso.id),
         esTutorados ? Promise.resolve({ data: null }) : db.rpc('calcular_semana', { p_curso_id: curso.id }),
       ])
-      return { ...curso, num_estudiantes: count ?? 0, semana: esTutorados ? null : (semanaResult.data ?? null) } as CursoRow
+      const estudiantes: { nombres: string; apellidos: string }[] = estudiantesResult.data ?? []
+      return {
+        ...curso,
+        num_estudiantes: estudiantes.length,
+        semana: esTutorados ? null : (semanaResult.data ?? null),
+        estudiantes_nombres: estudiantes.map(e => `${e.nombres} ${e.apellidos}`),
+      } as CursoRow
     })
   )
 
