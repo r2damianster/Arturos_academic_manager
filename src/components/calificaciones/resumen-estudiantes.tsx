@@ -23,6 +23,7 @@ interface Props {
   asistenciaMap: Record<string, AsistenciaStats>
   calificaciones: Record<string, Record<string, number | null>>
   participacion: ParticipacionRecord[]
+  itemsEnCurso: any[]
 }
 
 function round(value: number | null | undefined, digits = 1) {
@@ -36,7 +37,7 @@ function promedioNumeros(values: number[]) {
   return round(values.reduce((sum, n) => sum + n, 0) / values.length)
 }
 
-export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones, participacion }: Props) {
+export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones, participacion, itemsEnCurso }: Props) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -61,6 +62,16 @@ export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones,
           const notas = Object.values(calif).filter((v): v is number => typeof v === 'number' && v > 0)
           const promedioCalif = promedioNumeros(notas)
 
+          const ecEst = itemsEnCurso.filter((i: any) => i.estudiante_id === est.id)
+          const ecConNota = ecEst.filter((i: any) => i.nota != null)
+          const ecPct = ecEst.length > 0 ? Math.round((ecConNota.length / ecEst.length) * 100) : null
+
+          const pct = asistencia.porcentaje
+          const pctColor = pct == null ? 'text-gray-400'
+            : pct >= 80 ? 'text-emerald-400'
+            : pct >= 60 ? 'text-yellow-400'
+            : 'text-red-400'
+
           return (
             <article key={est.id} className="card border border-gray-800 p-4">
               <div className="flex items-start justify-between gap-4">
@@ -73,14 +84,14 @@ export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones,
                 <div className="text-right text-xs uppercase tracking-[0.24em] text-gray-500">Resumen</div>
               </div>
 
-              <div className="grid gap-3 mt-4 sm:grid-cols-3">
+              <div className="grid gap-3 mt-4 grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl bg-slate-950 p-3 border border-gray-800">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Asistencia</p>
-                  <p className="mt-3 text-2xl font-semibold text-white">
-                    {asistencia.presentes}/{asistencia.total_sesiones}
+                  <p className={`mt-3 text-2xl font-semibold ${pctColor}`}>
+                    {pct != null ? `${pct.toFixed(1)}%` : '—'}
                   </p>
                   <p className="text-sm text-gray-400">
-                    {asistencia.porcentaje != null ? `${asistencia.porcentaje.toFixed(1)}%` : 'Sin sesiones'}
+                    {asistencia.presentes}/{asistencia.total_sesiones} sesiones
                   </p>
                   <div className="mt-2 text-xs text-gray-500 space-y-1">
                     <p>Ausentes: {asistencia.ausentes}</p>
@@ -105,7 +116,18 @@ export function ResumenEstudiantes({ estudiantes, asistenciaMap, calificaciones,
                     {promedioCalif != null ? promedioCalif.toFixed(1) : '—'}
                   </p>
                   <p className="text-sm text-gray-400">{notas.length} nota{notas.length === 1 ? '' : 's'}</p>
-                  <p className="mt-2 text-xs text-gray-500">Promedio de todas las notas guardadas</p>
+                  <p className="mt-2 text-xs text-gray-500">Promedio notas guardadas</p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-950 p-3 border border-amber-900/40">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600/80">En Curso</p>
+                  <p className="mt-3 text-2xl font-semibold text-amber-400">
+                    {ecEst.length > 0 ? `${ecConNota.length}/${ecEst.length}` : '—'}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {ecPct != null ? `${ecPct}% calificado` : 'Sin actividades'}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">Actividades en clase</p>
                 </div>
               </div>
             </article>

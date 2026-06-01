@@ -19,6 +19,7 @@ interface Estudiante {
 
 interface Props {
   cursoId: string
+  cursoCodigo: string
   estudiantes: Estudiante[]
   calificaciones: Record<string, unknown>
   numParciales: number
@@ -26,16 +27,18 @@ interface Props {
   perfiles: Record<string, unknown>
   participacion: ParticipacionRecord[]
   asistenciaMap: Record<string, AsistenciaStats>
-  // nuevos
   calificacionesItems: any[]
   imports: any[]
+  fechas: string[]
+  mapaAsistencia: Record<string, Record<string, { estado: string }>>
+  horasPorDia: Record<string, number>
 }
 
-type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion'
+type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion' | 'asistencia'
 
 export function CalificacionesTabs({
-  cursoId, estudiantes, calificaciones, numParciales, nombresTareas, perfiles,
-  participacion, asistenciaMap, calificacionesItems, imports,
+  cursoId, cursoCodigo, estudiantes, calificaciones, numParciales, nombresTareas, perfiles,
+  participacion, asistenciaMap, calificacionesItems, imports, fechas, mapaAsistencia, horasPorDia,
 }: Props) {
   const itemsMoodle = calificacionesItems.filter((i: any) => i.fuente === 'moodle' || i.fuente === 'manual')
   const itemsEnCurso = calificacionesItems.filter((i: any) => i.fuente === 'en_curso')
@@ -49,6 +52,7 @@ export function CalificacionesTabs({
     { id: 'items',          label: 'Notas Moodle',      badge: itemsMoodle.length > 0 ? itemsMoodle.length : undefined },
     { id: 'en_curso',       label: 'En Curso',          badge: itemsEnCurso.length > 0 ? itemsEnCurso.length : undefined },
     { id: 'participacion',  label: 'Participación',     badge: participacion.length > 0 ? participacion.length : undefined },
+    { id: 'asistencia',     label: 'Asistencias',       badge: fechas.length > 0 ? fechas.length : undefined },
   ]
 
   return (
@@ -108,6 +112,7 @@ export function CalificacionesTabs({
           asistenciaMap={asistenciaMap}
           calificaciones={calificaciones as any}
           participacion={participacion}
+          itemsEnCurso={itemsEnCurso}
         />
       )}
       {tab === 'items' && (
@@ -128,6 +133,22 @@ export function CalificacionesTabs({
       )}
       {tab === 'participacion' && (
         <ParticipacionGrid estudiantes={estudiantes} registros={participacion} />
+      )}
+      {tab === 'asistencia' && (
+        fechas.length === 0 ? (
+          <div className="card text-center py-12">
+            <p className="text-gray-500">Aún no hay registros de asistencia.</p>
+          </div>
+        ) : (
+          <AsistenciaGridClient
+            cursoCodigo={cursoCodigo}
+            cursoId={cursoId}
+            estudiantes={estudiantes as any}
+            fechas={fechas}
+            mapaAsistencia={mapaAsistencia}
+            horasPorDia={horasPorDia}
+          />
+        )
       )}
       {/* Wizard de import */}
       {wizardAbierto && (
