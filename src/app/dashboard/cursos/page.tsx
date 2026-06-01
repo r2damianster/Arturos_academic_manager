@@ -11,10 +11,10 @@ export default async function CursosPage() {
 
   const { data: cursos } = await db
     .from('cursos')
-    .select('id, codigo, asignatura, periodo, fecha_inicio, fecha_fin')
+    .select('id, codigo, asignatura, periodo, fecha_inicio, fecha_fin, tipo')
     .order('created_at', { ascending: false })
 
-  const cursosArray = (cursos as Pick<CursoRow, 'id' | 'codigo' | 'asignatura' | 'periodo' | 'fecha_inicio' | 'fecha_fin'>[]) ?? []
+  const cursosArray = (cursos as Pick<CursoRow, 'id' | 'codigo' | 'asignatura' | 'periodo' | 'fecha_inicio' | 'fecha_fin' | 'tipo'>[]) ?? []
 
   const cursosConCount: CursoRow[] = await Promise.all(
     cursosArray.map(async curso => {

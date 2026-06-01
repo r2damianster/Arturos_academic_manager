@@ -24,11 +24,18 @@ export default async function TodosTutoradosPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Tutorados</h1>
-          <p className="text-gray-400 text-sm">
-            {total} tutorado{total !== 1 ? 's' : ''} en {cursosTutorados?.length ?? 0} grupo{(cursosTutorados?.length ?? 0) !== 1 ? 's' : ''}
-          </p>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="btn-ghost p-2 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Tutorados</h1>
+            <p className="text-gray-400 text-sm">
+              {total} tutorado{total !== 1 ? 's' : ''} en {cursosTutorados?.length ?? 0} grupo{(cursosTutorados?.length ?? 0) !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
 
         <Link href="/dashboard/cursos/nuevo"
