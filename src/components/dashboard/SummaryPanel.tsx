@@ -7,7 +7,7 @@ interface Props {
   totalCursos: number
   totalEstudiantes: number
   asistenciaHoy: number
-  cursosRecientes: { id: string; asignatura: string; codigo: string; periodo: string }[]
+  cursosRecientes: { id: string; asignatura: string; codigo: string; periodo: string; tipo?: string | null }[]
 }
 
 export function SummaryPanel({ totalCursos, totalEstudiantes, asistenciaHoy, cursosRecientes }: Props) {
@@ -73,12 +73,25 @@ export function SummaryPanel({ totalCursos, totalEstudiantes, asistenciaHoy, cur
                   <Link
                     key={curso.id}
                     href={`/dashboard/cursos/${curso.id}`}
-                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-800 transition-colors group"
+                    className={`flex items-center justify-between p-2.5 rounded-lg transition-colors group ${
+                      curso.tipo === 'tutorados'
+                        ? 'hover:bg-purple-900/20 border border-purple-800/30'
+                        : 'hover:bg-gray-800'
+                    }`}
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-200 group-hover:text-white">
-                        {curso.asignatura}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-medium group-hover:text-white ${
+                          curso.tipo === 'tutorados' ? 'text-purple-300' : 'text-gray-200'
+                        }`}>
+                          {curso.asignatura}
+                        </p>
+                        {curso.tipo === 'tutorados' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                            Tutorados
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">{curso.codigo} · {curso.periodo}</p>
                     </div>
                     <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
