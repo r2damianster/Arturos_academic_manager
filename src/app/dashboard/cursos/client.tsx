@@ -79,13 +79,18 @@ export function CursosClient({ cursos }: { cursos: CursoConEstudiantes[] }) {
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {cursosFiltrados.map(curso => (
-              <div key={curso.id} className="card card-lift">
+              <div key={curso.id} className={`card card-lift ${curso.tipo === 'tutorados' ? 'border-purple-800/60 bg-purple-950/10' : ''}`}>
                 {/* Fila superior: código · periodo · lápiz */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">
                     {curso.codigo}
                   </span>
                   <span className="text-xs text-gray-500">{curso.periodo}</span>
+                  {curso.tipo === 'tutorados' && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                      Tutorados
+                    </span>
+                  )}
                   <Link
                     href={`/dashboard/cursos/${curso.id}?edit=true`}
                     onClick={e => e.stopPropagation()}
