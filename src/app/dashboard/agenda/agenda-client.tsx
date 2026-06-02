@@ -261,17 +261,27 @@ const SLOT_H = 48 // px per 30-min slot
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+interface HorarioTutorado {
+  estudiante_id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string | null
+  nota_horario: string | null
+  nombre: string
+}
+
 interface Props {
   eventos: Evento[]
   clases: Clase[]
   horarios: HorarioTutoria[]
   reservas: Reserva[]
   estudiantes: Estudiante[]
+  horariosTutorados?: HorarioTutorado[]
   profesorId: string
   profesorNombre: string
 }
 
-export function AgendaClient({ eventos: initEv, clases, horarios: initH, reservas: initR, estudiantes }: Props) {
+export function AgendaClient({ eventos: initEv, clases, horarios: initH, reservas: initR, estudiantes, horariosTutorados = [] }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const today = dateToStr(new Date())
@@ -750,6 +760,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
               const dayHorarios = horarios.filter(h => h.dia_semana === diaNombre)
               // Personal events with time for this day
               const dayEventos = (eventosByDay.get(ds) ?? []).filter(ev => !ev.todo_el_dia && ev.hora_inicio)
+              // Tutorados with fixed weekly schedule
+              const dayTutorados = horariosTutorados.filter(t => t.dia_semana === diaNombre && t.hora_inicio)
 
               return (
                 <div key={ds} className={`flex-1 border-l border-gray-800 relative`} style={{ height: timeSlots.length * SLOT_H }}>
@@ -981,6 +993,27 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                       </div>
                     )
                   })}
+
+                  {/* ── Tutorado horario permanente blocks ── */}
+                  {dayTutorados.map(t => {
+                    const endTime = t.hora_fin ?? fromMin(toMin(t.hora_inicio) + 60)
+                    const pos = blockPos(t.hora_inicio, endTime)
+                    return (
+                      <div key={t.estudiante_id}
+                        className="absolute left-0.5 right-0.5 rounded border px-1.5 py-1 overflow-hidden z-20 bg-purple-600/20 border-purple-500/40"
+                        style={{ top: pos.top + 1, height: pos.height - 2 }}>
+                        <p className="text-[11px] font-semibold leading-tight truncate text-purple-300">{t.nombre}</p>
+                        {pos.height >= SLOT_H && (
+                          <p className="text-[10px] opacity-70 leading-none mt-0.5 text-purple-300">
+                            {fmt(t.hora_inicio)}{t.hora_fin ? `–${fmt(t.hora_fin)}` : ''}
+                          </p>
+                        )}
+                        {t.nota_horario && pos.height >= SLOT_H * 2 && (
+                          <p className="text-[10px] opacity-60 leading-tight mt-0.5 text-purple-300 truncate">{t.nota_horario}</p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}
@@ -994,6 +1027,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-600/40 border border-emerald-500/40" /> Tutoría disponible</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-violet-600/40 border border-violet-500/40" /> Tutoría reservada</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gray-700/30 border border-gray-600/30" /> No disponible</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-purple-600/20 border border-purple-500/40" /> Tutorado</div>
           {Object.entries(TIPO_COLOR).map(([tipo, c]) => (
             <div key={tipo} className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} /><span className="capitalize">{tipo}</span></div>
           ))}

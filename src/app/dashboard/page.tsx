@@ -152,6 +152,14 @@ export default async function DashboardPage() {
         horarios={horariosBase}
         reservas={reservas}
         estudiantes={estudiantes}
+        horariosTutorados={(horariosTutoradosRes.data ?? []).map((t: any) => ({
+          estudiante_id: t.estudiante_id,
+          dia_semana: t.dia_semana,
+          hora_inicio: t.hora_inicio,
+          hora_fin: t.hora_fin,
+          nota_horario: t.nota_horario,
+          nombre: (estudiantesRes.data as any[])?.find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
+        }))}
         profesorId={user.id}
         profesorNombre={profesorRes.data?.nombre ?? ''}
       />
