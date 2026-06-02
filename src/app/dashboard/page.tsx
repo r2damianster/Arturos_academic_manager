@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     profesorRes,
     estudiantesRes,
     notificacionesData,
+    horariosTutoradosRes,
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -41,6 +42,11 @@ export default async function DashboardPage() {
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
     getNotificacionesProactivas(),
+    db.from('tutorado_perfil')
+      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, estudiantes(nombre)')
+      .eq('profesor_id', user.id)
+      .not('dia_semana', 'is', null)
+      .not('hora_inicio', 'is', null),
   ])
 
   // Reservas de tutorías
@@ -130,6 +136,14 @@ export default async function DashboardPage() {
         eventos={eventosRes.data ?? []}
         horarios={horariosBase}
         reservas={reservas}
+        horariosTutorados={(horariosTutoradosRes.data ?? []).map((t: any) => ({
+          estudiante_id: t.estudiante_id,
+          dia_semana: t.dia_semana,
+          hora_inicio: t.hora_inicio,
+          hora_fin: t.hora_fin,
+          nota_horario: t.nota_horario,
+          nombre: t.estudiantes?.nombre ?? '',
+        }))}
         todayStr={hoy}
       />
       <AgendaSection

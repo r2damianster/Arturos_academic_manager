@@ -52,11 +52,21 @@ interface RawReserva {
   asistio: boolean | null
 }
 
+interface RawHorarioTutorado {
+  estudiante_id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string | null
+  nota_horario: string | null
+  nombre: string
+}
+
 interface Props {
   clases: RawClase[]
   eventos: RawEvento[]
   horarios: RawHorario[]
   reservas: RawReserva[]
+  horariosTutorados: RawHorarioTutorado[]
   todayStr: string  // YYYY-MM-DD
 }
 
@@ -105,7 +115,7 @@ const COLORS: Record<string, { border: string; badge: string }> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Props) {
+export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutorados, todayStr }: Props) {
   const [dayOffset, setDayOffset] = useState(0)
   const { open, toggle } = useCollapsible('today-panel-open', true)
   const [mostrarTodos, setMostrarTodos] = useState(false)
@@ -182,6 +192,19 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
       })
     }
 
+    for (const t of horariosTutorados) {
+      if (normalizeDia(t.dia_semana) !== targetDow) continue
+      result.push({
+        id: `tutorado-${t.estudiante_id}`,
+        hora:    t.hora_inicio?.slice(0, 5) ?? null,
+        horaFin: t.hora_fin?.slice(0, 5)   ?? null,
+        titulo:  t.nombre,
+        detalle: t.nota_horario || null,
+        tipo:     'tutorado',
+        colorKey: 'purple',
+      })
+    }
+
     for (const ev of eventos) {
       if (!eventOccursOnDay(ev, targetStr)) continue
       result.push({
@@ -203,7 +226,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
     })
 
     return result
-  }, [clases, eventos, horarios, reservas, targetStr, targetDow, mostrarTodos])
+  }, [clases, eventos, horarios, reservas, horariosTutorados, targetStr, targetDow, mostrarTodos])
 
   return (
     <div className="card">
@@ -293,7 +316,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, todayStr }: Pr
                       )}
                     </div>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${clr.badge}`}>
-                      {item.tipo === 'clase' ? 'Clase' : item.tipo === 'tutoria' ? 'Tutoría' : 'Evento'}
+                      {item.tipo === 'clase' ? 'Clase' : item.tipo === 'tutoria' ? 'Tutoría' : item.tipo === 'tutorado' ? 'Tutorado' : 'Evento'}
                     </span>
                   </div>
 
