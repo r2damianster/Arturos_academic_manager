@@ -268,7 +268,17 @@ interface HorarioTutorado {
   hora_fin: string | null
   nota_horario: string | null
   nombre: string
+  nivel: string | null
 }
+
+const TUTORADO_COLOR: Record<string, { bg: string; border: string; text: string }> = {
+  pregrado:   { bg: 'bg-amber-600/20',  border: 'border-amber-500/40',  text: 'text-amber-300' },
+  maestria:   { bg: 'bg-purple-600/20', border: 'border-purple-500/40', text: 'text-purple-300' },
+  doctorado:  { bg: 'bg-indigo-600/20', border: 'border-indigo-500/40', text: 'text-indigo-300' },
+  tecnologia: { bg: 'bg-teal-600/20',   border: 'border-teal-500/40',   text: 'text-teal-300' },
+  otro:       { bg: 'bg-gray-700/30',   border: 'border-gray-600/40',   text: 'text-gray-400' },
+}
+function tutClr(nivel: string | null) { return TUTORADO_COLOR[nivel ?? ''] ?? TUTORADO_COLOR.otro }
 
 interface Props {
   eventos: Evento[]
@@ -998,18 +1008,19 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   {dayTutorados.map(t => {
                     const endTime = t.hora_fin ?? fromMin(toMin(t.hora_inicio) + 60)
                     const pos = blockPos(t.hora_inicio, endTime)
+                    const clr = tutClr(t.nivel)
                     return (
                       <div key={t.estudiante_id}
-                        className="absolute left-0.5 right-0.5 rounded border px-1.5 py-1 overflow-hidden z-20 bg-purple-600/20 border-purple-500/40"
+                        className={`absolute left-0.5 right-0.5 rounded border px-1.5 py-1 overflow-hidden z-20 ${clr.bg} ${clr.border}`}
                         style={{ top: pos.top + 1, height: pos.height - 2 }}>
-                        <p className="text-[11px] font-semibold leading-tight truncate text-purple-300">{t.nombre}</p>
+                        <p className={`text-[11px] font-semibold leading-tight truncate ${clr.text}`}>{t.nombre}</p>
                         {pos.height >= SLOT_H && (
-                          <p className="text-[10px] opacity-70 leading-none mt-0.5 text-purple-300">
+                          <p className={`text-[10px] opacity-70 leading-none mt-0.5 ${clr.text}`}>
                             {fmt(t.hora_inicio)}{t.hora_fin ? `–${fmt(t.hora_fin)}` : ''}
                           </p>
                         )}
                         {t.nota_horario && pos.height >= SLOT_H * 2 && (
-                          <p className="text-[10px] opacity-60 leading-tight mt-0.5 text-purple-300 truncate">{t.nota_horario}</p>
+                          <p className={`text-[10px] opacity-60 leading-tight mt-0.5 ${clr.text} truncate`}>{t.nota_horario}</p>
                         )}
                       </div>
                     )
@@ -1027,7 +1038,9 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-600/40 border border-emerald-500/40" /> Tutoría disponible</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-violet-600/40 border border-violet-500/40" /> Tutoría reservada</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gray-700/30 border border-gray-600/30" /> No disponible</div>
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-purple-600/20 border border-purple-500/40" /> Tutorado</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-600/20 border border-amber-500/40" /> Tutorado pregrado</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-purple-600/20 border border-purple-500/40" /> Tutorado maestría</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-indigo-600/20 border border-indigo-500/40" /> Tutorado doctorado</div>
           {Object.entries(TIPO_COLOR).map(([tipo, c]) => (
             <div key={tipo} className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} /><span className="capitalize">{tipo}</span></div>
           ))}

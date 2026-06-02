@@ -43,7 +43,7 @@ export default async function DashboardPage() {
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
     getNotificacionesProactivas(),
     db.from('tutorado_perfil')
-      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario')
+      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, modalidad_trabajo')
       .eq('profesor_id', user.id)
       .not('dia_semana', 'is', null)
       .not('hora_inicio', 'is', null),
@@ -143,6 +143,7 @@ export default async function DashboardPage() {
           hora_fin: t.hora_fin,
           nota_horario: t.nota_horario,
           nombre: (estudiantesRes.data as any[])?.find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
+          nivel: t.modalidad_trabajo ?? null,
         }))}
         todayStr={hoy}
       />
@@ -159,6 +160,7 @@ export default async function DashboardPage() {
           hora_fin: t.hora_fin,
           nota_horario: t.nota_horario,
           nombre: (estudiantesRes.data as any[])?.find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
+          nivel: t.modalidad_trabajo ?? null,
         }))}
         profesorId={user.id}
         profesorNombre={profesorRes.data?.nombre ?? ''}

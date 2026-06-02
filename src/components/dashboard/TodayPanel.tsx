@@ -59,7 +59,9 @@ interface RawHorarioTutorado {
   hora_fin: string | null
   nota_horario: string | null
   nombre: string
+  nivel: string | null
 }
+
 
 interface Props {
   clases: RawClase[]
@@ -104,13 +106,19 @@ const EVENTO_COLOR: Record<string, string> = {
 }
 
 const COLORS: Record<string, { border: string; badge: string }> = {
-  blue:    { border: 'border-l-blue-500',    badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
-  teal:    { border: 'border-l-teal-500',    badge: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
-  emerald: { border: 'border-l-emerald-500', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
-  gray:    { border: 'border-l-gray-600',    badge: 'bg-gray-700 text-gray-400 border-gray-600' },
-  purple:  { border: 'border-l-purple-500',  badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
-  amber:   { border: 'border-l-amber-500',   badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
-  pink:    { border: 'border-l-pink-500',    badge: 'bg-pink-500/15 text-pink-300 border-pink-500/30' },
+  blue:       { border: 'border-l-blue-500',    badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+  teal:       { border: 'border-l-teal-500',    badge: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
+  emerald:    { border: 'border-l-emerald-500', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  gray:       { border: 'border-l-gray-600',    badge: 'bg-gray-700 text-gray-400 border-gray-600' },
+  purple:     { border: 'border-l-purple-500',  badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+  amber:      { border: 'border-l-amber-500',   badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  pink:       { border: 'border-l-pink-500',    badge: 'bg-pink-500/15 text-pink-300 border-pink-500/30' },
+  // tutorados por nivel
+  pregrado:   { border: 'border-l-amber-500',   badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  maestria:   { border: 'border-l-purple-500',  badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+  doctorado:  { border: 'border-l-indigo-500',  badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
+  tecnologia: { border: 'border-l-teal-500',    badge: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
+  otro:       { border: 'border-l-gray-600',    badge: 'bg-gray-700 text-gray-400 border-gray-600' },
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -201,7 +209,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutora
         titulo:  t.nombre,
         detalle: t.nota_horario || null,
         tipo:     'tutorado',
-        colorKey: 'purple',
+        colorKey: t.nivel ?? 'otro',
       })
     }
 

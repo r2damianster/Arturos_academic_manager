@@ -7,7 +7,8 @@ import { z } from 'zod'
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const TutoradoPerfilSchema = z.object({
-  modalidad_trabajo:    z.enum(['maestria', 'pregrado', 'articulo', 'otro']).optional(),
+  modalidad_trabajo:    z.enum(['pregrado', 'maestria', 'doctorado', 'tecnologia', 'otro']).optional(),
+  tipo_trabajo:         z.enum(['articulo_cientifico', 'sistematizacion_experiencias', 'creacion_productos', 'examen_complexivo', 'proyecto_investigacion', 'otro']).optional(),
   titulo_trabajo:       z.string().max(300).optional(),
   etapa:                z.string().max(100).optional(),
   progreso_pct:         z.coerce.number().int().min(0).max(100).optional(),
@@ -48,6 +49,7 @@ export type TutoradoItem = {
   periodo: string
   perfil: {
     modalidad_trabajo: string | null
+    tipo_trabajo: string | null
     titulo_trabajo: string | null
     etapa: string | null
     progreso_pct: number
@@ -250,6 +252,7 @@ export async function upsertTutoradoPerfil(
       estudiante_id:       estudianteId,
       curso_id:            cursoId,
       modalidad_trabajo:   d.modalidad_trabajo ?? null,
+      tipo_trabajo:        d.tipo_trabajo ?? null,
       titulo_trabajo:      d.titulo_trabajo || null,
       etapa:               d.etapa || null,
       progreso_pct:        d.progreso_pct ?? 0,

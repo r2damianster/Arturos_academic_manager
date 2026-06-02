@@ -3,11 +3,21 @@
 import { useState, useTransition } from 'react'
 import { upsertTutoradoPerfil, type TutoradoItem } from '@/lib/actions/tutorados'
 
-const MODALIDADES_TRABAJO = [
-  { value: 'maestria',  label: 'Maestría' },
-  { value: 'pregrado',  label: 'Pregrado' },
-  { value: 'articulo',  label: 'Artículo científico' },
-  { value: 'otro',      label: 'Otro' },
+const NIVELES_PROGRAMA = [
+  { value: 'pregrado',   label: 'Pregrado' },
+  { value: 'maestria',   label: 'Maestría' },
+  { value: 'doctorado',  label: 'Doctorado' },
+  { value: 'tecnologia', label: 'Tecnología' },
+  { value: 'otro',       label: 'Otro' },
+]
+
+const TIPOS_TRABAJO = [
+  { value: 'articulo_cientifico',         label: 'Artículo científico' },
+  { value: 'sistematizacion_experiencias',label: 'Sistematización de experiencias' },
+  { value: 'creacion_productos',          label: 'Creación de productos' },
+  { value: 'examen_complexivo',           label: 'Examen complexivo' },
+  { value: 'proyecto_investigacion',      label: 'Proyecto de investigación' },
+  { value: 'otro',                        label: 'Otro' },
 ]
 const MODALIDADES_SESION = [
   { value: 'presencial', label: 'Presencial' },
@@ -60,15 +70,26 @@ export function EditarPerfilTutorado({ tutorado, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Trabajo */}
-          <div>
-            <label className="label">Modalidad del trabajo</label>
-            <select name="modalidad_trabajo" className="input" defaultValue={p?.modalidad_trabajo ?? ''}>
-              <option value="">— Sin especificar —</option>
-              {MODALIDADES_TRABAJO.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+          {/* Nivel + Modalidad */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Nivel / Programa</label>
+              <select name="modalidad_trabajo" className="input" defaultValue={p?.modalidad_trabajo ?? ''}>
+                <option value="">— Sin especificar —</option>
+                {NIVELES_PROGRAMA.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Modalidad de titulación</label>
+              <select name="tipo_trabajo" className="input" defaultValue={(p as any)?.tipo_trabajo ?? ''}>
+                <option value="">— Sin especificar —</option>
+                {TIPOS_TRABAJO.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
