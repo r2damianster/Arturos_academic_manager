@@ -75,6 +75,16 @@ interface Citacion {
   estudiantes: { id: string; nombre: string; email: string } | null
 }
 
+interface HorarioTutorado {
+  estudiante_id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string | null
+  nota_horario: string | null
+  nivel: string | null
+  nombre: string
+}
+
 interface Props {
   horarios: Horario[]
   reservas: Reserva[]
@@ -85,6 +95,7 @@ interface Props {
   historial: ReservaHistorial[]
   citaciones: Citacion[]
   tiposTutoria: TipoTutoria[]
+  horariosTutorados?: HorarioTutorado[]
 }
 
 type Tab = 'citaciones' | 'historial' | 'horarios'
@@ -99,6 +110,7 @@ export function TutoriasPageClient({
   historial,
   citaciones,
   tiposTutoria,
+  horariosTutorados = [],
 }: Props) {
   const [tab, setTab] = useState<Tab>('citaciones')
 
@@ -158,6 +170,7 @@ export function TutoriasPageClient({
           estudiantes={estudiantes}
           profesorNombre={profesorNombre}
           tiposTutoria={tiposTutoria}
+          horariosTutorados={horariosTutorados}
         />
       )}
     </div>

@@ -68,6 +68,25 @@ interface Clase {
   }[]
 }
 
+interface HorarioTutorado {
+  estudiante_id: string
+  dia_semana: string
+  hora_inicio: string
+  hora_fin: string | null
+  nota_horario: string | null
+  nivel: string | null
+  nombre: string
+}
+
+const TUTORADO_COLOR: Record<string, { bg: string; border: string; text: string }> = {
+  pregrado:   { bg: 'bg-amber-900/40',  border: 'border-amber-700/60',  text: 'text-amber-300' },
+  maestria:   { bg: 'bg-purple-900/40', border: 'border-purple-700/60', text: 'text-purple-300' },
+  doctorado:  { bg: 'bg-indigo-900/40', border: 'border-indigo-700/60', text: 'text-indigo-300' },
+  tecnologia: { bg: 'bg-teal-900/40',   border: 'border-teal-700/60',   text: 'text-teal-300' },
+  otro:       { bg: 'bg-gray-800/60',   border: 'border-gray-600/40',   text: 'text-gray-400' },
+}
+function tutClr(nivel: string | null) { return TUTORADO_COLOR[nivel ?? ''] ?? TUTORADO_COLOR.otro }
+
 interface Props {
   horarios: Horario[]
   reservas: Reserva[]
@@ -75,6 +94,7 @@ interface Props {
   estudiantes: Estudiante[]
   profesorNombre: string
   tiposTutoria?: TipoTutoria[]
+  horariosTutorados?: HorarioTutorado[]
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -186,7 +206,7 @@ function getDynamicSlots(horarios: { hora_inicio: string; hora_fin: string }[], 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TutoriasManager({ horarios: init, reservas: initRes, clases, estudiantes, profesorNombre, tiposTutoria = [] }: Props) {
+export function TutoriasManager({ horarios: init, reservas: initRes, clases, estudiantes, profesorNombre, tiposTutoria = [], horariosTutorados = [] }: Props) {
   const supabase = createClient()
   const [horarios, setHorarios]     = useState<Horario[]>(init)
   const [reservas, setReservas]     = useState<Reserva[]>(initRes)
@@ -256,6 +276,17 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
     for (const slot of ALL_SLOTS) {
       if (slot >= start && slot < end) {
         claseMap.set(`${c.dia_semana}|${slot}`, c)
+      }
+    }
+  }
+
+  const tutoradoMap = new Map<string, HorarioTutorado>()
+  for (const t of horariosTutorados) {
+    const start = fmt(t.hora_inicio)
+    const end   = t.hora_fin ? fmt(t.hora_fin) : fromMinutes(toMinutes(t.hora_inicio) + 60)
+    for (const slot of ALL_SLOTS) {
+      if (slot >= start && slot < end) {
+        tutoradoMap.set(`${t.dia_semana}|${slot}`, t)
       }
     }
   }
@@ -758,7 +789,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
               <tbody>
                 {timeSlots.map(time => {
                   const diaKeys = activeDias.map(d => DAY_JS[d.getDay()])
-                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`))
+                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`) || tutoradoMap.has(`${dia}|${time}`))
                   if (!hasSomething) return null
                   return (
                     <tr key={time}>
@@ -769,7 +800,21 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                         const h = horarioMap.get(`${diaKey}|${time}`)
                         const clase = claseMap.get(`${diaKey}|${time}`)
 
-                        if (!h) return <td key={dateStr} className="px-0.5 py-0.5" />
+                        if (!h) {
+                          const tutorado = tutoradoMap.get(`${diaKey}|${time}`)
+                          if (!tutorado) return <td key={dateStr} className="px-0.5 py-0.5" />
+                          const clr = tutClr(tutorado.nivel)
+                          return (
+                            <td key={dateStr} className="px-0.5 py-0.5">
+                              <div className={`w-full min-h-[18px] py-0.5 px-1 rounded border overflow-hidden ${clr.bg} ${clr.border}`}
+                                title={tutorado.nombre + (tutorado.nota_horario ? ` · ${tutorado.nota_horario}` : '')}>
+                                <span className={`text-[9px] font-medium truncate block ${clr.text}`}>
+                                  {tutorado.nombre.split(' ')[0]}
+                                </span>
+                              </div>
+                            </td>
+                          )
+                        }
 
                         const popKey  = `${h.id}|${dateStr}`
                         const reserva = reservaBySlotDate.get(popKey)

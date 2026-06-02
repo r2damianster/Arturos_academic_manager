@@ -21,6 +21,7 @@ export default async function TutoriasPage() {
     historial,
     { data: citaciones },
     tiposTutoriaResult,
+    horariosTutoradosRes,
   ] = await Promise.all([
     db.from('horarios')
       .select('*')
@@ -70,6 +71,11 @@ export default async function TutoriasPage() {
       .order('fecha_citacion', { ascending: false }),
 
     getTiposTutoria(),
+    db.from('tutorado_perfil')
+      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, modalidad_trabajo')
+      .eq('profesor_id', user.id)
+      .not('dia_semana', 'is', null)
+      .not('hora_inicio', 'is', null),
   ])
 
   return (
@@ -83,6 +89,15 @@ export default async function TutoriasPage() {
       historial={historial}
       citaciones={citaciones ?? []}
       tiposTutoria={tiposTutoriaResult.tipos}
+      horariosTutorados={(horariosTutoradosRes.data ?? []).map((t: any) => ({
+        estudiante_id: t.estudiante_id,
+        dia_semana: t.dia_semana,
+        hora_inicio: t.hora_inicio,
+        hora_fin: t.hora_fin,
+        nota_horario: t.nota_horario,
+        nivel: t.modalidad_trabajo ?? null,
+        nombre: (estudiantes ?? []).find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
+      }))}
     />
   )
 }
