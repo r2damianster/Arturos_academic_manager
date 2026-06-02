@@ -758,7 +758,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
               <tbody>
                 {timeSlots.map(time => {
                   const diaKeys = activeDias.map(d => DAY_JS[d.getDay()])
-                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`) || claseMap.has(`${dia}|${time}`))
+                  const hasSomething = diaKeys.some(dia => horarioMap.has(`${dia}|${time}`))
                   if (!hasSomething) return null
                   return (
                     <tr key={time}>
@@ -768,67 +768,6 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                         const dateStr = toDateStr(date)
                         const h = horarioMap.get(`${diaKey}|${time}`)
                         const clase = claseMap.get(`${diaKey}|${time}`)
-
-                        if (clase) {
-                          if (clase.tipo === 'tutoria_curso') {
-                            const isTutoriaOpen = popover === `tutoria|${clase.id}|${dateStr}`
-                            const anunciosDelDia = clase.anuncios_tutoria_curso?.filter(a => a.fecha === dateStr) || []
-                            const isFirstSlot = time === fmt(clase.hora_inicio)
-                            return (
-                              <td key={dateStr} className="px-0.5 py-0.5 relative">
-                                <button
-                                  onClick={() => isFirstSlot ? setPopover(isTutoriaOpen ? null : `tutoria|${clase.id}|${dateStr}`) : undefined}
-                                  className={`w-full h-5 rounded border flex items-center justify-center transition-colors ${
-                                    isTutoriaOpen ? 'bg-orange-600/80 border-orange-400 ring-1 ring-orange-400' : 'bg-orange-900/30 border-orange-800/60 hover:bg-orange-800/50'
-                                  } ${!isFirstSlot ? 'cursor-default' : ''}`}
-                                  title={`Tutoría Grupal: ${clase.cursos?.asignatura}`}
-                                >
-                                  {isFirstSlot && (
-                                    <span className="text-[7px] text-orange-300 font-bold px-0.5 truncate flex gap-1">
-                                      {clase.cursos?.asignatura}
-                                      {anunciosDelDia.length > 0 && <span className="bg-orange-500 text-white rounded-full px-1">{anunciosDelDia.length}</span>}
-                                    </span>
-                                  )}
-                                </button>
-                                {isTutoriaOpen && isFirstSlot && (
-                                  <div className="absolute left-0 top-6 z-50 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 space-y-2 pointer-events-auto"
-                                    onClick={e => e.stopPropagation()}>
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div className="min-w-0 pr-4">
-                                        <p className="text-white text-xs font-semibold">Tutoría: {clase.cursos?.asignatura}</p>
-                                        <p className="text-gray-400 text-[10px]">{dateStr} · {fmt(clase.hora_inicio)} - {fmt(clase.hora_fin)}</p>
-                                      </div>
-                                      <button onClick={() => setPopover(null)} className="text-gray-500 hover:text-gray-300 ml-1 flex-shrink-0">✕</button>
-                                    </div>
-                                    <div className="text-[10px]">
-                                      <p className="font-semibold text-gray-300 mb-1 border-b border-gray-700 pb-1">Estudiantes asistentes ({anunciosDelDia.length}):</p>
-                                      {anunciosDelDia.length === 0 ? (
-                                        <p className="text-gray-500 italic">Nadie ha confirmado asistencia aún.</p>
-                                      ) : (
-                                        <ul className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                                          {anunciosDelDia.map(a => (
-                                            <li key={a.estudiante_id} className="text-gray-300">
-                                              • {a.estudiantes.nombre.split(' ')[0]} <span className="text-gray-500 text-[9px]">{a.estudiantes.carrera}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                            )
-                          }
-                          
-                          // Clase normal
-                          return (
-                            <td key={dateStr} className="px-0.5 py-0.5">
-                              <div className="w-full h-5 rounded border border-purple-800/60 bg-purple-900/30 flex items-center justify-center overflow-hidden" title={`Clase: ${clase.cursos?.asignatura}`}>
-                                <span className="text-[7px] text-purple-300 font-bold px-0.5 truncate">{clase.cursos?.asignatura}</span>
-                              </div>
-                            </td>
-                          )
-                        }
 
                         if (!h) return <td key={dateStr} className="px-0.5 py-0.5" />
 
@@ -847,13 +786,14 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                             <td key={dateStr} className="px-0.5 py-0.5 relative">
                               <button
                                 onClick={() => setPopover(isOpen ? null : popKey)}
-                                className={`w-full h-5 rounded border text-[8px] font-bold transition-colors ${
+                                className={`w-full min-h-[20px] h-auto py-0.5 px-1 rounded border text-[9px] font-medium transition-colors truncate ${
                                   isOpen
-                                    ? 'bg-blue-600/80 border-blue-400 text-white ring-1 ring-blue-400'
-                                    : 'bg-blue-900/50 border-blue-700 text-blue-300 hover:bg-blue-700/60'
+                                    ? 'bg-violet-600/80 border-violet-400 text-white ring-1 ring-violet-400'
+                                    : 'bg-violet-900/40 border-violet-700/60 text-violet-300 hover:bg-violet-700/50'
                                 }`}
+                                title={reserva!.estudiante_nombre}
                               >
-                                {initials(reserva!.estudiante_nombre)}
+                                {reserva!.estudiante_nombre.split(' ')[0]}
                               </button>
                               {isOpen && reserva && (
                                 <div className="absolute left-0 top-6 z-50 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-3 space-y-2"
@@ -1047,10 +987,10 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
               ? new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'short', day:'numeric', month:'short' })
               : '—'
             return (
-              <div key={r.id} className="flex items-start justify-between gap-2 px-3 py-2 rounded-lg bg-blue-900/10 border border-blue-900/40">
+              <div key={r.id} className="flex items-start justify-between gap-2 px-3 py-2 rounded-lg bg-violet-900/10 border border-violet-900/40">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-800 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-violet-800 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                       {initials(r.estudiante_nombre)}
                     </span>
                     <div className="min-w-0">
