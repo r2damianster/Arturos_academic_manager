@@ -508,6 +508,19 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     }
   }
 
+  // Fetch asignatura for derived curso_ids (student-booked without curso_id on reserva)
+  const cursoNombreById: Record<string, string> = {}
+  const derivedCursoIds = [...new Set(Object.values(cursoByAuthId))]
+  if (derivedCursoIds.length > 0) {
+    const { data: cursosData } = await db
+      .from('cursos')
+      .select('id, asignatura')
+      .in('id', derivedCursoIds)
+    for (const c of (cursosData ?? []) as { id: string; asignatura: string }[]) {
+      if (c.id) cursoNombreById[c.id] = c.asignatura
+    }
+  }
+
   return (data ?? []).map((r: {
     id: number
     fecha: string
@@ -538,7 +551,7 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     hora_fin_manual:     r.hora_fin_manual,
     horario_hora_inicio: r.horarios?.hora_inicio ?? null,
     horario_hora_fin:    r.horarios?.hora_fin ?? null,
-    asignatura:          r.cursos?.asignatura ?? null,
+    asignatura:          r.cursos?.asignatura ?? (r.auth_user_id && cursoByAuthId[r.auth_user_id] ? cursoNombreById[cursoByAuthId[r.auth_user_id]] ?? null : null),
     institucion:         r.cursos?.institucion ?? null,
     citacion_razon:      r.citaciones_tutoria?.[0]?.razon ?? null,
   }))
