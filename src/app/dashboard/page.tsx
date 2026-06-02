@@ -43,11 +43,14 @@ export default async function DashboardPage() {
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
     getNotificacionesProactivas(),
     db.from('tutorado_perfil')
-      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, estudiantes(nombre)')
+      .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario')
       .eq('profesor_id', user.id)
       .not('dia_semana', 'is', null)
       .not('hora_inicio', 'is', null),
   ])
+
+  // Debug tutorados (quitar después de verificar)
+  console.log('[tutorados-horarios]', JSON.stringify(horariosTutoradosRes))
 
   // Reservas de tutorías
   const horariosBase = horariosRes.data ?? []
@@ -142,7 +145,7 @@ export default async function DashboardPage() {
           hora_inicio: t.hora_inicio,
           hora_fin: t.hora_fin,
           nota_horario: t.nota_horario,
-          nombre: t.estudiantes?.nombre ?? '',
+          nombre: (estudiantesRes.data as any[])?.find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
         }))}
         todayStr={hoy}
       />
