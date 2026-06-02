@@ -508,16 +508,16 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     }
   }
 
-  // Fetch asignatura for derived curso_ids (student-booked without curso_id on reserva)
-  const cursoNombreById: Record<string, string> = {}
+  // Fetch asignatura + institucion for derived curso_ids (student-booked without curso_id on reserva)
+  const cursoInfoById: Record<string, { asignatura: string; institucion: string | null }> = {}
   const derivedCursoIds = [...new Set(Object.values(cursoByAuthId))]
   if (derivedCursoIds.length > 0) {
     const { data: cursosData } = await db
       .from('cursos')
-      .select('id, asignatura')
+      .select('id, asignatura, institucion')
       .in('id', derivedCursoIds)
-    for (const c of (cursosData ?? []) as { id: string; asignatura: string }[]) {
-      if (c.id) cursoNombreById[c.id] = c.asignatura
+    for (const c of (cursosData ?? []) as { id: string; asignatura: string; institucion: string | null }[]) {
+      if (c.id) cursoInfoById[c.id] = { asignatura: c.asignatura, institucion: c.institucion ?? null }
     }
   }
 
@@ -551,8 +551,8 @@ export async function getHistorialTutorias(): Promise<ReservaHistorial[]> {
     hora_fin_manual:     r.hora_fin_manual,
     horario_hora_inicio: r.horarios?.hora_inicio ?? null,
     horario_hora_fin:    r.horarios?.hora_fin ?? null,
-    asignatura:          r.cursos?.asignatura ?? (r.auth_user_id && cursoByAuthId[r.auth_user_id] ? cursoNombreById[cursoByAuthId[r.auth_user_id]] ?? null : null),
-    institucion:         r.cursos?.institucion ?? null,
+    asignatura:          r.cursos?.asignatura ?? (r.auth_user_id && cursoByAuthId[r.auth_user_id] ? cursoInfoById[cursoByAuthId[r.auth_user_id]]?.asignatura ?? null : null),
+    institucion:         r.cursos?.institucion ?? (r.auth_user_id && cursoByAuthId[r.auth_user_id] ? cursoInfoById[cursoByAuthId[r.auth_user_id]]?.institucion ?? null : null),
     citacion_razon:      r.citaciones_tutoria?.[0]?.razon ?? null,
   }))
 }
