@@ -49,9 +49,6 @@ export default async function DashboardPage() {
       .not('hora_inicio', 'is', null),
   ])
 
-  // Debug tutorados (quitar después de verificar)
-  console.log('[tutorados-horarios]', JSON.stringify(horariosTutoradosRes))
-
   // Reservas de tutorías
   const horariosBase = horariosRes.data ?? []
   const horarioIds: number[] = horariosBase.map((h: { id: number }) => h.id)
