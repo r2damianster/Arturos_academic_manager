@@ -158,23 +158,29 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
               </>
             )}
             {historico && (
-              confirmarReactivar ? (
-                <div className="flex gap-1.5">
-                  <button onClick={() => setConfirmarReactivar(false)}
-                    className="px-2 py-1 text-xs rounded-lg border border-gray-700 text-gray-400 transition-colors">
-                    No
-                  </button>
-                  <button onClick={handleReactivar} disabled={reactivando}
-                    className="px-2 py-1 text-xs rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 hover:bg-brand-600/30 transition-colors disabled:opacity-50">
-                    {reactivando ? '…' : 'Sí'}
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => setConfirmarReactivar(true)}
+              <>
+                <button onClick={() => setFichaAbierta(true)}
                   className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
-                  ↻ Reactivar
+                  👤 Ficha
                 </button>
-              )
+                {confirmarReactivar ? (
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setConfirmarReactivar(false)}
+                      className="px-2 py-1 text-xs rounded-lg border border-gray-700 text-gray-400 transition-colors">
+                      No
+                    </button>
+                    <button onClick={handleReactivar} disabled={reactivando}
+                      className="px-2 py-1 text-xs rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 hover:bg-brand-600/30 transition-colors disabled:opacity-50">
+                      {reactivando ? '…' : 'Sí'}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmarReactivar(true)}
+                    className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
+                    ↻ Reactivar
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
