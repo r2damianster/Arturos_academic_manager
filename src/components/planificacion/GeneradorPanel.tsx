@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { generarHtmlSemanal, generarGuiaSemanal, mejorarContenido } from '@/lib/actions/generar-contenido'
+import { generarHtmlSemanal, generarGuiaSemanal, generarEvaluacionMoodle, mejorarContenido } from '@/lib/actions/generar-contenido'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,8 @@ interface LogroItem {
   descripcion: string
 }
 
-type Tab = 'html' | 'guia'
+type Tab = 'html' | 'guia' | 'evaluacion'
+type TipoPregunta = 'multichoice' | 'truefalse' | 'matching' | 'shortanswer'
 type Step = 1 | 2 | 3
 
 interface ChatMessage {
@@ -98,6 +99,16 @@ async function descargaPdf(guia: string, titulo: string) {
   URL.revokeObjectURL(url)
 }
 
+function descargaXml(contenido: string, nombreBase: string) {
+  const blob = new Blob([contenido], { type: 'application/xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${nombreBase}.xml`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function calcularSemana(fechaInicio: string | null, fechasBitacoras: string[]): number {
   if (!fechaInicio || fechasBitacoras.length === 0) return 1
   const inicio = new Date(fechaInicio + 'T00:00:00')
@@ -133,6 +144,11 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [nivel, setNivel] = useState<'basico' | 'avanzado'>('basico')
   const [logros, setLogros] = useState<LogroItem[]>([])
   const [selectedLogroId, setSelectedLogroId] = useState<string>('')
+
+  // Paso 2 — evaluación
+  const [tiposPregunta, setTiposPregunta] = useState<Set<TipoPregunta>>(new Set(['multichoice']))
+  const [totalPreguntas, setTotalPreguntas] = useState(10)
+  const [categoriaMoodle, setCategoriaMoodle] = useState('')
 
   // Paso 3
   const [generating, setGenerating] = useState(false)
@@ -256,6 +272,28 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         setGeneratedContent(result.html)
         setStep(3)
       }
+    } else if (activeTab === 'evaluacion') {
+      if (tiposPregunta.size === 0) {
+        setGenError('Selecciona al menos un tipo de pregunta.')
+        setGenerating(false)
+        return
+      }
+      const result = await generarEvaluacionMoodle({
+        bitacoraIds: ids,
+        asignatura,
+        semanaNum: semanaFinal,
+        tipos: Array.from(tiposPregunta),
+        totalPreguntas,
+        categoria: categoriaMoodle.trim() || undefined,
+        instruccionAdicional: instruccion,
+        cursoId: selectedCursoId ?? undefined,
+      })
+      if (result.error) {
+        setGenError(result.error)
+      } else {
+        setGeneratedContent(result.xml)
+        setStep(3)
+      }
     } else {
       const logroSeleccionado = logros.find(l => l.id === selectedLogroId)
       const result = await generarGuiaSemanal({
@@ -368,7 +406,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
 
         {/* Tabs */}
         <div className="flex gap-1 px-5 pt-4 pb-0 flex-shrink-0">
-          {(['html', 'guia'] as const).map(tab => (
+          {(['html', 'guia', 'evaluacion'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => {
@@ -385,7 +423,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   : 'text-gray-500 border-transparent hover:text-gray-300'
               }`}
             >
-              {tab === 'html' ? '📄 HTML Semanal' : '📚 Guía de Estudio'}
+              {tab === 'html' ? '📄 HTML Semanal' : tab === 'guia' ? '📚 Guía de Estudio' : '❓ Evaluación Moodle'}
             </button>
           ))}
         </div>
@@ -626,6 +664,72 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                 </div>
               )}
 
+              {/* Config evaluación */}
+              {activeTab === 'evaluacion' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-2">Tipos de pregunta</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: 'multichoice', label: 'Opción múltiple' },
+                        { value: 'truefalse', label: 'Verdadero/Falso' },
+                        { value: 'matching', label: 'Emparejamiento' },
+                        { value: 'shortanswer', label: 'Respuesta corta' },
+                      ] as const).map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={tiposPregunta.has(value)}
+                            onChange={() => {
+                              setTiposPregunta(prev => {
+                                const next = new Set(prev)
+                                next.has(value) ? next.delete(value) : next.add(value)
+                                return next
+                              })
+                            }}
+                            className="accent-brand-500 w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-300 group-hover:text-white transition-colors">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                      Total de preguntas
+                    </label>
+                    <p className="text-gray-600 text-xs mb-2">
+                      La IA reparte entre los tipos seleccionados. Máximo recomendado: 15.
+                    </p>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={totalPreguntas}
+                      onChange={e => setTotalPreguntas(Math.max(1, Math.min(50, Number(e.target.value))))}
+                      className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                      Categoría Moodle <span className="text-gray-600">(opcional)</span>
+                    </label>
+                    <p className="text-gray-600 text-xs mb-2">
+                      Ruta donde se organizan las preguntas en el banco. Default: $course$/Semana {semanaFinal} - {selectedCurso?.asignatura ?? 'Asignatura'}.
+                    </p>
+                    <input
+                      type="text"
+                      value={categoriaMoodle}
+                      onChange={e => setCategoriaMoodle(e.target.value)}
+                      placeholder={`$course$/Semana ${semanaFinal} - ${selectedCurso?.asignatura ?? 'Asignatura'}`}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </>
+              )}
+
               {/* Instrucción adicional */}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">
@@ -638,7 +742,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   value={instruccionAdicional}
                   onChange={e => setInstruccionAdicional(e.target.value)}
                   rows={3}
-                  placeholder={'ej: "Céntrate únicamente en las actividades de comparación"\n     "Incluye este artículo: https://..."'}
+                  placeholder={activeTab === 'evaluacion'
+                    ? 'ej: "Enfócate en los conceptos clave de la unidad, nivel básico"'
+                    : 'ej: "Céntrate únicamente en las actividades de comparación"\n     "Incluye este artículo: https://..."'}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-brand-500 resize-none"
                 />
               </div>
@@ -659,7 +765,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
               <div>
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <span className="text-xs font-medium text-gray-400">
-                    {activeTab === 'html' ? 'Código HTML' : 'Guía de estudio'}
+                    {activeTab === 'html' ? 'Código HTML' : activeTab === 'evaluacion' ? 'Banco de preguntas (Moodle XML)' : 'Guía de estudio'}
                     <span className="ml-2 text-gray-600">— editable directamente</span>
                   </span>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -675,6 +781,8 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                           generatedContent,
                           activeTab === 'html'
                             ? `html-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
+                            : activeTab === 'evaluacion'
+                            ? `banco-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
                             : `guia-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
                         )
                       }
@@ -682,6 +790,19 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                     >
                       ⬇ .txt
                     </button>
+                    {activeTab === 'evaluacion' && (
+                      <button
+                        onClick={() =>
+                          descargaXml(
+                            generatedContent,
+                            `banco-semana${semanaFinal}-${selectedCurso?.asignatura ?? 'curso'}`
+                          )
+                        }
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 border border-emerald-600 text-white hover:bg-emerald-600 transition-colors text-xs"
+                      >
+                        ⬇ Moodle XML (.xml)
+                      </button>
+                    )}
                     {activeTab === 'guia' && (
                       <>
                         <button
@@ -749,6 +870,8 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                     placeholder={
                       activeTab === 'html'
                         ? 'ej: "cambia los colores de encabezado a verde"'
+                        : activeTab === 'evaluacion'
+                        ? 'ej: "agrega 2 preguntas de emparejamiento sobre el vocabulario"'
                         : 'ej: "agrega más ejemplos prácticos en Desarrollo del Tema"'
                     }
                     disabled={chatLoading}
@@ -809,7 +932,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                   Generando…
                 </>
               ) : (
-                `✦ Generar ${activeTab === 'html' ? 'HTML' : 'guía'}`
+                `✦ Generar ${activeTab === 'html' ? 'HTML' : activeTab === 'evaluacion' ? 'evaluación' : 'guía'}`
               )}
             </button>
           )}

@@ -375,11 +375,172 @@ Devuelve ÚNICAMENTE el texto corregido, sin explicaciones, sin comillas, sin pr
   return { corregido: result.content, error: result.error }
 }
 
+const SYSTEM_MOODLE_XML = `Eres un generador experto de bancos de preguntas en formato Moodle XML.
+
+Tu salida DEBE cumplir estrictamente estas reglas:
+
+FORMATO DE SALIDA:
+- Responde ÚNICAMENTE con el XML completo, empezando exactamente con <?xml version="1.0" encoding="UTF-8"?>
+- PROHIBIDO: texto antes del XML, markdown, fences de código (triple backtick), explicaciones, comentarios fuera del XML
+- El XML debe terminar con </quiz>
+
+ESTRUCTURA OBLIGATORIA:
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <!-- primer nodo: categoría -->
+  <question type="category">
+    <category>
+      <text>$course$/NOMBRE_CATEGORIA</text>
+    </category>
+  </question>
+  <!-- luego las preguntas -->
+</quiz>
+
+REGLAS DE CONTENIDO:
+1. Todo texto dentro de <name>, <questiontext>, <text> de respuestas y <feedback> DEBE estar en bloques <![CDATA[ ... ]]>
+2. <questiontext> siempre con atributo format="html"
+3. Usar español formal y pedagógico; feedback explicativo por cada opción
+
+PLANTILLAS POR TIPO:
+
+multichoice (opción múltiple, respuesta única):
+<question type="multichoice">
+  <name><text><![CDATA[COD_01]]></text></name>
+  <questiontext format="html"><text><![CDATA[Enunciado de la pregunta]]></text></questiontext>
+  <single>true</single>
+  <shuffleanswers>1</shuffleanswers>
+  <answernumbering>abc</answernumbering>
+  <answer fraction="100"><text><![CDATA[Respuesta correcta]]></text><feedback><text><![CDATA[Correcto. Justificación.]]></text></feedback></answer>
+  <answer fraction="0"><text><![CDATA[Distractor 1]]></text><feedback><text><![CDATA[Incorrecto. Explicación.]]></text></feedback></answer>
+  <answer fraction="0"><text><![CDATA[Distractor 2]]></text><feedback><text><![CDATA[Incorrecto. Explicación.]]></text></feedback></answer>
+  <answer fraction="0"><text><![CDATA[Distractor 3]]></text><feedback><text><![CDATA[Incorrecto. Explicación.]]></text></feedback></answer>
+</question>
+
+truefalse (verdadero/falso):
+<question type="truefalse">
+  <name><text><![CDATA[COD_02]]></text></name>
+  <questiontext format="html"><text><![CDATA[Afirmación a evaluar.]]></text></questiontext>
+  <answer fraction="100"><text><![CDATA[verdadero]]></text><feedback><text><![CDATA[Correcto. Justificación.]]></text></feedback></answer>
+  <answer fraction="0"><text><![CDATA[falso]]></text><feedback><text><![CDATA[Incorrecto. Explicación.]]></text></feedback></answer>
+</question>
+
+matching (emparejamiento):
+<question type="matching">
+  <name><text><![CDATA[COD_03]]></text></name>
+  <questiontext format="html"><text><![CDATA[Relacione cada concepto con su definición.]]></text></questiontext>
+  <shuffleanswers>true</shuffleanswers>
+  <subquestion><text><![CDATA[Concepto A]]></text><answer><text><![CDATA[Definición A]]></text></answer></subquestion>
+  <subquestion><text><![CDATA[Concepto B]]></text><answer><text><![CDATA[Definición B]]></text></answer></subquestion>
+  <subquestion><text><![CDATA[Concepto C]]></text><answer><text><![CDATA[Definición C]]></text></answer></subquestion>
+</question>
+
+shortanswer (respuesta corta):
+<question type="shortanswer">
+  <name><text><![CDATA[COD_04]]></text></name>
+  <questiontext format="html"><text><![CDATA[Pregunta de respuesta corta.]]></text></questiontext>
+  <usecase>0</usecase>
+  <answer fraction="100"><text><![CDATA[respuesta exacta esperada]]></text><feedback><text><![CDATA[Correcto. Justificación.]]></text></feedback></answer>
+</question>
+
+VALIDACIONES CRÍTICAS:
+- En multichoice: exactamente UNA respuesta con fraction="100", las demás con fraction="0"
+- En truefalse: los textos deben ser "verdadero" y "falso" en minúsculas
+- Cada pregunta debe tener <name> con código único (COD_01, COD_02, etc.)
+- Cierre correcto de todas las etiquetas: cada <question> cierra con </question>`
+
+function sanitizeXml(raw: string): string {
+  const idx = raw.indexOf('<?xml')
+  if (idx === -1) return ''
+  return raw.slice(idx).trim()
+}
+
+type TipoPregunta = 'multichoice' | 'truefalse' | 'matching' | 'shortanswer'
+
+const TIPO_LABELS: Record<TipoPregunta, string> = {
+  multichoice: 'opción múltiple (respuesta única con distractores)',
+  truefalse: 'verdadero/falso',
+  matching: 'emparejamiento (relacionar columnas)',
+  shortanswer: 'respuesta corta',
+}
+
+export async function generarEvaluacionMoodle(params: {
+  bitacoraIds: string[]
+  asignatura: string
+  semanaNum: number
+  tipos: TipoPregunta[]
+  totalPreguntas: number
+  categoria?: string
+  instruccionAdicional?: string
+  cursoId?: string
+}): Promise<{ xml: string; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: bitacoras, error: dbErr } = await supabase
+    .from('bitacora_clase')
+    .select('fecha, tema, actividades_json, observaciones')
+    .in('id', params.bitacoraIds)
+    .order('fecha', { ascending: true })
+
+  if (dbErr) return { xml: '', error: `Error de base de datos: ${dbErr.message}` }
+  if (!bitacoras?.length) return { xml: '', error: 'No se encontraron las clases seleccionadas' }
+
+  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+
+  let historialTexto = ''
+  if (params.cursoId) {
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  }
+
+  const categoria = params.categoria?.trim() || `$course$/Semana ${params.semanaNum} - ${params.asignatura}`
+  const tiposTexto = params.tipos.map(t => TIPO_LABELS[t]).join(', ')
+
+  const userPrompt = [
+    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (máxima prioridad — puede enfocar o limitar el contenido):\n${params.instruccionAdicional}\n` : '',
+    `Genera un banco de preguntas en formato Moodle XML para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
+    ``,
+    `Configuración:`,
+    `- Total de preguntas: ${params.totalPreguntas}`,
+    `- Tipos de pregunta a usar: ${tiposTexto}`,
+    `- Reparte las preguntas equilibradamente entre los tipos indicados`,
+    `- Categoría Moodle: ${categoria}`,
+    ``,
+    historialTexto ? `CONTEXTO DE CLASES ANTERIORES (solo para evitar repetir temas ya evaluados):\n${historialTexto}\n` : '',
+    `CLASES DE ESTA SEMANA (base de contenido para las preguntas):`,
+    clasesTexto,
+  ].filter(Boolean).join('\n')
+
+  const result = await callGroq([
+    { role: 'system', content: SYSTEM_MOODLE_XML },
+    { role: 'user', content: userPrompt },
+  ])
+
+  if (result.error) return { xml: '', error: result.error }
+
+  const xml = sanitizeXml(result.content)
+  if (!xml) return { xml: '', error: 'La IA no generó un XML válido. Intenta de nuevo o reduce el número de preguntas.' }
+
+  return { xml }
+}
+
 export async function mejorarContenido(params: {
-  tipo: 'html' | 'guia'
+  tipo: 'html' | 'guia' | 'evaluacion'
   contenidoActual: string
   solicitud: string
 }): Promise<{ content: string; error?: string }> {
+  if (params.tipo === 'evaluacion') {
+    const result = await callGroq([
+      { role: 'system', content: SYSTEM_MOODLE_XML },
+      {
+        role: 'user',
+        content: `INSTRUCCIÓN PRIORITARIA: ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,
+      },
+    ])
+    if (result.error) return result
+    const sanitized = sanitizeXml(result.content)
+    if (!sanitized) return { content: '', error: 'La IA no devolvió un XML válido. Intenta de nuevo.' }
+    return { content: sanitized }
+  }
+
   const systemPrompt = params.tipo === 'html' ? SYSTEM_HTML : SYSTEM_GUIA
 
   const userPrompt = params.tipo === 'html'
