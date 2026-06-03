@@ -17,6 +17,9 @@ const TIPOS_TRABAJO = [
   { value: 'creacion_productos',          label: 'Creación de productos' },
   { value: 'examen_complexivo',           label: 'Examen complexivo' },
   { value: 'proyecto_investigacion',      label: 'Proyecto de investigación' },
+  { value: 'disertacion_academica',       label: 'Disertación académica' },
+  { value: 'ensayo_academico',            label: 'Ensayo académico' },
+  { value: 'producto_educomunicacional',  label: 'Producto educomunicacional' },
   { value: 'otro',                        label: 'Otro' },
 ]
 const MODALIDADES_SESION = [
