@@ -190,8 +190,22 @@ export default async function StudentPage() {
         })}
       </div>
 
-      {/* Tarjeta por cada curso */}
-      {estudiantes.map(est => {
+      {/* Banner período completado */}
+      {soloFinalizados && (
+        <div className="card border-emerald-800/40 bg-emerald-950/20 text-center py-8 space-y-3">
+          <div className="text-4xl">🎓</div>
+          <div>
+            <p className="font-semibold text-emerald-300 mb-1">¡Período completado!</p>
+            <p className="text-sm text-gray-400">Tus cursos de este período han finalizado. Aquí tienes tu historial.</p>
+          </div>
+          <Link href="/student/evidencias" className="btn-primary text-sm inline-flex items-center gap-2 mx-auto">
+            Armar evidencias PDF
+          </Link>
+        </div>
+      )}
+
+      {/* Tarjeta por cada curso activo */}
+      {estudiantesActivos.map(est => {
         const curso = cursosMap[est.curso_id]
         if (!curso) return null
 
@@ -374,6 +388,69 @@ export default async function StudentPage() {
           </div>
         )
       })}
+
+      {/* Tarjetas de cursos finalizados (historial de solo lectura) */}
+      {estudiantesFinalizados.length > 0 && (
+        <details className="group" open={soloFinalizados}>
+          <summary className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-300 cursor-pointer select-none mb-3 list-none">
+            <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Períodos anteriores ({estudiantesFinalizados.length})
+          </summary>
+          {estudiantesFinalizados.map(est => {
+            const curso = cursosMap[est.curso_id]
+            if (!curso) return null
+            const regAsis = asistenciaReg.filter(r => r.estudiante_id === est.id)
+            const presentes = regAsis.filter(r => r.estado === 'Presente').length
+            const pctAsistencia = regAsis.length > 0 ? Math.round(presentes / regAsis.length * 100) : null
+            const misReservas = reservasReg.filter(r => r.horarios?.profesor_id === curso.profesor_id)
+            const tutoriasAsistidas = misReservas.filter(r => r.asistio).length
+            const ts = trabajosPorEstudiante.get(est.id) ?? []
+            const completados = ts.filter(t => t.estado === 'Aprobado' || t.estado === 'Entregado').length
+            const cursoAny = curso as any
+            return (
+              <div key={est.id} className="card opacity-70 space-y-3 mb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-mono bg-gray-800 text-gray-500 px-2 py-0.5 rounded">{curso.codigo}</span>
+                    <h2 className="text-base font-semibold text-gray-400 mt-1">{curso.asignatura}</h2>
+                    <p className="text-xs text-gray-600">{curso.periodo}</p>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 mt-1">
+                    {(cursoAny).estado === 'archivado' ? 'Archivado' : 'Finalizado'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  {pctAsistencia !== null && (
+                    <span className="text-gray-500">Asistencia: <span className="font-semibold text-gray-400">{pctAsistencia}%</span></span>
+                  )}
+                  {tutoriasAsistidas > 0 && (
+                    <span className="text-gray-500">Tutorías: <span className="font-semibold text-gray-400">{tutoriasAsistidas}</span></span>
+                  )}
+                  {completados > 0 && (
+                    <span className="text-gray-500">Trabajos aprobados: <span className="font-semibold text-gray-400">{completados}</span></span>
+                  )}
+                </div>
+                {cursoAny.link_publicacion && (
+                  <a
+                    href={cursoAny.link_publicacion}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Ver publicación del curso
+                  </a>
+                )}
+              </div>
+            )
+          })}
+        </details>
+      )}
     </div>
   )
 }
