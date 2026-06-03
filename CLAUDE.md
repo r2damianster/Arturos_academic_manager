@@ -191,6 +191,7 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260602_tutorado_estado             → Columnas tutorado_perfil.estado, finalizado_at, resultado ('graduado'|'aprobado'|'abandono'|'otro'), nota_final
 20260602_tutorado_nivel_modalidad    → Renombra modalidad_trabajo CHECK → ('pregrado'|'maestria'|'doctorado'|'tecnologia'|'otro'); nueva columna tipo_trabajo TEXT con 6 opciones
 20260602_tutorado_publicacion        → Columnas tutorado_perfil.publicado BOOLEAN, fecha_publicacion DATE, referencia_publicacion TEXT
+20260603_inasistencia_reconocida     → Columnas reservas.justificacion_inasistencia TEXT + reservas.inasistencia_reconocida BOOLEAN DEFAULT false; índice parcial en (auth_user_id, inasistencia_reconocida, fecha)
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
@@ -208,12 +209,38 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
   - `tutorado_sesiones` — tabla nueva completa
   - `reservas.modalidad`, `reservas.link_zoom`, `reservas.profesor_id`, `reservas.origen`, `reservas.curso_id` — columnas nuevas
   - `reservas.tipo_tutoria_id`, `reservas.hora_inicio_reserva`, `reservas.hora_fin_reserva`, `reservas.duracion_minutos` — columnas nuevas (multi-reservas)
+  - `reservas.justificacion_inasistencia`, `reservas.inasistencia_reconocida` — columnas nuevas (reconocimiento de inasistencia)
   - `horarios.permitir_multiples`, `horarios.buffer_minutos` — columnas nuevas
   - `horarios_clases.obligatoria` — columna nueva
   - `cursos.tipo`, `cursos.estado`, `cursos.link_publicacion`, `cursos.alertas_silenciadas`, `cursos.encuesta_parcial_forzada` — columnas nuevas
   - `cursos.encuesta_inicial_habilitada`, `cursos.encuesta_parcial_habilitada` — columnas nuevas
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
   - `encuesta_parcial` — tabla nueva completa (~60 columnas)
+
+## Features recientes (2026-06-03 — sesión 30)
+
+### Reconocimiento de inasistencia a tutoría — portal estudiantil bloqueante
+
+#### Lógica de detección (doble trigger)
+- **Por acción del profesor**: cuando el profesor marca `reservas.asistio = false` en el Historial de tutorías.
+- **Por tiempo automático**: si `reservas.fecha < hoy - 7 días` y `asistio IS NULL` (sin acción del profesor).
+- Solo aplica a reservas con `estado != 'cancelado'` y `inasistencia_reconocida = false`.
+
+#### Bloqueo del portal
+- **MOD** `src/app/student/layout.tsx` — tercer bloqueo (orden: onboarding → encuesta_parcial → inasistencia). Redirige a `/student/inasistencia/[id]` con la reserva más antigua sin reconocer. Al haber múltiples, se resuelven una a una.
+- El check usa `.or('asistio.eq.false,and(fecha.lt.FECHA,asistio.is.null)')` sobre `reservas` directamente (sin RPC).
+
+#### DB
+- **FEAT** `supabase/migrations/20260603_inasistencia_reconocida.sql` — `reservas.justificacion_inasistencia TEXT` + `reservas.inasistencia_reconocida BOOLEAN NOT NULL DEFAULT false` + índice parcial `idx_reservas_inasistencia`. Aplicado en producción.
+
+#### Server Action
+- **FEAT** `reconocerInasistencia(reservaId, justificacion)` en `src/lib/actions/tutorias.ts` — update con `.eq('auth_user_id', user.id)` (seguridad por RLS). Acepta texto libre; guarda razón elegida + detalle si aplica.
+
+#### Página bloqueante
+- **FEAT** `src/app/student/inasistencia/[reservaId]/page.tsx` — RSC: carga reserva + nombre profesor (via `profesor_id` o `horarios.profesor_id`) + nombre curso.
+- **FEAT** `src/app/student/inasistencia/[reservaId]/inasistencia-form.tsx` — client component. Muestra fecha/hora/profesor/asignatura de la sesión no asistida. 5 radios de razón: "Tuve un imprevisto / Se me olvidó / Problema de salud / Problema técnico o de conexión / Otro". Textarea si elige "Otro". Botón "Registrar y continuar" → llama `reconocerInasistencia` → redirect a `/student`. Link secundario "Ver agenda de tutorías" → `/student/tutorias`.
+
+---
 
 ## Features recientes (2026-05-25 → 2026-06-02 — sesiones 24-29)
 
