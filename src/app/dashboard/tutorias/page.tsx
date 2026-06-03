@@ -74,6 +74,7 @@ export default async function TutoriasPage() {
     db.from('tutorado_perfil')
       .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, modalidad_trabajo')
       .eq('profesor_id', user.id)
+      .neq('estado', 'finalizado')
       .not('dia_semana', 'is', null)
       .not('hora_inicio', 'is', null),
   ])

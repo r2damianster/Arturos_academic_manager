@@ -1,18 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { type TutoradoItem, type SesionItem } from '@/lib/actions/tutorados'
+import { type TutoradoItem, type SesionItem, reactivarTutorado } from '@/lib/actions/tutorados'
 import { getSesionesTutorado } from '@/lib/actions/tutorados'
 import { RegistrarSesionModal } from './RegistrarSesionModal'
 import { EditarPerfilTutorado } from './EditarPerfilTutorado'
 import { SesionesTimeline } from './SesionesTimeline'
+import { FinalizarTutoradoModal } from './FinalizarTutoradoModal'
 
 const MODAL_EMOJI: Record<string, string> = {
   presencial: '🏫', virtual: '💻', whatsapp: '💬', telefono: '📞', otro: '📝',
 }
 const MOD_TRABAJO_LABEL: Record<string, string> = {
   maestria: 'Maestría', pregrado: 'Pregrado', articulo: 'Artículo', otro: 'Otro',
+}
+const RESULTADO_LABEL: Record<string, string> = {
+  graduado: 'Graduado/a', aprobado: 'Aprobado/a', abandono: 'Abandonó', otro: 'Otro',
+}
+const RESULTADO_COLOR: Record<string, string> = {
+  graduado: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  aprobado: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+  abandono: 'bg-red-500/20 text-red-300 border-red-500/30',
+  otro:     'bg-gray-700 text-gray-400 border-gray-600',
 }
 
 function ProgressBar({ pct }: { pct: number }) {
@@ -40,14 +51,19 @@ function formatHora(t: string) {
 interface TutoradoCardProps {
   t: TutoradoItem
   showCurso: boolean
+  historico?: boolean
 }
 
-function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
+function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
+  const router = useRouter()
   const [registrando, setRegistrando] = useState(false)
   const [editando, setEditando] = useState(false)
+  const [finalizando, setFinalizando] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [sesiones, setSesiones] = useState<SesionItem[] | null>(null)
   const [loadingSesiones, setLoadingSesiones] = useState(false)
+  const [confirmarReactivar, setConfirmarReactivar] = useState(false)
+  const [reactivando, startReactivar] = useTransition()
 
   const p = t.perfil
 
@@ -62,13 +78,20 @@ function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
     }
   }
 
+  function handleReactivar() {
+    startReactivar(async () => {
+      await reactivarTutorado(t.id, t.curso_id)
+      router.refresh()
+    })
+  }
+
   const horarioStr = p?.dia_semana
     ? `${p.dia_semana.charAt(0).toUpperCase() + p.dia_semana.slice(1)} ${formatHora(p.hora_inicio ?? '')}${p.hora_fin ? '–' + formatHora(p.hora_fin) : ''}`
     : null
 
   return (
     <>
-      <div className="card space-y-4">
+      <div className={`card space-y-4 ${historico ? 'opacity-75' : ''}`}>
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -77,6 +100,11 @@ function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
               {p?.modalidad_trabajo && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                   {MOD_TRABAJO_LABEL[p.modalidad_trabajo] ?? p.modalidad_trabajo}
+                </span>
+              )}
+              {historico && p?.resultado && (
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${RESULTADO_COLOR[p.resultado] ?? RESULTADO_COLOR.otro}`}>
+                  {RESULTADO_LABEL[p.resultado] ?? p.resultado}
                 </span>
               )}
               {showCurso && (
@@ -94,22 +122,62 @@ function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
               </p>
             )}
             {t.email && <p className="text-gray-600 text-xs mt-0.5">{t.email}</p>}
+            {historico && p?.finalizado_at && (
+              <p className="text-gray-500 text-xs mt-0.5">
+                Finalizado: {new Date(p.finalizado_at).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-1.5 flex-shrink-0">
-            <button onClick={() => setEditando(true)}
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
-              ✏️ Perfil
-            </button>
-            <button onClick={() => setRegistrando(true)}
-              className="px-2.5 py-1.5 text-xs rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 hover:bg-brand-600/30 transition-colors">
-              + Sesión
-            </button>
+            {!historico && (
+              <>
+                <button onClick={() => setEditando(true)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
+                  ✏️ Perfil
+                </button>
+                <button onClick={() => setRegistrando(true)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 hover:bg-brand-600/30 transition-colors">
+                  + Sesión
+                </button>
+                <button onClick={() => setFinalizando(true)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg bg-emerald-700/20 border border-emerald-600/40 text-emerald-300 hover:bg-emerald-700/30 transition-colors">
+                  ✓ Finalizar
+                </button>
+              </>
+            )}
+            {historico && (
+              confirmarReactivar ? (
+                <div className="flex gap-1.5">
+                  <button onClick={() => setConfirmarReactivar(false)}
+                    className="px-2 py-1 text-xs rounded-lg border border-gray-700 text-gray-400 transition-colors">
+                    No
+                  </button>
+                  <button onClick={handleReactivar} disabled={reactivando}
+                    className="px-2 py-1 text-xs rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 hover:bg-brand-600/30 transition-colors disabled:opacity-50">
+                    {reactivando ? '…' : 'Sí'}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmarReactivar(true)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
+                  ↻ Reactivar
+                </button>
+              )
+            )}
           </div>
         </div>
 
-        {/* Progreso */}
-        {p && (
+        {/* Nota final (modo histórico) */}
+        {historico && p?.nota_final && (
+          <div className="bg-gray-800/50 border border-gray-700 rounded-md px-3 py-2">
+            <p className="text-xs text-gray-500 mb-0.5">Nota de cierre</p>
+            <p className="text-sm text-gray-300">{p.nota_final}</p>
+          </div>
+        )}
+
+        {/* Progreso (solo activos) */}
+        {!historico && p && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>{p.etapa || 'Sin etapa definida'}</span>
@@ -137,36 +205,38 @@ function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
           </div>
         )}
 
-        {/* Horario + última sesión */}
-        <div className="flex flex-wrap gap-4 text-sm">
-          {horarioStr ? (
-            <span className="text-gray-400">
-              {MODAL_EMOJI[p?.modalidad_sesion ?? ''] ?? '📅'} {horarioStr}
-              {p?.nota_horario && <span className="text-gray-600 text-xs ml-1">({p.nota_horario})</span>}
-            </span>
-          ) : (
-            <span className="text-gray-600 text-xs italic">Sin horario fijo</span>
-          )}
+        {/* Horario + última sesión (solo activos) */}
+        {!historico && (
+          <div className="flex flex-wrap gap-4 text-sm">
+            {horarioStr ? (
+              <span className="text-gray-400">
+                {MODAL_EMOJI[p?.modalidad_sesion ?? ''] ?? '📅'} {horarioStr}
+                {p?.nota_horario && <span className="text-gray-600 text-xs ml-1">({p.nota_horario})</span>}
+              </span>
+            ) : (
+              <span className="text-gray-600 text-xs italic">Sin horario fijo</span>
+            )}
 
-          {t.ultima_sesion && (
-            <span className="text-gray-500 text-xs">
-              Última sesión: {diasDesdeFecha(t.ultima_sesion.fecha)}
-            </span>
-          )}
-          {!t.ultima_sesion && (
-            <span className="text-gray-600 text-xs italic">Sin sesiones aún</span>
-          )}
-        </div>
+            {t.ultima_sesion && (
+              <span className="text-gray-500 text-xs">
+                Última sesión: {diasDesdeFecha(t.ultima_sesion.fecha)}
+              </span>
+            )}
+            {!t.ultima_sesion && (
+              <span className="text-gray-600 text-xs italic">Sin sesiones aún</span>
+            )}
+          </div>
+        )}
 
-        {/* Próximo paso destacado */}
-        {t.ultima_sesion?.proximo_paso && (
+        {/* Próximo paso destacado (solo activos) */}
+        {!historico && t.ultima_sesion?.proximo_paso && (
           <div className="bg-brand-600/10 border border-brand-600/20 rounded-md px-3 py-2">
             <p className="text-xs text-brand-400 mb-0.5">Próxima sesión →</p>
             <p className="text-sm text-brand-300">{t.ultima_sesion.proximo_paso}</p>
           </div>
         )}
 
-        {/* Footer: sesiones toggle + link ficha */}
+        {/* Footer: sesiones toggle */}
         <div className="flex items-center justify-between pt-1 border-t border-gray-800">
           <button onClick={toggleSesiones}
             className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
@@ -207,6 +277,14 @@ function TutoradoCard({ t, showCurso }: TutoradoCardProps) {
           onClose={() => setEditando(false)}
         />
       )}
+      {finalizando && (
+        <FinalizarTutoradoModal
+          estudianteId={t.id}
+          cursoId={t.curso_id}
+          estudianteNombre={t.nombre}
+          onClose={() => setFinalizando(false)}
+        />
+      )}
     </>
   )
 }
@@ -220,17 +298,36 @@ interface Props {
 
 export function TutoradosPanel({ tutorados, cursoId, showCurso = false, importarHref }: Props) {
   const [filtro, setFiltro] = useState('')
+  const [tab, setTab] = useState<'activos' | 'historial'>('activos')
 
+  const activos   = tutorados.filter(t => t.perfil?.estado !== 'finalizado')
+  const finalizados = tutorados.filter(t => t.perfil?.estado === 'finalizado')
+
+  const fuente = tab === 'activos' ? activos : finalizados
   const filtered = filtro
-    ? tutorados.filter(t =>
+    ? fuente.filter(t =>
         t.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
         t.perfil?.titulo_trabajo?.toLowerCase().includes(filtro.toLowerCase()) ||
         t.asignatura.toLowerCase().includes(filtro.toLowerCase())
       )
-    : tutorados
+    : fuente
 
   return (
     <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-800 pb-0">
+        {(['activos', 'historial'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+              tab === t
+                ? 'bg-gray-800 text-white border border-b-transparent border-gray-700'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}>
+            {t === 'activos' ? `Activos (${activos.length})` : `Historial (${finalizados.length})`}
+          </button>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         <input
@@ -238,7 +335,7 @@ export function TutoradosPanel({ tutorados, cursoId, showCurso = false, importar
           onChange={e => setFiltro(e.target.value)}
           placeholder="Buscar tutorado o trabajo…"
           className="input flex-1 min-w-[200px] text-sm" />
-        {importarHref && (
+        {tab === 'activos' && importarHref && (
           <Link href={importarHref}
             className="px-4 py-2 rounded-lg bg-brand-600/20 border border-brand-600/40 text-brand-300 text-sm hover:bg-brand-600/30 transition-colors whitespace-nowrap">
             + Agregar tutorado
@@ -248,15 +345,24 @@ export function TutoradosPanel({ tutorados, cursoId, showCurso = false, importar
 
       {filtered.length === 0 && (
         <div className="text-center py-12 text-gray-600">
-          {tutorados.length === 0
+          {tab === 'activos' && tutorados.length === 0
             ? 'Aún no hay tutorados en este grupo. Agrega el primer estudiante.'
-            : 'Sin resultados para el filtro actual.'}
+            : tab === 'activos'
+              ? 'Sin resultados para el filtro actual.'
+              : finalizados.length === 0
+                ? 'Ningún tutorado finalizado todavía.'
+                : 'Sin resultados para el filtro actual.'}
         </div>
       )}
 
       <div className="grid gap-4">
         {filtered.map(t => (
-          <TutoradoCard key={`${t.id}:${t.curso_id}`} t={t} showCurso={showCurso} />
+          <TutoradoCard
+            key={`${t.id}:${t.curso_id}`}
+            t={t}
+            showCurso={showCurso}
+            historico={tab === 'historial'}
+          />
         ))}
       </div>
     </div>

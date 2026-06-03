@@ -66,6 +66,10 @@ export type TutoradoItem = {
     hora_fin: string | null
     modalidad_sesion: string
     nota_horario: string | null
+    estado: string
+    finalizado_at: string | null
+    resultado: string | null
+    nota_final: string | null
   } | null
   ultima_sesion: {
     fecha: string
@@ -327,6 +331,74 @@ export async function eliminarSesion(
     .delete()
     .eq('id', sesionId)
     .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/tutorados`)
+  revalidatePath('/dashboard/tutorados')
+  return {}
+}
+
+const FinalizarSchema = z.object({
+  resultado: z.enum(['graduado', 'aprobado', 'abandono', 'otro']),
+  nota_final: z.string().max(1000).optional(),
+})
+
+export async function finalizarTutorado(
+  estudianteId: string,
+  cursoId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const parsed = FinalizarSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message }
+
+  const d = parsed.data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('tutorado_perfil')
+    .upsert({
+      profesor_id:    user.id,
+      estudiante_id:  estudianteId,
+      curso_id:       cursoId,
+      estado:         'finalizado',
+      finalizado_at:  new Date().toISOString(),
+      resultado:      d.resultado,
+      nota_final:     d.nota_final || null,
+      updated_at:     new Date().toISOString(),
+    }, { onConflict: 'estudiante_id,curso_id' })
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/tutorados`)
+  revalidatePath('/dashboard/tutorados')
+  return {}
+}
+
+export async function reactivarTutorado(
+  estudianteId: string,
+  cursoId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('tutorado_perfil')
+    .upsert({
+      profesor_id:    user.id,
+      estudiante_id:  estudianteId,
+      curso_id:       cursoId,
+      estado:         'activo',
+      finalizado_at:  null,
+      resultado:      null,
+      nota_final:     null,
+      updated_at:     new Date().toISOString(),
+    }, { onConflict: 'estudiante_id,curso_id' })
 
   if (error) return { error: error.message }
 

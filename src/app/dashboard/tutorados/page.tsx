@@ -16,8 +16,10 @@ export default async function TodosTutoradosPage() {
 
   const { data: tutorados } = await getTodosTutorados()
 
-  const total = tutorados.length
-  const conSesion = tutorados.filter(t => t.ultima_sesion).length
+  const activos = tutorados.filter(t => t.perfil?.estado !== 'finalizado')
+  const finalizados = tutorados.filter(t => t.perfil?.estado === 'finalizado')
+  const total = activos.length
+  const conSesion = activos.filter(t => t.ultima_sesion).length
   const sinSesion = total - conSesion
 
   return (
@@ -45,11 +47,11 @@ export default async function TodosTutoradosPage() {
       </div>
 
       {/* KPIs */}
-      {total > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+      {tutorados.length > 0 && (
+        <div className="grid grid-cols-4 gap-3">
           <div className="card text-center">
             <p className="text-2xl font-bold text-white">{total}</p>
-            <p className="text-gray-500 text-xs mt-1">Total tutorados</p>
+            <p className="text-gray-500 text-xs mt-1">Activos</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-bold text-emerald-400">{conSesion}</p>
@@ -58,6 +60,10 @@ export default async function TodosTutoradosPage() {
           <div className="card text-center">
             <p className={`text-2xl font-bold ${sinSesion > 0 ? 'text-amber-400' : 'text-gray-500'}`}>{sinSesion}</p>
             <p className="text-gray-500 text-xs mt-1">Sin sesiones aún</p>
+          </div>
+          <div className="card text-center">
+            <p className={`text-2xl font-bold ${finalizados.length > 0 ? 'text-sky-400' : 'text-gray-500'}`}>{finalizados.length}</p>
+            <p className="text-gray-500 text-xs mt-1">Finalizados</p>
           </div>
         </div>
       )}
