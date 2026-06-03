@@ -7,8 +7,8 @@ import { z } from 'zod'
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const TutoradoPerfilSchema = z.object({
-  modalidad_trabajo:    z.enum(['pregrado', 'maestria', 'doctorado', 'tecnologia', 'otro']).optional(),
-  tipo_trabajo:         z.enum(['articulo_cientifico', 'sistematizacion_experiencias', 'creacion_productos', 'examen_complexivo', 'proyecto_investigacion', 'otro']).optional(),
+  modalidad_trabajo:    z.preprocess(v => v === '' ? undefined : v, z.enum(['pregrado', 'maestria', 'doctorado', 'tecnologia', 'otro']).optional()),
+  tipo_trabajo:         z.preprocess(v => v === '' ? undefined : v, z.enum(['articulo_cientifico', 'sistematizacion_experiencias', 'creacion_productos', 'examen_complexivo', 'proyecto_investigacion', 'otro']).optional()),
   titulo_trabajo:       z.string().max(300).optional(),
   etapa:                z.string().max(100).optional(),
   progreso_pct:         z.coerce.number().int().min(0).max(100).optional(),
