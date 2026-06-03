@@ -99,6 +99,20 @@ async function descargaPdf(guia: string, titulo: string) {
   URL.revokeObjectURL(url)
 }
 
+const TOKENS_POR_TIPO: Record<TipoPregunta, number> = {
+  multichoice: 260,
+  truefalse: 120,
+  matching: 200,
+  shortanswer: 130,
+}
+
+function estimarTokens(total: number, tipos: Set<TipoPregunta>): number {
+  if (tipos.size === 0) return 0
+  const tiposArr = Array.from(tipos)
+  const promedio = tiposArr.reduce((sum, t) => sum + TOKENS_POR_TIPO[t], 0) / tiposArr.length
+  return Math.round(total * promedio + 80)
+}
+
 function descargaXml(contenido: string, nombreBase: string) {
   const blob = new Blob([contenido], { type: 'application/xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -700,16 +714,28 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                       Total de preguntas
                     </label>
                     <p className="text-gray-600 text-xs mb-2">
-                      La IA reparte entre los tipos seleccionados. Máximo recomendado: 15.
+                      La IA reparte equilibradamente entre los tipos seleccionados.
                     </p>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={totalPreguntas}
-                      onChange={e => setTotalPreguntas(Math.max(1, Math.min(50, Number(e.target.value))))}
-                      className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
-                    />
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={totalPreguntas}
+                        onChange={e => setTotalPreguntas(Math.max(1, Math.min(50, Number(e.target.value))))}
+                        className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500"
+                      />
+                      {tiposPregunta.size > 0 && (() => {
+                        const est = estimarTokens(totalPreguntas, tiposPregunta)
+                        const color = est < 8000 ? 'text-emerald-400' : est < 20000 ? 'text-amber-400' : 'text-red-400'
+                        return (
+                          <span className={`text-xs ${color}`}>
+                            ~{est.toLocaleString()} tokens estimados
+                            <span className="text-gray-600 ml-1">(límite modelo: 32 768)</span>
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </div>
 
                   <div>

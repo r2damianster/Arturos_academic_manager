@@ -512,13 +512,13 @@ export async function generarEvaluacionMoodle(params: {
   const result = await callGroq([
     { role: 'system', content: SYSTEM_MOODLE_XML },
     { role: 'user', content: userPrompt },
-  ], 6000)
+  ], 32768)
 
   if (result.error) return { xml: '', error: result.error }
 
   const xml = sanitizeXml(result.content)
-  if (!xml) return { xml: '', error: 'La IA no generó un XML válido. Intenta de nuevo o reduce el número de preguntas.' }
-  if (!xml.includes('</quiz>')) return { xml: '', error: 'El XML quedó incompleto (respuesta cortada). Reduce el número de preguntas o intenta de nuevo.' }
+  if (!xml) return { xml: '', error: 'La IA no generó un XML válido. Intenta de nuevo.' }
+  if (!xml.includes('</quiz>')) return { xml: '', error: 'El XML quedó incompleto (límite del modelo alcanzado). Reduce el número de preguntas o simplifica la instrucción.' }
 
   return { xml }
 }
@@ -535,7 +535,7 @@ export async function mejorarContenido(params: {
         role: 'user',
         content: `INSTRUCCIÓN PRIORITARIA: ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,
       },
-    ], 6000)
+    ], 32768)
     if (result.error) return result
     const sanitized = sanitizeXml(result.content)
     if (!sanitized) return { content: '', error: 'La IA no devolvió un XML válido. Intenta de nuevo.' }
