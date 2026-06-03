@@ -9,6 +9,7 @@ import { RegistrarSesionModal } from './RegistrarSesionModal'
 import { EditarPerfilTutorado } from './EditarPerfilTutorado'
 import { SesionesTimeline } from './SesionesTimeline'
 import { FinalizarTutoradoModal } from './FinalizarTutoradoModal'
+import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 
 const MODAL_EMOJI: Record<string, string> = {
   presencial: '🏫', virtual: '💻', whatsapp: '💬', telefono: '📞', otro: '📝',
@@ -64,6 +65,7 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
   const [loadingSesiones, setLoadingSesiones] = useState(false)
   const [confirmarReactivar, setConfirmarReactivar] = useState(false)
   const [reactivando, startReactivar] = useTransition()
+  const [fichaAbierta, setFichaAbierta] = useState(false)
 
   const p = t.perfil
 
@@ -137,6 +139,10 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
           <div className="flex gap-1.5 flex-shrink-0">
             {!historico && (
               <>
+                <button onClick={() => setFichaAbierta(true)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
+                  👤 Ficha
+                </button>
                 <button onClick={() => setEditando(true)}
                   className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors">
                   ✏️ Perfil
@@ -302,6 +308,13 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
           cursoId={t.curso_id}
           estudianteNombre={t.nombre}
           onClose={() => setFinalizando(false)}
+        />
+      )}
+      {fichaAbierta && (
+        <FichaEstudianteDrawer
+          estudianteId={t.id}
+          cursoId={t.curso_id}
+          onClose={() => setFichaAbierta(false)}
         />
       )}
     </>
