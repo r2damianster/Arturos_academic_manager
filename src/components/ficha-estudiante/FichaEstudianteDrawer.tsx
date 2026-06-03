@@ -18,14 +18,44 @@ const RAZONES_CITACION = [
 const NIVEL_LABELS = ['', '1 · Nula', '2 · Baja', '3 · Media', '4 · Alta', '5 · Excelente']
 const NIVEL_COLORS = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
 
+const CAMBIO_LABELS: Record<string, string> = {
+  uso_ia: 'Uso de IA',
+  trabajo: 'Situación laboral',
+  vivienda: 'Vivienda',
+  tecnologia: 'Tecnología',
+  carrera_deseada: 'Satisfacción con carrera',
+}
+
+function formatCambioValor(campo: string, val: unknown): string {
+  if (val === null || val === undefined) return '—'
+  if (typeof val === 'string') return val || '—'
+  if (typeof val === 'number') return String(val)
+  if (typeof val === 'boolean') return val ? 'Sí' : 'No'
+  if (typeof val === 'object') {
+    if (campo === 'uso_ia') return '(perfil IA actualizado)'
+    if (campo === 'tecnologia') return '(dispositivos actualizados)'
+    if (campo === 'trabajo') {
+      const t = val as Record<string, unknown>
+      const parts: string[] = []
+      const sit = t.trabaja_actual ?? t.trabaja
+      if (sit !== undefined && sit !== null) parts.push(typeof sit === 'boolean' ? (sit ? 'trabaja' : 'no trabaja') : String(sit))
+      if (t.horas !== undefined && t.horas !== null) parts.push(`${t.horas}h/día`)
+      return parts.length ? parts.join(', ') : '(actualizado)'
+    }
+    return '(actualizado)'
+  }
+  return String(val)
+}
+
 interface Props {
   estudianteId: string
   cursoId: string
   bitacoraId?: string
+  esTutorado?: boolean
   onClose: () => void
 }
 
-export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClose }: Props) {
+export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, esTutorado = false, onClose }: Props) {
   const [data, setData] = useState<FichaEstudianteData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -271,34 +301,36 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
     const enc = data.encuesta as Record<string, any> | null
     return (
       <div className="space-y-5">
-        {/* Asistencia y rendimiento */}
-        <section className="space-y-2">
-          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Asistencia y rendimiento</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Asistencia', value: asistencia.pct != null ? `${asistencia.pct}%` : '—', color: pctColor(asistencia.pct) },
-              { label: 'Presentes', value: String(asistencia.presentes), color: 'text-emerald-400' },
-              { label: 'Ausencias', value: String(asistencia.ausentes + asistencia.atrasos), color: asistencia.ausentes + asistencia.atrasos > 0 ? 'text-red-400' : 'text-gray-400' },
-            ].map(s => (
-              <div key={s.label} className="text-center bg-gray-800/40 rounded-lg py-2">
-                <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-gray-500">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          {asistencia.ultimaObs && !sensibleOn && (
-            <p className="text-xs text-gray-600 italic text-center">Observación de clase oculta (info sensible)</p>
-          )}
-          {asistencia.ultimaObs && sensibleOn && (
-            <div className="border-l-2 border-blue-800 pl-2">
-              <p className="text-[10px] text-gray-500 mb-0.5">
-                Última obs. de clase
-                <span className="text-gray-600 ml-1">({fmtFecha(asistencia.ultimaObs.fecha)})</span>
-              </p>
-              <p className="text-xs text-gray-300 italic">"{asistencia.ultimaObs.obs}"</p>
+        {/* Asistencia y rendimiento — oculto para tutorados */}
+        {!esTutorado && (
+          <section className="space-y-2">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Asistencia y rendimiento</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Asistencia', value: asistencia.pct != null ? `${asistencia.pct}%` : '—', color: pctColor(asistencia.pct) },
+                { label: 'Presentes', value: String(asistencia.presentes), color: 'text-emerald-400' },
+                { label: 'Ausencias', value: String(asistencia.ausentes + asistencia.atrasos), color: asistencia.ausentes + asistencia.atrasos > 0 ? 'text-red-400' : 'text-gray-400' },
+              ].map(s => (
+                <div key={s.label} className="text-center bg-gray-800/40 rounded-lg py-2">
+                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] text-gray-500">{s.label}</p>
+                </div>
+              ))}
             </div>
-          )}
-        </section>
+            {asistencia.ultimaObs && !sensibleOn && (
+              <p className="text-xs text-gray-600 italic text-center">Observación de clase oculta (info sensible)</p>
+            )}
+            {asistencia.ultimaObs && sensibleOn && (
+              <div className="border-l-2 border-blue-800 pl-2">
+                <p className="text-[10px] text-gray-500 mb-0.5">
+                  Última obs. de clase
+                  <span className="text-gray-600 ml-1">({fmtFecha(asistencia.ultimaObs.fecha)})</span>
+                </p>
+                <p className="text-xs text-gray-300 italic">"{asistencia.ultimaObs.obs}"</p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Carrera y perfil académico */}
         {enc && (
@@ -407,7 +439,7 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
             </div>
 
             {/* Problema reportado */}
-            {enc?.problemas_reportados && (
+            {enc?.problemas_reportados && !['no', 'ninguno', 'none', 'n/a', ''].includes(String(enc.problemas_reportados).toLowerCase().trim()) && (
               <div className="space-y-2">
                 <div className="p-2.5 bg-yellow-900/10 border border-yellow-800/40 rounded-lg">
                   <p className="text-[10px] text-yellow-500 font-medium mb-1">⚠ Problema reportado por el estudiante</p>
@@ -542,8 +574,8 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
                     <p className="text-xs text-amber-400/70 mb-1">Cambios reportados:</p>
                     {Object.entries(ep.cambios_perfil as Record<string, { anterior: unknown; nuevo: unknown }>).map(([campo, cambio]) => (
                       <p key={campo} className="text-xs text-gray-500">
-                        <span className="text-gray-400">{campo}:</span>{' '}
-                        {JSON.stringify(cambio.anterior)} → {JSON.stringify(cambio.nuevo)}
+                        <span className="text-gray-400">{CAMBIO_LABELS[campo] ?? campo}:</span>{' '}
+                        {formatCambioValor(campo, cambio.anterior)} → {formatCambioValor(campo, cambio.nuevo)}
                       </p>
                     ))}
                   </div>
@@ -794,7 +826,9 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, onClo
 
           {/* Tabs */}
           <div className="flex gap-1 px-3 pb-2">
-            {(['resumen', 'trabajos', 'participacion', 'encuesta', 'trayectoria'] as Tab[]).map(t => (
+            {(['resumen', 'trabajos', 'participacion', 'encuesta', 'trayectoria'] as Tab[])
+              .filter(t => !esTutorado || (t !== 'participacion' && t !== 'trayectoria'))
+              .map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}

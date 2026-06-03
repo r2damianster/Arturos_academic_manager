@@ -320,6 +320,7 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
         <FichaEstudianteDrawer
           estudianteId={t.id}
           cursoId={t.curso_id}
+          esTutorado
           onClose={() => setFichaAbierta(false)}
         />
       )}
