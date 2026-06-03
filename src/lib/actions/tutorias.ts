@@ -782,3 +782,28 @@ export async function reordenarTiposTutoria(ids: number[]): Promise<{ error?: st
   revalidatePath('/dashboard/tutorias')
   return {}
 }
+
+// ─── Reconocimiento de inasistencia por el estudiante ─────────────────────────
+
+export async function reconocerInasistencia(
+  reservaId: number,
+  justificacion: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await (supabase as any)
+    .from('reservas')
+    .update({
+      inasistencia_reconocida: true,
+      justificacion_inasistencia: justificacion || null,
+    })
+    .eq('id', reservaId)
+    .eq('auth_user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/student')
+  return {}
+}

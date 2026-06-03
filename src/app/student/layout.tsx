@@ -52,6 +52,30 @@ export default async function StudentLayout({ children }: { children: React.Reac
     }
   }
 
+  // Bloqueo inasistencia: tutoría no asistida sin reconocer
+  // Activa si: profesor marcó asistio=false, O fecha >7 días atrás y asistio sigue null
+  const enInasistencia = pathname.startsWith('/student/inasistencia')
+
+  if (!enOnboarding && !enEncuestaParcial && !enInasistencia) {
+    const haceUnaSemana = new Date()
+    haceUnaSemana.setDate(haceUnaSemana.getDate() - 7)
+    const fechaLimite = haceUnaSemana.toISOString().split('T')[0]
+
+    const { data: inasistencias } = await db
+      .from('reservas')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('inasistencia_reconocida', false)
+      .neq('estado', 'cancelado')
+      .or(`asistio.eq.false,and(fecha.lt.${fechaLimite},asistio.is.null)`)
+      .order('fecha', { ascending: true })
+      .limit(1)
+
+    if (inasistencias && inasistencias.length > 0) {
+      redirect(`/student/inasistencia/${inasistencias[0].id}`)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header simple */}
