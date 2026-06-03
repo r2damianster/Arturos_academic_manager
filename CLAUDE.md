@@ -77,15 +77,17 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 /dashboard/cursos/[cursoId]/calificaciones/config → Configuración: num_parciales y nombres_tareas
 /dashboard/cursos/[cursoId]/trabajos → Asignación y seguimiento de trabajos
 /dashboard/cursos/[cursoId]/pase-lista → Bitácora + asistencia (con date picker para editar pasadas)
+/dashboard/cursos/[cursoId]/tutorados → Tutorados de un curso tipo='tutorados'
 /dashboard/estudiantes             → Ficha individual de estudiante
 /dashboard/actividades             → Inbox de notas/tareas/recordatorios estilo Google Keep
 /dashboard/agenda                  → redirige a /dashboard (agenda integrada en el Panel)
 /dashboard/tutorias                → Horarios disponibles + reservas + tabs Historial/Citaciones
+/dashboard/tutorados               → Lista global de tutorados (todos los cursos tipo='tutorados')
 /dashboard/modo-clase              → redirige a /dashboard/planificacion
 /dashboard/modo-clase/[bitacoraId] → Vista de clase en tiempo real (herramientas: ruleta, agrupación, ficha estudiante, tabs móvil)
 /dashboard/herramientas            → Ruleta y agrupación de estudiantes
 /dashboard/planificacion           → Mis Clases: panel "Hoy" + grid semanal + Generador IA + "▶ Iniciar clase" en celdas
-/dashboard/config                  → Página "Administración": perfil del profesor + tabs admin (si rol=admin)
+/dashboard/config                  → Página "Administración": perfil del profesor + tabs admin (si rol=admin) + Reemplazantes
 /dashboard/config?tab=admin        → Tab "Panel Admin": gestión de usuarios y permisos
 /dashboard/admin                   → redirige a /dashboard/config?tab=admin
 /student/                          → Portal del estudiante (onboarding, calendario, perfil, grupos)
@@ -176,20 +178,125 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260522_add_obligatoria_horarios_clases → Columna obligatoria BOOLEAN DEFAULT FALSE en horarios_clases
 20260524_cursos_encuesta_config      → Columnas encuesta_inicial_habilitada y encuesta_parcial_habilitada BOOLEAN en cursos
 20260524_encuesta_parcial            → Tabla encuesta_parcial (~60 columnas: perfil, autopercepción, relevancia profesional, satisfacción docente), UNIQUE(estudiante_id, curso_id, tipo), RLS, RPC get_encuestas_parciales_pendientes
+20260525_multi_reservas_tutoria      → Tabla tipos_tutoria (defaults globales + personalizados); horarios.permitir_multiples + buffer_minutos; reservas.tipo_tutoria_id/hora_inicio_reserva/hora_fin_reserva/duracion_minutos; RPC reservar_tutoria v3 (micro-reservas encadenadas) + get_occupied_slots actualizada
+20260526_fix_envios_registro_reenviar_policy → Fix RLS envios_registro: WITH CHECK explícito para política de reenvío (USING y WITH CHECK distintos)
+20260527_reemplazantes               → Tabla reemplazantes(profesor_id, email_reemplazante, nombre, fecha_inicio, fecha_fin, activo); RLS; RPC get_reemplazante_info(email) SECURITY DEFINER
+20260527_snapshot_parcial            → Tabla snapshot_parcial(curso_id, numero_parcial, fecha_cierre, semana_cierre, resumen JSONB); UNIQUE(curso_id, numero_parcial); RLS
+20260529_alertas_silenciadas         → Columna cursos.alertas_silenciadas JSONB NOT NULL DEFAULT '{}' — shape: {riesgo, encuesta_parcial, riesgo_excluidos[]}
+20260529_encuesta_parcial_forzada    → Columna cursos.encuesta_parcial_forzada BOOLEAN DEFAULT FALSE; RPC get_encuestas_parciales_pendientes actualizada con OR forzada
+20260531_modo_tutorados              → Columna cursos.tipo TEXT ('regular'|'tutorados'); tablas tutorado_perfil y tutorado_sesiones con RLS completo
+20260531_tutorado_perfil_campos_extra → Columnas fecha_asignacion, num_periodos, fecha_proyectada_fin, numero_oficio en tutorado_perfil
+20260531_tutorado_perfil_institucion → Columnas universidad, facultad, carrera_tutorado en tutorado_perfil
+20260602_cursos_estado               → Columnas cursos.estado TEXT ('activo'|'finalizado'|'archivado') + cursos.link_publicacion TEXT; auto-finaliza cursos con fecha_fin pasada
+20260602_tutorado_estado             → Columnas tutorado_perfil.estado, finalizado_at, resultado ('graduado'|'aprobado'|'abandono'|'otro'), nota_final
+20260602_tutorado_nivel_modalidad    → Renombra modalidad_trabajo CHECK → ('pregrado'|'maestria'|'doctorado'|'tecnologia'|'otro'); nueva columna tipo_trabajo TEXT con 6 opciones
+20260602_tutorado_publicacion        → Columnas tutorado_perfil.publicado BOOLEAN, fecha_publicacion DATE, referencia_publicacion TEXT
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
 Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas extras no en el schema inicial):
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
+- `tipos_tutoria` — SÓLAMENTE esta tabla fue agregada manualmente (línea 520)
 - **Deuda técnica acumulada** (tablas/columnas no reflejadas en los tipos, usan `as any`):
   - `actividades_inbox` — tabla nueva completa (color, checklist_items JSONB, pinned, completada, archivada)
   - `citaciones_tutoria` — tabla nueva completa
   - `logros_aprendizaje` — tabla nueva completa
+  - `reemplazantes` — tabla nueva completa
+  - `snapshot_parcial` — tabla nueva completa (resumen JSONB)
+  - `tutorado_perfil` — tabla nueva completa (~25 columnas)
+  - `tutorado_sesiones` — tabla nueva completa
   - `reservas.modalidad`, `reservas.link_zoom`, `reservas.profesor_id`, `reservas.origen`, `reservas.curso_id` — columnas nuevas
+  - `reservas.tipo_tutoria_id`, `reservas.hora_inicio_reserva`, `reservas.hora_fin_reserva`, `reservas.duracion_minutos` — columnas nuevas (multi-reservas)
+  - `horarios.permitir_multiples`, `horarios.buffer_minutos` — columnas nuevas
   - `horarios_clases.obligatoria` — columna nueva
+  - `cursos.tipo`, `cursos.estado`, `cursos.link_publicacion`, `cursos.alertas_silenciadas`, `cursos.encuesta_parcial_forzada` — columnas nuevas
+  - `cursos.encuesta_inicial_habilitada`, `cursos.encuesta_parcial_habilitada` — columnas nuevas
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
-  - `encuesta_parcial` — tabla nueva completa (~60 columnas); `cursos.encuesta_inicial_habilitada` y `cursos.encuesta_parcial_habilitada` — columnas nuevas (ambas sin tipos formales en database.types.ts, usan `as any` donde necesario)
+  - `encuesta_parcial` — tabla nueva completa (~60 columnas)
+
+## Features recientes (2026-05-25 → 2026-06-02 — sesiones 24-29)
+
+### Multi-reservas por slot de tutoría (sesión 24 — 2026-05-25)
+- **FEAT** Tabla `tipos_tutoria(id, profesor_id, nombre, duracion_minutos, descripcion, activo, orden)` — defaults globales (profesor_id=NULL) + personalizados por profesor. RLS: profesor ve suyos + globales; autenticado ve todos activos. Defaults: Duda rápida (10min) → Revisión proyecto titulación (60min).
+- **FEAT** `horarios.permitir_multiples BOOLEAN DEFAULT false` + `horarios.buffer_minutos INT DEFAULT 2` — activa modo micro-reservas en un slot.
+- **FEAT** `reservas.tipo_tutoria_id`, `hora_inicio_reserva TIME`, `hora_fin_reserva TIME`, `duracion_minutos INT` — encadenamiento de micro-reservas.
+- **FEAT** RPC `reservar_tutoria` v3: rama clásica (sin multiples) + rama micro-reservas (calcula `hora_inicio_nueva = MAX(hora_fin anterior) + buffer`, valida que cabe en el slot).
+- **FEAT** RPC `get_occupied_slots` actualizada: retorna `reservas_count`, `minutos_usados`, `minutos_totales`, `esta_lleno`, `permite_multiples` por slot.
+
+### Fix RLS envios_registro (sesión 24 — 2026-05-26)
+- **FIX** Política `estudiante_reenviar_rechazado` en `envios_registro`: `WITH CHECK` explícito separado del `USING`. Sin esto, PostgreSQL usaba USING como WITH CHECK y bloqueaba el UPDATE porque el row ya no tenía `estado='rechazado'` después del update.
+
+### Reemplazantes (sesión 25 — 2026-05-27)
+- **FEAT** Tabla `reemplazantes(profesor_id, email_reemplazante, nombre, fecha_inicio, fecha_fin, activo)` con RLS. RPC `get_reemplazante_info(email)` SECURITY DEFINER — detecta si un usuario autenticado es reemplazante activo.
+- **FEAT** `src/lib/actions/reemplazantes.ts` — `getReemplazantes`, `agregarReemplazante`, `desactivarReemplazante`. Validación Zod completa.
+- **FEAT** `src/components/config/ReemplazantesPanel.tsx` — formulario + tabla en `/dashboard/config`.
+- **NOTA**: middleware.ts modificado pero la lógica de restricción de acceso al reemplazante **no está completamente implementada** — la tabla existe y el panel de gestión funciona, pero el middleware no restringe rutas según rol reemplazante todavía.
+
+### Snapshot / Cierre de Parcial (sesión 25 — 2026-05-27)
+- **FEAT** Tabla `snapshot_parcial(id, profesor_id, curso_id, numero_parcial, fecha_cierre, semana_cierre, resumen JSONB)` — UNIQUE(curso_id, numero_parcial). RLS.
+- **FEAT** `src/lib/actions/parcial.ts` — `cerrarParcial(cursoId, numeroParcial)`: agrega asistencia global, participación global, encuesta respondida/total, trabajos, notas en curso por estudiante; upsert en `snapshot_parcial`. `getSnapshotsParcial(cursoId)`. `eliminarSnapshot(id)`.
+- **FEAT** `src/components/cursos/CierreParcialesPanel.tsx` — panel colapsable en detalle de curso: lista de snapshots con métricas globales, expandible por estudiante. Botón "Cerrar Parcial N" con confirmación. Eliminación con confirmación.
+- **FEAT** `src/components/cursos/RiesgoHistoricoPanel.tsx` — basado en snapshot: muestra estudiantes con múltiples factores de riesgo (asistencia < 75% + participación < 2.5 + notas en curso < 50%). Botón "Citar a N estudiantes" con citación masiva.
+
+### Sistema de notificaciones proactivas (sesión 26 — 2026-05-29)
+- **FEAT** `cursos.alertas_silenciadas JSONB` — shape `{riesgo: boolean, encuesta_parcial: boolean, riesgo_excluidos: string[]}`. Persiste silenciado por curso.
+- **FEAT** `src/lib/actions/notificaciones.ts` — `getNotificacionesProactivas()`: detecta (1) estudiantes < 60% asistencia sin citación activa, (2) encuesta activa con < 100% respuestas, (3) citaciones sin respuesta > 3 días, (4) trabajos vencidos. Respeta `alertas_silenciadas`. Tipos: `riesgo_critico | encuesta_pendiente | citacion_sin_respuesta | trabajos_vencidos`. Niveles: `critica | advertencia | info`.
+- **FEAT** `src/components/dashboard/NotificacionesPanel.tsx` — panel en dashboard con chips de notificación, botón silenciar por curso. Persiste via `silenciarAlerta/restaurarAlerta` en `cursos.ts`.
+- **FEAT** `src/lib/actions/cursos.ts` — nuevas actions: `silenciarAlerta(cursoId, tipo)`, `restaurarAlerta(cursoId, tipo)`, `exportarDatasetInvestigacion(cursoId)`.
+- **FEAT** `src/components/cursos/EncuestaBanner.tsx` — banner ámbar en detalle de curso cuando encuesta activa; botón silenciar/restaurar inline.
+- **FEAT** `src/components/cursos/ExportDatasetButton.tsx` — botón "Exportar datos (.csv)" en detalle de curso. Exporta CSV de investigación con columnas: id_anonimizado, asistencia_pct, participacion_avg, trabajos_completados/activos, notas_en_curso_pct, 5 dims autopercepción de encuesta_parcial.
+
+### Encuesta parcial forzada (sesión 26 — 2026-05-29)
+- **FEAT** `cursos.encuesta_parcial_forzada BOOLEAN DEFAULT FALSE` — activa la encuesta sin esperar al 50% del curso.
+- **MOD** RPC `get_encuestas_parciales_pendientes` — condición expandida: `forzada = TRUE OR pct_transcurrido >= 0.50`.
+
+### Portal estudiante — progreso y retroalimentación IA (sesión 26)
+- **FEAT** `src/components/student/MiProgreso.tsx` — score general ponderado (asistencia 40% + participación 30% + trabajos 30%), barras semáforo por métrica. Sin datos de API — cómputo puro en componente.
+- **FEAT** `src/components/student/RetroalimentacionWidget.tsx` — botón "✦ Ver retroalimentación formativa". Llama `generarRetroalimentacionFormativa` Groq: 3 párrafos (Fortalezas / Oportunidades / Estrategias), ≤180 palabras, prosa sin listas.
+- **FEAT** `generarRetroalimentacionFormativa(params)` en `generar-contenido.ts` — Groq, temperatura 0.7, basado en asistencia + trabajos + tutorías.
+- **MOD** `src/app/student/page.tsx` — `MiProgreso` + `RetroalimentacionWidget` integrados por tarjeta de curso.
+
+---
+
+### Modo Tutorados — feature completa (sesiones 27-29 — 2026-05-31 → 2026-06-02)
+
+#### Discriminador en cursos
+- **FEAT** `cursos.tipo TEXT DEFAULT 'regular'` (regular|tutorados) — discrimina cursos normales de grupos de tutorados doctorales/pregrado.
+- **FEAT** `cursos.estado TEXT DEFAULT 'activo'` (activo|finalizado|archivado) + `cursos.link_publicacion TEXT` — ciclo de vida de cursos; auto-finaliza cursos con `fecha_fin < hoy`.
+
+#### DB — tablas
+- **FEAT** `tutorado_perfil` — 1 fila por estudiante en curso tipo='tutorados'. Columnas principales:
+  - Académico: `modalidad_trabajo` (pregrado|maestria|doctorado|tecnologia|otro), `tipo_trabajo` (articulo_cientifico|sistematizacion_experiencias|creacion_productos|examen_complexivo|proyecto_investigacion|otro), `titulo_trabajo`, `etapa`, `progreso_pct`
+  - Institucional: `universidad`, `facultad`, `carrera_tutorado`
+  - Gestión: `fecha_asignacion`, `num_periodos`, `fecha_proyectada_fin`, `numero_oficio`
+  - Horario: `dia_semana`, `hora_inicio`, `hora_fin`, `modalidad_sesion`, `nota_horario`
+  - Publicación: `publicado BOOLEAN`, `fecha_publicacion DATE`, `referencia_publicacion TEXT`
+  - Estado: `estado` (activo|finalizado), `finalizado_at`, `resultado` (graduado|aprobado|abandono|otro), `nota_final`
+- **FEAT** `tutorado_sesiones` — bitácora por sesión: `fecha`, `modalidad`, `duracion_minutos`, `lo_realizado`, `proximo_paso`. RLS completo.
+
+#### Server Actions
+- **FEAT** `src/lib/actions/tutorados.ts` — CRUD completo: `getTutorados(cursoId?)`, `getTutoradoDetalle(estudianteId, cursoId)`, `upsertTutoradoPerfil(cursoId, estudianteId, data)`, `registrarSesion(cursoId, estudianteId, data)`, `getSesiones(estudianteId, cursoId)`, `finalizarTutorado(estudianteId, cursoId, resultado, notaFinal)`.
+
+#### Componentes
+- **FEAT** `src/components/tutorados/TutoradosPanel.tsx` — lista de tutorados con estado, progreso, última sesión. Abre EditarPerfilTutorado o RegistrarSesionModal.
+- **FEAT** `src/components/tutorados/EditarPerfilTutorado.tsx` — formulario completo de perfil (modal/drawer).
+- **FEAT** `src/components/tutorados/RegistrarSesionModal.tsx` — modal para registrar sesión: fecha, modalidad, duración, lo realizado, próximo paso.
+- **FEAT** `src/components/tutorados/SesionesTimeline.tsx` — línea de tiempo de sesiones registradas.
+- **FEAT** `src/components/tutorados/FinalizarTutoradoModal.tsx` — modal de cierre: resultado + nota final.
+
+#### Páginas
+- **FEAT** `src/app/dashboard/tutorados/page.tsx` — lista global de todos los tutorados (todos los cursos tipo='tutorados' del profesor).
+- **FEAT** `src/app/dashboard/cursos/[cursoId]/tutorados/page.tsx` — tutorados de un curso específico.
+
+#### Integración agenda
+- **MOD** `src/app/dashboard/agenda/agenda-client.tsx` — muestra horarios permanentes de tutorados en el grid semanal (colores por nivel: pregrado=violeta, maestria=índigo, doctorado=azul, tecnologia=teal).
+- **MOD** `src/components/dashboard/TodayPanel.tsx` — muestra tutorados con sesión programada hoy. Nombre completo en celda. Color según nivel.
+
+#### Sidebar
+- **MOD** `src/components/layout/nav-items.tsx` — **Tutorados** añadido entre Tutorías y Mis Cursos. Array `NAV_ITEMS` centralizado aquí; sidebar y mobile-nav lo importan.
+
+---
 
 ## Features recientes (2026-05-23 — sesión 21)
 
@@ -368,6 +475,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ### Sidebar — orden actualizado (sesión 15+)
 - Orden actual: **Panel → Clases → Tutorías → Mis Cursos → Herramientas** · Footer: **Administración**
 - **Tutorias** re-agregado al sidebar (había sido removido en sesión 7). Verificar siempre que `sidebar.tsx` y `mobile-nav.tsx` estén sincronizados.
+- **ACTUALIZADO (sesión 27+)**: Sidebar centralizado en `src/components/layout/nav-items.tsx` — array `NAV_ITEMS` + `FOOTER_ITEMS`. Ver convención de navegación actualizada.
 
 ---
 
@@ -627,8 +735,8 @@ Al inicio del PDF generado por el estudiante, incluir:
 ### Reporte PDF del profesor
 Generar PDF por estudiante/curso con: notas de participación, observaciones, asistencia, si faltó a tutoría agendada.
 
-### Acceso a reemplazante
-Usuario externo (identificado por email) que cubre al profesor por período específico. Acceso restringido a: planificación, pase de lista, novedades. Prohibido: editar curso, descargar Moodle CSV. Requiere tabla `reemplazantes(profesor_id, email_reemplazante, fecha_inicio, fecha_fin)` + middleware de rol.
+### Acceso a reemplazante — PARCIALMENTE IMPLEMENTADO
+Tabla `reemplazantes` + panel de gestión en `/dashboard/config` + RPC `get_reemplazante_info` están implementados (sesión 25). **PENDIENTE**: middleware de restricción de acceso — el reemplazante aún puede acceder a todas las rutas del profesor. Falta: detectar rol reemplazante en `middleware.ts` → redirigir intentos de acceso a rutas prohibidas (editar curso, Moodle CSV) a página de "Acceso restringido".
 
 ### ~~Seguimiento avanzado de citaciones a tutoría~~ ✅ IMPLEMENTADO
 ~~Nueva tabla `citaciones_tutoria`, ciclo de vida pendiente → agendada → asistida → cumplida, vista mensual.~~
@@ -649,14 +757,21 @@ Usuario externo (identificado por email) que cubre al profesor por período espe
 ### ~~Perfil pedagógico del grupo con IA~~ ✅ IMPLEMENTADO (`PerfilPedagogicoPanel.tsx` + encuesta RSC)
 ### ~~Autodiagnóstico estudiantil~~ ✅ IMPLEMENTADO (`AutodiagnosticoWidget.tsx` + `/student/page.tsx`)
 ### ~~Prep para tutoría tras reserva~~ ✅ IMPLEMENTADO (`generarPrepTutoria` + panel índigo en `tutorias-booking.tsx`)
+### ~~Multi-reservas por slot de tutoría~~ ✅ IMPLEMENTADO (`tipos_tutoria` + `horarios.permitir_multiples` + RPC v3)
+### ~~Snapshot/Cierre de Parcial~~ ✅ IMPLEMENTADO (`snapshot_parcial` + `parcial.ts` + `CierreParcialesPanel`)
+### ~~Sistema de notificaciones proactivas~~ ✅ IMPLEMENTADO (`NotificacionesPanel` + `notificaciones.ts` + alertas_silenciadas)
+### ~~Modo Tutorados (doctorandos/tutorados pregrado)~~ ✅ IMPLEMENTADO (`tutorado_perfil` + `tutorado_sesiones` + sidebar Tutorados)
+### ~~Retroalimentación formativa IA para estudiante~~ ✅ IMPLEMENTADO (`RetroalimentacionWidget` + `generarRetroalimentacionFormativa`)
+### ~~Export dataset de investigación~~ ✅ IMPLEMENTADO (`exportarDatasetInvestigacion` + `ExportDatasetButton`)
 
 ## Bugs pendientes y deuda técnica
 
-- **`database.types.ts` desactualizado**: tablas `actividades_inbox`, `citaciones_tutoria`, `logros_aprendizaje` y columnas nuevas de `reservas` (`modalidad`, `link_zoom`, `profesor_id`, `origen`, `curso_id`) y `horarios_clases.obligatoria` no tienen tipos — se usa `as any`. Actualizar antes de que se acumule más deuda.
+- **`database.types.ts` muy desactualizado**: 7 tablas nuevas (`actividades_inbox`, `citaciones_tutoria`, `logros_aprendizaje`, `reemplazantes`, `snapshot_parcial`, `tutorado_perfil`, `tutorado_sesiones`) y ~15 columnas nuevas no tienen tipos. Ver sección "Tipos TypeScript" para lista completa. Priorizar antes de añadir más features.
+- **Reemplazante sin restricción de acceso**: tabla `reemplazantes` y panel de gestión implementados, pero `middleware.ts` NO restringe rutas al reemplazante. Puede acceder a todo. Completar lógica de roles en middleware.
 - **Datos de participación pre-2026-05-14 pueden estar corruptos**: el `UNIQUE INDEX` que habilita el upsert no existía antes de esa fecha. Registros de ese período pueden ser incompletos. Auditar con: `SELECT curso_id, estudiante_id, fecha, COUNT(*) FROM participacion GROUP BY 1,2,3 HAVING COUNT(*) > 1`
-- **`mobile-nav.tsx` requiere verificación**: "Tutorías" fue re-agregado al sidebar el 2026-05-21 — confirmar que `mobile-nav.tsx` también lo incluye en la misma posición.
-- **Groq en producción**: `GROQ_API_KEY` requerida en Vercel para: `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria` y `/api/student/chat`. Sin ella todos caen a fallback amigable. También `RESEND_API_KEY` y `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
+- **Groq en producción**: `GROQ_API_KEY` requerida en Vercel para: `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria`, `/api/student/chat`, `RetroalimentacionWidget`. Sin ella todos caen a fallback amigable. También `RESEND_API_KEY` + `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
 - **`horario_id` nullable en `reservas`**: la migración `20260514_historial_tutorias.sql` hace `horario_id` nullable. Verificar que queries en `tutorias-manager.tsx` y `tutorias-page-client.tsx` no asumen NOT NULL.
+- **`tutorado_perfil.asignatura_tutorado`**: columna referenciada en el Schema Zod de `tutorados.ts` pero NO existe en las migraciones (no fue añadida). Si se intenta guardar → error de BD silencioso. Pendiente: migración `ADD COLUMN IF NOT EXISTS asignatura_tutorado TEXT`.
 
 ## Convenciones críticas
 
@@ -672,12 +787,12 @@ El proyecto de producción (Vercel) es **`hxsnyrutyyavvljxwgku`**. El proyecto l
 ## Convenciones críticas
 
 ### Navegación — CRÍTICO
-**`sidebar.tsx` y `mobile-nav.tsx` tienen arrays `navItems` completamente independientes.**
-Al agregar, eliminar o reordenar un ítem en uno → replicarlo en el otro. Sin esto, los ítems sólo aparecen en desktop o sólo en móvil.
+**A partir de sesión 27, los items del nav están centralizados en `src/components/layout/nav-items.tsx`.**
+`sidebar.tsx` y `mobile-nav.tsx` importan `NAV_ITEMS` y `FOOTER_ITEMS` desde ahí. Al agregar/reordenar un ítem → editar SOLO `nav-items.tsx`. No replicar.
 
-**Orden actual (sesión 15+, 2026-05-21):**
-- `navItems` (main): **Panel → Clases → Tutorías → Mis Cursos → Herramientas**
-- Footer / bottom del nav: **Administración** → `/dashboard/config`
+**Orden actual (sesión 27+, 2026-06-01):**
+- `NAV_ITEMS`: **Panel → Clases → Tutorías → Tutorados → Mis Cursos → Herramientas**
+- `FOOTER_ITEMS`: **Administración** → `/dashboard/config`
 
 `Sidebar` y `MobileNav` ya **no reciben `esAdmin`** como prop (eliminado en sesión 7). El rol admin lo maneja la propia página `/dashboard/config` leyendo la BD.
 
