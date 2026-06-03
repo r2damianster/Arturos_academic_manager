@@ -39,12 +39,14 @@ export function EditarPerfilTutorado({ tutorado, onClose }: Props) {
   const [error, setError] = useState('')
   const [progreso, setProgreso] = useState(p?.progreso_pct ?? 0)
   const [tieneDia, setTieneDia] = useState(!!(p?.dia_semana))
+  const [publicado, setPublicado] = useState(p?.publicado ?? false)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     const fd = new FormData(e.currentTarget)
     fd.set('progreso_pct', String(progreso))
+    fd.set('publicado', publicado ? 'true' : 'false')
     if (!tieneDia) {
       fd.delete('dia_semana')
       fd.delete('hora_inicio')
@@ -223,6 +225,37 @@ export function EditarPerfilTutorado({ tutorado, onClose }: Props) {
                 defaultValue={p?.nota_horario ?? ''}
                 placeholder="Horario asignado martes 10h, pero acordamos miércoles por WhatsApp…" />
             </div>
+          </div>
+
+          {/* Publicación */}
+          <div className="border-t border-gray-800 pt-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium flex-1">Publicación</p>
+              <button type="button" onClick={() => setPublicado(!publicado)}
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${publicado ? 'bg-emerald-600' : 'bg-gray-700'}`}>
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${publicado ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+              </button>
+              <span className={`text-xs ${publicado ? 'text-emerald-400' : 'text-gray-600'}`}>
+                {publicado ? 'Publicado' : 'No publicado'}
+              </span>
+            </div>
+
+            {publicado && (
+              <>
+                <div>
+                  <label className="label text-xs">Fecha de publicación</label>
+                  <input name="fecha_publicacion" type="date" className="input text-sm"
+                    defaultValue={p?.fecha_publicacion ?? ''} />
+                </div>
+                <div>
+                  <label className="label text-xs">Referencia (revista, DOI, ISBN, URL…)</label>
+                  <textarea name="referencia_publicacion" className="input text-sm" rows={2}
+                    maxLength={500}
+                    defaultValue={p?.referencia_publicacion ?? ''}
+                    placeholder="Ej: Revista Científica ULEAM, Vol. 3, DOI: 10.1234/…" />
+                </div>
+              </>
+            )}
           </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}

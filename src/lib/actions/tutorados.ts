@@ -20,6 +20,9 @@ const TutoradoPerfilSchema = z.object({
   facultad:             z.string().max(200).optional(),
   carrera_tutorado:     z.string().max(200).optional(),
   asignatura_tutorado:  z.string().max(200).optional(),
+  publicado:            z.coerce.boolean().optional(),
+  fecha_publicacion:    z.string().optional(),
+  referencia_publicacion: z.string().max(500).optional(),
   dia_semana:           z.string().optional(),
   hora_inicio:          z.string().optional(),
   hora_fin:             z.string().optional(),
@@ -66,6 +69,9 @@ export type TutoradoItem = {
     hora_fin: string | null
     modalidad_sesion: string
     nota_horario: string | null
+    publicado: boolean
+    fecha_publicacion: string | null
+    referencia_publicacion: string | null
     estado: string
     finalizado_at: string | null
     resultado: string | null
@@ -268,6 +274,9 @@ export async function upsertTutoradoPerfil(
       facultad:             d.facultad || null,
       carrera_tutorado:     d.carrera_tutorado || null,
       asignatura_tutorado:  d.asignatura_tutorado || null,
+      publicado:            d.publicado ?? false,
+      fecha_publicacion:    d.fecha_publicacion || null,
+      referencia_publicacion: d.referencia_publicacion || null,
       dia_semana:           d.dia_semana || null,
       hora_inicio:         d.hora_inicio || null,
       hora_fin:            d.hora_fin || null,

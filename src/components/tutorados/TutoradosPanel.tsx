@@ -107,6 +107,11 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
                   {RESULTADO_LABEL[p.resultado] ?? p.resultado}
                 </span>
               )}
+              {p?.publicado && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  📄 Publicado
+                </span>
+              )}
               {showCurso && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">
                   {t.asignatura}
@@ -167,6 +172,20 @@ function TutoradoCard({ t, showCurso, historico = false }: TutoradoCardProps) {
             )}
           </div>
         </div>
+
+        {/* Publicación */}
+        {p?.publicado && (p?.fecha_publicacion || p?.referencia_publicacion) && (
+          <div className="bg-teal-900/20 border border-teal-700/30 rounded-md px-3 py-2 space-y-0.5">
+            {p.fecha_publicacion && (
+              <p className="text-xs text-teal-500">
+                📅 {new Date(p.fecha_publicacion + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+            {p.referencia_publicacion && (
+              <p className="text-xs text-teal-300">{p.referencia_publicacion}</p>
+            )}
+          </div>
+        )}
 
         {/* Nota final (modo histórico) */}
         {historico && p?.nota_final && (

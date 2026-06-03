@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { actualizarCurso, eliminarCurso, restaurarAlerta, reincluirEstudianteEnRiesgo } from '@/lib/actions/cursos'
+import { actualizarCurso, eliminarCurso, restaurarAlerta, reincluirEstudianteEnRiesgo, finalizarCurso } from '@/lib/actions/cursos'
 import { addLogro, updateLogro, deleteLogro } from '@/lib/actions/logros'
 import { OcrLogroModal } from '@/components/logros/OcrLogroModal'
 import { HorariosEditor } from '@/components/cursos/horarios-editor'
@@ -29,6 +29,8 @@ interface Curso {
   encuesta_parcial_habilitada?: boolean | null
   alertas_silenciadas?: Record<string, unknown> | null
   tipo?: string | null
+  estado?: string | null
+  link_publicacion?: string | null
 }
 
 interface LogroItem {
@@ -79,7 +81,13 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
   const alertas = (curso.alertas_silenciadas ?? {}) as Record<string, unknown>
   const [alertaPending, startAlerta] = useTransition()
 
-  // Zona peligrosa — doble confirmación
+  // Zona peligrosa — finalizar curso
+  const [estadoCurso, setEstadoCurso] = useState(curso.estado ?? 'activo')
+  const [linkPublicacion, setLinkPublicacion] = useState(curso.link_publicacion ?? '')
+  const [finalizarLoading, setFinalizarLoading] = useState(false)
+  const [finalizarError, setFinalizarError] = useState('')
+
+  // Zona peligrosa — eliminar (doble confirmación)
   const [deleteStep, setDeleteStep] = useState(0)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
@@ -122,6 +130,16 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
     setSuccess('Guardado correctamente')
     setPendingReducir(false)
     setTimeout(() => setSuccess(''), 3000)
+    router.refresh()
+  }
+
+  async function handleFinalizar(nuevoEstado: 'finalizado' | 'archivado' | 'activo') {
+    setFinalizarLoading(true)
+    setFinalizarError('')
+    const res = await finalizarCurso(cursoId, nuevoEstado, linkPublicacion)
+    setFinalizarLoading(false)
+    if (res.error) { setFinalizarError(res.error); return }
+    setEstadoCurso(nuevoEstado)
     router.refresh()
   }
 
@@ -439,38 +457,128 @@ export function EditarClient({ cursoId, curso, clases, logros: logrosInit, profe
 
       {/* Tab — Zona peligrosa */}
       {tab === 'peligro' && (
-        <div className="card border-red-900/50 space-y-4">
-          <div>
-            <h3 className="font-semibold text-red-400 mb-1">Eliminar curso</h3>
-            <p className="text-sm text-gray-400">
-              Se eliminarán permanentemente el curso, sus estudiantes, asistencias, calificaciones y bitácoras.
-              Esta acción no se puede deshacer.
-            </p>
+        <div className="space-y-4">
+
+          {/* Finalizar / reactivar curso */}
+          <div className={`card space-y-4 ${estadoCurso === 'activo' ? 'border-orange-900/50' : 'border-slate-700/50'}`}>
+            <div>
+              <h3 className={`font-semibold mb-1 ${estadoCurso === 'activo' ? 'text-orange-400' : 'text-slate-400'}`}>
+                {estadoCurso === 'activo' ? 'Finalizar curso' : estadoCurso === 'finalizado' ? 'Curso finalizado' : 'Curso archivado'}
+              </h3>
+              <p className="text-sm text-gray-400">
+                {estadoCurso === 'activo'
+                  ? 'Marca el curso como finalizado. Los datos se conservan; el curso pasará a "Períodos anteriores" en tu lista.'
+                  : estadoCurso === 'finalizado'
+                  ? 'El curso está finalizado. Puedes reactivarlo, archivarlo o agregar un link de publicación.'
+                  : 'El curso está archivado. Puedes reactivarlo o agregarlo al histórico con un link.'}
+              </p>
+            </div>
+
+            {/* Link de publicación */}
+            <div>
+              <label className="label text-xs">Link de publicación (opcional)</label>
+              <input
+                type="url"
+                value={linkPublicacion}
+                onChange={e => setLinkPublicacion(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                className="input text-sm mt-1"
+              />
+              <p className="text-xs text-gray-600 mt-1">Ej: link a Google Drive con calificaciones, sílabo, portafolio, etc.</p>
+            </div>
+
+            {finalizarError && <p className="text-red-400 text-xs">{finalizarError}</p>}
+
+            <div className="flex flex-wrap gap-2">
+              {estadoCurso === 'activo' && (
+                <button
+                  type="button"
+                  disabled={finalizarLoading}
+                  onClick={() => handleFinalizar('finalizado')}
+                  className="px-4 py-2 rounded-lg border border-orange-700/60 text-orange-400 hover:bg-orange-900/20 text-sm transition-colors disabled:opacity-40"
+                >
+                  {finalizarLoading ? 'Guardando…' : 'Finalizar curso'}
+                </button>
+              )}
+              {estadoCurso === 'finalizado' && (
+                <>
+                  <button
+                    type="button"
+                    disabled={finalizarLoading}
+                    onClick={() => handleFinalizar('activo')}
+                    className="px-4 py-2 rounded-lg border border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/20 text-sm transition-colors disabled:opacity-40"
+                  >
+                    {finalizarLoading ? 'Guardando…' : 'Reactivar curso'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={finalizarLoading}
+                    onClick={() => handleFinalizar('archivado')}
+                    className="px-4 py-2 rounded-lg border border-gray-700/60 text-gray-400 hover:bg-gray-800 text-sm transition-colors disabled:opacity-40"
+                  >
+                    Archivar
+                  </button>
+                </>
+              )}
+              {estadoCurso === 'archivado' && (
+                <button
+                  type="button"
+                  disabled={finalizarLoading}
+                  onClick={() => handleFinalizar('activo')}
+                  className="px-4 py-2 rounded-lg border border-emerald-700/60 text-emerald-400 hover:bg-emerald-900/20 text-sm transition-colors disabled:opacity-40"
+                >
+                  {finalizarLoading ? 'Guardando…' : 'Reactivar curso'}
+                </button>
+              )}
+              {/* Guardar link aunque no cambie estado */}
+              {linkPublicacion !== (curso.link_publicacion ?? '') && (
+                <button
+                  type="button"
+                  disabled={finalizarLoading}
+                  onClick={() => handleFinalizar(estadoCurso as 'activo' | 'finalizado' | 'archivado')}
+                  className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm transition-colors disabled:opacity-40"
+                >
+                  {finalizarLoading ? 'Guardando…' : 'Guardar link'}
+                </button>
+              )}
+            </div>
           </div>
 
-          {deleteStep === 0 && (
-            <button
-              type="button"
-              onClick={handleEliminar}
-              className="px-4 py-2 rounded-lg border border-red-700/60 text-red-400 hover:bg-red-900/20 text-sm transition-colors"
-            >
-              Eliminar curso
-            </button>
-          )}
-
-          {deleteStep === 1 && (
-            <div className="space-y-3 p-3 bg-red-900/20 border border-red-700/50 rounded-xl">
-              <p className="text-sm text-red-300 font-medium">
-                ¿Estás seguro? Escribe el nombre de la asignatura para confirmar.
+          {/* Eliminar curso */}
+          <div className="card border-red-900/50 space-y-4">
+            <div>
+              <h3 className="font-semibold text-red-400 mb-1">Eliminar curso</h3>
+              <p className="text-sm text-gray-400">
+                Se eliminarán permanentemente el curso, sus estudiantes, asistencias, calificaciones y bitácoras.
+                Esta acción no se puede deshacer.
               </p>
-              <ConfirmarNombreDelete
-                nombre={curso.asignatura}
-                loading={deleteLoading}
-                onConfirm={handleEliminar}
-                onCancel={() => setDeleteStep(0)}
-              />
             </div>
-          )}
+
+            {deleteStep === 0 && (
+              <button
+                type="button"
+                onClick={handleEliminar}
+                className="px-4 py-2 rounded-lg border border-red-700/60 text-red-400 hover:bg-red-900/20 text-sm transition-colors"
+              >
+                Eliminar curso
+              </button>
+            )}
+
+            {deleteStep === 1 && (
+              <div className="space-y-3 p-3 bg-red-900/20 border border-red-700/50 rounded-xl">
+                <p className="text-sm text-red-300 font-medium">
+                  ¿Estás seguro? Escribe el nombre de la asignatura para confirmar.
+                </p>
+                <ConfirmarNombreDelete
+                  nombre={curso.asignatura}
+                  loading={deleteLoading}
+                  onConfirm={handleEliminar}
+                  onCancel={() => setDeleteStep(0)}
+                />
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 

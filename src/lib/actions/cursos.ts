@@ -438,6 +438,35 @@ export async function excluirEstudianteDeRiesgo(
   }
 }
 
+export async function finalizarCurso(
+  cursoId: string,
+  nuevoEstado: 'finalizado' | 'archivado' | 'activo',
+  linkPublicacion?: string,
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient()
+    const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    const payload: Record<string, unknown> = { estado: nuevoEstado }
+    if (linkPublicacion !== undefined) payload.link_publicacion = linkPublicacion || null
+
+    const { error } = await db.from('cursos')
+      .update(payload)
+      .eq('id', cursoId)
+      .eq('profesor_id', user.id)
+    if (error) return { error: error.message }
+
+    revalidatePath('/dashboard/cursos')
+    revalidatePath(`/dashboard/cursos/${cursoId}`)
+    revalidatePath(`/dashboard/cursos/${cursoId}/editar`)
+    return {}
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Error' }
+  }
+}
+
 export async function reincluirEstudianteEnRiesgo(
   cursoId: string,
   estudianteId: string,

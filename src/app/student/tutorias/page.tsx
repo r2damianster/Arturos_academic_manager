@@ -30,6 +30,40 @@ export default async function TutoriasPage() {
   const estudiantes = estudiantesData ?? []
   if (estudiantes.length === 0) redirect('/auth/login')
 
+  // Verificar si todos los cursos están finalizados o si el tutorado está finalizado
+  const estudianteCursoIdsAll: string[] = estudiantes
+    .map((e: { curso_id: string | null }) => e.curso_id)
+    .filter(Boolean) as string[]
+
+  const { data: cursosEstadoData } = estudianteCursoIdsAll.length > 0
+    ? await db.from('cursos').select('id, tipo, estado').in('id', estudianteCursoIdsAll)
+    : { data: [] }
+  const cursosEstado: { id: string; tipo: string | null; estado: string | null }[] = cursosEstadoData ?? []
+
+  const todosFinalizados = cursosEstado.length > 0 &&
+    cursosEstado.every(c => c.estado === 'finalizado' || c.estado === 'archivado')
+
+  let tutoradoFinalizado = false
+  const cursosTutoradosIds = cursosEstado.filter(c => c.tipo === 'tutorados').map(c => c.id)
+  if (cursosTutoradosIds.length > 0) {
+    const estTutorados = estudiantes
+      .filter((e: { curso_id: string | null }) => cursosTutoradosIds.includes(e.curso_id ?? ''))
+      .map((e: { id: string }) => e.id)
+    if (estTutorados.length > 0) {
+      const { data: perfilesData } = await db
+        .from('tutorado_perfil')
+        .select('estado')
+        .in('estudiante_id', estTutorados)
+      const perfiles: { estado: string }[] = perfilesData ?? []
+      tutoradoFinalizado = perfiles.length > 0 && perfiles.every(p => p.estado === 'finalizado')
+    }
+  }
+
+  const bloquearReservas = todosFinalizados || tutoradoFinalizado
+  const motivoBloqueo = tutoradoFinalizado
+    ? 'Tu proceso de tutoría ha concluido. Puedes consultar tu historial de sesiones, pero no es posible agendar nuevas tutorías.'
+    : 'Tus cursos de este período han finalizado. Ya no es posible agendar nuevas tutorías.'
+
   const { data: encuesta } = await db
     .from('encuesta_estudiante')
     .select('carrera, telefono')
@@ -176,17 +210,33 @@ export default async function TutoriasPage() {
           </div>
         )}
 
-        <TutoriasBooking
-          horarios={horarios}
-          clases={clases}
-          occupiedSlots={occupiedSlots}
-          misReservas={misReservas}
-          studentInfo={studentInfo}
-          estudianteCursoIds={estudianteCursoIds}
-          estudianteByCurso={estudianteByCurso}
-          misAnuncios={misAnuncios}
-          tiposTutoria={tiposTutoria}
-        />
+        {bloquearReservas ? (
+          <div className="card border-slate-700/50 space-y-4 text-center py-10">
+            <div className="text-4xl">📚</div>
+            <div>
+              <p className="font-semibold text-gray-300 mb-2">Reservas no disponibles</p>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto">{motivoBloqueo}</p>
+            </div>
+            <Link href="/student" className="btn-ghost text-sm inline-flex items-center gap-2 mx-auto">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Volver al inicio
+            </Link>
+          </div>
+        ) : (
+          <TutoriasBooking
+            horarios={horarios}
+            clases={clases}
+            occupiedSlots={occupiedSlots}
+            misReservas={misReservas}
+            studentInfo={studentInfo}
+            estudianteCursoIds={estudianteCursoIds}
+            estudianteByCurso={estudianteByCurso}
+            misAnuncios={misAnuncios}
+            tiposTutoria={tiposTutoria}
+          />
+        )}
       </div>
     </div>
   )

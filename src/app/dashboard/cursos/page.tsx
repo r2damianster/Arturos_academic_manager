@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/types/database.types'
 import { CursosClient } from './client'
 
-type CursoRow = Tables<'cursos'> & { num_estudiantes: number; semana: string | null; estudiantes_nombres: string[] }
+type CursoRow = Tables<'cursos'> & { num_estudiantes: number; semana: string | null; estudiantes_nombres: string[]; estado?: string | null; link_publicacion?: string | null }
 
 export default async function CursosPage() {
   const supabase = await createClient()
@@ -11,10 +11,10 @@ export default async function CursosPage() {
 
   const { data: cursos } = await db
     .from('cursos')
-    .select('id, codigo, asignatura, periodo, fecha_inicio, fecha_fin, tipo')
+    .select('id, codigo, asignatura, periodo, fecha_inicio, fecha_fin, tipo, estado, link_publicacion')
     .order('created_at', { ascending: false })
 
-  const cursosArray = (cursos as Pick<CursoRow, 'id' | 'codigo' | 'asignatura' | 'periodo' | 'fecha_inicio' | 'fecha_fin' | 'tipo'>[]) ?? []
+  const cursosArray = (cursos as Pick<CursoRow, 'id' | 'codigo' | 'asignatura' | 'periodo' | 'fecha_inicio' | 'fecha_fin' | 'tipo' | 'estado' | 'link_publicacion'>[]) ?? []
 
   const cursosConCount: CursoRow[] = await Promise.all(
     cursosArray.map(async curso => {

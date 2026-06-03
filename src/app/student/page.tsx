@@ -89,6 +89,17 @@ export default async function StudentPage() {
     trabajosPorEstudiante.get(t.estudiante_id)!.push(t)
   }
 
+  // Separar cursos activos vs finalizados
+  const estudiantesActivos = estudiantes.filter(est => {
+    const c = cursosMap[est.curso_id] as any
+    return !c || !c.estado || c.estado === 'activo'
+  })
+  const estudiantesFinalizados = estudiantes.filter(est => {
+    const c = cursosMap[est.curso_id] as any
+    return c && (c.estado === 'finalizado' || c.estado === 'archivado')
+  })
+  const soloFinalizados = estudiantesActivos.length === 0 && estudiantesFinalizados.length > 0
+
   return (
     <div className="space-y-6">
       {/* Bienvenida */}
