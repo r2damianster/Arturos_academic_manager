@@ -18,7 +18,7 @@ const MOD_TRABAJO_LABEL: Record<string, string> = {
   maestria: 'Maestría', pregrado: 'Pregrado', articulo: 'Artículo', otro: 'Otro',
 }
 const RESULTADO_LABEL: Record<string, string> = {
-  graduado: 'Graduado/a', aprobado: 'Aprobado/a', abandono: 'Abandonó', otro: 'Otro',
+  graduado: 'Publicado', aprobado: 'Aprobado sin publicación', abandono: 'Abandonó', otro: 'Otro',
 }
 const RESULTADO_COLOR: Record<string, string> = {
   graduado: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',

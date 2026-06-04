@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react'
 import { finalizarTutorado } from '@/lib/actions/tutorados'
 
 const RESULTADOS = [
-  { value: 'graduado',  label: 'Graduado/a',  color: 'text-emerald-300' },
-  { value: 'aprobado',  label: 'Aprobado/a',  color: 'text-sky-300' },
+  { value: 'graduado',  label: 'Publicado',    color: 'text-emerald-300' },
+  { value: 'aprobado',  label: 'Aprobado sin publicación', color: 'text-sky-300' },
   { value: 'abandono',  label: 'Abandonó',    color: 'text-red-300' },
   { value: 'otro',      label: 'Otro',        color: 'text-gray-300' },
 ]
