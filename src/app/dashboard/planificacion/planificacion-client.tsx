@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
-import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, type AccionDrag } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -37,6 +37,7 @@ interface BitacoraEntry {
   actividades_json: { actividad: string; recurso: string }[]
   observaciones: string | null
   hora_inicio_real: string | null
+  sin_planificacion: boolean
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
   const [dragError, setDragError] = useState<string | null>(null)
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
+  const [espontaneaLoading, setEspontaneaLoading] = useState<string | null>(null)
   const [showGenerador, setShowGenerador] = useState(false)
 
   // ── Traslado de actividades desde planificación ──────────────────────────
@@ -236,6 +238,18 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     setSelectedDate(newDate)
   }
 
+  async function handleTomarAsistenciaEspontanea(cursoId: string, fecha: string) {
+    const key = `${cursoId}|${fecha}`
+    setEspontaneaLoading(key)
+    try {
+      const result = await crearBitacoraEspontanea(cursoId, fecha)
+      if (result.error) { console.error(result.error); return }
+      router.push(`/dashboard/cursos/${cursoId}/pase-lista`)
+    } finally {
+      setEspontaneaLoading(null)
+    }
+  }
+
   async function handleDeletePlan(cursoId: string, fecha: string) {
     const key = `${cursoId}|${fecha}`
     setDeletingKey(key)
@@ -306,14 +320,14 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, sin_planificacion')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
-    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null }[]) {
+    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null; sin_planificacion: boolean }[]) {
       m.set(`${b.curso_id}|${b.fecha}`, {
         id: b.id,
         estado: b.estado,
@@ -321,6 +335,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         actividades_json: Array.isArray(b.actividades_json) ? b.actividades_json as BitacoraEntry['actividades_json'] : [],
         observaciones: b.observaciones ?? null,
         hora_inicio_real: b.hora_inicio_real ?? null,
+        sin_planificacion: b.sin_planificacion ?? false,
       })
     }
     setBitacoraMap(m)
@@ -392,15 +407,30 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     )
 
     if (!entry) {
+      const espontaneaKey = `${cursoId}|${fecha}`
       return (
-        <button
-          onClick={() => setPlanificarModal({ clase, fecha })}
-          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-yellow-900/20 border border-yellow-500/30 hover:bg-yellow-900/30 transition-colors"
-        >
-          <div className="text-yellow-400 text-xs font-medium">⚠ Sin planificar</div>
-          {renderBadges()}
-          <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
-        </button>
+        <div className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-yellow-900/20 border border-yellow-500/30 flex flex-col gap-1">
+          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
+            <div className="text-yellow-400 text-xs font-medium">⚠ Sin planificar</div>
+            {renderBadges()}
+            <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+          </button>
+          <div className="flex gap-1 mt-0.5">
+            <button
+              onClick={() => setPlanificarModal({ clase, fecha })}
+              className="text-[10px] text-green-400 hover:text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded hover:bg-green-900/20 transition-colors"
+            >
+              + Planificar
+            </button>
+            <button
+              onClick={() => handleTomarAsistenciaEspontanea(cursoId, fecha)}
+              disabled={espontaneaLoading === espontaneaKey}
+              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+            >
+              {espontaneaLoading === espontaneaKey ? '…' : '📋 Lista'}
+            </button>
+          </div>
+        </div>
       )
     }
 
@@ -442,6 +472,44 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         )}
       </div>
     )
+
+    if (entry.sin_planificacion && !isCumplido) {
+      return (
+        <div
+          {...dragHandlers}
+          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-amber-900/20 border border-amber-500/30 flex flex-col gap-1"
+        >
+          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
+            <div className="text-amber-400 text-xs font-medium">⚠ Sin plan</div>
+            {renderBadges()}
+            <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+          </button>
+          <div className="flex gap-1 items-center flex-wrap">
+            <Link
+              href={`/dashboard/modo-clase/${entry.id}`}
+              onClick={e => e.stopPropagation()}
+              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+            >
+              ▶ Iniciar clase
+            </Link>
+            <button
+              onClick={e => { e.stopPropagation(); setPlanificarModal({ clase, fecha }) }}
+              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+            >
+              ✏ Agregar plan
+            </button>
+            <Link
+              href={`/dashboard/cursos/${cursoId}/pase-lista`}
+              onClick={e => e.stopPropagation()}
+              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors"
+            >
+              📋 Lista
+            </Link>
+            {deleteBtn}
+          </div>
+        </div>
+      )
+    }
 
     if (isCumplido) {
       return (

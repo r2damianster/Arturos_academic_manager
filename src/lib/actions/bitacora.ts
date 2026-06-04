@@ -135,6 +135,8 @@ export async function guardarPlanificacion(
         observaciones: data.observaciones ?? null,
         // Preservar 'cumplido' si ya fue tomada la lista
         estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
+        // Usuario agrega plan explícito: ya no es espontánea
+        sin_planificacion: false,
       })
       .eq('id', existing.id)
 
@@ -201,6 +203,52 @@ export async function confirmarCumplido(
   revalidatePath('/dashboard/modo-clase')
   revalidatePath('/student')
   return {}
+}
+
+/**
+ * Crea una bitácora mínima marcada como espontánea para poder tomar asistencia
+ * sin haber planificado la clase previamente. Si ya existe entrada para ese
+ * curso+fecha, la devuelve sin modificar.
+ */
+export async function crearBitacoraEspontanea(
+  cursoId: string,
+  fecha: string
+): Promise<{ error?: string; id?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: existing } = await supabase
+    .from('bitacora_clase')
+    .select('id')
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+    .eq('profesor_id', user.id)
+    .maybeSingle()
+
+  if (existing) return { id: existing.id }
+
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
+
+  const { data: created, error } = await supabase
+    .from('bitacora_clase')
+    .insert({
+      profesor_id: user.id,
+      curso_id: cursoId,
+      fecha,
+      semana: semanaData ?? null,
+      tema: '(Sin planificación)',
+      actividades_json: [],
+      observaciones: null,
+      estado: 'planificado',
+      sin_planificacion: true,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  revalidateBitacoraViews()
+  return { id: created.id }
 }
 
 // ─── Módulo de replplanificación ─────────────────────────────────────────────
