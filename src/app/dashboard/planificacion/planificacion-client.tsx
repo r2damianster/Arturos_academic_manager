@@ -244,6 +244,21 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     try {
       const result = await crearBitacoraEspontanea(cursoId, fecha)
       if (result.error) { console.error(result.error); return }
+      if (result.id) {
+        setBitacoraMap(prev => {
+          const m = new Map(prev)
+          m.set(key, {
+            id: result.id!,
+            estado: 'planificado',
+            tema: '(Sin planificación)',
+            actividades_json: [],
+            observaciones: null,
+            hora_inicio_real: null,
+            sin_planificacion: true,
+          })
+          return m
+        })
+      }
       router.push(`/dashboard/cursos/${cursoId}/pase-lista`)
     } finally {
       setEspontaneaLoading(null)

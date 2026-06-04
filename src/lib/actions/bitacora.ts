@@ -247,7 +247,8 @@ export async function crearBitacoraEspontanea(
     .single()
 
   if (error) return { error: error.message }
-  revalidateBitacoraViews()
+  // No llamar revalidateBitacoraViews() — el caller navega inmediatamente
+  // y la revalidación del router cancela el router.push
   return { id: created.id }
 }
 
