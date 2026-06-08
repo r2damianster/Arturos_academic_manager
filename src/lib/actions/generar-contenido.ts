@@ -463,6 +463,21 @@ const TIPO_LABELS: Record<TipoPregunta, string> = {
   shortanswer: 'respuesta corta',
 }
 
+const TOKENS_POR_TIPO: Record<TipoPregunta, number> = {
+  multichoice: 260,
+  truefalse: 120,
+  matching: 200,
+  shortanswer: 130,
+}
+
+// Cuenta de tokens estimada del XML de salida + margen, acotada al límite de TPM de la cuenta Groq (12000)
+function estimarMaxTokensEvaluacion(total: number, tipos: TipoPregunta[]): number {
+  if (tipos.length === 0) return 2000
+  const promedio = tipos.reduce((sum, t) => sum + TOKENS_POR_TIPO[t], 0) / tipos.length
+  const estimado = Math.round(total * promedio + 80)
+  return Math.min(8000, Math.max(2000, Math.round(estimado * 1.3)))
+}
+
 export async function generarEvaluacionMoodle(params: {
   bitacoraIds: string[]
   asignatura: string
@@ -509,16 +524,18 @@ export async function generarEvaluacionMoodle(params: {
     clasesTexto,
   ].filter(Boolean).join('\n')
 
+  const maxTokens = estimarMaxTokensEvaluacion(params.totalPreguntas, params.tipos)
+
   const result = await callGroq([
     { role: 'system', content: SYSTEM_MOODLE_XML },
     { role: 'user', content: userPrompt },
-  ], 32768)
+  ], maxTokens)
 
   if (result.error) return { xml: '', error: result.error }
 
   const xml = sanitizeXml(result.content)
   if (!xml) return { xml: '', error: 'La IA no generó un XML válido. Intenta de nuevo.' }
-  if (!xml.includes('</quiz>')) return { xml: '', error: 'El XML quedó incompleto (límite del modelo alcanzado). Reduce el número de preguntas o simplifica la instrucción.' }
+  if (!xml.includes('</quiz>')) return { xml: '', error: 'El XML quedó incompleto (límite de tokens alcanzado). Reduce el número de preguntas o selecciona menos tipos.' }
 
   return { xml }
 }
@@ -529,13 +546,15 @@ export async function mejorarContenido(params: {
   solicitud: string
 }): Promise<{ content: string; error?: string }> {
   if (params.tipo === 'evaluacion') {
+    // El XML actualizado ronda el tamaño del actual; acotar al límite de TPM de la cuenta Groq (12000)
+    const maxTokens = Math.min(8000, Math.max(2000, Math.round(params.contenidoActual.length / 3)))
     const result = await callGroq([
       { role: 'system', content: SYSTEM_MOODLE_XML },
       {
         role: 'user',
         content: `INSTRUCCIÓN PRIORITARIA: ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,
       },
-    ], 32768)
+    ], maxTokens)
     if (result.error) return result
     const sanitized = sanitizeXml(result.content)
     if (!sanitized) return { content: '', error: 'La IA no devolvió un XML válido. Intenta de nuevo.' }
