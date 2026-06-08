@@ -454,6 +454,21 @@ function sanitizeXml(raw: string): string {
   return raw.slice(idx).trim()
 }
 
+// Extrae los nodos <question> de un XML Moodle, descartando el nodo de categoría (se agrega una sola vez al ensamblar)
+function extraerPreguntas(xml: string): string[] {
+  const matches = xml.match(/<question type="(?!category")[^"]*"[\s\S]*?<\/question>/g)
+  return matches ?? []
+}
+
+function escapeXml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 type TipoPregunta = 'multichoice' | 'truefalse' | 'matching' | 'shortanswer'
 
 const TIPO_LABELS: Record<TipoPregunta, string> = {
@@ -509,33 +524,66 @@ export async function generarEvaluacionMoodle(params: {
   const categoria = params.categoria?.trim() || `$course$/Semana ${params.semanaNum} - ${params.asignatura}`
   const tiposTexto = params.tipos.map(t => TIPO_LABELS[t]).join(', ')
 
-  const userPrompt = [
-    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (máxima prioridad — puede enfocar o limitar el contenido):\n${params.instruccionAdicional}\n` : '',
-    `Genera un banco de preguntas en formato Moodle XML para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
-    ``,
-    `Configuración:`,
-    `- Total de preguntas: ${params.totalPreguntas}`,
-    `- Tipos de pregunta a usar: ${tiposTexto}`,
-    `- Reparte las preguntas equilibradamente entre los tipos indicados`,
-    `- Categoría Moodle: ${categoria}`,
-    ``,
-    historialTexto ? `CONTEXTO DE CLASES ANTERIORES (solo para evitar repetir temas ya evaluados):\n${historialTexto}\n` : '',
-    `CLASES DE ESTA SEMANA (base de contenido para las preguntas):`,
-    clasesTexto,
-  ].filter(Boolean).join('\n')
+  // La cuenta Groq tiene TPM=12000 (tokens por minuto) — un solo request para 15-20 preguntas
+  // (prompt + max_tokens) lo supera. Se generan en lotes pequeños y se ensamblan en un único <quiz>.
+  const BATCH_SIZE = 5
+  const lotes: number[] = []
+  for (let restante = params.totalPreguntas; restante > 0; restante -= BATCH_SIZE) {
+    lotes.push(Math.min(BATCH_SIZE, restante))
+  }
 
-  const maxTokens = estimarMaxTokensEvaluacion(params.totalPreguntas, params.tipos)
+  const preguntasXml: string[] = []
 
-  const result = await callGroq([
-    { role: 'system', content: SYSTEM_MOODLE_XML },
-    { role: 'user', content: userPrompt },
-  ], maxTokens)
+  for (let i = 0; i < lotes.length; i++) {
+    const cantidad = lotes[i]
 
-  if (result.error) return { xml: '', error: result.error }
+    if (i > 0) await new Promise(r => setTimeout(r, 4000)) // deja recuperar el cupo de TPM entre lotes
 
-  const xml = sanitizeXml(result.content)
-  if (!xml) return { xml: '', error: 'La IA no generó un XML válido. Intenta de nuevo.' }
-  if (!xml.includes('</quiz>')) return { xml: '', error: 'El XML quedó incompleto (límite de tokens alcanzado). Reduce el número de preguntas o selecciona menos tipos.' }
+    const loteUserPrompt = [
+      params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (máxima prioridad — puede enfocar o limitar el contenido):\n${params.instruccionAdicional}\n` : '',
+      `Genera un banco de preguntas en formato Moodle XML para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
+      ``,
+      `Configuración:`,
+      `- Genera EXACTAMENTE ${cantidad} preguntas (este es el lote ${i + 1} de ${lotes.length} de un banco mayor — no repitas preguntas de otros lotes, varía los enfoques)`,
+      `- Numera los códigos de <name> con el prefijo "L${i + 1}_" seguido de un número (ej: L${i + 1}_01) para evitar duplicados con otros lotes`,
+      `- Tipos de pregunta a usar: ${tiposTexto}`,
+      `- Reparte las preguntas equilibradamente entre los tipos indicados`,
+      `- Categoría Moodle: ${categoria}`,
+      ``,
+      historialTexto ? `CONTEXTO DE CLASES ANTERIORES (solo para evitar repetir temas ya evaluados):\n${historialTexto}\n` : '',
+      `CLASES DE ESTA SEMANA (base de contenido para las preguntas):`,
+      clasesTexto,
+    ].filter(Boolean).join('\n')
+
+    const maxTokens = estimarMaxTokensEvaluacion(cantidad, params.tipos)
+
+    const result = await callGroq([
+      { role: 'system', content: SYSTEM_MOODLE_XML },
+      { role: 'user', content: loteUserPrompt },
+    ], maxTokens)
+
+    if (result.error) return { xml: '', error: `Lote ${i + 1}/${lotes.length}: ${result.error}` }
+
+    const fragment = sanitizeXml(result.content)
+    if (!fragment) return { xml: '', error: `La IA no generó un XML válido en el lote ${i + 1}/${lotes.length}. Intenta de nuevo.` }
+
+    const preguntas = extraerPreguntas(fragment)
+    if (preguntas.length === 0) return { xml: '', error: `El lote ${i + 1}/${lotes.length} no produjo preguntas válidas (límite de tokens alcanzado). Reduce el número total de preguntas.` }
+
+    preguntasXml.push(...preguntas)
+  }
+
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<quiz>',
+    '  <question type="category">',
+    '    <category>',
+    `      <text>${escapeXml(categoria)}</text>`,
+    '    </category>',
+    '  </question>',
+    ...preguntasXml,
+    '</quiz>',
+  ].join('\n')
 
   return { xml }
 }
