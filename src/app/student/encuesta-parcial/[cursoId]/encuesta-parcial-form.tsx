@@ -115,7 +115,7 @@ const INITIAL_DATA: FormData = {
   comentario_libre: '',
 }
 
-// ─── Sub-componentes ──────────────────────────────────────────────────────────
+// ─── Sub-componentes (FUERA del componente principal para evitar remount) ──────
 
 function LikertRow({
   label,
@@ -216,134 +216,19 @@ function LikertRowNullable({
   )
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
+type SetFn = <K extends keyof FormData>(key: K, value: FormData[K]) => void
 
-interface Props {
-  cursoId: string
-  asignatura: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  encuestaExistente: any | null
-}
-
-export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: Props) {
-  const router = useRouter()
-  const TOTAL_PASOS = 5
-  const STORAGE_KEY = `encuesta-parcial-${cursoId}`
-
-  const [paso, setPaso] = useState(1)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [completado, setCompletado] = useState(false)
-
-  // Inicializar data desde encuesta existente o borrador localStorage
-  const [data, setData] = useState<FormData>(() => {
-    if (encuestaExistente) {
-      const merged: FormData = { ...INITIAL_DATA }
-      for (const key of Object.keys(INITIAL_DATA) as Array<keyof FormData>) {
-        const val = encuestaExistente[key]
-        if (val !== undefined && val !== null) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(merged as any)[key] = val
-        }
-      }
-      return merged
-    }
-    return INITIAL_DATA
-  })
-
-  // Cargar borrador desde localStorage en mount (solo si no hay encuesta existente)
-  useEffect(() => {
-    if (encuestaExistente) return
-    try {
-      const draft = localStorage.getItem(STORAGE_KEY)
-      if (draft) {
-        const parsed = JSON.parse(draft)
-        setData(prev => ({ ...prev, ...parsed }))
-      }
-    } catch {
-      // ignorar
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Guardar borrador en localStorage en cada cambio
-  useEffect(() => {
-    if (completado) return
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    } catch {
-      // ignorar
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data])
-
-  const set = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setData(prev => ({ ...prev, [key]: value }))
-  }, [])
-
-  const toggleDificultad = useCallback((val: string) => {
-    setData(prev => {
-      const current = prev.dificultades
-      if (val === 'ninguna') {
-        return { ...prev, dificultades: current.includes('ninguna') ? [] : ['ninguna'] }
-      }
-      const withoutNinguna = current.filter(d => d !== 'ninguna')
-      return {
-        ...prev,
-        dificultades: withoutNinguna.includes(val)
-          ? withoutNinguna.filter(d => d !== val)
-          : [...withoutNinguna, val],
-      }
-    })
-  }, [])
-
-  async function handleSubmit() {
-    setSaving(true)
-    setError(null)
-    const payload: Record<string, unknown> = {
-      curso_id: cursoId,
-      ...data,
-    }
-    // Limpiar strings vacíos a undefined para que no fallen validaciones opcionales
-    for (const key of Object.keys(payload)) {
-      if (payload[key] === '') payload[key] = undefined
-    }
-    const result = await guardarEncuestaParcial(payload)
-    if (result.error) {
-      setError(result.error)
-      setSaving(false)
-    } else {
-      try { localStorage.removeItem(STORAGE_KEY) } catch { /* noop */ }
-      setCompletado(true)
-      setTimeout(() => router.push('/student'), 2500)
-    }
-  }
-
-  // ─── Estado completado ────────────────────────────────────────────────────
-
-  if (completado) {
-    return (
-      <div className="text-center py-16">
-        <div className="text-5xl mb-4">✓</div>
-        <h2 className="text-white text-xl font-semibold">¡Gracias por completar la encuesta!</h2>
-        <p className="text-gray-400 mt-2">Tu retroalimentación es muy valiosa.</p>
-        <p className="text-gray-500 text-sm mt-4">Redirigiendo al portal...</p>
-      </div>
-    )
-  }
-
-  // ─── Barra de progreso ────────────────────────────────────────────────────
-
-  const ProgressBar = () => (
+function ProgressBar({ paso, totalPasos }: { paso: number; totalPasos: number }) {
+  return (
     <div className="mb-6">
       <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-        <span>Paso {paso} de {TOTAL_PASOS}</span>
-        <span>{Math.round((paso / TOTAL_PASOS) * 100)}%</span>
+        <span>Paso {paso} de {totalPasos}</span>
+        <span>{Math.round((paso / totalPasos) * 100)}%</span>
       </div>
       <div className="w-full bg-gray-800 rounded-full h-1.5">
         <div
           className="bg-brand-600 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: `${(paso / TOTAL_PASOS) * 100}%` }}
+          style={{ width: `${(paso / totalPasos) * 100}%` }}
         />
       </div>
       <div className="flex gap-2 mt-3 text-[10px] text-gray-600 justify-between">
@@ -353,24 +238,38 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
       </div>
     </div>
   )
+}
 
-  // ─── Botones de navegación ────────────────────────────────────────────────
-
-  const NavButtons = () => (
+function NavButtons({
+  paso,
+  totalPasos,
+  saving,
+  onPrev,
+  onNext,
+  onSubmit,
+}: {
+  paso: number
+  totalPasos: number
+  saving: boolean
+  onPrev: () => void
+  onNext: () => void
+  onSubmit: () => void
+}) {
+  return (
     <div className="flex gap-3 mt-6">
       {paso > 1 && (
         <button
           type="button"
-          onClick={() => setPaso(p => p - 1)}
+          onClick={onPrev}
           className="flex-1 py-2.5 rounded-lg bg-gray-800 text-gray-300 text-sm font-medium hover:bg-gray-700 transition-colors"
         >
           Anterior
         </button>
       )}
-      {paso < TOTAL_PASOS ? (
+      {paso < totalPasos ? (
         <button
           type="button"
-          onClick={() => setPaso(p => p + 1)}
+          onClick={onNext}
           className="flex-1 py-2.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
         >
           Siguiente
@@ -378,7 +277,7 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
       ) : (
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={onSubmit}
           disabled={saving}
           className="flex-1 py-2.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -387,10 +286,10 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
       )}
     </div>
   )
+}
 
-  // ─── Paso 1: Tu situación actual ──────────────────────────────────────────
-
-  const Paso1 = () => (
+function Paso1({ data, set }: { data: FormData; set: SetFn }) {
+  return (
     <div className="space-y-5">
       {/* Situación laboral */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
@@ -541,134 +440,176 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
       </div>
     </div>
   )
+}
 
-  // ─── Paso 2: Uso de IA ────────────────────────────────────────────────────
-
-  const Paso2 = () => {
-    const iaItems: { key: keyof FormData; label: string }[] = [
-      { key: 'uso_ia_comprension_actual', label: 'Comprensión de textos' },
-      { key: 'uso_ia_resumen_actual', label: 'Resumen de contenidos' },
-      { key: 'uso_ia_ideas_actual', label: 'Generación de ideas' },
-      { key: 'uso_ia_redaccion_actual', label: 'Redacción de textos' },
-      { key: 'uso_ia_tareas_actual', label: 'Realización de tareas' },
-      { key: 'uso_ia_verificacion_actual', label: 'Verificación de información' },
-      { key: 'uso_ia_critico_actual', label: 'Pensamiento crítico' },
-      { key: 'uso_ia_traduccion_actual', label: 'Traducción' },
-      { key: 'uso_ia_idiomas_actual', label: 'Práctica de idiomas' },
-    ]
-    return (
-      <div className="space-y-5">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-1">Uso de inteligencia artificial</h3>
-          <p className="text-gray-500 text-xs mb-4">¿Con qué frecuencia usas IA para estas tareas? (1 = Nunca, 5 = Siempre)</p>
-          {iaItems.map(item => (
-            <LikertRow
-              key={item.key}
-              label={item.label}
-              value={data[item.key] as number | null}
-              onChange={v => set(item.key, v)}
-            />
-          ))}
-        </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <LikertRow
-            label="¿Cuánto disfrutas escribir actualmente?"
-            value={data.gusto_escritura_actual}
-            onChange={v => set('gusto_escritura_actual', v)}
-            labelMin="Nada"
-            labelMax="Mucho"
-          />
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Paso 3: Tu aprendizaje ───────────────────────────────────────────────
-
-  const Paso3 = () => {
-    const autoItems: { key: keyof FormData; label: string }[] = [
-      { key: 'autopercepcion_aprendizaje', label: 'Mi propio aprendizaje en este curso' },
-      { key: 'esfuerzo_dedicado', label: 'Esfuerzo que estoy dedicando' },
-      { key: 'comprension_temas_propia', label: 'Comprensión de los temas vistos' },
-      { key: 'preparacion_evaluacion', label: 'Preparación para el próximo parcial' },
-      { key: 'cumplimiento_entregas', label: 'Cumplimiento de entregas y tareas' },
-    ]
-    const dificultadesOpts = [
-      { value: 'comprension_temas', label: 'Dificultad para entender los temas' },
-      { value: 'falta_tiempo', label: 'Falta de tiempo' },
-      { value: 'carga_trabajo_externo', label: 'Mi trabajo/prácticas afectan el estudio' },
-      { value: 'problemas_tecnologicos', label: 'Conectividad o equipo' },
-      { value: 'dificultades_personales', label: 'Situación personal o familiar' },
-      { value: 'carga_otras_materias', label: 'Muchas materias simultáneas' },
-      { value: 'metodologia', label: 'No me adapto a la metodología del curso' },
-      { value: 'bajo_rendimiento', label: 'Bajo rendimiento en evaluaciones previas' },
-      { value: 'ninguna', label: 'No tengo dificultades significativas' },
-    ]
-    const hayDificultades = data.dificultades.some(d => d !== 'ninguna') && data.dificultades.length > 0
-
-    return (
-      <div className="space-y-5">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-1">Autopercepción de aprendizaje</h3>
-          <p className="text-gray-500 text-xs mb-4">¿Cómo valoras... (1 = Muy bajo, 5 = Muy alto)</p>
-          {autoItems.map(item => (
-            <LikertRow
-              key={item.key}
-              label={item.label}
-              value={data[item.key] as number | null}
-              onChange={v => set(item.key, v)}
-            />
-          ))}
-        </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-4">Dificultades actuales</h3>
-          <div className="space-y-2">
-            {dificultadesOpts.map(opt => (
-              <label key={opt.value} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-800/60 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={data.dificultades.includes(opt.value)}
-                  onChange={() => toggleDificultad(opt.value)}
-                  className="accent-brand-600 w-4 h-4"
-                />
-                <span className="text-gray-300 text-sm">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-          {hayDificultades && (
-            <div className="mt-4">
-              <label className="block text-gray-400 text-xs mb-1.5">
-                ¿Quieres describir? <span className="text-gray-600">(opcional — visible solo para el docente)</span>
-              </label>
-              <textarea
-                value={data.detalle_dificultades}
-                onChange={e => set('detalle_dificultades', e.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="Describe brevemente tu situación..."
-                className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Paso 4: Esta asignatura ──────────────────────────────────────────────
-
-  const Paso4 = () => {
-    const items: { key: keyof FormData; label: string; labelMin?: string; labelMax?: string }[] = [
-      { key: 'utilidad_profesional', label: 'Esta asignatura aporta a mi formación profesional', labelMin: 'Nada', labelMax: 'Mucho' },
-      { key: 'aplicacion_practica', label: 'Veo aplicación práctica en mi carrera', labelMin: 'Nada', labelMax: 'Mucho' },
-      { key: 'actualidad_contenidos', label: 'Los contenidos son actualizados y relevantes', labelMin: 'Desactualizado', labelMax: 'Muy actual' },
-      { key: 'motivacion_post_curso', label: 'Esta asignatura aumenta mi motivación hacia la carrera', labelMin: 'La reduce', labelMax: 'La aumenta' },
-    ]
-    return (
+function Paso2({ data, set }: { data: FormData; set: SetFn }) {
+  const iaItems: { key: keyof FormData; label: string }[] = [
+    { key: 'uso_ia_comprension_actual', label: 'Comprensión de textos' },
+    { key: 'uso_ia_resumen_actual', label: 'Resumen de contenidos' },
+    { key: 'uso_ia_ideas_actual', label: 'Generación de ideas' },
+    { key: 'uso_ia_redaccion_actual', label: 'Redacción de textos' },
+    { key: 'uso_ia_tareas_actual', label: 'Realización de tareas' },
+    { key: 'uso_ia_verificacion_actual', label: 'Verificación de información' },
+    { key: 'uso_ia_critico_actual', label: 'Pensamiento crítico' },
+    { key: 'uso_ia_traduccion_actual', label: 'Traducción' },
+    { key: 'uso_ia_idiomas_actual', label: 'Práctica de idiomas' },
+  ]
+  return (
+    <div className="space-y-5">
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-        <h3 className="text-white font-semibold text-sm mb-1">Relevancia de la asignatura</h3>
-        <p className="text-gray-500 text-xs mb-4">{asignatura}</p>
-        {items.map(item => (
+        <h3 className="text-white font-semibold text-sm mb-1">Uso de inteligencia artificial</h3>
+        <p className="text-gray-500 text-xs mb-4">¿Con qué frecuencia usas IA para estas tareas? (1 = Nunca, 5 = Siempre)</p>
+        {iaItems.map(item => (
+          <LikertRow
+            key={item.key}
+            label={item.label}
+            value={data[item.key] as number | null}
+            onChange={v => set(item.key, v)}
+          />
+        ))}
+      </div>
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <LikertRow
+          label="¿Cuánto disfrutas escribir actualmente?"
+          value={data.gusto_escritura_actual}
+          onChange={v => set('gusto_escritura_actual', v)}
+          labelMin="Nada"
+          labelMax="Mucho"
+        />
+      </div>
+    </div>
+  )
+}
+
+function Paso3({
+  data,
+  set,
+  toggleDificultad,
+}: {
+  data: FormData
+  set: SetFn
+  toggleDificultad: (val: string) => void
+}) {
+  const autoItems: { key: keyof FormData; label: string }[] = [
+    { key: 'autopercepcion_aprendizaje', label: 'Mi propio aprendizaje en este curso' },
+    { key: 'esfuerzo_dedicado', label: 'Esfuerzo que estoy dedicando' },
+    { key: 'comprension_temas_propia', label: 'Comprensión de los temas vistos' },
+    { key: 'preparacion_evaluacion', label: 'Preparación para el próximo parcial' },
+    { key: 'cumplimiento_entregas', label: 'Cumplimiento de entregas y tareas' },
+  ]
+  const dificultadesOpts = [
+    { value: 'comprension_temas', label: 'Dificultad para entender los temas' },
+    { value: 'falta_tiempo', label: 'Falta de tiempo' },
+    { value: 'carga_trabajo_externo', label: 'Mi trabajo/prácticas afectan el estudio' },
+    { value: 'problemas_tecnologicos', label: 'Conectividad o equipo' },
+    { value: 'dificultades_personales', label: 'Situación personal o familiar' },
+    { value: 'carga_otras_materias', label: 'Muchas materias simultáneas' },
+    { value: 'metodologia', label: 'No me adapto a la metodología del curso' },
+    { value: 'bajo_rendimiento', label: 'Bajo rendimiento en evaluaciones previas' },
+    { value: 'ninguna', label: 'No tengo dificultades significativas' },
+  ]
+  const hayDificultades = data.dificultades.some(d => d !== 'ninguna') && data.dificultades.length > 0
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-1">Autopercepción de aprendizaje</h3>
+        <p className="text-gray-500 text-xs mb-4">¿Cómo valoras... (1 = Muy bajo, 5 = Muy alto)</p>
+        {autoItems.map(item => (
+          <LikertRow
+            key={item.key}
+            label={item.label}
+            value={data[item.key] as number | null}
+            onChange={v => set(item.key, v)}
+          />
+        ))}
+      </div>
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-4">Dificultades actuales</h3>
+        <div className="space-y-2">
+          {dificultadesOpts.map(opt => (
+            <label key={opt.value} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-800/60 cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                checked={data.dificultades.includes(opt.value)}
+                onChange={() => toggleDificultad(opt.value)}
+                className="accent-brand-600 w-4 h-4"
+              />
+              <span className="text-gray-300 text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        {hayDificultades && (
+          <div className="mt-4">
+            <label className="block text-gray-400 text-xs mb-1.5">
+              ¿Quieres describir? <span className="text-gray-600">(opcional — visible solo para el docente)</span>
+            </label>
+            <textarea
+              value={data.detalle_dificultades}
+              onChange={e => set('detalle_dificultades', e.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="Describe brevemente tu situación..."
+              className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Paso4({ data, set, asignatura }: { data: FormData; set: SetFn; asignatura: string }) {
+  const items: { key: keyof FormData; label: string; labelMin?: string; labelMax?: string }[] = [
+    { key: 'utilidad_profesional', label: 'Esta asignatura aporta a mi formación profesional', labelMin: 'Nada', labelMax: 'Mucho' },
+    { key: 'aplicacion_practica', label: 'Veo aplicación práctica en mi carrera', labelMin: 'Nada', labelMax: 'Mucho' },
+    { key: 'actualidad_contenidos', label: 'Los contenidos son actualizados y relevantes', labelMin: 'Desactualizado', labelMax: 'Muy actual' },
+    { key: 'motivacion_post_curso', label: 'Esta asignatura aumenta mi motivación hacia la carrera', labelMin: 'La reduce', labelMax: 'La aumenta' },
+  ]
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+      <h3 className="text-white font-semibold text-sm mb-1">Relevancia de la asignatura</h3>
+      <p className="text-gray-500 text-xs mb-4">{asignatura}</p>
+      {items.map(item => (
+        <LikertRow
+          key={item.key}
+          label={item.label}
+          value={data[item.key] as number | null}
+          onChange={v => set(item.key, v)}
+          labelMin={item.labelMin}
+          labelMax={item.labelMax}
+        />
+      ))}
+    </div>
+  )
+}
+
+function Paso5({ data, set }: { data: FormData; set: SetFn }) {
+  type NullableKey = keyof FormData
+  const contenidoItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
+    { key: 'claridad_explicaciones', label: 'Claridad de las explicaciones', labelMin: 'Muy poco clara', labelMax: 'Muy clara' },
+    { key: 'pertinencia_tareas', label: 'Pertinencia de las tareas asignadas', labelMin: 'Nada pertinente', labelMax: 'Muy pertinente' },
+    { key: 'claridad_instrucciones', label: 'Claridad de las instrucciones de actividades', labelMin: 'Confusa', labelMax: 'Muy clara' },
+    { key: 'ritmo_clase', label: 'Ritmo de la clase', labelMin: 'Muy lento', labelMax: 'Muy rápido' },
+    { key: 'calidad_recursos', label: 'Calidad de los recursos de aprendizaje', labelMin: 'Muy baja', labelMax: 'Muy alta' },
+  ]
+  const evaluacionItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
+    { key: 'justicia_evaluacion', label: 'Justicia en la evaluación', labelMin: 'Muy injusta', labelMax: 'Muy justa' },
+    { key: 'retroalimentacion_recibida', label: 'Retroalimentación recibida sobre mi trabajo', labelMin: 'Ninguna', labelMax: 'Muy buena' },
+  ]
+  const docenteItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
+    { key: 'puntualidad_docente', label: 'Puntualidad del docente', labelMin: 'Nunca puntual', labelMax: 'Siempre puntual' },
+    { key: 'trato_docente', label: 'Trato y respeto del docente', labelMin: 'Inapropiado', labelMax: 'Excelente' },
+    { key: 'dominio_tema', label: 'Dominio del tema por parte del docente', labelMin: 'Muy bajo', labelMax: 'Muy alto' },
+    { key: 'estrategias_didacticas', label: 'Estrategias didácticas utilizadas', labelMin: 'Ineficaces', labelMax: 'Muy efectivas' },
+    { key: 'disponibilidad_docente', label: 'Disponibilidad para resolver dudas', labelMin: 'Nula', labelMax: 'Excelente' },
+  ]
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-4">Contenido y actividades</h3>
+        {contenidoItems.map(item => (
           <LikertRow
             key={item.key}
             label={item.label}
@@ -679,147 +620,214 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
           />
         ))}
       </div>
-    )
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-4">Evaluación</h3>
+        {evaluacionItems.map(item => (
+          <LikertRow
+            key={item.key}
+            label={item.label}
+            value={data[item.key] as number | null}
+            onChange={v => set(item.key, v)}
+            labelMin={item.labelMin}
+            labelMax={item.labelMax}
+          />
+        ))}
+      </div>
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-4">Desempeño docente</h3>
+        {docenteItems.map(item => (
+          <LikertRow
+            key={item.key}
+            label={item.label}
+            value={data[item.key] as number | null}
+            onChange={v => set(item.key, v)}
+            labelMin={item.labelMin}
+            labelMax={item.labelMax}
+          />
+        ))}
+      </div>
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-white font-semibold text-sm mb-4">Tutorías</h3>
+        <LikertRowNullable
+          label="Satisfacción con las tutorías del docente"
+          value={data.satisfaccion_tutorias}
+          onChange={v => set('satisfaccion_tutorias', v)}
+          labelMin="Muy insatisfecho"
+          labelMax="Muy satisfecho"
+          withNA
+        />
+        <LikertRowNullable
+          label="Facilidad para reservar una tutoría"
+          value={data.facilidad_reserva_tutoria}
+          onChange={v => set('facilidad_reserva_tutoria', v)}
+          labelMin="Muy difícil"
+          labelMax="Muy fácil"
+          withNA
+        />
+      </div>
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+        <h3 className="text-white font-semibold text-sm">Comentarios libres</h3>
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">¿Qué aspectos valoras más de este curso? <span className="text-gray-600">(opcional)</span></label>
+          <textarea
+            value={data.fortalezas_curso}
+            onChange={e => set('fortalezas_curso', e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="Fortalezas, lo que funciona bien..."
+            className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">¿Qué mejorarías? <span className="text-gray-600">(opcional)</span></label>
+          <textarea
+            value={data.sugerencias_mejora}
+            onChange={e => set('sugerencias_mejora', e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="Sugerencias de mejora..."
+            className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">Comentario adicional <span className="text-gray-600">(opcional)</span></label>
+          <textarea
+            value={data.comentario_libre}
+            onChange={e => set('comentario_libre', e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="Cualquier otro aspecto que quieras compartir..."
+            className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
+interface Props {
+  cursoId: string
+  asignatura: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  encuestaExistente: any | null
+}
+
+export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: Props) {
+  const router = useRouter()
+  const TOTAL_PASOS = 5
+  const STORAGE_KEY = `encuesta-parcial-${cursoId}`
+
+  const [paso, setPaso] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [completado, setCompletado] = useState(false)
+
+  const [data, setData] = useState<FormData>(() => {
+    if (encuestaExistente) {
+      const merged: FormData = { ...INITIAL_DATA }
+      for (const key of Object.keys(INITIAL_DATA) as Array<keyof FormData>) {
+        const val = encuestaExistente[key]
+        if (val !== undefined && val !== null) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(merged as any)[key] = val
+        }
+      }
+      return merged
+    }
+    return INITIAL_DATA
+  })
+
+  useEffect(() => {
+    if (encuestaExistente) return
+    try {
+      const draft = localStorage.getItem(STORAGE_KEY)
+      if (draft) {
+        const parsed = JSON.parse(draft)
+        setData(prev => ({ ...prev, ...parsed }))
+      }
+    } catch {
+      // ignorar
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (completado) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    } catch {
+      // ignorar
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
+  const set = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
+    setData(prev => ({ ...prev, [key]: value }))
+  }, [])
+
+  const toggleDificultad = useCallback((val: string) => {
+    setData(prev => {
+      const current = prev.dificultades
+      if (val === 'ninguna') {
+        return { ...prev, dificultades: current.includes('ninguna') ? [] : ['ninguna'] }
+      }
+      const withoutNinguna = current.filter(d => d !== 'ninguna')
+      return {
+        ...prev,
+        dificultades: withoutNinguna.includes(val)
+          ? withoutNinguna.filter(d => d !== val)
+          : [...withoutNinguna, val],
+      }
+    })
+  }, [])
+
+  async function handleSubmit() {
+    setSaving(true)
+    setError(null)
+    const payload: Record<string, unknown> = {
+      curso_id: cursoId,
+      ...data,
+    }
+    for (const key of Object.keys(payload)) {
+      if (payload[key] === '') payload[key] = undefined
+    }
+    const result = await guardarEncuestaParcial(payload)
+    if (result.error) {
+      setError(result.error)
+      setSaving(false)
+    } else {
+      try { localStorage.removeItem(STORAGE_KEY) } catch { /* noop */ }
+      setCompletado(true)
+      setTimeout(() => router.push('/student'), 2500)
+    }
   }
 
-  // ─── Paso 5: Sobre el curso ───────────────────────────────────────────────
-
-  const Paso5 = () => {
-    type NullableKey = keyof FormData
-    const contenidoItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
-      { key: 'claridad_explicaciones', label: 'Claridad de las explicaciones', labelMin: 'Muy poco clara', labelMax: 'Muy clara' },
-      { key: 'pertinencia_tareas', label: 'Pertinencia de las tareas asignadas', labelMin: 'Nada pertinente', labelMax: 'Muy pertinente' },
-      { key: 'claridad_instrucciones', label: 'Claridad de las instrucciones de actividades', labelMin: 'Confusa', labelMax: 'Muy clara' },
-      { key: 'ritmo_clase', label: 'Ritmo de la clase', labelMin: 'Muy lento', labelMax: 'Muy rápido' },
-      { key: 'calidad_recursos', label: 'Calidad de los recursos de aprendizaje', labelMin: 'Muy baja', labelMax: 'Muy alta' },
-    ]
-    const evaluacionItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
-      { key: 'justicia_evaluacion', label: 'Justicia en la evaluación', labelMin: 'Muy injusta', labelMax: 'Muy justa' },
-      { key: 'retroalimentacion_recibida', label: 'Retroalimentación recibida sobre mi trabajo', labelMin: 'Ninguna', labelMax: 'Muy buena' },
-    ]
-    const docenteItems: { key: NullableKey; label: string; labelMin?: string; labelMax?: string }[] = [
-      { key: 'puntualidad_docente', label: 'Puntualidad del docente', labelMin: 'Nunca puntual', labelMax: 'Siempre puntual' },
-      { key: 'trato_docente', label: 'Trato y respeto del docente', labelMin: 'Inapropiado', labelMax: 'Excelente' },
-      { key: 'dominio_tema', label: 'Dominio del tema por parte del docente', labelMin: 'Muy bajo', labelMax: 'Muy alto' },
-      { key: 'estrategias_didacticas', label: 'Estrategias didácticas utilizadas', labelMin: 'Ineficaces', labelMax: 'Muy efectivas' },
-      { key: 'disponibilidad_docente', label: 'Disponibilidad para resolver dudas', labelMin: 'Nula', labelMax: 'Excelente' },
-    ]
-
+  if (completado) {
     return (
-      <div className="space-y-5">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-4">Contenido y actividades</h3>
-          {contenidoItems.map(item => (
-            <LikertRow
-              key={item.key}
-              label={item.label}
-              value={data[item.key] as number | null}
-              onChange={v => set(item.key, v)}
-              labelMin={item.labelMin}
-              labelMax={item.labelMax}
-            />
-          ))}
-        </div>
-
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-4">Evaluación</h3>
-          {evaluacionItems.map(item => (
-            <LikertRow
-              key={item.key}
-              label={item.label}
-              value={data[item.key] as number | null}
-              onChange={v => set(item.key, v)}
-              labelMin={item.labelMin}
-              labelMax={item.labelMax}
-            />
-          ))}
-        </div>
-
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-4">Desempeño docente</h3>
-          {docenteItems.map(item => (
-            <LikertRow
-              key={item.key}
-              label={item.label}
-              value={data[item.key] as number | null}
-              onChange={v => set(item.key, v)}
-              labelMin={item.labelMin}
-              labelMax={item.labelMax}
-            />
-          ))}
-        </div>
-
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="text-white font-semibold text-sm mb-4">Tutorías</h3>
-          <LikertRowNullable
-            label="Satisfacción con las tutorías del docente"
-            value={data.satisfaccion_tutorias}
-            onChange={v => set('satisfaccion_tutorias', v)}
-            labelMin="Muy insatisfecho"
-            labelMax="Muy satisfecho"
-            withNA
-          />
-          <LikertRowNullable
-            label="Facilidad para reservar una tutoría"
-            value={data.facilidad_reserva_tutoria}
-            onChange={v => set('facilidad_reserva_tutoria', v)}
-            labelMin="Muy difícil"
-            labelMax="Muy fácil"
-            withNA
-          />
-        </div>
-
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
-          <h3 className="text-white font-semibold text-sm">Comentarios libres</h3>
-          <div>
-            <label className="block text-gray-400 text-xs mb-1.5">¿Qué aspectos valoras más de este curso? <span className="text-gray-600">(opcional)</span></label>
-            <textarea
-              value={data.fortalezas_curso}
-              onChange={e => set('fortalezas_curso', e.target.value)}
-              rows={3}
-              maxLength={2000}
-              placeholder="Fortalezas, lo que funciona bien..."
-              className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 text-xs mb-1.5">¿Qué mejorarías? <span className="text-gray-600">(opcional)</span></label>
-            <textarea
-              value={data.sugerencias_mejora}
-              onChange={e => set('sugerencias_mejora', e.target.value)}
-              rows={3}
-              maxLength={2000}
-              placeholder="Sugerencias de mejora..."
-              className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 text-xs mb-1.5">Comentario adicional <span className="text-gray-600">(opcional)</span></label>
-            <textarea
-              value={data.comentario_libre}
-              onChange={e => set('comentario_libre', e.target.value)}
-              rows={3}
-              maxLength={2000}
-              placeholder="Cualquier otro aspecto que quieras compartir..."
-              className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 text-sm w-full placeholder-gray-600 resize-none"
-            />
-          </div>
-        </div>
+      <div className="text-center py-16">
+        <div className="text-5xl mb-4">✓</div>
+        <h2 className="text-white text-xl font-semibold">¡Gracias por completar la encuesta!</h2>
+        <p className="text-gray-400 mt-2">Tu retroalimentación es muy valiosa.</p>
+        <p className="text-gray-500 text-sm mt-4">Redirigiendo al portal...</p>
       </div>
     )
   }
 
-  // ─── Render principal ─────────────────────────────────────────────────────
-
   return (
     <div>
-      <ProgressBar />
+      <ProgressBar paso={paso} totalPasos={TOTAL_PASOS} />
 
-      {paso === 1 && <Paso1 />}
-      {paso === 2 && <Paso2 />}
-      {paso === 3 && <Paso3 />}
-      {paso === 4 && <Paso4 />}
-      {paso === 5 && <Paso5 />}
+      {paso === 1 && <Paso1 data={data} set={set} />}
+      {paso === 2 && <Paso2 data={data} set={set} />}
+      {paso === 3 && <Paso3 data={data} set={set} toggleDificultad={toggleDificultad} />}
+      {paso === 4 && <Paso4 data={data} set={set} asignatura={asignatura} />}
+      {paso === 5 && <Paso5 data={data} set={set} />}
 
       {error && (
         <div className="mt-4 p-3 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
@@ -827,7 +835,14 @@ export function EncuestaParcialForm({ cursoId, asignatura, encuestaExistente }: 
         </div>
       )}
 
-      <NavButtons />
+      <NavButtons
+        paso={paso}
+        totalPasos={TOTAL_PASOS}
+        saving={saving}
+        onPrev={() => setPaso(p => p - 1)}
+        onNext={() => setPaso(p => p + 1)}
+        onSubmit={handleSubmit}
+      />
     </div>
   )
 }
