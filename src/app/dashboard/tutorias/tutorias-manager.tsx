@@ -455,6 +455,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   const [confirmBatch, setConfirmBatch] = useState(false)
   const [confirmBatchLV, setConfirmBatchLV] = useState(false)
   const [lvDias, setLvDias] = useState<string[]>(['lunes','martes','miércoles','jueves','viernes'])
+  const [lvHasta, setLvHasta] = useState<string>('')
   const [warnSlot, setWarnSlot] = useState<{ h: Horario; dateStr: string; names: string[] } | null>(null)
 
   // ── Batch ──────────────────────────────────────────────────────────────────
@@ -484,12 +485,12 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
       })
     }
   }
-  async function batchLV(modo: 'semana' | 'permanente') {
+  async function batchLV(modo: 'semana' | 'fecha', hasta?: string) {
     setConfirmBatchLV(false)
     if (lvDias.length === 0) return
     const disponible_hasta = modo === 'semana'
       ? toDateStr(weekDates[weekDates.length - 1])
-      : null
+      : hasta!
     setHorarios(prev => prev.map(h => ({
       ...h,
       estado: lvDias.includes(h.dia_semana) ? 'disponible' : h.estado,
@@ -641,13 +642,20 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
                     </button>
                   ))}
                 </span>
-                <span className="text-[10px] text-emerald-300 font-medium">¿Por cuánto tiempo?</span>
-                <span className="flex gap-1.5 flex-wrap">
+                <span className="text-[10px] text-emerald-300 font-medium">¿Hasta cuándo?</span>
+                <span className="flex gap-1.5 flex-wrap items-center">
                   <button onClick={() => batchLV('semana')} disabled={lvDias.length === 0} className="text-[10px] text-emerald-300 border border-emerald-700 px-2 py-1 rounded hover:bg-emerald-900/40 transition-colors disabled:opacity-30">
                     Solo {weekOffset === 0 ? 'esta semana' : 'semana vista'}
                   </button>
-                  <button onClick={() => batchLV('permanente')} disabled={lvDias.length === 0} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors disabled:opacity-30">
-                    Permanente
+                  <input
+                    type="date"
+                    value={lvHasta}
+                    min={todayStr()}
+                    onChange={e => setLvHasta(e.target.value)}
+                    className="text-[10px] bg-gray-900 border border-emerald-800 rounded px-1.5 py-1 text-emerald-300"
+                  />
+                  <button onClick={() => batchLV('fecha', lvHasta)} disabled={lvDias.length === 0 || !lvHasta} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors disabled:opacity-30">
+                    Hasta esa fecha
                   </button>
                   <button onClick={() => setConfirmBatchLV(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
                 </span>
