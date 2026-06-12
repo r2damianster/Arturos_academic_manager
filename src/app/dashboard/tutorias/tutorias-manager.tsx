@@ -454,6 +454,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
 
   const [confirmBatch, setConfirmBatch] = useState(false)
   const [confirmBatchLV, setConfirmBatchLV] = useState(false)
+  const [lvDias, setLvDias] = useState<string[]>(['lunes','martes','miércoles','jueves','viernes'])
   const [warnSlot, setWarnSlot] = useState<{ h: Horario; dateStr: string; names: string[] } | null>(null)
 
   // ── Batch ──────────────────────────────────────────────────────────────────
@@ -485,21 +486,24 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
   }
   async function batchLV(modo: 'semana' | 'permanente') {
     setConfirmBatchLV(false)
-    const lv = ['lunes','martes','miércoles','jueves','viernes']
+    if (lvDias.length === 0) return
     const disponible_hasta = modo === 'semana'
       ? toDateStr(weekDates[weekDates.length - 1])
       : null
     setHorarios(prev => prev.map(h => ({
       ...h,
-      estado: lv.includes(h.dia_semana) ? 'disponible' : h.estado,
-      disponible_hasta: lv.includes(h.dia_semana) ? disponible_hasta : h.disponible_hasta,
+      estado: lvDias.includes(h.dia_semana) ? 'disponible' : h.estado,
+      disponible_hasta: lvDias.includes(h.dia_semana) ? disponible_hasta : h.disponible_hasta,
     })))
     startTransition(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('horarios')
         .update({ estado:'disponible', disponible_hasta })
-        .eq('profesor_id', profesorId).in('dia_semana', lv)
+        .eq('profesor_id', profesorId).in('dia_semana', lvDias)
     })
+  }
+  function toggleLvDia(dia: string) {
+    setLvDias(prev => prev.includes(dia) ? prev.filter(d => d !== dia) : [...prev, dia])
   }
 
   // ── Direct assignment ──────────────────────────────────────────────────────
@@ -621,12 +625,28 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
             )}
             {confirmBatchLV ? (
               <span className="flex flex-col gap-1.5 p-2 border border-emerald-800/60 rounded-lg bg-emerald-950/20 min-w-0">
-                <span className="text-[10px] text-emerald-300 font-medium">¿Por cuánto tiempo activar L–V?</span>
+                <span className="text-[10px] text-emerald-300 font-medium">¿Qué días activar?</span>
+                <span className="flex gap-1 flex-wrap">
+                  {['lunes','martes','miércoles','jueves','viernes','sábado'].map(dia => (
+                    <button
+                      key={dia}
+                      onClick={() => toggleLvDia(dia)}
+                      className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                        lvDias.includes(dia)
+                          ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300'
+                          : 'border-gray-700 text-gray-500 hover:bg-gray-800'
+                      }`}
+                    >
+                      {dia.slice(0,3)}
+                    </button>
+                  ))}
+                </span>
+                <span className="text-[10px] text-emerald-300 font-medium">¿Por cuánto tiempo?</span>
                 <span className="flex gap-1.5 flex-wrap">
-                  <button onClick={() => batchLV('semana')} className="text-[10px] text-emerald-300 border border-emerald-700 px-2 py-1 rounded hover:bg-emerald-900/40 transition-colors">
+                  <button onClick={() => batchLV('semana')} disabled={lvDias.length === 0} className="text-[10px] text-emerald-300 border border-emerald-700 px-2 py-1 rounded hover:bg-emerald-900/40 transition-colors disabled:opacity-30">
                     Solo {weekOffset === 0 ? 'esta semana' : 'semana vista'}
                   </button>
-                  <button onClick={() => batchLV('permanente')} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors">
+                  <button onClick={() => batchLV('permanente')} disabled={lvDias.length === 0} className="text-[10px] text-emerald-400 border border-emerald-800 px-2 py-1 rounded hover:bg-emerald-900/30 transition-colors disabled:opacity-30">
                     Permanente
                   </button>
                   <button onClick={() => setConfirmBatchLV(false)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
@@ -634,7 +654,7 @@ export function TutoriasManager({ horarios: init, reservas: initRes, clases, est
               </span>
             ) : (
               <button onClick={() => setConfirmBatchLV(true)} className="text-[10px] text-gray-400 border border-gray-700 px-2 py-1 rounded hover:bg-gray-800 transition-colors">
-                L–V dispon
+                Días dispon
               </button>
             )}
           </div>
