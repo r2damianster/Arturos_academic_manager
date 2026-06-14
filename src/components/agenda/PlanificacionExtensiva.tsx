@@ -39,6 +39,7 @@ interface BitacoraEntry {
   actividades_json: { actividad: string; recurso: string }[]
   observaciones: string | null
   hora_inicio_real: string | null
+  razon_suspension: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
     const fechaMax = dateToStr(new Date(Math.max(hastaA.getTime(), cursoBId ? hastaB.getTime() : hastaA.getTime())))
     const { data } = await supabase
       .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, razon_suspension')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
@@ -224,6 +225,7 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
         actividades_json: Array.isArray(b.actividades_json) ? b.actividades_json : [],
         observaciones: b.observaciones ?? null,
         hora_inicio_real: b.hora_inicio_real ?? null,
+        razon_suspension: b.razon_suspension ?? null,
       })
     }
     setBitacoraMap(m)
@@ -283,6 +285,15 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
     const dragId = `${cursoId}__${fecha}`
     const isCumplido = entry?.estado === 'cumplido'
     const isPlanned  = entry?.estado === 'planificado'
+    const isSuspendido = entry?.estado === 'suspendido'
+
+    if (isSuspendido) return (
+      <div className="px-3 py-2 rounded-lg border bg-red-950/30 border-red-800/40 space-y-0.5">
+        <span className="text-red-400 text-xs font-medium">🚫 Suspendida</span>
+        <p className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</p>
+        {entry?.razon_suspension && <p className="text-gray-400 text-[10px] italic leading-tight">{entry.razon_suspension}</p>}
+      </div>
+    )
 
     if (!entry) return (
       <button

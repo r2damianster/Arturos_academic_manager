@@ -7,8 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
-import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, type AccionDrag } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, reactivarClase, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
+import { SuspenderClasesModal } from '@/components/agenda/SuspenderClasesModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ interface BitacoraEntry {
   observaciones: string | null
   hora_inicio_real: string | null
   sin_planificacion: boolean
+  razon_suspension: string | null
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -163,6 +165,8 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [espontaneaLoading, setEspontaneaLoading] = useState<string | null>(null)
   const [showGenerador, setShowGenerador] = useState(false)
+  const [showSuspender, setShowSuspender] = useState(false)
+  const [reactivandoKey, setReactivandoKey] = useState<string | null>(null)
 
   // ── Traslado de actividades desde planificación ──────────────────────────
   type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
@@ -255,6 +259,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             observaciones: null,
             hora_inicio_real: null,
             sin_planificacion: true,
+            razon_suspension: null,
           })
           return m
         })
@@ -276,6 +281,17 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     } finally {
       setDeletingKey(null)
       setDeleteConfirmKey(null)
+    }
+  }
+
+  async function handleReactivar(cursoId: string, fecha: string) {
+    const key = `${cursoId}|${fecha}`
+    setReactivandoKey(key)
+    try {
+      await reactivarClase(cursoId, fecha)
+      await loadBitacoras()
+    } finally {
+      setReactivandoKey(null)
     }
   }
 
@@ -335,14 +351,14 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, sin_planificacion')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, sin_planificacion, razon_suspension')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
-    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null; sin_planificacion: boolean }[]) {
+    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null; sin_planificacion: boolean; razon_suspension: string | null }[]) {
       m.set(`${b.curso_id}|${b.fecha}`, {
         id: b.id,
         estado: b.estado,
@@ -351,6 +367,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         observaciones: b.observaciones ?? null,
         hora_inicio_real: b.hora_inicio_real ?? null,
         sin_planificacion: b.sin_planificacion ?? false,
+        razon_suspension: b.razon_suspension ?? null,
       })
     }
     setBitacoraMap(m)
@@ -420,6 +437,27 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         {clase.centro_computo && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>}
       </div>
     )
+
+    if (entry?.estado === 'suspendido') {
+      const reactKey = `${cursoId}|${fecha}`
+      return (
+        <div className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-red-950/30 border border-red-800/40 flex flex-col gap-1">
+          <div className="text-red-400 text-xs font-medium">🚫 Suspendida</div>
+          {renderBadges()}
+          <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+          {entry.razon_suspension && (
+            <div className="text-gray-400 text-[10px] leading-tight italic">{entry.razon_suspension}</div>
+          )}
+          <button
+            onClick={() => handleReactivar(cursoId, fecha)}
+            disabled={reactivandoKey === reactKey}
+            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors disabled:opacity-50 self-start"
+          >
+            {reactivandoKey === reactKey ? '…' : '↩ Reactivar'}
+          </button>
+        </div>
+      )
+    }
 
     if (!entry) {
       const espontaneaKey = `${cursoId}|${fecha}`
@@ -663,6 +701,11 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     {!entry && <span className="text-yellow-400 text-[10px]">Sin planificar</span>}
                     {entry?.estado === 'planificado' && <span className="text-sky-400 text-[10px]">Planificado</span>}
                     {entry?.estado === 'cumplido' && <span className="text-emerald-400 text-[10px]">Cumplido</span>}
+                    {entry?.estado === 'suspendido' && (
+                      <span className="text-red-400 text-[10px]">
+                        🚫 Suspendida{entry.razon_suspension ? ` — ${entry.razon_suspension}` : ''}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 px-3">
                     {entry?.estado === 'cumplido' && (
@@ -715,6 +758,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         + Planificar
                       </button>
                     )}
+                    {entry?.estado === 'suspendido' && (
+                      <button
+                        onClick={() => handleReactivar(grupo.curso.id, fecha)}
+                        disabled={reactivandoKey === key}
+                        className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
+                      >
+                        {reactivandoKey === key ? '…' : '↩ Reactivar'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
@@ -759,10 +811,11 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           {hoyOpen && <div className="divide-y divide-gray-800">
             {clasesDeHoy.map(clase => {
               const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
+              const suspendida = entry?.estado === 'suspendido'
               const sinPlan = !entry
               const cumplida = entry?.estado === 'cumplido'
               const enProgreso = !cumplida && !!entry?.hora_inicio_real
-              const planificada = !cumplida && !enProgreso && !!entry
+              const planificada = !cumplida && !enProgreso && !suspendida && !!entry
 
               const btnLabel = cumplida ? 'Ver resumen' : enProgreso ? 'Continuar clase' : 'Iniciar clase'
               const btnColor = cumplida
@@ -786,6 +839,20 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {suspendida && (
+                      <>
+                        <span className="text-xs text-red-400 font-medium">
+                          🚫 Suspendida{entry?.razon_suspension ? ` — ${entry.razon_suspension}` : ''}
+                        </span>
+                        <button
+                          onClick={() => handleReactivar(clase.cursos?.id ?? clase.curso_id, hoyStr)}
+                          disabled={reactivandoKey === `${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`}
+                          className="text-xs text-gray-400 hover:text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                        >
+                          ↩ Reactivar
+                        </button>
+                      </>
+                    )}
                     {sinPlan && (
                       <button
                         onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
@@ -802,7 +869,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         Editar plan
                       </button>
                     )}
-                    {entry && (
+                    {entry && !suspendida && (
                       <Link
                         href={`/dashboard/modo-clase/${entry.id}`}
                         className={`${btnColor} text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap`}
@@ -874,15 +941,23 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           )}
         </div>
 
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <span className="text-xs text-gray-400">Mostrar tutorías de curso</span>
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowTutoriasCurso(v => !v)}
-            className={`relative w-9 h-5 rounded-full transition-colors ${showTutoriasCurso ? 'bg-teal-600' : 'bg-gray-700'}`}
+            onClick={() => setShowSuspender(true)}
+            className="text-xs text-red-400 hover:text-red-300 border border-red-700/40 px-3 py-1.5 rounded-lg hover:bg-red-900/20 transition-colors whitespace-nowrap"
           >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showTutoriasCurso ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            🚫 Suspender clases
           </button>
-        </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <span className="text-xs text-gray-400">Mostrar tutorías de curso</span>
+            <button
+              onClick={() => setShowTutoriasCurso(v => !v)}
+              className={`relative w-9 h-5 rounded-full transition-colors ${showTutoriasCurso ? 'bg-teal-600' : 'bg-gray-700'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showTutoriasCurso ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          </label>
+        </div>
       </div>
 
       {/* Aviso clases sin planificar */}
@@ -983,7 +1058,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     const fecha = dateToStr(date)
                     const targetKey = `${curso.id}|${fecha}`
                     const targetEntry = bitacoraMap.get(targetKey)
-                    const isCompletedTarget = targetEntry?.estado === 'cumplido'
+                    const isCompletedTarget = targetEntry?.estado === 'cumplido' || targetEntry?.estado === 'suspendido'
                     const sameSource = dragSource?.cursoId === curso.id && dragSource?.fecha === fecha
                     const isEmptyTarget = !targetEntry
                     const isDraggingCompleted = dragSource && bitacoraMap.get(`${dragSource.cursoId}|${dragSource.fecha}`)?.estado === 'cumplido'
@@ -1137,6 +1212,16 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         <GeneradorPanel
           clases={clases}
           onClose={() => setShowGenerador(false)}
+        />
+      )}
+
+      {showSuspender && (
+        <SuspenderClasesModal
+          cursos={cursos}
+          fechaInicioDefault={dateToStr(weekDates[0])}
+          fechaFinDefault={dateToStr(weekDates[weekDates.length - 1])}
+          onClose={() => setShowSuspender(false)}
+          onSaved={() => loadBitacoras()}
         />
       )}
 

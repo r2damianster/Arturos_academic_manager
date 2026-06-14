@@ -591,6 +591,136 @@ export async function eliminarPlanificacion(params: {
   return {}
 }
 
+// ─── Suspender clases ──────────────────────────────────────────────────────────
+
+export type SuspenderClasesResult = {
+  error?: string
+  afectadas?: number
+}
+
+/**
+ * Suspende las clases planificadas (o crea suspensiones vacías) en un rango de
+ * fechas, para uno o varios cursos. No toca clases ya 'cumplido'.
+ */
+export async function suspenderClases(params: {
+  cursoIds: string[] // vacío = todos los cursos del profesor
+  fechaInicio: string
+  fechaFin: string
+  razon?: string
+}): Promise<SuspenderClasesResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { cursoIds, fechaInicio, fechaFin, razon } = params
+  if (fechaFin < fechaInicio) return { error: 'La fecha final debe ser posterior a la inicial' }
+
+  let cursosQuery = supabase.from('cursos').select('id').eq('profesor_id', user.id)
+  if (cursoIds.length > 0) cursosQuery = cursosQuery.in('id', cursoIds)
+  const { data: cursosList } = await cursosQuery
+  if (!cursosList || cursosList.length === 0) return { error: 'No hay cursos para suspender' }
+
+  let afectadas = 0
+
+  for (const curso of cursosList) {
+    const { data: horarios } = await supabase
+      .from('horarios_clases')
+      .select('dia_semana')
+      .eq('curso_id', curso.id)
+
+    if (!horarios || horarios.length === 0) continue
+    const diasSemana = new Set(horarios.map(h => h.dia_semana))
+
+    const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: curso.id })
+
+    const current = new Date(fechaInicio + 'T12:00:00')
+    const end = new Date(fechaFin + 'T12:00:00')
+
+    while (current <= end) {
+      const dayName = DIAS_ES[current.getDay()]
+      if (diasSemana.has(dayName)) {
+        const fecha = current.toISOString().split('T')[0]
+
+        const { data: existing } = await supabase
+          .from('bitacora_clase')
+          .select('id, estado')
+          .eq('curso_id', curso.id)
+          .eq('fecha', fecha)
+          .eq('profesor_id', user.id)
+          .maybeSingle()
+
+        if (existing) {
+          if (existing.estado !== 'cumplido' && existing.estado !== 'suspendido') {
+            const { error } = await supabase
+              .from('bitacora_clase')
+              .update({ estado: 'suspendido', razon_suspension: razon ?? null })
+              .eq('id', existing.id)
+            if (!error) afectadas++
+          }
+        } else {
+          const { error } = await supabase
+            .from('bitacora_clase')
+            .insert({
+              profesor_id: user.id,
+              curso_id: curso.id,
+              fecha,
+              semana: semanaData ?? null,
+              tema: 'Clase suspendida',
+              actividades_json: [],
+              observaciones: null,
+              estado: 'suspendido',
+              razon_suspension: razon ?? null,
+              sin_planificacion: true,
+            })
+          if (!error) afectadas++
+        }
+      }
+      current.setDate(current.getDate() + 1)
+    }
+  }
+
+  revalidateBitacoraViews()
+  return { afectadas }
+}
+
+/**
+ * Revierte una suspensión. Si la bitácora fue creada solo para marcar la
+ * suspensión (sin plan previo), la elimina; si había un plan, lo restaura.
+ */
+export async function reactivarClase(cursoId: string, fecha: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: existing } = await supabase
+    .from('bitacora_clase')
+    .select('id, tema, actividades_json, sin_planificacion')
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+    .eq('profesor_id', user.id)
+    .eq('estado', 'suspendido')
+    .maybeSingle()
+
+  if (!existing) return {}
+
+  const actividades = Array.isArray(existing.actividades_json) ? existing.actividades_json : []
+  const esAutoGenerada = existing.sin_planificacion && existing.tema === 'Clase suspendida' && actividades.length === 0
+
+  if (esAutoGenerada) {
+    const { error } = await supabase.from('bitacora_clase').delete().eq('id', existing.id)
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await supabase
+      .from('bitacora_clase')
+      .update({ estado: 'planificado', razon_suspension: null })
+      .eq('id', existing.id)
+    if (error) return { error: error.message }
+  }
+
+  revalidateBitacoraViews()
+  return {}
+}
+
 // ─── Fusionar planificaciones ─────────────────────────────────────────────────
 
 /**

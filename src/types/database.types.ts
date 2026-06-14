@@ -801,6 +801,7 @@ export type Database = {
           estado: string | null
           actividades_json: Json | null
           hora_inicio_real: string | null
+          razon_suspension: string | null
           created_at: string
         }
         Insert: {
@@ -816,6 +817,7 @@ export type Database = {
           estado?: string | null
           actividades_json?: Json | null
           hora_inicio_real?: string | null
+          razon_suspension?: string | null
           created_at?: string
         }
         Update: {
@@ -826,6 +828,7 @@ export type Database = {
           estado?: string | null
           actividades_json?: Json | null
           hora_inicio_real?: string | null
+          razon_suspension?: string | null
         }
         Relationships: []
       }
