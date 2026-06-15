@@ -31,6 +31,7 @@ export default async function DashboardPage() {
     estudiantesRes,
     notificacionesData,
     horariosTutoradosRes,
+    suspendidasRes,
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
       .eq('profesor_id', user.id)
       .not('dia_semana', 'is', null)
       .not('hora_inicio', 'is', null),
+    db.from('bitacora_clase').select('curso_id, fecha').eq('profesor_id', user.id).eq('estado', 'suspendido'),
   ])
 
   // Reservas de tutorías
@@ -145,6 +147,7 @@ export default async function DashboardPage() {
           nombre: (estudiantesRes.data as any[])?.find((e: any) => e.id === t.estudiante_id)?.nombre ?? '',
           nivel: t.modalidad_trabajo ?? null,
         }))}
+        suspendidas={suspendidasRes.data ?? []}
         todayStr={hoy}
       />
       <AgendaSection

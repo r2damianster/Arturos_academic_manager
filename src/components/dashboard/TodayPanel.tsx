@@ -14,8 +14,13 @@ interface RawClase {
   tipo: string
   centro_computo: boolean
   obligatoria: boolean
-  cursos: { asignatura: string } | null
+  cursos: { id: string; asignatura: string } | null
   anuncios_tutoria_curso: { estudiante_id: string; fecha: string }[]
+}
+
+interface RawSuspendida {
+  curso_id: string
+  fecha: string
 }
 
 interface RawEvento {
@@ -69,6 +74,7 @@ interface Props {
   horarios: RawHorario[]
   reservas: RawReserva[]
   horariosTutorados: RawHorarioTutorado[]
+  suspendidas: RawSuspendida[]
   todayStr: string  // YYYY-MM-DD
 }
 
@@ -123,7 +129,7 @@ const COLORS: Record<string, { border: string; badge: string }> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutorados, todayStr }: Props) {
+export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutorados, suspendidas, todayStr }: Props) {
   const [dayOffset, setDayOffset] = useState(0)
   const { open, toggle } = useCollapsible('today-panel-open', true)
   const [mostrarTodos, setMostrarTodos] = useState(false)
@@ -161,6 +167,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutora
 
     for (const c of clases) {
       if (normalizeDia(c.dia_semana) !== targetDow) continue
+      if (c.cursos?.id && suspendidas.some(s => s.curso_id === c.cursos!.id && s.fecha === targetStr)) continue
       const confirmaciones = (c.anuncios_tutoria_curso ?? []).filter(a => a.fecha === targetStr).length
       const esTutoriaCurso = c.tipo === 'tutoria_curso'
       if (esTutoriaCurso && confirmaciones === 0 && !mostrarTodos && !c.obligatoria) continue
@@ -234,7 +241,7 @@ export function TodayPanel({ clases, eventos, horarios, reservas, horariosTutora
     })
 
     return result
-  }, [clases, eventos, horarios, reservas, horariosTutorados, targetStr, targetDow, mostrarTodos])
+  }, [clases, eventos, horarios, reservas, horariosTutorados, suspendidas, targetStr, targetDow, mostrarTodos])
 
   return (
     <div className="card">

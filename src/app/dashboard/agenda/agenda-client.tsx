@@ -764,6 +764,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                   const voy = c.anuncios_tutoria_curso?.length ?? 0
                   if (voy === 0 && !mostrarTutoriasVacias && !c.obligatoria) return false
                 }
+                const cursoId = c.cursos?.id
+                if (cursoId && bitacoraMap.get(`${cursoId}|${ds}`)?.estado === 'suspendido') return false
                 return true
               })
               // Tutorías horarios for this day
