@@ -49,7 +49,7 @@ export function RegistrosCurso({ estudianteId, registros, misEnvios }: Props) {
                   </div>
                   <p className="text-sm font-medium text-white leading-snug">{reg.titulo}</p>
                   {envio && (
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">Tu tema: <span className="text-gray-200">{envio.titulo}</span></p>
+                    <p className="text-xs text-gray-400 mt-0.5">Tu tema: <span className="text-gray-200 line-clamp-2 break-words">{envio.titulo}</span></p>
                   )}
                 </div>
 

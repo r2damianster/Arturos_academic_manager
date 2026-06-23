@@ -298,22 +298,27 @@ export default async function StudentPage() {
                 <div className="space-y-3">
                   {activos.map(t => (
                     <div key={t.id} className="py-2 border-b border-gray-800 last:border-0 border-l-2 pl-3 border-l-brand-600">
-                      <div className="flex items-center justify-between gap-3 mb-1">
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-200">{t.tipo}</p>
-                          {t.urgente && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border border-red-500/50 bg-red-950/60 text-red-500">
-                              URGENTE
-                            </span>
-                          )}
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <span className="text-[10px] bg-gray-800 text-gray-400 border border-gray-700 px-1.5 py-0.5 rounded-full">{t.tipo}</span>
+                            {t.urgente && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border border-red-500/50 bg-red-950/60 text-red-500">
+                                URGENTE
+                              </span>
+                            )}
+                          </div>
+                          {t.tema
+                            ? <p className="text-sm font-medium text-gray-100 leading-snug line-clamp-2">{t.tema}</p>
+                            : <p className="text-sm font-medium text-gray-500 italic">Sin título asignado</p>
+                          }
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>
                           {t.estado}
                         </span>
                       </div>
-                      
-                      {t.tema && <p className="text-xs text-gray-400 font-medium truncate">{t.tema}</p>}
-                      {t.descripcion && <p className="text-xs text-gray-500 truncate italic mt-0.5"><span className="text-gray-600">Instr:</span> {t.descripcion}</p>}
+
+                      {t.descripcion && <p className="text-xs text-gray-500 line-clamp-2 italic mt-0.5"><span className="text-gray-600">Instr:</span> {t.descripcion}</p>}
                       
                       <div className="mt-3">
                         <div className="flex justify-between items-center mb-1">
@@ -342,8 +347,11 @@ export default async function StudentPage() {
                 <div className="mt-2 space-y-1 pl-2">
                   {ts.filter(t => !activos.includes(t)).map(t => (
                     <div key={t.id} className="flex items-center justify-between gap-2 p-1.5 hover:bg-gray-800/40 rounded transition-colors">
-                      <span className="text-gray-400 font-medium">{t.tipo}{t.tema ? <span className="text-gray-600 font-normal"> · {t.tema}</span> : ''}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>{t.estado}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-300 text-xs font-medium line-clamp-1">{t.tema || t.tipo}</p>
+                        {t.tema && <p className="text-gray-600 text-[10px]">{t.tipo}</p>}
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 ${ESTADO_TRABAJO_COLOR[t.estado] ?? ''}`}>{t.estado}</span>
                     </div>
                   ))}
                 </div>
