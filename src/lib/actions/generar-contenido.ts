@@ -150,13 +150,15 @@ function formatBitacorasParaPrompt(bitacoras: BitacoraRaw[]): string {
 async function fetchHistorialClases(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cursoId: string,
-  excludeIds: string[]
+  excludeIds: string[],
+  fechaLimite: string
 ): Promise<string> {
   const { data } = await supabase
     .from('bitacora_clase')
     .select('fecha, tema, actividades_json, observaciones')
     .eq('curso_id', cursoId)
     .eq('estado', 'cumplido')
+    .lt('fecha', fechaLimite)
     .not('id', 'in', `(${excludeIds.join(',')})`)
     .order('fecha', { ascending: false })
     .limit(2)
@@ -186,8 +188,9 @@ export async function generarHtmlSemanal(params: {
   const clasesTexto = formatBitacorasParaPrompt(bitacoras)
 
   let historialTexto = ''
-  if (params.cursoId) {
-    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  if (params.cursoId && bitacoras.length) {
+    const fechaLimite = bitacoras[0].fecha
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds, fechaLimite)
   }
 
   const userPrompt = [
@@ -232,8 +235,9 @@ export async function generarGuiaSemanal(params: {
   const nivelLabel = params.nivel === 'avanzado' ? 'universitario avanzado (último año)' : 'universitario básico / introductorio'
 
   let historialTexto = ''
-  if (params.cursoId) {
-    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  if (params.cursoId && bitacoras.length) {
+    const fechaLimite = bitacoras[0].fecha
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds, fechaLimite)
   }
 
   const userPrompt = [
@@ -518,8 +522,9 @@ export async function generarEvaluacionMoodle(params: {
   const clasesTexto = formatBitacorasParaPrompt(bitacoras)
 
   let historialTexto = ''
-  if (params.cursoId) {
-    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds)
+  if (params.cursoId && bitacoras.length) {
+    const fechaLimite = bitacoras[0].fecha
+    historialTexto = await fetchHistorialClases(supabase, params.cursoId, params.bitacoraIds, fechaLimite)
   }
 
   const categoria = params.categoria?.trim() || `$course$/Semana ${params.semanaNum} - ${params.asignatura}`
