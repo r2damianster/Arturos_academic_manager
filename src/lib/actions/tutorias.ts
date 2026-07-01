@@ -431,6 +431,10 @@ export async function registrarTutoriaManual(params: {
     estado:              params.estado === 'asistio'    ? 'completada'
                        : params.estado === 'no_asistio' ? 'completada'
                        : 'cancelado',
+    asistio:             params.estado === 'asistio'    ? true
+                       : params.estado === 'no_asistio' ? false
+                       : null,
+    inasistencia_reconocida: params.estado === 'asistio',
     profesor_id:         user.id,
     origen:              'manual',
     curso_id:            params.cursoId,
