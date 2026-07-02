@@ -14,7 +14,8 @@
       "Bash(curso_id)",
       "Bash(estudiante_id, curso_id, tipo)",
       "Bash(python \"C:/Users/User/AppData/Local/Temp/insert_schema.py\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git commit -m ' *)"
     ]
   },
   "hooks": {
