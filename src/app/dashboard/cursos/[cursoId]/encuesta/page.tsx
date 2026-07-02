@@ -164,6 +164,19 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
         </div>
       </div>
 
+      {/* Tabs — encuesta inicial vs encuesta de progreso, siempre visible en el mismo espacio */}
+      <div className="flex gap-2 border-b border-gray-800">
+        <span className="px-3 py-2 text-sm font-medium text-white border-b-2 border-indigo-500">
+          Encuesta Inicial
+        </span>
+        <Link
+          href={`/dashboard/cursos/${cursoId}/encuesta-parcial`}
+          className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors"
+        >
+          Encuesta de Progreso →
+        </Link>
+      </div>
+
       {total === 0 ? (
         <div className="card text-center py-16">
           <p className="text-4xl mb-4">📋</p>

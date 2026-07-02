@@ -312,6 +312,9 @@ export async function getResultadosEncuestaParcial(cursoId: string) {
       preparacion_evaluacion: avg('preparacion_evaluacion'),
       cumplimiento_entregas: avg('cumplimiento_entregas'),
     },
+    carrera: {
+      carrera_sigue_deseada: avg('carrera_sigue_deseada'),
+    },
     relevancia: {
       utilidad_profesional: avg('utilidad_profesional'),
       aplicacion_practica: avg('aplicacion_practica'),

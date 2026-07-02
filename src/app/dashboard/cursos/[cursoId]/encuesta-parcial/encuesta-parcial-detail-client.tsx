@@ -51,11 +51,12 @@ export function EncuestaParcialDetalleClient({ detalle }: { detalle: any[] }) {
         <div className="space-y-1 pt-1">
           {/* Cabecera */}
           <div className="grid grid-cols-12 gap-2 text-[10px] text-gray-500 px-2 pb-1 border-b border-gray-800">
-            <span className="col-span-4">Nombre</span>
+            <span className="col-span-3">Nombre</span>
             <span className="col-span-2 text-center">Autopercep.</span>
-            <span className="col-span-2 text-center">Feedback curso</span>
+            <span className="col-span-2 text-center">Curso</span>
+            <span className="col-span-2 text-center">Docente</span>
             <span className="col-span-2">Dificultades</span>
-            <span className="col-span-2 text-center">Cambio situac.</span>
+            <span className="col-span-1 text-center">Cambio</span>
           </div>
 
           {/* Filas */}
@@ -64,7 +65,8 @@ export function EncuestaParcialDetalleClient({ detalle }: { detalle: any[] }) {
             const id = e.id as string
             const nombre = e.estudiantes?.nombre ?? 'Estudiante'
             const promAuto = avgFields(e, ['autopercepcion_aprendizaje', 'esfuerzo_dedicado', 'comprension_temas_propia', 'preparacion_evaluacion', 'cumplimiento_entregas'])
-            const promFeed = avgFields(e, ['claridad_explicaciones', 'pertinencia_tareas', 'ritmo_clase', 'calidad_recursos', 'trato_docente', 'dominio_tema'])
+            const promCurso = avgFields(e, ['claridad_explicaciones', 'pertinencia_tareas', 'claridad_instrucciones', 'ritmo_clase', 'calidad_recursos', 'justicia_evaluacion', 'retroalimentacion_recibida'])
+            const promDocente = avgFields(e, ['puntualidad_docente', 'trato_docente', 'dominio_tema', 'estrategias_didacticas', 'disponibilidad_docente'])
             const dificultades: string[] = (e.dificultades ?? []).filter((d: string) => d !== 'ninguna')
             const tieneCambios = e.cambios_perfil && Object.keys(e.cambios_perfil).length > 0
             const isExpanded = expandida === id
@@ -76,12 +78,15 @@ export function EncuestaParcialDetalleClient({ detalle }: { detalle: any[] }) {
                   onClick={() => setExpandida(isExpanded ? null : id)}
                   className="grid grid-cols-12 gap-2 w-full text-left px-2 py-2 rounded-lg hover:bg-gray-800/50 transition-colors items-start"
                 >
-                  <span className="col-span-4 text-xs text-gray-300 truncate">{nombre}</span>
+                  <span className="col-span-3 text-xs text-gray-300 truncate">{nombre}</span>
                   <span className={`col-span-2 text-center text-xs font-medium ${colorProm(promAuto)}`}>
                     {promAuto ?? '—'}
                   </span>
-                  <span className={`col-span-2 text-center text-xs font-medium ${colorProm(promFeed)}`}>
-                    {promFeed ?? '—'}
+                  <span className={`col-span-2 text-center text-xs font-medium ${colorProm(promCurso)}`}>
+                    {promCurso ?? '—'}
+                  </span>
+                  <span className={`col-span-2 text-center text-xs font-medium ${colorProm(promDocente)}`}>
+                    {promDocente ?? '—'}
                   </span>
                   <span className="col-span-2 text-xs text-gray-400 leading-tight">
                     {dificultades.length === 0
@@ -96,7 +101,7 @@ export function EncuestaParcialDetalleClient({ detalle }: { detalle: any[] }) {
                       <span className="text-[10px] text-gray-600">+{dificultades.length - 2} más</span>
                     )}
                   </span>
-                  <span className={`col-span-2 text-center text-xs ${tieneCambios ? 'text-amber-400' : 'text-gray-600'}`}>
+                  <span className={`col-span-1 text-center text-xs ${tieneCambios ? 'text-amber-400' : 'text-gray-600'}`}>
                     {tieneCambios ? 'Sí' : 'No'}
                   </span>
                 </button>

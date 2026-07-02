@@ -43,8 +43,15 @@ const DIMENSIONES = [
     ],
   },
   {
+    key: 'carrera' as const,
+    label: 'Percepción sobre la carrera',
+    campos: [
+      { key: 'carrera_sigue_deseada', label: '¿Sigue deseando esta carrera?' },
+    ],
+  },
+  {
     key: 'relevancia' as const,
-    label: 'Relevancia profesional',
+    label: 'Relevancia profesional de la asignatura',
     campos: [
       { key: 'utilidad_profesional', label: 'Utilidad profesional' },
       { key: 'aplicacion_practica', label: 'Aplicación práctica' },
@@ -73,7 +80,7 @@ const DIMENSIONES = [
   },
   {
     key: 'docente' as const,
-    label: 'Docente',
+    label: 'Puntualidad, trato, dominio, estrategias, disponibilidad',
     campos: [
       { key: 'puntualidad_docente', label: 'Puntualidad' },
       { key: 'trato_docente', label: 'Trato al estudiante' },
@@ -89,6 +96,36 @@ const DIMENSIONES = [
       { key: 'satisfaccion_tutorias', label: 'Satisfacción con tutorías' },
       { key: 'facilidad_reserva_tutoria', label: 'Facilidad de reserva' },
     ],
+  },
+]
+
+// Agrupación de alto nivel: separa visualmente qué es del ESTUDIANTE,
+// qué es del CURSO y qué es evaluación específica al DOCENTE — pedido
+// explícito del profesor tras confundir "feedback curso" con "docente".
+const GRUPOS = [
+  {
+    titulo: 'Estudiante — autopercepción y carrera',
+    icono: '🎓',
+    color: 'border-indigo-800/50',
+    dims: ['autopercepcion', 'carrera'] as const,
+  },
+  {
+    titulo: 'Curso — relevancia, contenido y evaluación',
+    icono: '📘',
+    color: 'border-teal-800/50',
+    dims: ['relevancia', 'contenido', 'evaluacion'] as const,
+  },
+  {
+    titulo: 'Evaluación al Docente',
+    icono: '👨‍🏫',
+    color: 'border-amber-800/50',
+    dims: ['docente'] as const,
+  },
+  {
+    titulo: 'Tutorías',
+    icono: '🗓️',
+    color: 'border-violet-800/50',
+    dims: ['tutorias'] as const,
   },
 ]
 
@@ -205,6 +242,19 @@ export default async function EncuestaParcialProfesorPage({
         )}
       </div>
 
+      {/* Tabs — mismo espacio que la encuesta inicial */}
+      <div className="flex gap-2 border-b border-gray-800">
+        <Link
+          href={`/dashboard/cursos/${cursoId}/encuesta`}
+          className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors"
+        >
+          ← Encuesta Inicial
+        </Link>
+        <span className="px-3 py-2 text-sm font-medium text-white border-b-2 border-indigo-500">
+          Encuesta de Progreso
+        </span>
+      </div>
+
       {/* Sin respuestas */}
       {sinRespuestas && (
         <div className="card text-center py-12 space-y-2">
@@ -242,37 +292,63 @@ export default async function EncuestaParcialProfesorPage({
             </div>
           </div>
 
-          {/* Dimensiones */}
-          <div className="space-y-4">
-            {DIMENSIONES.map(dim => {
-              const obj = resultados.promedios[dim.key]
-              if (!obj) return null
-              const promDim = promDimension(obj as Record<string, number | null>)
+          {/* Dimensiones — agrupadas por Estudiante / Curso / Docente / Tutorías */}
+          <div className="space-y-6">
+            {GRUPOS.map(grupo => {
+              const dimsDelGrupo = DIMENSIONES.filter(d => (grupo.dims as readonly string[]).includes(d.key))
+              const todosValoresGrupo: number[] = []
+              for (const dim of dimsDelGrupo) {
+                const obj = resultados.promedios[dim.key]
+                if (obj) Object.values(obj).forEach(v => { if (v !== null) todosValoresGrupo.push(v as number) })
+              }
+              const promGrupo = todosValoresGrupo.length > 0
+                ? Math.round(todosValoresGrupo.reduce((a, b) => a + b, 0) / todosValoresGrupo.length * 10) / 10
+                : null
+
               return (
-                <div key={dim.key} className="card space-y-3">
+                <div key={grupo.titulo} className={`space-y-3 border-l-2 pl-4 ${grupo.color}`}>
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-200 text-sm">{dim.label}</h3>
-                    {promDim !== null && (
-                      <span className={`text-sm font-bold ${colorProm(promDim)}`}>{promDim}/5</span>
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>{grupo.icono}</span> {grupo.titulo}
+                    </h2>
+                    {promGrupo !== null && (
+                      <span className={`text-sm font-bold ${colorProm(promGrupo)}`}>{promGrupo}/5</span>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {dim.campos.map(campo => {
-                      const val = (obj as Record<string, number | null>)[campo.key] ?? null
+                  <div className="space-y-3">
+                    {dimsDelGrupo.map(dim => {
+                      const obj = resultados.promedios[dim.key]
+                      if (!obj) return null
+                      const promDim = promDimension(obj as Record<string, number | null>)
                       return (
-                        <div key={campo.key} className="flex items-center gap-3">
-                          <span className={`text-xs w-48 flex-shrink-0 ${val !== null && val <= 2.5 ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
-                            {campo.label}
-                          </span>
-                          <div className="flex-1 bg-gray-800 rounded-full h-1.5 min-w-0">
-                            <div
-                              className={`h-1.5 rounded-full transition-all ${barColor(val)}`}
-                              style={{ width: val !== null ? `${(val / 5) * 100}%` : '0%' }}
-                            />
+                        <div key={dim.key} className="card space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-200 text-sm">{dim.label}</h3>
+                            {promDim !== null && (
+                              <span className={`text-sm font-bold ${colorProm(promDim)}`}>{promDim}/5</span>
+                            )}
                           </div>
-                          <span className={`text-xs font-medium w-8 text-right flex-shrink-0 ${colorProm(val)}`}>
-                            {val ?? '—'}
-                          </span>
+                          <div className="space-y-2">
+                            {dim.campos.map(campo => {
+                              const val = (obj as Record<string, number | null>)[campo.key] ?? null
+                              return (
+                                <div key={campo.key} className="flex items-center gap-3">
+                                  <span className={`text-xs w-48 flex-shrink-0 ${val !== null && val <= 2.5 ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
+                                    {campo.label}
+                                  </span>
+                                  <div className="flex-1 bg-gray-800 rounded-full h-1.5 min-w-0">
+                                    <div
+                                      className={`h-1.5 rounded-full transition-all ${barColor(val)}`}
+                                      style={{ width: val !== null ? `${(val / 5) * 100}%` : '0%' }}
+                                    />
+                                  </div>
+                                  <span className={`text-xs font-medium w-8 text-right flex-shrink-0 ${colorProm(val)}`}>
+                                    {val ?? '—'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )
                     })}
