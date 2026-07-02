@@ -268,7 +268,7 @@ export async function getResultadosEncuestaParcial(cursoId: string) {
     db.from('estudiantes').select('id', { count: 'exact', head: true })
       .eq('curso_id', cursoId).eq('profesor_id', user.id).eq('estado', 'activo'),
     db.from('encuesta_parcial')
-      .select(`*, estudiantes!inner(nombre, email, auth_user_id, encuesta_estudiante(uso_ia_comprension, uso_ia_resumen, uso_ia_ideas, uso_ia_redaccion, uso_ia_tareas, uso_ia_verificacion, uso_ia_critico, uso_ia_traduccion, uso_ia_idiomas))`)
+      .select(`*, estudiantes!inner(nombre, email, auth_user_id)`)
       .eq('curso_id', cursoId)
       .eq('tipo', 'mitad'),
   ])
@@ -276,6 +276,23 @@ export async function getResultadosEncuestaParcial(cursoId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const encuestas: any[] = encuestasRes.data ?? []
   const total_activos = totalRes.count ?? 0
+
+  // encuesta_estudiante no tiene FK hacia estudiantes (ambas apuntan a users vía
+  // auth_user_id), así que no se puede embeber via PostgREST. Se resuelve aparte.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const authIds = encuestas.map((e: any) => e.estudiantes?.auth_user_id).filter(Boolean)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const iaInicialPorAuthId = new Map<string, any>()
+  if (authIds.length > 0) {
+    const { data: iaInicialData } = await db
+      .from('encuesta_estudiante')
+      .select('auth_user_id, uso_ia_comprension, uso_ia_resumen, uso_ia_ideas, uso_ia_redaccion, uso_ia_tareas, uso_ia_verificacion, uso_ia_critico, uso_ia_traduccion, uso_ia_idiomas')
+      .in('auth_user_id', authIds)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const row of (iaInicialData ?? []) as any[]) {
+      iaInicialPorAuthId.set(row.auth_user_id, row)
+    }
+  }
   const total_respondieron = encuestas.length
   const porcentaje_respuesta = total_activos > 0
     ? Math.round(total_respondieron / total_activos * 100) : 0
@@ -347,7 +364,7 @@ export async function getResultadosEncuestaParcial(cursoId: string) {
   for (const k of iaKeys) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const valsAnterior = encuestas
-      .map((e: any) => e.estudiantes?.encuesta_estudiante?.[0]?.[`uso_ia_${k}`])
+      .map((e: any) => iaInicialPorAuthId.get(e.estudiantes?.auth_user_id)?.[`uso_ia_${k}`])
       .filter((v: unknown): v is number => v !== null && v !== undefined)
     const valsActual = encuestas
       .map((e: any) => e[`uso_ia_${k}_actual`])
