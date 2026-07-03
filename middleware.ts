@@ -33,7 +33,14 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refrescar la sesión — IMPORTANTE: no agregar lógica entre esto y getUser()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Token de refresco inválido/expirado (AuthApiError) no debe tumbar el middleware
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    user = null
+  }
 
   const pathname = request.nextUrl.pathname
 
