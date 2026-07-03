@@ -1,34 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getResultadosEncuestaParcial, getDetalleEncuestaParcial, getComparativaAutopercepcion } from '@/lib/actions/encuesta-parcial'
+import { getResultadosEncuestaParcial, getDetalleEncuestaParcial } from '@/lib/actions/encuesta-parcial'
 import { EncuestaParcialDetalleClient } from './encuesta-parcial-detail-client'
+import { EncuestaTabsHeader } from '@/components/cursos/EncuestaTabsHeader'
+import { LABELS_DIFICULTADES, colorProm } from '@/lib/encuesta-parcial-labels'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const LABELS_DIFICULTADES: Record<string, string> = {
-  comprension_temas: 'Dificultad para entender los temas',
-  falta_tiempo: 'Falta de tiempo',
-  carga_trabajo_externo: 'Trabajo/prácticas afectan el estudio',
-  problemas_tecnologicos: 'Problemas de conectividad o equipo',
-  dificultades_personales: 'Situación personal o familiar',
-  carga_otras_materias: 'Carga académica alta',
-  metodologia: 'No se adapta a la metodología',
-  bajo_rendimiento: 'Bajo rendimiento previo',
-  ninguna: 'Sin dificultades significativas',
-}
-
-const LABELS_IA: Record<string, string> = {
-  comprension: 'Comprensión de texto',
-  resumen: 'Resumir información',
-  ideas: 'Generación de ideas',
-  redaccion: 'Redacción',
-  tareas: 'Resolución de tareas',
-  verificacion: 'Verificación',
-  critico: 'Análisis crítico',
-  traduccion: 'Traducción',
-  idiomas: 'Idiomas',
-}
 
 const DIMENSIONES = [
   {
@@ -129,13 +107,6 @@ const GRUPOS = [
   },
 ]
 
-function colorProm(v: number | null): string {
-  if (v === null) return 'text-gray-500'
-  if (v <= 2.5) return 'text-red-400'
-  if (v <= 3.5) return 'text-amber-400'
-  return 'text-emerald-400'
-}
-
 function barColor(v: number | null): string {
   if (v === null) return 'bg-gray-700'
   if (v <= 2.5) return 'bg-red-500'
@@ -173,10 +144,9 @@ export default async function EncuestaParcialProfesorPage({
 
   if (!curso) redirect('/dashboard/cursos')
 
-  const [resultados, detalle, comparativaAuto] = await Promise.all([
+  const [resultados, detalle] = await Promise.all([
     getResultadosEncuestaParcial(cursoId),
     getDetalleEncuestaParcial(cursoId),
-    getComparativaAutopercepcion(cursoId),
   ])
 
   const sinRespuestas = !resultados || resultados.total_respondieron === 0
@@ -211,49 +181,21 @@ export default async function EncuestaParcialProfesorPage({
     }
   }
 
-  // Max para barras de dificultades
-  const maxDific = resultados?.distribucion_dificultades
-    ? Math.max(...Object.values(resultados.distribucion_dificultades), 1)
-    : 1
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link
-            href={`/dashboard/cursos/${cursoId}`}
-            className="text-sm text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 mb-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Volver al curso
-          </Link>
-          <h1 className="text-2xl font-bold text-white">Encuesta de Progreso</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{curso.asignatura}</p>
-        </div>
-        {resultados && (
-          <div className="text-right flex-shrink-0">
+      <EncuestaTabsHeader
+        cursoId={cursoId}
+        active="progreso"
+        title="Encuesta de Progreso"
+        subtitle={curso.asignatura}
+        aside={resultados && (
+          <>
             <p className={`text-3xl font-bold ${kpiRespColor}`}>{resultados.porcentaje_respuesta}%</p>
             <p className="text-xs text-gray-500">de respuesta</p>
-          </div>
+          </>
         )}
-      </div>
-
-      {/* Tabs — mismo espacio que la encuesta inicial */}
-      <div className="flex gap-2 border-b border-gray-800">
-        <Link
-          href={`/dashboard/cursos/${cursoId}/encuesta`}
-          className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors"
-        >
-          ← Encuesta Inicial
-        </Link>
-        <span className="px-3 py-2 text-sm font-medium text-white border-b-2 border-indigo-500">
-          Encuesta de Progreso
-        </span>
-      </div>
+      />
 
       {/* Sin respuestas */}
       {sinRespuestas && (
@@ -358,154 +300,18 @@ export default async function EncuestaParcialProfesorPage({
             })}
           </div>
 
-          {/* Comparativa uso IA */}
-          {resultados.comparativa_ia && Object.values(resultados.comparativa_ia).some(v => v.anterior !== null || v.actual !== null) && (
-            <div className="card space-y-4">
-              <h3 className="font-semibold text-gray-200 text-sm">Comparativa uso de IA</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-gray-500 border-b border-gray-800">
-                      <th className="text-left pb-2 font-medium">Dimensión</th>
-                      <th className="text-center pb-2 font-medium w-24">Inicio</th>
-                      <th className="text-center pb-2 font-medium w-8"></th>
-                      <th className="text-center pb-2 font-medium w-24">Ahora</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800/50">
-                    {Object.entries(resultados.comparativa_ia).map(([k, vals]) => {
-                      const diff = vals.anterior !== null && vals.actual !== null
-                        ? vals.actual - vals.anterior
-                        : null
-                      return (
-                        <tr key={k} className="py-1">
-                          <td className="py-1.5 text-gray-400">{LABELS_IA[k] ?? k}</td>
-                          <td className="py-1.5 text-center">
-                            <span className={`font-medium ${colorProm(vals.anterior)}`}>
-                              {vals.anterior ?? '—'}
-                            </span>
-                          </td>
-                          <td className="py-1.5 text-center">
-                            {diff === null ? (
-                              <span className="text-gray-600">=</span>
-                            ) : diff > 0.1 ? (
-                              <span className="text-emerald-400">↑</span>
-                            ) : diff < -0.1 ? (
-                              <span className="text-red-400">↓</span>
-                            ) : (
-                              <span className="text-gray-500">=</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 text-center">
-                            <span className={`font-medium ${colorProm(vals.actual)}`}>
-                              {vals.actual ?? '—'}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Comparativa Autopercepción — Inicial vs Parcial */}
-          {comparativaAuto && comparativaAuto.campos.length > 0 && (
-            <div className="card space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-gray-200 text-sm">Autopercepción Lingüística — Evolución</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {Object.values(comparativaAuto.inicial).some(v => v !== null)
-                      ? 'Encuesta inicial → Encuesta de progreso (mitad del curso)'
-                      : 'Solo datos de encuesta de progreso — no hay datos iniciales para comparar'}
-                  </p>
-                </div>
-                <span className="text-xs bg-indigo-900/30 text-indigo-400 border border-indigo-800/40 px-2 py-0.5 rounded-full flex-shrink-0">KEYHOLE</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-gray-500 border-b border-gray-800">
-                      <th className="text-left pb-2 font-medium">Dimensión</th>
-                      <th className="text-center pb-2 font-medium w-20">Inicial</th>
-                      <th className="text-center pb-2 font-medium w-8"></th>
-                      <th className="text-center pb-2 font-medium w-20">Parcial</th>
-                      <th className="text-center pb-2 font-medium w-16">Delta</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800/50">
-                    {comparativaAuto.campos.map(({ key, label }) => {
-                      const ini = comparativaAuto.inicial[key]
-                      const par = comparativaAuto.parcial[key]
-                      const diff = ini !== null && par !== null ? Math.round((par - ini) * 10) / 10 : null
-                      return (
-                        <tr key={key} className="py-1">
-                          <td className="py-1.5 text-gray-400">{label}</td>
-                          <td className="py-1.5 text-center">
-                            <span className={`font-medium ${ini !== null && ini <= 2.5 ? 'text-red-400' : ini !== null && ini <= 3.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {ini ?? <span className="text-gray-600">—</span>}
-                            </span>
-                          </td>
-                          <td className="py-1.5 text-center">
-                            {diff === null ? (
-                              <span className="text-gray-600">=</span>
-                            ) : diff > 0.1 ? (
-                              <span className="text-emerald-400">↑</span>
-                            ) : diff < -0.1 ? (
-                              <span className="text-red-400">↓</span>
-                            ) : (
-                              <span className="text-gray-500">=</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 text-center">
-                            <span className={`font-medium ${par !== null && par <= 2.5 ? 'text-red-400' : par !== null && par <= 3.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {par ?? <span className="text-gray-600">—</span>}
-                            </span>
-                          </td>
-                          <td className="py-1.5 text-center">
-                            {diff !== null ? (
-                              <span className={`font-mono text-xs font-bold ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-gray-500'}`}>
-                                {diff > 0 ? '+' : ''}{diff}
-                              </span>
-                            ) : (
-                              <span className="text-gray-600 text-xs">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Distribución de dificultades */}
-          {resultados.distribucion_dificultades && Object.keys(resultados.distribucion_dificultades).length > 0 && (
-            <div className="card space-y-3">
-              <h3 className="font-semibold text-gray-200 text-sm">Distribución de dificultades</h3>
-              <div className="space-y-2">
-                {Object.entries(resultados.distribucion_dificultades)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([key, count]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400 w-52 flex-shrink-0">
-                        {LABELS_DIFICULTADES[key] ?? key}
-                      </span>
-                      <div className="flex-1 bg-gray-800 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${key === 'ninguna' ? 'bg-emerald-600' : 'bg-amber-600'}`}
-                          style={{ width: `${(count / maxDific) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500 w-8 text-right flex-shrink-0">{count}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
+          {/* Comparativas, temas relevantes y satisfacción → ver pestaña "Reporte" */}
+          <div className="card flex items-center justify-between gap-3 bg-indigo-950/20 border-indigo-800/40">
+            <p className="text-xs text-gray-400">
+              Comparativas (uso de IA, autopercepción), satisfacción y temas/dificultades más frecuentes se muestran en la pestaña <span className="text-white font-medium">Reporte</span>.
+            </p>
+            <Link
+              href={`/dashboard/cursos/${cursoId}/encuesta-parcial/reporte`}
+              className="text-indigo-400 text-xs font-medium hover:text-indigo-300 whitespace-nowrap flex-shrink-0"
+            >
+              Ver Reporte →
+            </Link>
+          </div>
 
           {/* Tabla de detalle por estudiante — client component (colapsable) */}
           <EncuestaParcialDetalleClient detalle={detalle} />

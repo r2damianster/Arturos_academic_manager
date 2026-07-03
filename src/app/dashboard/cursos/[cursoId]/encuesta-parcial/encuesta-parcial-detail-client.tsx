@@ -1,25 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-
-const LABELS_DIFICULTADES: Record<string, string> = {
-  comprension_temas: 'Dificultad para entender los temas',
-  falta_tiempo: 'Falta de tiempo',
-  carga_trabajo_externo: 'Trabajo/prácticas afectan el estudio',
-  problemas_tecnologicos: 'Problemas de conectividad o equipo',
-  dificultades_personales: 'Situación personal o familiar',
-  carga_otras_materias: 'Carga académica alta',
-  metodologia: 'No se adapta a la metodología',
-  bajo_rendimiento: 'Bajo rendimiento previo',
-  ninguna: 'Sin dificultades significativas',
-}
-
-function colorProm(v: number | null): string {
-  if (v === null) return 'text-gray-500'
-  if (v <= 2.5) return 'text-red-400'
-  if (v <= 3.5) return 'text-amber-400'
-  return 'text-emerald-400'
-}
+import { LABELS_DIFICULTADES, colorProm } from '@/lib/encuesta-parcial-labels'
 
 function avgFields(obj: Record<string, unknown>, keys: string[]): number | null {
   const vals = keys.map(k => obj[k]).filter((v): v is number => typeof v === 'number' && v !== null)

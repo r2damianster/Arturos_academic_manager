@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { EncuestaTablaCliente } from '@/components/cursos/encuesta-tabla-cliente'
 import { PerfilPedagogicoPanel } from '@/components/cursos/PerfilPedagogicoPanel'
+import { EncuestaTabsHeader } from '@/components/cursos/EncuestaTabsHeader'
 import type { FilaEncuesta } from '@/components/cursos/encuesta-tabla-cliente'
 import type { Tables } from '@/types/database.types'
 
@@ -146,36 +146,19 @@ export default async function EncuestaPage({ params }: { params: Promise<{ curso
   ].join('\n')
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href={`/dashboard/cursos/${cursoId}`} className="btn-ghost p-2">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Encuesta del grupo</h1>
-          <p className="text-gray-400 text-sm">
+      <EncuestaTabsHeader
+        cursoId={cursoId}
+        active="inicial"
+        title="Encuesta del grupo"
+        subtitle={
+          <>
             {curso.asignatura} · {curso.codigo} · {total} respuestas de {estudiantes.length} estudiantes
             {conProblemas > 0 && <span className="text-orange-400 ml-2">· ⚠ {conProblemas} reportaron situaciones</span>}
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs — encuesta inicial vs encuesta de progreso, siempre visible en el mismo espacio */}
-      <div className="flex gap-2 border-b border-gray-800">
-        <span className="px-3 py-2 text-sm font-medium text-white border-b-2 border-indigo-500">
-          Encuesta Inicial
-        </span>
-        <Link
-          href={`/dashboard/cursos/${cursoId}/encuesta-parcial`}
-          className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors"
-        >
-          Encuesta de Progreso →
-        </Link>
-      </div>
+          </>
+        }
+      />
 
       {total === 0 ? (
         <div className="card text-center py-16">
