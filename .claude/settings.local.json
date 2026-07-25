@@ -45,7 +45,8 @@
       "Bash(awk '{print $NF}')"
     ],
     "additionalDirectories": [
-      "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory"
+      "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory",
+      "C:\\Users\\User\\Documents\\Desarrollo Web\\gestor-universitario-next\\.graphify-tmp"
     ]
   }
 }

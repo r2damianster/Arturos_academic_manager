@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProfesoresManager } from '@/components/admin/profesores-manager'
 import { CopyButton } from '@/components/admin/copy-button'
+import { KeepalivePanel } from '@/components/admin/KeepalivePanel'
 import { ReemplazantesPanel } from '@/components/config/ReemplazantesPanel'
 import { getReemplazantes } from '@/lib/actions/reemplazantes'
 
@@ -226,6 +227,8 @@ export default async function ConfigPage({
               </p>
             </div>
           </div>
+
+          <KeepalivePanel />
         </>
       )}
     </div>

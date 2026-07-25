@@ -10,3 +10,6 @@ dist/
 *.tsbuildinfo
 
 .vercel
+
+# graphify-out
+graphify-out/

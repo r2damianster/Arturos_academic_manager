@@ -1,0 +1,32 @@
+# Documents and media
+*.md
+*.pdf
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+
+# Directories
+public/
+docs/
+.github/
+.claude/
+.vercel/
+supabase/migrations/
+.next/
+node_modules/
+out/
+dist/
+.graphify-tmp/
+
+# Specific root files
+AI_AGENTS.md
+CHANGELOG.md
+CLAUDE.md
+SETUP.md
+QWEN.md
+README.md
+tmpcookies.txt
