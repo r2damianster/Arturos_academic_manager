@@ -93,14 +93,44 @@ export async function GET(req) {
         const rows = await selectResponse.json();
         const rowsCount = Array.isArray(rows) ? rows.length : 0;
 
-        console.log(`🟢 keep-alive: INSERT + DELETE + SELECT successful. DB active. Estudiantes: ${rowsCount}`);
+        // 4. UPDATE sistema_status con timestamp de última ejecución
+        const now = new Date().toISOString();
+        const nextExecution = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+        const updateStatusResponse = await fetch(
+            `${SB_URL}/rest/v1/sistema_status?id=eq.keep-alive-status`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'apikey':        SB_SERVICE,
+                    'Authorization': `Bearer ${SB_SERVICE}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ultima_ejecucion: now,
+                    proxima_ejecucion_esperada: nextExecution,
+                    total_ejecuciones: 'total_ejecuciones + 1',  // incrementa
+                    ultima_operacion: 'INSERT + DELETE + SELECT ok',
+                    updated_at: now
+                })
+            }
+        );
+
+        if (!updateStatusResponse.ok) {
+            const text = await updateStatusResponse.text();
+            console.warn(`⚠ Status update failed (no-blocking): ${updateStatusResponse.status} ${text}`);
+        }
+
+        console.log(`🟢 keep-alive: INSERT + DELETE + SELECT successful. DB active. Estudiantes: ${rowsCount}. Last run: ${now}`);
 
         return Response.json({
             success: true,
             warmed: true,
-            operations: ['INSERT heartbeat', 'DELETE old records', 'SELECT check'],
+            operations: ['INSERT heartbeat', 'DELETE old records', 'SELECT check', 'UPDATE status'],
             returnedRows: rowsCount,
-            timestamp: new Date().toISOString()
+            lastExecution: now,
+            nextExpected: nextExecution,
+            timestamp: now
         });
     } catch (error) {
         console.error('❌ keep-alive error:', error.message);
