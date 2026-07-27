@@ -34,7 +34,47 @@ export async function GET(req) {
     }
 
     try {
-        const response = await fetch(
+        // 1. INSERT heartbeat (WRITE a BD)
+        const insertResponse = await fetch(
+            `${SB_URL}/rest/v1/sistema_heartbeat`,
+            {
+                method: 'POST',
+                headers: {
+                    'apikey':        SB_SERVICE,
+                    'Authorization': `Bearer ${SB_SERVICE}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    evento: 'keep-alive-ping',
+                    endpoint: 'api/cron/keep-alive'
+                })
+            }
+        );
+
+        if (!insertResponse.ok) {
+            const text = await insertResponse.text();
+            throw new Error(`Heartbeat INSERT failed: ${insertResponse.status} ${text}`);
+        }
+
+        // 2. DELETE old pings (cleanup, + otra WRITE)
+        const deleteResponse = await fetch(
+            `${SB_URL}/rest/v1/sistema_heartbeat?timestamp=lte.${new Date(Date.now() - 3600000).toISOString()}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'apikey':        SB_SERVICE,
+                    'Authorization': `Bearer ${SB_SERVICE}`
+                }
+            }
+        );
+
+        if (!deleteResponse.ok) {
+            const text = await deleteResponse.text();
+            throw new Error(`Heartbeat DELETE failed: ${deleteResponse.status} ${text}`);
+        }
+
+        // 3. Verificar estado BD con SELECT
+        const selectResponse = await fetch(
             `${SB_URL}/rest/v1/estudiantes?select=id&limit=1`,
             {
                 method: 'GET',
@@ -45,19 +85,20 @@ export async function GET(req) {
             }
         );
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Supabase keep-alive failed: ${response.status} ${text}`);
+        if (!selectResponse.ok) {
+            const text = await selectResponse.text();
+            throw new Error(`Select query failed: ${selectResponse.status} ${text}`);
         }
 
-        const rows = await response.json();
+        const rows = await selectResponse.json();
         const rowsCount = Array.isArray(rows) ? rows.length : 0;
 
-        console.log(`🟢 keep-alive: database woke up, estudiantes query returned ${rowsCount} rows`);
+        console.log(`🟢 keep-alive: INSERT + DELETE + SELECT successful. DB active. Estudiantes: ${rowsCount}`);
 
         return Response.json({
             success: true,
             warmed: true,
+            operations: ['INSERT heartbeat', 'DELETE old records', 'SELECT check'],
             returnedRows: rowsCount,
             timestamp: new Date().toISOString()
         });
