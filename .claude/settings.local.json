@@ -42,11 +42,13 @@
       "Bash(Remove-Item \"c:/Users/User/Documents/Desarrollo Web/gestor-universitario-next/src/components/cursos/editar-curso-panel.tsx\" -Force)",
       "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('C:/Users/User/.claude/settings.json','utf8'\\); const j=JSON.parse\\(s\\); console.log\\(JSON.stringify\\(j.hooks, null, 2\\)\\)\")",
       "Bash(grep -E \"\\\\.sql$\")",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(cd \"c:/Users/User/Documents/Desarrollo Web/gestor-universitario-next\" && grep -n \"return \\(\" src/app/auth/login/page.tsx | head -3; echo \"---\"; sed -n '/return \\(/,+5p' src/app/auth/login/page.tsx | head -10)"
     ],
     "additionalDirectories": [
       "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-gestor-universitario-next\\memory",
-      "C:\\Users\\User\\Documents\\Desarrollo Web\\gestor-universitario-next\\.graphify-tmp"
+      "C:\\Users\\User\\Documents\\Desarrollo Web\\gestor-universitario-next\\.graphify-tmp",
+      "C:\\Users\\User\\Documents\\Desarrollo Web\\gestor-universitario-next\\src\\app\\auth\\login"
     ]
   },
   "enabledMcpjsonServers": [
