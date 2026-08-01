@@ -141,10 +141,10 @@ export default function LoginPage() {
   const tabActive =
     'flex-1 py-2.5 text-sm font-medium transition-colors bg-brand-600/20 text-brand-400 border-b-2 border-brand-500'
   const tabInactive =
-    'flex-1 py-2.5 text-sm font-medium transition-colors text-gray-500 hover:text-gray-300 border-b-2 border-transparent'
+    'flex-1 py-2.5 text-sm font-medium transition-colors text-gray-400 hover:text-gray-200 border-b-2 border-transparent'
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo / Header */}
         <div className="text-center mb-8">
@@ -371,6 +371,6 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }
