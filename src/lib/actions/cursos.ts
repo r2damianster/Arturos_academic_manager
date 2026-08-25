@@ -467,6 +467,22 @@ export async function finalizarCurso(
   }
 }
 
+export async function finalizarCursosVencidos(): Promise<void> {
+  const supabase = await createClient()
+  const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const hoy = new Date().toISOString().split('T')[0]
+
+  await db.from('cursos')
+    .update({ estado: 'finalizado' })
+    .eq('profesor_id', user.id)
+    .eq('estado', 'activo')
+    .not('fecha_fin', 'is', null)
+    .lt('fecha_fin', hoy)
+}
+
 export async function reincluirEstudianteEnRiesgo(
   cursoId: string,
   estudianteId: string,

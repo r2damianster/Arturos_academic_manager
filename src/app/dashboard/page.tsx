@@ -6,6 +6,7 @@ import { TutoriasPendientesPanel } from '@/components/dashboard/TutoriasPendient
 import { limpiarHorariosVencidos } from '@/lib/actions/tutorias'
 import { NotificacionesPanel } from '@/components/dashboard/NotificacionesPanel'
 import { getNotificacionesProactivas } from '@/lib/actions/notificaciones'
+import { finalizarCursosVencidos } from '@/lib/actions/cursos'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -16,6 +17,7 @@ export default async function DashboardPage() {
 
   await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
   await limpiarHorariosVencidos()
+  await finalizarCursosVencidos()
 
   const hoy = new Date().toISOString().split('T')[0]
 
