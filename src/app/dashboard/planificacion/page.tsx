@@ -16,10 +16,13 @@ export default async function PlanificacionPage() {
       .eq('profesor_id', user.id),
     supabase
       .from('cursos')
-      .select('id, asignatura')
+      .select('id, asignatura, estado')
       .eq('profesor_id', user.id)
       .order('asignatura', { ascending: true }),
   ])
+
+  const cursosActivos = ((todosCursos ?? []) as { id: string; asignatura: string; estado?: string | null }[])
+    .filter(c => !c.estado || c.estado === 'activo')
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -28,7 +31,7 @@ export default async function PlanificacionPage() {
         <p className="text-gray-400 text-sm mt-1">Planifica, inicia y realiza seguimiento de tus clases</p>
       </div>
       <Suspense>
-        <PlanificacionClient clases={clases ?? []} cursos={todosCursos ?? []} profesorId={user.id} />
+        <PlanificacionClient clases={clases ?? []} cursos={cursosActivos} profesorId={user.id} />
       </Suspense>
     </div>
   )

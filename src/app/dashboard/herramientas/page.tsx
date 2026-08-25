@@ -9,11 +9,12 @@ export default async function HerramientasPage() {
   if (!user) return null
 
   const [{ data: cursos }, { data: categorias }] = await Promise.all([
-    db.from('cursos').select('id, asignatura, codigo').eq('profesor_id', user.id).order('asignatura'),
+    db.from('cursos').select('id, asignatura, codigo, estado').eq('profesor_id', user.id).order('asignatura'),
     db.from('grupo_categorias').select('id, nombre, valores, orden').order('orden'),
   ])
 
-  const cursosData = (cursos ?? []) as { id: string; asignatura: string; codigo: string }[]
+  const cursosData = ((cursos ?? []) as { id: string; asignatura: string; codigo: string; estado?: string | null }[])
+    .filter(c => !c.estado || c.estado === 'activo')
   const categoriasData = (categorias ?? []) as { id: string; nombre: string; valores: string[]; orden: number }[]
   const primerCurso = cursosData[0] ?? null
 

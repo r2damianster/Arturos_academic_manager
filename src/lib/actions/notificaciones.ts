@@ -30,6 +30,7 @@ export async function getNotificacionesProactivas(): Promise<Notificacion[]> {
         .from('cursos')
         .select('id, asignatura, alertas_silenciadas')
         .eq('profesor_id', user.id)
+        .eq('estado', 'activo')
 
       for (const curso of (cursos ?? []) as { id: string; asignatura: string; alertas_silenciadas?: Record<string, unknown> | null }[]) {
         if (curso.alertas_silenciadas?.riesgo) continue
@@ -80,6 +81,7 @@ export async function getNotificacionesProactivas(): Promise<Notificacion[]> {
         .from('cursos')
         .select('id, asignatura, fecha_inicio, fecha_fin, encuesta_parcial_habilitada, alertas_silenciadas')
         .eq('profesor_id', user.id)
+        .eq('estado', 'activo')
 
       for (const curso of (cursosEncuesta ?? []) as any[]) {
         if (!curso.encuesta_parcial_habilitada || !curso.fecha_inicio || !curso.fecha_fin) continue
@@ -133,7 +135,7 @@ export async function getNotificacionesProactivas(): Promise<Notificacion[]> {
 
     // ── 4. Trabajos vencidos sin entregar ─────────────────────────────────────
     try {
-      const { data: cursosP } = await db.from('cursos').select('id').eq('profesor_id', user.id)
+      const { data: cursosP } = await db.from('cursos').select('id').eq('profesor_id', user.id).eq('estado', 'activo')
       const cursoIds = (cursosP ?? []).map((c: any) => c.id)
       if (cursoIds.length > 0) {
         const { count } = await db

@@ -12,12 +12,13 @@ export default async function ActividadesPage() {
     getActividades({ archivada: false }),
     supabase
       .from('cursos')
-      .select('id, asignatura, codigo')
+      .select('id, asignatura, codigo, estado')
       .eq('profesor_id', user.id)
       .order('asignatura'),
   ])
 
-  const cursos = (cursosRaw ?? []) as { id: string; asignatura: string; codigo: string }[]
+  const cursos = ((cursosRaw ?? []) as { id: string; asignatura: string; codigo: string; estado?: string | null }[])
+    .filter(c => !c.estado || c.estado === 'activo')
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">

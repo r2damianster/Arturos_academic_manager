@@ -35,7 +35,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
-    db.from('cursos').select('id, asignatura, codigo, periodo, tipo').order('created_at', { ascending: false }).limit(5),
+    db.from('cursos').select('id, asignatura, codigo, periodo, tipo, estado').eq('estado', 'activo').order('created_at', { ascending: false }).limit(5),
     db.from('asistencia').select('id', { count: 'exact', head: true }).eq('fecha', hoy),
     db.from('eventos_profesor').select('*').eq('profesor_id', user.id).order('fecha_inicio'),
     db.from('horarios_clases').select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, obligatoria, cursos(id, asignatura, fecha_inicio, fecha_fin)').eq('profesor_id', user.id),
