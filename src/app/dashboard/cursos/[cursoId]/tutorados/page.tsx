@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTutorados } from '@/lib/actions/tutorados'
 import { TutoradosPanel } from '@/components/tutorados/TutoradosPanel'
+import { DuplicarCursoModal } from '@/components/cursos/DuplicarCursoModal'
 
 export default async function CursoTutoradosPage({
   params,
@@ -46,7 +47,8 @@ export default async function CursoTutoradosPage({
           </p>
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <DuplicarCursoModal cursoId={cursoId} codigoActual={curso.codigo} periodoActual={curso.periodo} />
           <Link
             href={`/dashboard/cursos/${cursoId}/estudiantes/importar`}
             className="btn-ghost text-sm px-3 py-1.5">

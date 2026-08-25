@@ -5,6 +5,7 @@ import { EstudiantesMetricsTable } from '@/components/cursos/estudiantes-metrics
 import { RiesgoPanel } from '@/components/cursos/RiesgoPanel'
 import { EncuestaBanner } from '@/components/cursos/EncuestaBanner'
 import { ExportDatasetButton } from '@/components/cursos/ExportDatasetButton'
+import { DuplicarCursoModal } from '@/components/cursos/DuplicarCursoModal'
 import { CierreParcialesPanel } from '@/components/cursos/CierreParcialesPanel'
 import { RiesgoHistoricoPanel } from '@/components/cursos/RiesgoHistoricoPanel'
 import { getSnapshotsParcial } from '@/lib/actions/parcial'
@@ -280,6 +281,9 @@ export default async function CursoDetailPage({
             </Link>
             <div className="mt-1">
               <ExportDatasetButton cursoId={cursoId} />
+            </div>
+            <div className="mt-1">
+              <DuplicarCursoModal cursoId={cursoId} codigoActual={curso.codigo} periodoActual={curso.periodo} />
             </div>
           </div>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

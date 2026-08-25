@@ -232,6 +232,7 @@ export type Database = {
           auth_user_id: string | null
           estado: string
           retirado_at: string | null
+          persona_id: string
           created_at: string
         }
         Insert: {
@@ -244,6 +245,7 @@ export type Database = {
           auth_user_id?: string | null
           estado?: string
           retirado_at?: string | null
+          persona_id?: string
           created_at?: string
         }
         Update: {
@@ -253,6 +255,7 @@ export type Database = {
           auth_user_id?: string | null
           estado?: string
           retirado_at?: string | null
+          persona_id?: string
         }
         Relationships: [
           {
