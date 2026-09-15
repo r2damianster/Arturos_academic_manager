@@ -388,7 +388,7 @@ REGLAS:
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+        model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 300,
         temperature: 0.4,
