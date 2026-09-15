@@ -33,7 +33,22 @@ interface LogroItem {
 
 type Tab = 'html' | 'guia' | 'evaluacion'
 type TipoPregunta = 'multichoice' | 'truefalse' | 'matching' | 'shortanswer'
-type Step = 1 | 2 | 3
+type Step = 1 | 2 | 3 | 4
+
+interface OutlineActividad {
+  key: string
+  actividad: string
+  recurso: string
+  incluido: boolean
+}
+
+interface OutlineBitacora {
+  bitacoraId: string
+  fecha: string
+  tema: string
+  observaciones: string
+  actividades: OutlineActividad[]
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -164,7 +179,11 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const [totalPreguntas, setTotalPreguntas] = useState(10)
   const [categoriaMoodle, setCategoriaMoodle] = useState('')
 
-  // Paso 3
+  // Paso 3 — revisar outline
+  const [outline, setOutline] = useState<OutlineBitacora[]>([])
+  const [loadingOutline, setLoadingOutline] = useState(false)
+
+  // Paso 4
   const [generating, setGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState('')
   const [genError, setGenError] = useState<string | null>(null)
@@ -236,9 +255,10 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  // Resetear semana override cuando cambian las bitácoras seleccionadas
+  // Resetear semana override y outline cuando cambian las bitácoras seleccionadas
   useEffect(() => {
     setSemanaOverride(null)
+    setOutline([])
   }, [selectedIds])
 
   function resetearChat() {
@@ -262,6 +282,108 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     }
   }
 
+  // ── Paso 3: Revisar outline ──
+
+  async function handleIrARevisar() {
+    if (selectedIds.size === 0) return
+    setLoadingOutline(true)
+    setGenError(null)
+    const supabase = createClient()
+    const ids = Array.from(selectedIds)
+    const { data } = await supabase
+      .from('bitacora_clase')
+      .select('id, fecha, tema, actividades_json, observaciones')
+      .in('id', ids)
+      .order('fecha', { ascending: true })
+
+    const built: OutlineBitacora[] = (data ?? []).map(b => {
+      const acts = Array.isArray(b.actividades_json)
+        ? (b.actividades_json as { actividad: string; recurso: string }[])
+        : []
+      return {
+        bitacoraId: b.id,
+        fecha: b.fecha,
+        tema: b.tema ?? '',
+        observaciones: b.observaciones ?? '',
+        actividades: acts.map((a, i) => ({
+          key: `${b.id}-${i}`,
+          actividad: a.actividad ?? '',
+          recurso: a.recurso ?? '',
+          incluido: true,
+        })),
+      }
+    })
+
+    setOutline(built)
+    setLoadingOutline(false)
+    setStep(3)
+  }
+
+  function updateOutlineBitacora(bitacoraId: string, patch: Partial<Pick<OutlineBitacora, 'tema' | 'observaciones'>>) {
+    setOutline(prev => prev.map(b => (b.bitacoraId === bitacoraId ? { ...b, ...patch } : b)))
+  }
+
+  function toggleActividad(bitacoraId: string, key: string) {
+    setOutline(prev =>
+      prev.map(b =>
+        b.bitacoraId === bitacoraId
+          ? { ...b, actividades: b.actividades.map(a => (a.key === key ? { ...a, incluido: !a.incluido } : a)) }
+          : b
+      )
+    )
+  }
+
+  function updateActividad(bitacoraId: string, key: string, patch: Partial<Pick<OutlineActividad, 'actividad' | 'recurso'>>) {
+    setOutline(prev =>
+      prev.map(b =>
+        b.bitacoraId === bitacoraId
+          ? { ...b, actividades: b.actividades.map(a => (a.key === key ? { ...a, ...patch } : a)) }
+          : b
+      )
+    )
+  }
+
+  function removeActividad(bitacoraId: string, key: string) {
+    setOutline(prev =>
+      prev.map(b =>
+        b.bitacoraId === bitacoraId ? { ...b, actividades: b.actividades.filter(a => a.key !== key) } : b
+      )
+    )
+  }
+
+  function addActividad(bitacoraId: string) {
+    setOutline(prev =>
+      prev.map(b =>
+        b.bitacoraId === bitacoraId
+          ? {
+              ...b,
+              actividades: [
+                ...b.actividades,
+                { key: `${bitacoraId}-nueva-${Date.now()}`, actividad: '', recurso: '', incluido: true },
+              ],
+            }
+          : b
+      )
+    )
+  }
+
+  function buildOverrideTexto(): string {
+    return outline
+      .map(b => {
+        const acts = b.actividades.filter(a => a.incluido && a.actividad.trim())
+        const actsTxt = acts
+          .map(a => `  - ${a.actividad}${a.recurso ? ` (recurso: ${a.recurso})` : ''}`)
+          .join('\n')
+        return [
+          `Fecha: ${b.fecha}`,
+          `Tema: ${b.tema.trim() || 'Sin definir'}`,
+          `Actividades:\n${actsTxt || '  (ninguna registrada)'}`,
+          `Observaciones: ${b.observaciones.trim() || 'ninguna'}`,
+        ].join('\n')
+      })
+      .join('\n\n---\n\n')
+  }
+
   async function handleGenerar() {
     if (selectedIds.size === 0) return
     setGenerating(true)
@@ -271,6 +393,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     const ids = Array.from(selectedIds)
     const asignatura = selectedCurso?.asignatura ?? ''
     const instruccion = instruccionAdicional.trim() || undefined
+    const clasesOverride = outline.length > 0 ? buildOverrideTexto() : undefined
 
     if (activeTab === 'html') {
       const result = await generarHtmlSemanal({
@@ -279,12 +402,13 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         semanaNum: semanaFinal,
         instruccionAdicional: instruccion,
         cursoId: selectedCursoId ?? undefined,
+        clasesOverride,
       })
       if (result.error) {
         setGenError(result.error)
       } else {
         setGeneratedContent(result.html)
-        setStep(3)
+        setStep(4)
       }
     } else if (activeTab === 'evaluacion') {
       if (tiposPregunta.size === 0) {
@@ -301,12 +425,13 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         categoria: categoriaMoodle.trim() || undefined,
         instruccionAdicional: instruccion,
         cursoId: selectedCursoId ?? undefined,
+        clasesOverride,
       })
       if (result.error) {
         setGenError(result.error)
       } else {
         setGeneratedContent(result.xml)
-        setStep(3)
+        setStep(4)
       }
     } else {
       const logroSeleccionado = logros.find(l => l.id === selectedLogroId)
@@ -318,12 +443,13 @@ export function GeneradorPanel({ clases, onClose }: Props) {
         instruccionAdicional: instruccion,
         logroDescripcion: logroSeleccionado?.descripcion,
         cursoId: selectedCursoId ?? undefined,
+        clasesOverride,
       })
       if (result.error) {
         setGenError(result.error)
       } else {
         setGeneratedContent(result.guia)
-        setStep(3)
+        setStep(4)
       }
     }
     setGenerating(false)
@@ -407,7 +533,13 @@ export function GeneradorPanel({ clases, onClose }: Props) {
           <div>
             <h2 className="text-white font-semibold text-base">Generador de contenido semanal</h2>
             <p className="text-gray-500 text-xs mt-0.5">
-              {step === 1 ? 'Selecciona las clases a incluir' : step === 2 ? 'Revisa y configura' : 'Resultado listo para usar'}
+              {step === 1
+                ? 'Selecciona las clases a incluir'
+                : step === 2
+                ? 'Configura la generación'
+                : step === 3
+                ? 'Revisa, edita o quita elementos antes de generar'
+                : 'Resultado listo para usar'}
             </p>
           </div>
           <button
@@ -425,8 +557,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
               key={tab}
               onClick={() => {
                 setActiveTab(tab)
-                if (step === 3) {
+                if (step === 3 || step === 4) {
                   setStep(2)
+                  setOutline([])
                   setGeneratedContent('')
                   resetearChat()
                 }
@@ -446,7 +579,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
 
         {/* Pasos */}
         <div className="flex items-center gap-3 px-5 py-3 flex-shrink-0 bg-gray-900/50">
-          {[1, 2, 3].map(s => (
+          {[1, 2, 3, 4].map(s => (
             <div key={s} className="flex items-center gap-1.5">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                 step === s ? 'bg-brand-600 text-white' : step > s ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-500'
@@ -454,9 +587,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                 {step > s ? '✓' : s}
               </div>
               <span className={`text-xs ${step === s ? 'text-gray-200' : 'text-gray-600'}`}>
-                {s === 1 ? 'Clases' : s === 2 ? 'Configurar' : 'Resultado'}
+                {s === 1 ? 'Clases' : s === 2 ? 'Configurar' : s === 3 ? 'Revisar' : 'Resultado'}
               </span>
-              {s < 3 && <span className="text-gray-700 ml-1">›</span>}
+              {s < 4 && <span className="text-gray-700 ml-1">›</span>}
             </div>
           ))}
         </div>
@@ -784,8 +917,110 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             </div>
           )}
 
-          {/* ── PASO 3 ── */}
+          {/* ── PASO 3: Revisar outline ── */}
           {step === 3 && (
+            <div className="p-5 space-y-4">
+              <div className="rounded-lg bg-gray-900 border border-gray-800 p-3 text-gray-400 text-xs">
+                Marca o desmarca actividades, edita el texto o agrega elementos nuevos antes de generar. Los cambios aquí no modifican el plan original de la clase.
+              </div>
+
+              {loadingOutline ? (
+                <div className="space-y-2">
+                  {[1, 2].map(i => <div key={i} className="h-32 bg-gray-800 rounded-lg animate-pulse" />)}
+                </div>
+              ) : (
+                outline.map(b => (
+                  <div key={b.bitacoraId} className="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-gray-500 text-xs">{b.fecha}</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 mb-1">Tema</label>
+                      <input
+                        type="text"
+                        value={b.tema}
+                        onChange={e => updateOutlineBitacora(b.bitacoraId, { tema: e.target.value })}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-200 text-sm focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 mb-1">Actividades</label>
+                      <div className="space-y-1.5">
+                        {b.actividades.length === 0 && (
+                          <p className="text-gray-600 text-xs italic">Sin actividades. Agrega una abajo si quieres.</p>
+                        )}
+                        {b.actividades.map(a => (
+                          <div
+                            key={a.key}
+                            className={`flex items-start gap-2 p-2 rounded-lg border ${
+                              a.incluido ? 'bg-gray-800/60 border-gray-700' : 'bg-gray-900 border-gray-800 opacity-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={a.incluido}
+                              onChange={() => toggleActividad(b.bitacoraId, a.key)}
+                              className="mt-1.5 accent-brand-500 w-4 h-4 flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <input
+                                type="text"
+                                value={a.actividad}
+                                onChange={e => updateActividad(b.bitacoraId, a.key, { actividad: e.target.value })}
+                                placeholder="Actividad"
+                                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 text-xs focus:outline-none focus:border-brand-500"
+                              />
+                              <input
+                                type="text"
+                                value={a.recurso}
+                                onChange={e => updateActividad(b.bitacoraId, a.key, { recurso: e.target.value })}
+                                placeholder="Recurso (link, opcional)"
+                                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-500 text-xs focus:outline-none focus:border-brand-500"
+                              />
+                            </div>
+                            <button
+                              onClick={() => removeActividad(b.bitacoraId, a.key)}
+                              className="text-gray-600 hover:text-red-400 transition-colors text-xs px-1 flex-shrink-0"
+                              title="Quitar"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => addActividad(b.bitacoraId)}
+                        className="mt-2 text-xs text-brand-400 hover:text-brand-300 transition-colors"
+                      >
+                        + Agregar actividad
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 mb-1">Observaciones</label>
+                      <textarea
+                        value={b.observaciones}
+                        onChange={e => updateOutlineBitacora(b.bitacoraId, { observaciones: e.target.value })}
+                        rows={2}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-brand-500 resize-none"
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {genError && (
+                <div className="rounded-lg bg-red-900/20 border border-red-500/40 px-4 py-3 text-red-400 text-sm">
+                  {genError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── PASO 4 ── */}
+          {step === 4 && (
             <div className="p-5 space-y-4">
               {/* Textarea + botones descarga */}
               <div>
@@ -922,8 +1157,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             onClick={() => {
               if (step === 1) onClose()
               else if (step === 2) setStep(1)
+              else if (step === 3) setStep(2)
               else {
-                setStep(2)
+                setStep(outline.length > 0 ? 3 : 2)
                 setGeneratedContent('')
                 resetearChat()
               }
@@ -944,9 +1180,28 @@ export function GeneradorPanel({ clases, onClose }: Props) {
           )}
 
           {step === 2 && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleGenerar}
+                disabled={generating || seleccionadas === 0}
+                className="text-xs text-gray-500 hover:text-gray-300 transition-colors underline decoration-dotted underline-offset-4 disabled:opacity-40"
+              >
+                Saltar revisión y generar directo
+              </button>
+              <button
+                onClick={handleIrARevisar}
+                disabled={loadingOutline || seleccionadas === 0}
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {loadingOutline ? 'Cargando…' : 'Revisar →'}
+              </button>
+            </div>
+          )}
+
+          {step === 3 && (
             <button
               onClick={handleGenerar}
-              disabled={generating || seleccionadas === 0}
+              disabled={generating}
               className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {generating ? (
@@ -963,9 +1218,9 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             </button>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <button
-              onClick={() => { setStep(2); setGeneratedContent(''); resetearChat() }}
+              onClick={() => { setStep(outline.length > 0 ? 3 : 2); setGeneratedContent(''); resetearChat() }}
               className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-lg text-sm transition-colors"
             >
               ↻ Regenerar

@@ -173,6 +173,7 @@ export async function generarHtmlSemanal(params: {
   semanaNum: number
   instruccionAdicional?: string
   cursoId?: string
+  clasesOverride?: string
 }): Promise<{ html: string; error?: string }> {
   const supabase = await createClient()
 
@@ -185,7 +186,7 @@ export async function generarHtmlSemanal(params: {
   if (dbErr) return { html: '', error: `Error de base de datos: ${dbErr.message}` }
   if (!bitacoras?.length) return { html: '', error: 'No se encontraron las clases seleccionadas' }
 
-  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+  const clasesTexto = params.clasesOverride ?? formatBitacorasParaPrompt(bitacoras)
 
   let historialTexto = ''
   if (params.cursoId && bitacoras.length) {
@@ -219,6 +220,7 @@ export async function generarGuiaSemanal(params: {
   instruccionAdicional?: string
   logroDescripcion?: string
   cursoId?: string
+  clasesOverride?: string
 }): Promise<{ guia: string; error?: string }> {
   const supabase = await createClient()
 
@@ -231,7 +233,7 @@ export async function generarGuiaSemanal(params: {
   if (dbErr) return { guia: '', error: `Error de base de datos: ${dbErr.message}` }
   if (!bitacoras?.length) return { guia: '', error: 'No se encontraron las clases seleccionadas' }
 
-  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+  const clasesTexto = params.clasesOverride ?? formatBitacorasParaPrompt(bitacoras)
   const nivelLabel = params.nivel === 'avanzado' ? 'universitario avanzado (último año)' : 'universitario básico / introductorio'
 
   let historialTexto = ''
@@ -507,6 +509,7 @@ export async function generarEvaluacionMoodle(params: {
   categoria?: string
   instruccionAdicional?: string
   cursoId?: string
+  clasesOverride?: string
 }): Promise<{ xml: string; error?: string }> {
   const supabase = await createClient()
 
@@ -519,7 +522,7 @@ export async function generarEvaluacionMoodle(params: {
   if (dbErr) return { xml: '', error: `Error de base de datos: ${dbErr.message}` }
   if (!bitacoras?.length) return { xml: '', error: 'No se encontraron las clases seleccionadas' }
 
-  const clasesTexto = formatBitacorasParaPrompt(bitacoras)
+  const clasesTexto = params.clasesOverride ?? formatBitacorasParaPrompt(bitacoras)
 
   let historialTexto = ''
   if (params.cursoId && bitacoras.length) {
