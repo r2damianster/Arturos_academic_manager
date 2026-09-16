@@ -12,7 +12,7 @@ export default async function PlanificacionPage() {
   const [{ data: clases }, { data: todosCursos }] = await Promise.all([
     db
       .from('horarios_clases')
-      .select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, curso_id, cursos(id, asignatura, fecha_inicio, fecha_fin)')
+      .select('id, dia_semana, hora_inicio, hora_fin, tipo, centro_computo, curso_id, cursos(id, asignatura, fecha_inicio, fecha_fin, estado)')
       .eq('profesor_id', user.id),
     supabase
       .from('cursos')

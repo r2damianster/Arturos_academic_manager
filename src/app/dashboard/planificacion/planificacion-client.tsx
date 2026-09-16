@@ -18,6 +18,7 @@ interface Curso {
   asignatura: string
   fecha_inicio: string | null
   fecha_fin: string | null
+  estado?: string | null
 }
 
 interface Clase {

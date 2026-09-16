@@ -11,6 +11,7 @@ interface Curso {
   asignatura: string
   fecha_inicio: string | null
   fecha_fin: string | null
+  estado?: string | null
 }
 
 interface Clase {
@@ -152,7 +153,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
   const cursosUnicos = Array.from(
     new Map(
       clases
-        .filter(c => c.cursos)
+        .filter(c => c.cursos && (!c.cursos.estado || c.cursos.estado === 'activo'))
         .map(c => [c.cursos!.id, c.cursos!])
     ).values()
   )
