@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { generarHtmlSemanal, generarGuiaSemanal, generarEvaluacionMoodle, mejorarContenido } from '@/lib/actions/generar-contenido'
+import { actividadesDesdeBitacora } from '@/lib/bitacora-legacy'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     const supabase = createClient()
     supabase
       .from('bitacora_clase')
-      .select('id, fecha, tema, estado, actividades_json')
+      .select('id, fecha, tema, estado, actividades_json, actividades, materiales')
       .eq('curso_id', selectedCursoId)
       .in('estado', ['planificado', 'cumplido'])
       .order('fecha', { ascending: false })
@@ -245,7 +246,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
             fecha: b.fecha,
             tema: b.tema ?? '(sin tema)',
             estado: b.estado,
-            actividades_count: Array.isArray(b.actividades_json) ? (b.actividades_json as unknown[]).length : 0,
+            actividades_count: actividadesDesdeBitacora(b).length,
           }))
         )
         setLoadingBit(false)
@@ -293,14 +294,12 @@ export function GeneradorPanel({ clases, onClose }: Props) {
     const ids = Array.from(selectedIds)
     const { data } = await supabase
       .from('bitacora_clase')
-      .select('id, fecha, tema, actividades_json, observaciones')
+      .select('id, fecha, tema, actividades_json, observaciones, actividades, materiales')
       .in('id', ids)
       .order('fecha', { ascending: true })
 
     const built: OutlineBitacora[] = (data ?? []).map(b => {
-      const acts = Array.isArray(b.actividades_json)
-        ? (b.actividades_json as { actividad: string; recurso: string }[])
-        : []
+      const acts = actividadesDesdeBitacora(b)
       return {
         bitacoraId: b.id,
         fecha: b.fecha,

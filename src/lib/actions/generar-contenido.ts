@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { actividadesDesdeBitacora } from '@/lib/bitacora-legacy'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b'
@@ -129,15 +130,15 @@ interface BitacoraRaw {
   tema: string | null
   actividades_json: unknown
   observaciones: string | null
+  actividades?: string | null
+  materiales?: string | null
 }
 
 function formatBitacorasParaPrompt(bitacoras: BitacoraRaw[]): string {
   return bitacoras.map(b => {
-    const acts = Array.isArray(b.actividades_json)
-      ? (b.actividades_json as { actividad: string; recurso: string }[])
-          .map(a => `  - ${a.actividad}${a.recurso ? ` (recurso: ${a.recurso})` : ''}`)
-          .join('\n')
-      : ''
+    const acts = actividadesDesdeBitacora(b)
+      .map(a => `  - ${a.actividad}${a.recurso ? ` (recurso: ${a.recurso})` : ''}`)
+      .join('\n')
     return [
       `Fecha: ${b.fecha}`,
       `Tema: ${b.tema ?? 'Sin definir'}`,
@@ -155,7 +156,7 @@ async function fetchHistorialClases(
 ): Promise<string> {
   const { data } = await supabase
     .from('bitacora_clase')
-    .select('fecha, tema, actividades_json, observaciones')
+    .select('fecha, tema, actividades_json, observaciones, actividades, materiales')
     .eq('curso_id', cursoId)
     .eq('estado', 'cumplido')
     .lt('fecha', fechaLimite)
@@ -179,7 +180,7 @@ export async function generarHtmlSemanal(params: {
 
   const { data: bitacoras, error: dbErr } = await supabase
     .from('bitacora_clase')
-    .select('fecha, tema, actividades_json, observaciones')
+    .select('fecha, tema, actividades_json, observaciones, actividades, materiales')
     .in('id', params.bitacoraIds)
     .order('fecha', { ascending: true })
 
@@ -226,7 +227,7 @@ export async function generarGuiaSemanal(params: {
 
   const { data: bitacoras, error: dbErr } = await supabase
     .from('bitacora_clase')
-    .select('fecha, tema, actividades_json, observaciones')
+    .select('fecha, tema, actividades_json, observaciones, actividades, materiales')
     .in('id', params.bitacoraIds)
     .order('fecha', { ascending: true })
 
@@ -515,7 +516,7 @@ export async function generarEvaluacionMoodle(params: {
 
   const { data: bitacoras, error: dbErr } = await supabase
     .from('bitacora_clase')
-    .select('fecha, tema, actividades_json, observaciones')
+    .select('fecha, tema, actividades_json, observaciones, actividades, materiales')
     .in('id', params.bitacoraIds)
     .order('fecha', { ascending: true })
 
