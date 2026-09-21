@@ -1,11 +1,11 @@
 ---
 name: evaluar-participacion
-description: Registra, evalúa y sincroniza automáticamente las notas de participación, control de lectura y asistencia diaria para los cursos del Gestor Universitario del Prof. Arturo Rodríguez DIRECTAMENTE en Supabase Producción. Identifica estudiantes por nombre/apellido mediante fuzzy matching, filtra automáticamente a los estudiantes RETIRADOS y consulta al usuario qué hacer con estudiantes omitidos de las listas. Compatible con Antigravity y Claude Code.
+description: Registra, evalúa y sincroniza automáticamente las notas de participación, control de lectura y actividades en clase para los cursos del Gestor Universitario del Prof. Arturo Rodríguez DIRECTAMENTE en Supabase Producción. Identifica estudiantes por nombre/apellido mediante fuzzy matching, respeta la asistencia tomada a clase y consulta al usuario qué hacer con estudiantes omitidos de las listas. Compatible con Antigravity y Claude Code.
 ---
 
 # Evaluador y Registrador de Participación / Control de Lectura Diario
 
-Este skill define la guía estándar, automatizada y de **ejecución directa** para identificar estudiantes a partir de listas informales de clase (nombres/apellidos con errores tipográficos o nombres parciales), verificar su estado académico (Filtrar **Activos** vs **Retirados**), evaluar su nivel de participación o cumplimiento en controles de lectura para una fecha específica, y registrar los resultados en **Supabase Producción** (`hxsnyrutyyavvljxwgku`).
+Este skill define la guía estándar, automatizada y de **ejecución directa** para identificar estudiantes a partir de listas informales de clase (nombres/apellidos con errores tipográficos o nombres parciales), evaluar su nivel de participación o cumplimiento en controles de lectura para una fecha específica, y registrar los resultados en **Supabase Producción** (`hxsnyrutyyavvljxwgku`).
 
 ---
 
@@ -27,13 +27,23 @@ Este skill define la guía estándar, automatizada y de **ejecución directa** p
 
 ---
 
-## 🚫 Regla Estricta: Manejo de Estudiantes RETIRADOS (`estado = 'retirado'`)
+## 🛑 Regla Fundamental: Autonomía de la Asistencia a Clase (`asistencia`)
 
-1. **Filtro de Estado Inicial**: Antes de evaluar, la IA consulta las columnas `estado` y `retirado_at` en la tabla `estudiantes`.
-2. **Exclusión Automática de Inasistencias/Penalizaciones**:
-   - Los estudiantes con `estado = 'retirado'` o `retirado_at IS NOT NULL` **NO deben ser contabilizados como faltantes u omitidos por error**.
-   - No generan alertas de omisión ni se les impone nota 0 por inasistencia posterior a su fecha de retiro.
-   - En el reporte se marcan explícitamente con la etiqueta `[RETIRADO]`.
+1. **La asistencia a clase es independiente del desempeño evaluativo**: Incumplir un control de lectura o tarea NO convierte al estudiante en ausente si asistió a la sesión.
+2. **NO modificar arbitrariamente la tabla `asistencia`**:
+   - El registro de la asistencia física/virtual (`Presente`, `Ausente`, `Atraso`) tomado en el pase de lista se respeta estrictamente.
+   - Las calificaciones de cumplimiento o incumplimiento se registran **exclusivamente** en:
+     * Tabla `participacion` (`nivel`: 5 para Cumple Excelente, 1 para Incumple).
+     * Tabla `calificaciones_items` (`fuente`: `'en_curso'`, `nota`: 10.0 o 0.0).
+
+---
+
+## 🚫 Regla de Estudiantes RETIRADOS (`estado = 'retirado'`)
+
+1. **Filtro de Estado Inicial**: La IA consulta las columnas `estado` y `retirado_at` en la tabla `estudiantes`.
+2. **Exclusión Automática**:
+   - Los estudiantes con `estado = 'retirado'` o `retirado_at IS NOT NULL` **NO deben ser evaluados ni listados como faltantes o no calificados**.
+   - En los reportes se marcan explícitamente como `[RETIRADO]`.
 
 ---
 
@@ -91,36 +101,19 @@ Cuando el usuario suministre una lista de estudiantes en texto plano (ej: *"anth
 | `nohely rodriguez` | Nohely Alejandra Rodriguez Goya | `ab61e285-ee8c-494f-bc39-eec6d372a2d7` | `activo` |
 | `malany zambrano` | Melany Anahi Zambrano Molina | `1f0a06ec-b284-421d-a7da-80ea70296011` | `activo` |
 | `camelia romero` | Angie Camelia Romero Briones | `29cb9f68-910b-4e5e-a30b-1a7f536a3733` | `activo` |
-| *(Retirado)* | 1315493369 | `dfa16749-d0ed-40b5-b137-4708d73c6979` | **`retirado`** |
-| *(Retirado)* | Mirka Jimenez (F. Cedula) | `6fae847e-fc30-4249-b3f5-b86b3ba122c6` | **`retirado`** |
-| *(Retirado)* | Luis Pin (F. Cedula) | `5ead6956-69e8-42a8-8149-33b75ae797ee` | **`retirado`** |
 
 ---
 
-## 🚨 Regla Obligatoria de Manejo de Estudiantes Omitidos (SOLO ACTIVOS)
+## 📊 Reglas de Mapeo de Calificaciones en Supabase
 
-Si un estudiante está en estado **`activo`** en la nómina del curso pero **NO aparece en ninguna de las listas proporcionadas por el profesor**, la IA DEBE:
-
-1. **Detectar la omisión** filtrando únicamente estudiantes `estado = 'activo'`.
-2. **Preguntar explícitamente al usuario** qué trato darle:
-   - Opción A: Registrar como **Incumple (Nota 0 / Nivel 1 / Ausente)**.
-   - Opción B: Registrar como **Exonerado / Presente (Nivel 5)**.
-   - Opción C: Omitir registro.
-
----
-
-## 📊 Reglas de Mapeo de Calificaciones y Tablas en Supabase
-
-| Categoría | Calificación / Nota | `participacion.nivel` | `asistencia.estado` | Observación Generada |
+| Categoría | `participacion.nivel` | `calificaciones_items.nota` | `asistencia.estado` | Observación en Participación |
 |---|---|---|---|---|
-| **CUMPLEN EXCELENTE** | `10.0` | `5` | `Presente` | `[Actividad] - Cumple Excelente` |
-| **INCUMPLE / REPROBADO** | `0.0` | `1` | `Ausente` | `[Actividad] - Incumple` |
-| **RETIRADO** | *(Sin evaluación)* | *(Excluido)* | *(Excluido)* | `Estudiante retirado del curso` |
-| **OMITIDO (ACTIVO)** | `0.0` *(Pendiente)* | `1` *(Pendiente)* | `Ausente` | `[Actividad] - Omitido (Verificar)` |
+| **CUMPLEN EXCELENTE** | `5` | `10.0` | *(Sin cambios)* | `[Actividad] - Cumple Excelente` |
+| **INCUMPLE / REPROBADO** | `1` | `0.0` | *(Sin cambios)* | `[Actividad] - Incumple` |
 
 ---
 
-## ⚡ Script de Inserción Directa con Filtro de Retirados (TypeScript / Node.js)
+## ⚡ Script de Inserción Directa (TypeScript / Node.js)
 
 ```ts
 import { createClient } from '@supabase/supabase-js';
@@ -134,47 +127,36 @@ export async function registrarEvaluacionDia({
   cursoId,
   fecha,
   actividadNombre,
-  evaluaciones // Array<{ estudiante_id, cumple: boolean | null }>
+  evaluaciones // Array<{ estudiante_id, cumple: boolean }>
 }) {
-  // Consultar estado de los estudiantes para excluir retirados
-  const { data: estudiantes } = await supabase
-    .from('estudiantes')
-    .select('id, estado')
-    .eq('curso_id', cursoId);
-
-  const activosMap = new Set(
-    estudiantes?.filter(e => e.estado === 'activo' || !e.estado).map(e => e.id)
-  );
-
-  const evalActivos = evaluaciones.filter(e => activosMap.has(e.estudiante_id));
-
-  // 1. Inserción/Actualización en 'participacion'
-  const participaciones = evalActivos.map(e => ({
+  // 1. Inserción/Actualización exclusiva en 'participacion'
+  const participaciones = evaluaciones.map(e => ({
     profesor_id: '6d3391b6-68da-4127-a424-aa8a88b2a785',
     curso_id: cursoId,
     estudiante_id: e.estudiante_id,
     fecha,
-    nivel: e.cumple === true ? 5 : 1,
-    observacion: `${actividadNombre} - ${e.cumple === true ? 'Cumple Excelente' : 'Incumple'}`
+    nivel: e.cumple ? 5 : 1,
+    observacion: `${actividadNombre} - ${e.cumple ? 'Cumple Excelente' : 'Incumple'}`
   }));
 
   await supabase.from('participacion').upsert(participaciones, {
     onConflict: 'curso_id,estudiante_id,fecha'
   });
 
-  // 2. Inserción/Actualización en 'asistencia'
-  const asistencias = evalActivos.map(e => ({
+  // 2. Inserción/Actualización en 'calificaciones_items' (Notas en curso)
+  const calificaciones = evaluaciones.map(e => ({
     profesor_id: '6d3391b6-68da-4127-a424-aa8a88b2a785',
     curso_id: cursoId,
     estudiante_id: e.estudiante_id,
-    fecha,
-    estado: e.cumple === true ? 'Presente' : 'Ausente',
-    horas: 2,
-    observacion_part: actividadNombre
+    parcial: 1,
+    nombre_item: actividadNombre,
+    tipo: 'tarea',
+    nota: e.cumple ? 10 : 0,
+    fuente: 'en_curso'
   }));
 
-  await supabase.from('asistencia').upsert(asistencias, {
-    onConflict: 'curso_id,estudiante_id,fecha'
+  await supabase.from('calificaciones_items').upsert(calificaciones, {
+    onConflict: 'curso_id,estudiante_id,nombre_item,fuente'
   });
 }
 ```
