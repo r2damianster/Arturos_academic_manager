@@ -692,6 +692,18 @@ export function ModoClaseClient({
     return map
   })
 
+  useEffect(() => {
+    if (asistenciaInicial && asistenciaInicial.length > 0) {
+      setAsistencia(prev => {
+        const next = { ...prev }
+        for (const a of asistenciaInicial) {
+          if (a.estudiante_id) next[a.estudiante_id] = a.estado as EstadoA
+        }
+        return next
+      })
+    }
+  }, [asistenciaInicial])
+
   // Estado de participación inline
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
   const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>(() => {
@@ -703,6 +715,20 @@ export function ModoClaseClient({
     }
     return map
   })
+
+  useEffect(() => {
+    if (participacionInicial && participacionInicial.length > 0) {
+      setPartData(prev => {
+        const next = { ...prev }
+        for (const p of participacionInicial) {
+          if (p.estudiante_id) {
+            next[p.estudiante_id] = { nivel: p.nivel ?? null, obs: p.observacion ?? '' }
+          }
+        }
+        return next
+      })
+    }
+  }, [participacionInicial])
 
   // En Curso expandible por estudiante (inline, como participación)
   const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())
@@ -1609,12 +1635,13 @@ export function ModoClaseClient({
 
           {/* ── VISTA LISTA (compacta) ── */}
           {asistenciaVista === 'todos' && (() => {
+            const activeStudents = students.filter(s => s.estado !== 'retirado')
             return (
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-              {students.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes</p>
+              {activeStudents.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-8">Sin estudiantes activos</p>
               ) : (
-                students.map(s => {
+                activeStudents.map(s => {
                   const estado = asistencia[s.id]
                   const abierto = partAbierto.has(s.id)
                   const ecOpen = ecAbierto.has(s.id)
