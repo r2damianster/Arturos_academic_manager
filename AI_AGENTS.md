@@ -102,6 +102,13 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 
 ---
 
+## Skills disponibles (`.claude/skills/` y `.agents/skills/`)
+
+- **`subir-planificacion`**: Procesa, estructura e inserta automáticamente una planificación académica completa (sílabo, lista de temas, ejercicios, talleres, recursos y calendarios) en Supabase (`bitacora_clase` y `logros_aprendizaje`).
+- **`registrar-clase`**: Planifica una sesión individual, la marca como cumplida y registra la asistencia a partir de descripción en lenguaje natural.
+
+---
+
 ## Migraciones SQL (`supabase/migrations/`)
 
 Ejecutar en orden para inicializar la base de datos:

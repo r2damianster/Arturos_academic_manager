@@ -112,6 +112,10 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 - **deploy** — workflow completo de git sync + tsc check + commit + push
 - **docs-updater** — sincroniza CLAUDE.md con el estado real del código; úsalo con "actualiza la documentación"
 
+## Skills disponibles (`.claude/skills/` y `.agents/skills/`)
+- **`subir-planificacion`** — Carga masiva y estructurada de planificación/sílabo completo en Supabase
+- **`registrar-clase`** — Registro e ingreso individual de sesión, cumplido y asistencia
+
 ## Supabase — acceso y migraciones
 
 ### Aplicar migraciones (en orden de preferencia)
