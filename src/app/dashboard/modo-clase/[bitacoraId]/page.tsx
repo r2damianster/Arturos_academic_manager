@@ -30,7 +30,7 @@ export default async function ModoClaseActivaPage({
   const diaSemana = dayNames[dow]
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes] = await Promise.all([
+  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes] = await Promise.all([
     db
       .from('estudiantes')
       .select('id, nombre, email, tutoria, estado')
@@ -53,6 +53,10 @@ export default async function ModoClaseActivaPage({
       .select('estudiante_id, parcial, nombre_item, nota')
       .eq('curso_id', bitacora.curso_id)
       .eq('fuente', 'en_curso'),
+    db.from('participacion')
+      .select('estudiante_id, nivel, observacion')
+      .eq('curso_id', bitacora.curso_id)
+      .eq('fecha', bitacora.fecha),
   ])
 
   const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }[]
@@ -90,6 +94,7 @@ export default async function ModoClaseActivaPage({
       gruposUltimaSesion={ultimaSesionGrupos}
       plantillas={plantillas}
       itemsEnCurso={itemsEnCursoRes.data ?? []}
+      participacionInicial={participacionRes.data ?? []}
       numParciales={bitacora.cursos?.num_parciales ?? 2}
     />
   )

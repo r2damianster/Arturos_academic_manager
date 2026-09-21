@@ -47,6 +47,7 @@ type Props = {
   gruposUltimaSesion?: GrupoBase[] | null
   plantillas?: PlantillaGrupo[]
   itemsEnCurso?: { estudiante_id: string; parcial: number; nombre_item: string; nota: number | null }[]
+  participacionInicial?: { estudiante_id: string; nivel: number | null; observacion: string | null }[]
   numParciales?: number
 }
 
@@ -603,7 +604,7 @@ export function ModoClaseClient({
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
   gruposIniciales, categorias, gruposUltimaSesion, plantillas = [],
-  itemsEnCurso = [], numParciales = 2,
+  itemsEnCurso = [], participacionInicial = [], numParciales = 2,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -693,7 +694,15 @@ export function ModoClaseClient({
 
   // Estado de participación inline
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
-  const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>({})
+  const [partData, setPartData] = useState<Record<string, { nivel: number | null; obs: string }>>(() => {
+    const map: Record<string, { nivel: number | null; obs: string }> = {}
+    for (const p of participacionInicial) {
+      if (p.estudiante_id) {
+        map[p.estudiante_id] = { nivel: p.nivel ?? null, obs: p.observacion ?? '' }
+      }
+    }
+    return map
+  })
 
   // En Curso expandible por estudiante (inline, como participación)
   const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())
