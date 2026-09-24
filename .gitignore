@@ -13,3 +13,25 @@ dist/
 
 # graphify-out
 graphify-out/
+
+# Datos de estudiantes / exports (NUNCA commitear: privacidad)
+*.xlsx
+*.xls
+*.ods
+r2-*.json
+
+# Logs y temporales
+*.log
+temp_query*.sql
+tmpcookies.txt
+c:tmp*
+scratch/
+
+# Scripts de inspección con acceso a producción: ver scripts/README.md
+scripts/inspect_*.js
+scripts/test_*.js
+scripts/check_*.js
+scripts/clean_*.js
+scripts/restore_*.js
+scripts/registrar_participacion_*.js
+scripts/query_management_api.js

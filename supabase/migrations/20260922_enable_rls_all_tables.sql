@@ -1,21 +1,18 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- MIGRACIÓN DE SEGURIDAD: Habilitar RLS en todas las tablas públicas
+-- SEGURIDAD: habilitar RLS en tablas internas del keep-alive
 -- Soluciona la alerta de Supabase: rls_disabled_in_public
+--
+-- Estado verificado en producción (hxsnyrutyyavvljxwgku, 2026-09-24): todas las
+-- tablas de public ya tenían RLS salvo sistema_heartbeat y sistema_status
+-- (las migraciones 20260727_* hacían DISABLE ROW LEVEL SECURITY).
+--
+-- Sin políticas = acceso denegado a anon/authenticated. Es intencional: solo
+-- las rutas /api/cron/keep-alive y /api/cron/keep-alive/status las usan, con
+-- SUPABASE_SERVICE_ROLE_KEY (bypasea RLS). No se crea ninguna política.
+--
+-- Deliberadamente explícita (NO un bucle dinámico sobre pg_tables): un bucle
+-- activaría RLS sin políticas en tablas futuras y rompería la app en silencio.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- Habilitar RLS dinámicamente en cualquier tabla del esquema public que no lo tenga activado
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (
-        SELECT tablename 
-        FROM pg_tables 
-        WHERE schemaname = 'public' 
-          AND rowsecurity = false
-    ) LOOP
-        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', r.tablename);
-        RAISE NOTICE 'RLS habilitado para la tabla: %', r.tablename;
-    END LOOP;
-END $$;
-
+ALTER TABLE IF EXISTS public.sistema_heartbeat ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.sistema_status    ENABLE ROW LEVEL SECURITY;
