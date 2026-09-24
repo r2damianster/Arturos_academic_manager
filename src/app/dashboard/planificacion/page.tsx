@@ -21,6 +21,10 @@ export default async function PlanificacionPage() {
       .order('asignatura', { ascending: true }),
   ])
 
+  const clasesActivas = ((clases ?? []) as any[]).filter(
+    c => c.cursos && (!c.cursos.estado || c.cursos.estado === 'activo')
+  )
+
   const cursosActivos = ((todosCursos ?? []) as { id: string; asignatura: string; estado?: string | null }[])
     .filter(c => !c.estado || c.estado === 'activo')
 
@@ -31,7 +35,7 @@ export default async function PlanificacionPage() {
         <p className="text-gray-400 text-sm mt-1">Planifica, inicia y realiza seguimiento de tus clases</p>
       </div>
       <Suspense>
-        <PlanificacionClient clases={clases ?? []} cursos={cursosActivos} profesorId={user.id} />
+        <PlanificacionClient clases={clasesActivas} cursos={cursosActivos} profesorId={user.id} />
       </Suspense>
     </div>
   )

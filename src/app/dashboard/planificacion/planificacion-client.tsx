@@ -331,6 +331,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     const map = new Map<string, { curso: Curso; clases: Clase[] }>()
     for (const c of clasesVisibles) {
       if (!c.cursos) continue
+      if (c.cursos.estado && c.cursos.estado !== 'activo') continue
       const key = c.cursos.id
       if (!map.has(key)) map.set(key, { curso: c.cursos, clases: [] })
       map.get(key)!.clases.push(c)
@@ -396,11 +397,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
   const sinPlanificar = useMemo(() => {
     let count = 0
     for (const { curso, clases: grupoClases } of courseGroups) {
+      if (curso.estado && curso.estado !== 'activo') continue
       for (const date of weekDates) {
         const dayName = DIAS_LONG[date.getDay()]
         const clase = getClaseForDay(grupoClases, dayName)
         if (!clase) continue
-        const key = `${curso.id}|${dateToStr(date)}`
+        const fechaStr = dateToStr(date)
+        const fueraDeRango = (curso.fecha_inicio && fechaStr < curso.fecha_inicio) || (curso.fecha_fin && fechaStr > curso.fecha_fin)
+        if (fueraDeRango) continue
+        const key = `${curso.id}|${fechaStr}`
         const entry = bitacoraMap.get(key)
         if (!entry) count++
       }
@@ -1002,11 +1007,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
 
             // Calcular progreso
             const slotsEstaSemana = weekDates
-              .map(d => ({ date: d, clase: getClaseForDay(grupoClases, DIAS_LONG[d.getDay()]) }))
-              .filter(s => s.clase !== undefined)
+              .map(d => {
+                const fechaStr = dateToStr(d)
+                const fueraDeRango = (curso.fecha_inicio && fechaStr < curso.fecha_inicio) || (curso.fecha_fin && fechaStr > curso.fecha_fin)
+                return { date: d, fechaStr, clase: fueraDeRango ? undefined : getClaseForDay(grupoClases, DIAS_LONG[d.getDay()]) }
+              })
+              .filter((s): s is { date: Date; fechaStr: string; clase: Clase } => s.clase !== undefined)
             const total = slotsEstaSemana.length
             const planificados = slotsEstaSemana.filter(s => {
-              const key = `${curso.id}|${dateToStr(s.date)}`
+              const key = `${curso.id}|${s.fechaStr}`
               return bitacoraMap.has(key)
             }).length
             const pct = total > 0 ? Math.round((planificados / total) * 100) : 0

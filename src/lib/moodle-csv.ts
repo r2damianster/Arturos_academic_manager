@@ -7,15 +7,20 @@ export function buildMoodleCSV(
 ): string {
   const lines = ['username,status']
   for (const s of students) {
+    // Omitir correos ficticios/provisionales para evitar error en Moodle
+    if (!s.email || s.email.startsWith('sinregistro.') || s.email.endsWith('@pendiente.local')) {
+      continue
+    }
+
     const estado = s.estado === 'retirado' ? 'Ausente' : attendance[s.id]
     let status: string
     if (estado === 'Presente') {
-      status = ''
+      status = 'P'
     } else if (estado === 'Atraso') {
-      // Primera hora: FI (llegó tarde = falta esa hora); horas siguientes: presente (vacío)
-      status = hourIndex === 0 ? 'FI' : ''
+      // Primera hora: FI (llegó tarde = falta esa hora); horas siguientes: presente (P)
+      status = hourIndex === 0 ? 'FI' : 'P'
     } else {
-      // Ausente / null / desconocido → falta injustificada
+      // Ausente / null / desconocido / retirado → falta injustificada
       status = 'FI'
     }
     lines.push(`${s.email},${status}`)
