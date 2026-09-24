@@ -267,3 +267,10 @@ cargada.
   fecha choca contra `asistencia_curso_id_estudiante_id_fecha_key`.
 - Confirmar siempre `project_id` de Supabase (producción vs local) antes de escribir —
   ver tabla en Fase 0.
+
+---
+
+## 🔐 Reglas de seguridad y vigencia (obligatorio)
+- **Nunca** escribir la `service_role` ni otras llaves en scripts, SQL o este skill: usar el MCP de Supabase o `scripts/_supabase-env.js`.
+- IDs de curso y estados de este skill **caducan** cada semestre: confirmar con `select id, asignatura, estado from cursos where estado='activo'`.
+- Verificar el project_id de producción (`hxsnyrutyyavvljxwgku`) antes de escribir. Ver `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`.

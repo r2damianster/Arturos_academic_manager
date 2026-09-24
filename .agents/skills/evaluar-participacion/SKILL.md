@@ -160,3 +160,11 @@ export async function registrarEvaluacionDia({
   });
 }
 ```
+
+---
+
+## 🔐 Reglas de seguridad y vigencia (obligatorio)
+- **Nunca** escribir la `service_role` ni otras llaves en scripts, SQL o este skill: usar `scripts/_supabase-env.js` (lee `.env.local`) o el MCP de Supabase.
+- Los IDs de curso de este skill corresponden al periodo 2026-2 y **caducan**: antes de operar, confirmar con `select id, asignatura, estado from cursos where estado='activo'`.
+- Verificar el `project_id` de producción (`hxsnyrutyyavvljxwgku`) antes de escribir; no commitear archivos `.xlsx`, logs ni scripts ad hoc.
+- Ver `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`.

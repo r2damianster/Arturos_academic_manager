@@ -4,15 +4,15 @@ import { NextRequest } from 'next/server'
 // Cron de mantenimiento: consulta ligera a Supabase para mantener la base de datos activa.
 //
 // Uso:
-// - Vercel cron: configurar en vercel.json con schedule "every 30 minutes"
+// - Vercel cron: configurar en vercel.json (plan Hobby: máximo 1 ejecución diaria, ver schedule actual)
 // - Manual: Authorization: Bearer CRON_SECRET
 
 export async function GET(req: NextRequest) {
     const cronSecret  = process.env.CRON_SECRET || '';
     const authHeader  = req.headers.get('authorization') || '';
-    const isVercelCron = req.headers.get('x-vercel-cron') === '1';
 
-    if (cronSecret && !isVercelCron) {
+    // x-vercel-cron es un header falsificable: no confiar en él. Vercel envía Authorization: Bearer CRON_SECRET.
+    if (cronSecret) {
         const provided = authHeader.replace('Bearer ', '').trim();
         if (provided !== cronSecret) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -91,7 +91,15 @@ export async function GET(req: NextRequest) {
 
         // 4. UPDATE sistema_status con timestamp de última ejecución
         const now = new Date().toISOString();
-        const nextExecution = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        const nextExecution = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // cron diario (plan Hobby)
+
+        // PostgREST no evalúa expresiones ("total + 1"): leer el valor actual e incrementar.
+        const currentStatusResponse = await fetch(
+            `${SB_URL}/rest/v1/sistema_status?id=eq.keep-alive-status&select=total_ejecuciones`,
+            { headers: { 'apikey': SB_SERVICE, 'Authorization': `Bearer ${SB_SERVICE}` } }
+        );
+        const currentStatusRows = currentStatusResponse.ok ? await currentStatusResponse.json() : [];
+        const previousTotal = Array.isArray(currentStatusRows) ? Number(currentStatusRows[0]?.total_ejecuciones ?? 0) : 0;
 
         const updateStatusResponse = await fetch(
             `${SB_URL}/rest/v1/sistema_status?id=eq.keep-alive-status`,
@@ -105,7 +113,7 @@ export async function GET(req: NextRequest) {
                 body: JSON.stringify({
                     ultima_ejecucion: now,
                     proxima_ejecucion_esperada: nextExecution,
-                    total_ejecuciones: 'total_ejecuciones + 1',  // incrementa
+                    total_ejecuciones: previousTotal + 1,
                     ultima_operacion: 'INSERT + DELETE + SELECT ok',
                     updated_at: now
                 })

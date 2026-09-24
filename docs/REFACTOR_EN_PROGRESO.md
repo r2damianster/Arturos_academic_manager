@@ -1,3 +1,5 @@
+> ⚠ **HISTÓRICO (fase de mayo 2026, ya completada).** No describe el estado actual; ver `CLAUDE.md` y `CHANGELOG.md`.
+
 # Refactor en progreso — gestor-universitario-next
 
 > Archivo de seguimiento. Leer ANTES de diagnosticar errores inesperados.

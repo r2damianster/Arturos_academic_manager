@@ -119,3 +119,10 @@ La IA ejecutará un script TS usando la conexión a Producción:
 ### Paso 5 — Notificación y Actualización de SKILL.md
 1. Informar al usuario que la carga ha finalizado exitosamente en producción.
 2. Si se descubrió o creó un nuevo curso activo durante el proceso, **actualizar el listado en la sección "Cursos Activos Registrados" de este SKILL.md** y realizar git commit.
+
+---
+
+## 🔐 Reglas de seguridad y vigencia (obligatorio)
+- **Nunca** escribir la `service_role` ni otras llaves en scripts, SQL o este skill: usar el MCP de Supabase o `scripts/_supabase-env.js`.
+- IDs de curso y estados de este skill **caducan** cada semestre: confirmar con `select id, asignatura, estado from cursos where estado='activo'`.
+- Verificar el project_id de producción (`hxsnyrutyyavvljxwgku`) antes de escribir. Ver `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`.

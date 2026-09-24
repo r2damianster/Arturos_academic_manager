@@ -1,6 +1,6 @@
 # Claude Code — gestor-universitario-next
 
-> Instrucciones específicas para Claude Code. Para Qwen/Cline ver `QWEN.md`. Para contexto general del proyecto ver `AI_AGENTS.md`.
+> Instrucciones específicas para Claude Code. Para contexto general ver `AI_AGENTS.md`. **Antigravity y otros agentes: leer `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md` antes de cualquier cambio.**
 
 ## Token Optimization (Windows — OBLIGATORIO)
 El tool `distill` no es compatible con Windows. Para comandos con output grande:
@@ -197,6 +197,9 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260602_tutorado_nivel_modalidad    → Renombra modalidad_trabajo CHECK → ('pregrado'|'maestria'|'doctorado'|'tecnologia'|'otro'); nueva columna tipo_trabajo TEXT con 6 opciones
 20260602_tutorado_publicacion        → Columnas tutorado_perfil.publicado BOOLEAN, fecha_publicacion DATE, referencia_publicacion TEXT
 20260603_inasistencia_reconocida     → Columnas reservas.justificacion_inasistencia TEXT + reservas.inasistencia_reconocida BOOLEAN DEFAULT false; índice parcial en (auth_user_id, inasistencia_reconocida, fecha)
+20260727_sistema_heartbeat / _status_tracking → Tablas del cron keep-alive (originalmente con RLS deshabilitada; corregido abajo)
+20260922_enable_rls_all_tables      → RLS explícita en sistema_heartbeat y sistema_status (aplicada en prod)
+20260924_harden_security_definer_functions → REVOKE EXECUTE anon/PUBLIC en RPC SECURITY DEFINER + search_path (aplicada en prod)
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
@@ -221,6 +224,42 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
   - `cursos.encuesta_inicial_habilitada`, `cursos.encuesta_parcial_habilitada` — columnas nuevas
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
   - `encuesta_parcial` — tabla nueva completa (~60 columnas)
+
+## Features recientes (2026-09-14 → 2026-09-24 — sesiones 31-32)
+
+### Reglas duras nuevas (leer `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`)
+- **Nunca** llaves/tokens en código. Scripts usan `scripts/_supabase-env.js` (lee `.env.local`). La `service_role` de prod estuvo expuesta en GitHub (scripts commiteados en `8148356`) → **rotarla**.
+- `.gitignore` bloquea `*.xlsx/.xls/.ods`, `r2-*.json`, `*.log`, `tmpcookies.txt`, `temp_query*.sql`, `scratch/` y scripts ad hoc (`inspect_*`, `test_*`, `check_*`, `clean_*`, `restore_*`, `registrar_participacion_*`).
+- Prohibidos los commits `chore: auto-commit — …`.
+- Consultas con join a `cursos` deben filtrar `estado='activo'` en la propia consulta (bug de `/dashboard/planificacion`).
+
+### Planificación — solo cursos activos
+- **FIX** `src/app/dashboard/planificacion/page.tsx` filtra `clasesActivas` (`cursos.estado` activo/null) además de `cursosActivos`.
+- **FIX** `planificacion-client.tsx`: `courseGroups`, `sinPlanificar` y progreso semanal ignoran cursos no activos y fechas fuera de `fecha_inicio`/`fecha_fin`.
+
+### Seguridad DB (aplicado en prod `hxsnyrutyyavvljxwgku`, 2026-09-24)
+- `20260922_enable_rls_all_tables` — RLS explícita en `sistema_heartbeat` y `sistema_status` (solo service role; sin políticas = deny anon/authenticated). Antes todas las demás tablas ya tenían RLS.
+- `20260924_harden_security_definer_functions` — REVOKE EXECUTE a PUBLIC/anon en RPC SECURITY DEFINER; trigger/internas (`handle_new_user`, `vincular_estudiante_al_registrarse`, `activar_estudiantes_faltantes`, `increment_horas_tutoria`, `get_unreported_tutorias`) sin acceso por API; `search_path=public` en 8 funciones. Se mantienen abiertas a anon: `check_student_email`, `consume_action_token`, `get_occupied_slots`, `is_admin` (usada por políticas).
+- Pendiente (advisor): activar *Leaked Password Protection* en Supabase Auth; `email_action_tokens` sin políticas (intencional).
+
+### Keep-alive cron (`/api/cron/keep-alive`)
+- Vercel Hobby → 1 ejecución diaria (`0 12 * * *`). Requiere `Authorization: Bearer CRON_SECRET` si `CRON_SECRET` existe (ya no se confía en `x-vercel-cron`). Contador `total_ejecuciones` corregido (leer + incrementar). Tablas `sistema_heartbeat`, `sistema_status`.
+
+### Modo Clase
+- **FEAT** participación y observaciones del día precargadas (`participacionInicial`), retirados excluidos de la vista Lista. Sincronización props→estado con dependencia serializada (no pisa ediciones locales).
+
+### Moodle CSV (`src/lib/moodle-csv.ts`)
+- Presente=`P`; Atraso=`FI` hora 1 y `P` después; Ausente/retirado=`FI`. Se **omiten** correos `sinregistro.*` y `@pendiente.local`.
+
+### Skills para agentes (`.agents/skills/`)
+- `evaluar-participacion` (+ `scripts/evaluar_participacion.js`): registra participación/control de lectura con fuzzy matching; **no altera `asistencia`**.
+- `registrar-tutoria`: registra tutorías en `reservas` (origen `manual`, `asistio true`).
+- `subir-planificacion`: carga masiva de sílabo. Los IDs de curso listados en los skills son **de 2026-2 y caducan**: re-consultar `cursos where estado='activo'`.
+
+### Generador IA
+- `src/lib/bitacora-legacy.ts` (`actividadesDesdeBitacora`): el generador respeta actividades/recursos en formato legacy. `GROQ_MODEL` actualizado en Vercel (requiere redeploy).
+
+---
 
 ## Features recientes (2026-06-03 — sesión 30)
 

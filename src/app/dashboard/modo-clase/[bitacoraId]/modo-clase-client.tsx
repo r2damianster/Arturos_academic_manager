@@ -702,7 +702,9 @@ export function ModoClaseClient({
         return next
       })
     }
-  }, [asistenciaInicial])
+    // Dependencia serializada: un router.refresh() con los mismos datos del servidor no debe pisar ediciones locales.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(asistenciaInicial)])
 
   // Estado de participación inline
   const [partAbierto, setPartAbierto] = useState<Set<string>>(new Set())
@@ -728,7 +730,8 @@ export function ModoClaseClient({
         return next
       })
     }
-  }, [participacionInicial])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(participacionInicial)])
 
   // En Curso expandible por estudiante (inline, como participación)
   const [ecAbierto, setEcAbierto] = useState<Set<string>>(new Set())

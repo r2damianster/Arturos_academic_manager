@@ -3,8 +3,10 @@
 Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GPT, etc.).
 
 - Para Claude Code: ver `CLAUDE.md`
-- Para Qwen/Cline/Continue: ver `QWEN.md`
+- **Antigravity / Qwen / Gemini / cualquier otro agente: leer OBLIGATORIAMENTE `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`** (errores reales cometidos en este repo)
 - Para historial de cambios: ver `CHANGELOG.md`
+
+> ⚠ Reglas críticas: (1) jamás llaves/datos de estudiantes en el repo; (2) RLS explícita, nunca bucles masivos; (3) filtrar `cursos.estado='activo'` también en consultas con join; (4) commits descriptivos, nunca `auto-commit`; (5) actualizar `CLAUDE.md` + `CHANGELOG.md` en cada cambio.
 
 ---
 

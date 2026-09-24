@@ -1,5 +1,21 @@
 # Changelog — gestor-universitario-next
 
+## 2026-09-24 — Auditoría de commits de Antigravity + endurecimiento
+- **Fix:** `/dashboard/planificacion` mostraba clases de cursos finalizados/archivados del semestre pasado (`horarios_clases` join `cursos` sin filtrar por `estado`). Ahora filtra en `page.tsx` y en `planificacion-client.tsx` (agrupación, contador "sin planificar", progreso semanal y rango `fecha_inicio`/`fecha_fin`).
+- **Security:** 14 scripts en `scripts/` tenían la `service_role` de producción hardcodeada y estaban pusheados. Ahora leen `.env.local` vía `scripts/_supabase-env.js`; scripts ad hoc, `.xlsx/.ods/.xls`, logs, cookies y JSON de exportes salen del repo y van a `.gitignore`. **La llave debe rotarse** (queda en el historial de git).
+- **Security/DB:** `20260922_enable_rls_all_tables.sql` reescrita (explícita: `sistema_heartbeat`, `sistema_status`) y aplicada en prod. Nueva `20260924_harden_security_definer_functions.sql`: REVOKE de EXECUTE a `anon`/`PUBLIC` en funciones SECURITY DEFINER + `search_path` fijo (aplicada en prod).
+- **Fix:** cron keep-alive: contador `total_ejecuciones` enviaba `'total_ejecuciones + 1'` como texto (fallaba en silencio); ahora lee e incrementa. Se eliminó la confianza en el header falsificable `x-vercel-cron`. `proxima_ejecucion_esperada` = +24 h (cron diario en Hobby).
+- **Fix:** Modo Clase — los `useEffect` que sincronizan asistencia/participación desde props usan dependencia serializada para no pisar ediciones locales tras `router.refresh()`.
+- **Fix:** Moodle CSV — Presente = `P`, Atraso = `FI` en hora 1 y `P` después; se omiten correos ficticios.
+- **Docs:** nueva `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`; `CLAUDE.md`/`AI_AGENTS.md` actualizados con sesiones de sept 2026.
+
+## 2026-09-16 → 2026-09-21 (Antigravity, documentado retroactivamente)
+- `3d9570e` fix: generador de contenido ignoraba actividades/recursos legacy (`src/lib/bitacora-legacy.ts`).
+- `0660459` fix: cron keep-alive pasó de cada 30 min a diario (límite Hobby).
+- `c57f59f` ci: redeploy para tomar `GROQ_MODEL`.
+- `e1069db`, `80a78b3`, `0bdb16e`: skill `evaluar-participacion`, participación/observaciones visibles en Modo Clase, retirados excluidos de la lista.
+- `a0611a3`: skill `subir-planificacion` actualizado. `8148356`: skill `registrar-tutoria`.
+
 ## 2026-05-03
 - **Feature (by Antigravity):** Implementación de Seguimiento avanzado de citaciones a tutoría.
   - Creada tabla `citaciones_tutoria` para llevar un historial detallado en vez de un flag booleano.
