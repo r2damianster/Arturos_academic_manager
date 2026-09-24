@@ -35,7 +35,7 @@
 - Asistencia a clase (`asistencia`) es **independiente** del cumplimiento de actividades/participación: registrar participación **nunca** modifica ni borra la asistencia.
 - Ítems `calificaciones_items.fuente = 'en_curso'` NUNCA alimentan riesgo, citaciones ni funciones IA.
 - Estudiantes `estado = 'retirado'`: excluirlos de listas de pase/participación y exportes; en Moodle CSV van como ausente.
-- Exportar a Moodle: los correos ficticios (`sinregistro.*`, `@pendiente.local`) se omiten del CSV. **Avisar** al profesor cuántos se omitieron; nunca descartar datos en silencio.
+- Exportar a Moodle: los correos ficticios (`sinregistro.*`, `@pendiente.local`) se omiten del CSV y `avisarOmitidosMoodle()` avisa al profesor. Nunca descartar datos en silencio.
 - Participación: `UNIQUE(curso_id, estudiante_id, fecha)`; usar upsert.
 
 ## 5. React / Next.js
@@ -47,7 +47,7 @@
 - Navegación: solo `src/components/layout/nav-items.tsx`.
 
 ## 6. Despliegue / Vercel
-- Plan **Hobby**: los crons corren **máximo 1 vez al día** (`*/30 * * * *` rompió el deploy, commit `0660459`).
+- Plan **Hobby**: los crons corren **máximo 1 vez al día** (`*/30 * * * *` rompió el deploy, commit `0660459`). No crear crons/keep-alive sin pedirlo el usuario (el keep-alive se eliminó el 2026-09-24).
 - No confiar en el header `x-vercel-cron` (falsificable); validar `Authorization: Bearer CRON_SECRET`.
 - Cambiar una env var en Vercel **no** redeploya: `git commit --allow-empty -m "ci: redeploy ..."` + push.
 - `npx tsc --noEmit` antes de cada commit. Cero errores.

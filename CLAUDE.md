@@ -197,8 +197,8 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260602_tutorado_nivel_modalidad    → Renombra modalidad_trabajo CHECK → ('pregrado'|'maestria'|'doctorado'|'tecnologia'|'otro'); nueva columna tipo_trabajo TEXT con 6 opciones
 20260602_tutorado_publicacion        → Columnas tutorado_perfil.publicado BOOLEAN, fecha_publicacion DATE, referencia_publicacion TEXT
 20260603_inasistencia_reconocida     → Columnas reservas.justificacion_inasistencia TEXT + reservas.inasistencia_reconocida BOOLEAN DEFAULT false; índice parcial en (auth_user_id, inasistencia_reconocida, fecha)
-20260727_sistema_heartbeat / _status_tracking → Tablas del cron keep-alive (originalmente con RLS deshabilitada; corregido abajo)
-20260922_enable_rls_all_tables      → RLS explícita en sistema_heartbeat y sistema_status (aplicada en prod)
+20260727_sistema_heartbeat / _status_tracking → (histórico) tablas del keep-alive, eliminadas por 20260924_drop_keep_alive
+20260922_enable_rls_all_tables      → (histórico) RLS explícita en tablas sistema_*
 20260924_harden_security_definer_functions → REVOKE EXECUTE anon/PUBLIC en RPC SECURITY DEFINER + search_path (aplicada en prod)
 ```
 
@@ -238,18 +238,19 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **FIX** `planificacion-client.tsx`: `courseGroups`, `sinPlanificar` y progreso semanal ignoran cursos no activos y fechas fuera de `fecha_inicio`/`fecha_fin`.
 
 ### Seguridad DB (aplicado en prod `hxsnyrutyyavvljxwgku`, 2026-09-24)
-- `20260922_enable_rls_all_tables` — RLS explícita en `sistema_heartbeat` y `sistema_status` (solo service role; sin políticas = deny anon/authenticated). Antes todas las demás tablas ya tenían RLS.
+- `20260922_enable_rls_all_tables` — RLS explícita en tablas `sistema_*` (luego eliminadas). Todas las demás tablas ya tenían RLS.
 - `20260924_harden_security_definer_functions` — REVOKE EXECUTE a PUBLIC/anon en RPC SECURITY DEFINER; trigger/internas (`handle_new_user`, `vincular_estudiante_al_registrarse`, `activar_estudiantes_faltantes`, `increment_horas_tutoria`, `get_unreported_tutorias`) sin acceso por API; `search_path=public` en 8 funciones. Se mantienen abiertas a anon: `check_student_email`, `consume_action_token`, `get_occupied_slots`, `is_admin` (usada por políticas).
 - Pendiente (advisor): activar *Leaked Password Protection* en Supabase Auth; `email_action_tokens` sin políticas (intencional).
+- `20260924_drop_keep_alive` — DROP de `sistema_heartbeat`/`sistema_status`.
 
-### Keep-alive cron (`/api/cron/keep-alive`)
-- Vercel Hobby → 1 ejecución diaria (`0 12 * * *`). Requiere `Authorization: Bearer CRON_SECRET` si `CRON_SECRET` existe (ya no se confía en `x-vercel-cron`). Contador `total_ejecuciones` corregido (leer + incrementar). Tablas `sistema_heartbeat`, `sistema_status`.
+### Keep-alive cron — ELIMINADO (2026-09-24)
+- Se borraron `/api/cron/keep-alive`, `/status`, `src/lib/agents/keep-alive.js`, el `crons` de `vercel.json` y las tablas `sistema_heartbeat`/`sistema_status` (migración `20260924_drop_keep_alive`). No reintroducir.
 
 ### Modo Clase
 - **FEAT** participación y observaciones del día precargadas (`participacionInicial`), retirados excluidos de la vista Lista. Sincronización props→estado con dependencia serializada (no pisa ediciones locales).
 
 ### Moodle CSV (`src/lib/moodle-csv.ts`)
-- Presente=`P`; Atraso=`FI` hora 1 y `P` después; Ausente/retirado=`FI`. Se **omiten** correos `sinregistro.*` y `@pendiente.local`.
+- Presente=`P`; Atraso=`FI` hora 1 y `P` después; Ausente/retirado=`FI`. Se **omiten** correos `sinregistro.*` y `@pendiente.local`; al descargar, `avisarOmitidosMoodle()` avisa con la lista de omitidos.
 
 ### Skills para agentes (`.agents/skills/`)
 - `evaluar-participacion` (+ `scripts/evaluar_participacion.js`): registra participación/control de lectura con fuzzy matching; **no altera `asistencia`**.

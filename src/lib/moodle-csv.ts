@@ -8,7 +8,7 @@ export function buildMoodleCSV(
   const lines = ['username,status']
   for (const s of students) {
     // Omitir correos ficticios/provisionales para evitar error en Moodle
-    if (!s.email || s.email.startsWith('sinregistro.') || s.email.endsWith('@pendiente.local')) {
+    if (esCorreoNoValidoParaMoodle(s.email)) {
       continue
     }
 
@@ -43,4 +43,22 @@ export function calcularHorasDesdeHorario(horaInicio: string, horaFin: string): 
   const [eh, em] = horaFin.split(':').map(Number)
   const mins = (eh * 60 + em) - (sh * 60 + sm)
   return Math.max(1, Math.round(mins / 60))
+}
+
+const esCorreoNoValidoParaMoodle = (email: string | null | undefined) =>
+  !email || email.startsWith('sinregistro.') || email.endsWith('@pendiente.local')
+
+/** Estudiantes que buildMoodleCSV omite por no tener correo real (no se pueden importar a Moodle). */
+export function getEstudiantesOmitidosMoodle<T extends { email: string; nombre?: string }>(students: T[]): T[] {
+  return students.filter(student => esCorreoNoValidoParaMoodle(student.email))
+}
+
+/** Avisa al profesor de los estudiantes que no aparecen en el CSV descargado. */
+export function avisarOmitidosMoodle(students: { email: string; nombre?: string }[]) {
+  const omittedStudents = getEstudiantesOmitidosMoodle(students)
+  if (omittedStudents.length === 0) return
+  const names = omittedStudents.map(student => student.nombre ?? student.email).join('\n• ')
+  window.alert(
+    `El CSV de Moodle omitió ${omittedStudents.length} estudiante(s) sin correo real:\n• ${names}\n\nRegístralos manualmente en Moodle.`
+  )
 }

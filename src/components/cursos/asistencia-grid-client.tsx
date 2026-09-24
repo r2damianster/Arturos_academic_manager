@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
+import { buildMoodleCSV, downloadCSV, avisarOmitidosMoodle } from '@/lib/moodle-csv'
 
 type Estudiante = { id: string; nombre: string; email: string; estado?: string }
 type Registro = { estado: string }
@@ -148,6 +148,7 @@ export function AsistenciaGridClient({
                     onClick={() => {
                       const csv = buildMoodleCSV(estudiantes, attendanceMap, i)
                       downloadCSV(csv, `asistencia_${cursoCodigo}_${moodleFecha}_hora${i + 1}.csv`)
+                      avisarOmitidosMoodle(estudiantes)
                     }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-600 bg-gray-700 hover:bg-gray-600 text-xs text-gray-200 transition-colors"
                   >

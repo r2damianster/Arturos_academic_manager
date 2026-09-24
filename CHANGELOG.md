@@ -4,9 +4,9 @@
 - **Fix:** `/dashboard/planificacion` mostraba clases de cursos finalizados/archivados del semestre pasado (`horarios_clases` join `cursos` sin filtrar por `estado`). Ahora filtra en `page.tsx` y en `planificacion-client.tsx` (agrupación, contador "sin planificar", progreso semanal y rango `fecha_inicio`/`fecha_fin`).
 - **Security:** 14 scripts en `scripts/` tenían la `service_role` de producción hardcodeada y estaban pusheados. Ahora leen `.env.local` vía `scripts/_supabase-env.js`; scripts ad hoc, `.xlsx/.ods/.xls`, logs, cookies y JSON de exportes salen del repo y van a `.gitignore`. **La llave debe rotarse** (queda en el historial de git).
 - **Security/DB:** `20260922_enable_rls_all_tables.sql` reescrita (explícita: `sistema_heartbeat`, `sistema_status`) y aplicada en prod. Nueva `20260924_harden_security_definer_functions.sql`: REVOKE de EXECUTE a `anon`/`PUBLIC` en funciones SECURITY DEFINER + `search_path` fijo (aplicada en prod).
-- **Fix:** cron keep-alive: contador `total_ejecuciones` enviaba `'total_ejecuciones + 1'` como texto (fallaba en silencio); ahora lee e incrementa. Se eliminó la confianza en el header falsificable `x-vercel-cron`. `proxima_ejecucion_esperada` = +24 h (cron diario en Hobby).
+- **Removed:** sistema keep-alive completo (rutas `/api/cron/*`, `vercel.json` crons, tablas `sistema_heartbeat`/`sistema_status`, `20260924_drop_keep_alive`). Tenía bugs (contador con texto, header `x-vercel-cron` falsificable) y no aportaba valor.
 - **Fix:** Modo Clase — los `useEffect` que sincronizan asistencia/participación desde props usan dependencia serializada para no pisar ediciones locales tras `router.refresh()`.
-- **Fix:** Moodle CSV — Presente = `P`, Atraso = `FI` en hora 1 y `P` después; se omiten correos ficticios.
+- **Fix:** Moodle CSV — Presente = `P`, Atraso = `FI` en hora 1 y `P` después; se omiten correos ficticios y ahora se avisa al profesor con la lista de omitidos (`avisarOmitidosMoodle`).
 - **Docs:** nueva `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`; `CLAUDE.md`/`AI_AGENTS.md` actualizados con sesiones de sept 2026.
 
 ## 2026-09-16 → 2026-09-21 (Antigravity, documentado retroactivamente)

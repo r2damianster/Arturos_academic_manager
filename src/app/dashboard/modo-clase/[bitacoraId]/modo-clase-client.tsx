@@ -9,7 +9,7 @@ import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
-import { buildMoodleCSV, downloadCSV } from '@/lib/moodle-csv'
+import { buildMoodleCSV, downloadCSV, avisarOmitidosMoodle } from '@/lib/moodle-csv'
 import { formatNombreCorto } from '@/lib/format'
 import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/ficha-estudiante'
@@ -1026,6 +1026,7 @@ export function ModoClaseClient({
                     onClick={() => {
                       const csv = buildMoodleCSV(students, asistencia, i)
                       downloadCSV(csv, `asistencia_${cursoCodigo}_${fecha}_hora${i + 1}.csv`)
+                      avisarOmitidosMoodle(students)
                     }}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-700 bg-gray-800 hover:bg-gray-700 text-sm text-gray-200 transition-colors text-left"
                   >
@@ -2254,6 +2255,7 @@ export function ModoClaseClient({
                       }
                       const csv = buildMoodleCSV(students, attendanceMap, i)
                       downloadCSV(csv, `asistencia_${cursoCodigo}_${fecha}_hora${i + 1}.csv`)
+                      avisarOmitidosMoodle(students)
                     }}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors text-left"
                   >
