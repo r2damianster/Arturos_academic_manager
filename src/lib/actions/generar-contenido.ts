@@ -97,7 +97,7 @@ interface GroqMessage {
   content: string
 }
 
-async function callGroq(messages: GroqMessage[], maxTokens = 2500): Promise<{ content: string; error?: string }> {
+async function callGroq(messages: GroqMessage[], maxTokens = 2500, reintentos = 2): Promise<{ content: string; error?: string }> {
   const key = process.env.GROQ_API_KEY
   if (!key) return { content: '', error: 'GROQ_API_KEY no configurado en variables de entorno' }
 
@@ -117,6 +117,15 @@ async function callGroq(messages: GroqMessage[], maxTokens = 2500): Promise<{ co
 
   if (!res.ok) {
     const err = await res.text()
+
+    // 429 TPM: Groq indica en el mensaje "Please try again in X.XXXs" — esperar ese tiempo y reintentar
+    if (res.status === 429 && reintentos > 0) {
+      const espera = err.match(/try again in ([\d.]+)s/)
+      const esperaMs = espera ? Math.ceil(parseFloat(espera[1]) * 1000) + 500 : 8000
+      await new Promise(r => setTimeout(r, esperaMs))
+      return callGroq(messages, maxTokens, reintentos - 1)
+    }
+
     return { content: '', error: `Error Groq API (${res.status}): ${err.slice(0, 200)}` }
   }
 
@@ -493,12 +502,13 @@ const TOKENS_POR_TIPO: Record<TipoPregunta, number> = {
   shortanswer: 130,
 }
 
-// Cuenta de tokens estimada del XML de salida + margen, acotada al límite de TPM de la cuenta Groq (12000)
+// Cuenta de tokens estimada del XML de salida + margen. La cuenta Groq tiene TPM=8000 (prompt+completion
+// cuentan juntos), así que el tope deja margen para el prompt del lote (system + contexto de clases).
 function estimarMaxTokensEvaluacion(total: number, tipos: TipoPregunta[]): number {
   if (tipos.length === 0) return 2000
   const promedio = tipos.reduce((sum, t) => sum + TOKENS_POR_TIPO[t], 0) / tipos.length
   const estimado = Math.round(total * promedio + 80)
-  return Math.min(8000, Math.max(2000, Math.round(estimado * 1.3)))
+  return Math.min(3500, Math.max(2000, Math.round(estimado * 1.3)))
 }
 
 export async function generarEvaluacionMoodle(params: {
@@ -534,9 +544,10 @@ export async function generarEvaluacionMoodle(params: {
   const categoria = params.categoria?.trim() || `$course$/Semana ${params.semanaNum} - ${params.asignatura}`
   const tiposTexto = params.tipos.map(t => TIPO_LABELS[t]).join(', ')
 
-  // La cuenta Groq tiene TPM=12000 (tokens por minuto) — un solo request para 15-20 preguntas
-  // (prompt + max_tokens) lo supera. Se generan en lotes pequeños y se ensamblan en un único <quiz>.
-  const BATCH_SIZE = 5
+  // La cuenta Groq tiene TPM=8000 (tokens por minuto, prompt+completion) — un solo request para
+  // 15-20 preguntas lo supera. Se generan en lotes pequeños y se ensamblan en un único <quiz>.
+  // callGroq reintenta sola vez si igual pega un 429 (espera lo que indique la API).
+  const BATCH_SIZE = 3
   const lotes: number[] = []
   for (let restante = params.totalPreguntas; restante > 0; restante -= BATCH_SIZE) {
     lotes.push(Math.min(BATCH_SIZE, restante))
@@ -547,7 +558,7 @@ export async function generarEvaluacionMoodle(params: {
   for (let i = 0; i < lotes.length; i++) {
     const cantidad = lotes[i]
 
-    if (i > 0) await new Promise(r => setTimeout(r, 4000)) // deja recuperar el cupo de TPM entre lotes
+    if (i > 0) await new Promise(r => setTimeout(r, 6000)) // deja recuperar el cupo de TPM entre lotes
 
     const loteUserPrompt = [
       params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (máxima prioridad — puede enfocar o limitar el contenido):\n${params.instruccionAdicional}\n` : '',
@@ -604,8 +615,8 @@ export async function mejorarContenido(params: {
   solicitud: string
 }): Promise<{ content: string; error?: string }> {
   if (params.tipo === 'evaluacion') {
-    // El XML actualizado ronda el tamaño del actual; acotar al límite de TPM de la cuenta Groq (12000)
-    const maxTokens = Math.min(8000, Math.max(2000, Math.round(params.contenidoActual.length / 3)))
+    // El XML actualizado ronda el tamaño del actual; acotar al límite de TPM de la cuenta Groq (8000, prompt+completion)
+    const maxTokens = Math.min(3500, Math.max(2000, Math.round(params.contenidoActual.length / 3)))
     const result = await callGroq([
       { role: 'system', content: SYSTEM_MOODLE_XML },
       {
