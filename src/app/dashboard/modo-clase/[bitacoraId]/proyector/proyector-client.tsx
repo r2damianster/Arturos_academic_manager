@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   RULETA_SIZE as SIZE,
   RULETA_CX as CX,
@@ -13,25 +13,78 @@ import {
   ruletaFontSize as calcFontSize,
   ruletaChannelName,
   type RuletaSyncState,
+  type RuletaItem,
 } from '@/components/herramientas/ruleta-geometry'
 
-const EMPTY: RuletaSyncState = { items: [], rotation: 0, spinning: false, ticker: null, winnerLabel: null, libre: false }
-
 export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
-  const [state, setState] = useState<RuletaSyncState>(EMPTY)
+  const [items, setItems] = useState<RuletaItem[]>([])
+  const [libre, setLibre] = useState(false)
+  const [rotation, setRotation] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+  const [ticker, setTicker] = useState<string | null>(null)
+  const [winnerLabel, setWinnerLabel] = useState<string | null>(null)
   const [conectado, setConectado] = useState(false)
+  const spinRef = useRef(0)
+  const lastSpinId = useRef<string | null>(null)
+  const tickerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
     const ch = new BroadcastChannel(ruletaChannelName(bitacoraId))
     ch.onmessage = (e: MessageEvent<RuletaSyncState>) => {
+      const msg = e.data
       setConectado(true)
-      setState(e.data)
+      setItems(msg.items)
+      setLibre(msg.libre)
+
+      if (msg.spinning && msg.winnerId && msg.winnerId !== lastSpinId.current) {
+        lastSpinId.current = msg.winnerId
+        const idx = msg.items.findIndex(it => it.id === msg.winnerId)
+        if (idx === -1 || msg.items.length < 2) return
+
+        const segDeg = 360 / msg.items.length
+        const target = 360 - (idx * segDeg + segDeg / 2)
+        const final = spinRef.current + 5 * 360 + target - (spinRef.current % 360)
+        spinRef.current = final
+        setRotation(final)
+        setSpinning(true)
+        setWinnerLabel(null)
+
+        setTimeout(() => {
+          setSpinning(false)
+          setWinnerLabel(msg.items[idx]?.label ?? null)
+        }, 3200)
+      } else if (!msg.spinning) {
+        lastSpinId.current = msg.winnerId
+        if (msg.winnerId) {
+          const idx = msg.items.findIndex(it => it.id === msg.winnerId)
+          setWinnerLabel(idx !== -1 ? msg.items[idx].label : null)
+        } else {
+          setWinnerLabel(null)
+        }
+      }
     }
-    return () => ch.close()
+    return () => { ch.close(); if (tickerTimeoutRef.current) clearTimeout(tickerTimeoutRef.current) }
   }, [bitacoraId])
 
-  const { items, rotation, spinning, ticker, winnerLabel, libre } = state
+  // Flicker local del ticker mientras gira (independiente del profesor, mismo look)
+  useEffect(() => {
+    if (!spinning || items.length === 0) {
+      setTicker(null)
+      return
+    }
+    let running = true
+    let delay = 50
+    const tick = () => {
+      if (!running) return
+      setTicker(items[Math.floor(Math.random() * items.length)].label)
+      delay = Math.min(delay * 1.06, 300)
+      tickerTimeoutRef.current = setTimeout(tick, delay)
+    }
+    tick()
+    return () => { running = false; if (tickerTimeoutRef.current) clearTimeout(tickerTimeoutRef.current) }
+  }, [spinning, items])
+
   const n = items.length
   const segAngle = n > 0 ? (2 * Math.PI) / n : 0
   const fs = calcFontSize(n) * 1.6

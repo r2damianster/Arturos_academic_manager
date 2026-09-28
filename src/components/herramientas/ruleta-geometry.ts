@@ -57,12 +57,13 @@ export function ruletaFontSize(n: number): number {
   return 5.5
 }
 
+// El proyector recibe SIEMPRE el roster completo (aunque el profesor esté
+// sorteando solo entre pendientes) + el id real del ganador, y anima su propia
+// rueda hacia ese id — así no se nota que el sorteo real fue entre pocos.
 export type RuletaSyncState = {
   items: RuletaItem[]
-  rotation: number
+  winnerId: string | null
   spinning: boolean
-  ticker: string | null
-  winnerLabel: string | null
   libre: boolean
 }
 

@@ -49,6 +49,7 @@ export function Ruleta({
   const [rotation, setRotation] = useState(0)
   const [autoExclude, setAutoExclude] = useState(false)
   const [soloSinCalificar, setSoloSinCalificar] = useState(false)
+  const [verSoloSinCalificar, setVerSoloSinCalificar] = useState(false)
   const [ticker, setTicker] = useState<string | null>(null)
   const [proyectorAbierto, setProyectorAbierto] = useState(false)
   const spinRef = useRef(0)
@@ -80,23 +81,41 @@ export function Ruleta({
 
   const pendientesCount = students.filter(s => !calificadoPeriodoSet.has(s.id)).length
 
-  const studentsBase = useMemo(
+  // ─── Dos poblaciones separadas ──────────────────────────────────────────
+  // drawStudents  = de quién se sortea realmente (si "solo sin calificar" está activo,
+  //                 SOLO pendientes — así se cumple la prioridad real).
+  // displayStudents = quién se VE en la rueda (profesor + proyector). Por defecto
+  //                 se ven todos aunque el sorteo real sea más chico, para que no
+  //                 se note que se sortea entre pocos. El sub-checkbox "ver solo
+  //                 pendientes" iguala la vista al sorteo real si el profesor lo prefiere.
+  const drawStudents = useMemo(
     () => (soloSinCalificar ? students.filter(s => !calificadoPeriodoSet.has(s.id)) : students),
     [students, soloSinCalificar, calificadoPeriodoSet]
   )
+  const displayStudents = useMemo(
+    () => (soloSinCalificar && verSoloSinCalificar ? drawStudents : students),
+    [students, soloSinCalificar, verSoloSinCalificar, drawStudents]
+  )
 
-  const activeItems = useMemo((): Item[] => {
-    if (mode === 'libre') {
-      return freeText
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean)
-        .map((label, i) => ({ id: String(i), label }))
-    }
-    return studentsBase
-      .filter(s => !excluded.has(s.id))
-      .map(s => ({ id: s.id, label: s.nombre }))
-  }, [mode, freeText, studentsBase, excluded])
+  const freeItems = useMemo((): Item[] => {
+    return freeText
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map((label, i) => ({ id: String(i), label }))
+  }, [freeText])
+
+  // Pool real del sorteo (de aquí sale el ganador)
+  const drawItems = useMemo((): Item[] => {
+    if (mode === 'libre') return freeItems
+    return drawStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre }))
+  }, [mode, freeItems, drawStudents, excluded])
+
+  // Pool visual — lo que dibuja la rueda (profesor y proyector)
+  const displayItems = useMemo((): Item[] => {
+    if (mode === 'libre') return freeItems
+    return displayStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre }))
+  }, [mode, freeItems, displayStudents, excluded])
 
   // ─── Proyector: canal de sincronización ────────────────────────────────
   useEffect(() => {
@@ -106,19 +125,19 @@ export function Ruleta({
     return () => { ch.close(); channelRef.current = null }
   }, [bitacoraId])
 
+  // Estado "reposo": roster visible + ganador actual (si hay), sin animar.
+  // Se reenvía solo, así el proyector siempre refleja lo mismo que el profesor ve.
   useEffect(() => {
     const ch = channelRef.current
-    if (!ch) return
+    if (!ch || spinning) return
     const state: RuletaSyncState = {
-      items: activeItems,
-      rotation,
-      spinning,
-      ticker,
-      winnerLabel: winner ? winner.label : null,
+      items: displayItems,
+      winnerId: winner?.id ?? null,
+      spinning: false,
       libre: mode === 'libre',
     }
     ch.postMessage(state)
-  }, [activeItems, rotation, spinning, ticker, winner, mode])
+  }, [displayItems, mode, spinning, winner])
 
   function abrirProyector() {
     if (!bitacoraId) return
@@ -131,23 +150,35 @@ export function Ruleta({
   }
 
   const handleSpin = useCallback(() => {
-    if (spinning || activeItems.length < 2) return
+    if (spinning || drawItems.length < 2 || displayItems.length < 2) return
 
-    const idx = Math.floor(Math.random() * activeItems.length)
-    const segDeg = 360 / activeItems.length
-    const target = 360 - (idx * segDeg + segDeg / 2)
+    // Ganador real: se elige del pool de sorteo (puede ser más chico que lo visible)
+    const drawIdx = Math.floor(Math.random() * drawItems.length)
+    const w = drawItems[drawIdx]
+
+    // Posición visual: dónde cae ese ganador dentro de lo que se DIBUJA
+    const idxDisplay = displayItems.findIndex(item => item.id === w.id)
+    const segDeg = 360 / displayItems.length
+    const target = 360 - (idxDisplay * segDeg + segDeg / 2)
     const final = spinRef.current + 5 * 360 + target - (spinRef.current % 360)
     spinRef.current = final
     setRotation(final)
     setSpinning(true)
     setWinner(null)
 
-    // Ticker: empieza rápido, desacelera gradualmente
+    channelRef.current?.postMessage({
+      items: displayItems,
+      winnerId: w.id,
+      spinning: true,
+      libre: mode === 'libre',
+    } satisfies RuletaSyncState)
+
+    // Ticker: empieza rápido, desacelera gradualmente (flickea sobre lo visible)
     let isRunning = true
     let delay = 50
     const tick = () => {
       if (!isRunning) return
-      setTicker(activeItems[Math.floor(Math.random() * activeItems.length)].label)
+      setTicker(displayItems[Math.floor(Math.random() * displayItems.length)].label)
       delay = Math.min(delay * 1.06, 300)
       tickerRef.current = setTimeout(tick, delay)
     }
@@ -158,14 +189,13 @@ export function Ruleta({
       if (tickerRef.current) clearTimeout(tickerRef.current)
       tickerRef.current = null
       setSpinning(false)
-      const w = activeItems[idx]
       setTicker(null)
       setWinner(w)
       if (autoExclude && mode === 'estudiantes') {
         setExcluded(prev => new Set([...prev, w.id]))
       }
     }, 3200)
-  }, [spinning, activeItems, autoExclude, mode])
+  }, [spinning, drawItems, displayItems, autoExclude, mode])
 
   const toggleExclude = (id: string) => {
     setWinner(null)
@@ -176,9 +206,10 @@ export function Ruleta({
     })
   }
 
-  const n = activeItems.length
+  const n = displayItems.length
   const segAngle = n > 0 ? (2 * Math.PI) / n : 0
   const fs = calcFontSize(n)
+  const puedeGirar = drawItems.length >= 2 && displayItems.length >= 2
 
   const nivelGanador = winner && partData ? partData[winner.id]?.nivel ?? null : null
 
@@ -249,7 +280,7 @@ export function Ruleta({
               }}
             >
               <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-                {activeItems.map((item, i) => {
+                {displayItems.map((item, i) => {
                   const mid = i * segAngle + segAngle / 2
                   // Texto horizontal (sin rotación), pegado al borde exterior
                   const tp = polar(mid, R * 0.76)
@@ -296,7 +327,7 @@ export function Ruleta({
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={handleSpin}
-            disabled={spinning || n < 2}
+            disabled={spinning || !puedeGirar}
             className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-lg transition-colors shadow-lg shadow-indigo-900/40"
           >
             {spinning ? 'Girando…' : winner ? '¡Otra vez!' : 'Girar'}
@@ -315,15 +346,33 @@ export function Ruleta({
           )}
 
           {calificable && (
-            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={soloSinCalificar}
-                onChange={e => { setSoloSinCalificar(e.target.checked); setWinner(null); setTicker(null) }}
-                className="rounded accent-indigo-500"
-              />
-              Solo sin calificar del período ({pendientesCount})
-            </label>
+            <div className="flex flex-col items-start gap-1">
+              <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={soloSinCalificar}
+                  onChange={e => {
+                    setSoloSinCalificar(e.target.checked)
+                    if (!e.target.checked) setVerSoloSinCalificar(false)
+                    setWinner(null)
+                    setTicker(null)
+                  }}
+                  className="rounded accent-indigo-500"
+                />
+                Priorizar sin calificar del período ({pendientesCount})
+              </label>
+              {soloSinCalificar && (
+                <label className="flex items-center gap-2 text-[11px] text-gray-500 cursor-pointer select-none pl-6">
+                  <input
+                    type="checkbox"
+                    checked={verSoloSinCalificar}
+                    onChange={e => { setVerSoloSinCalificar(e.target.checked); setWinner(null); setTicker(null) }}
+                    className="rounded accent-indigo-500 w-3 h-3"
+                  />
+                  Ocultar en la rueda a los ya calificados
+                </label>
+              )}
+            </div>
           )}
 
           {bitacoraId && (
@@ -366,6 +415,9 @@ export function Ruleta({
                 {excluded.size > 0 && (
                   <span className="text-gray-600"> · {excluded.size} excluidos</span>
                 )}
+                {soloSinCalificar && !verSoloSinCalificar && (
+                  <span className="text-gray-600"> · sorteo real: {drawItems.length}</span>
+                )}
               </span>
               <div className="flex gap-3">
                 {excluded.size > 0 && (
@@ -376,9 +428,9 @@ export function Ruleta({
                     Incluir todos
                   </button>
                 )}
-                {excluded.size < studentsBase.length && (
+                {excluded.size < displayStudents.length && (
                   <button
-                    onClick={() => { setExcluded(new Set(studentsBase.map(s => s.id))); setWinner(null) }}
+                    onClick={() => { setExcluded(new Set(displayStudents.map(s => s.id))); setWinner(null) }}
                     className="text-gray-500 hover:text-gray-400 transition-colors"
                   >
                     Excluir todos
@@ -388,7 +440,7 @@ export function Ruleta({
             </div>
 
             <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
-              {studentsBase.map(s => {
+              {displayStudents.map(s => {
                 const isExcluded = excluded.has(s.id)
                 const isWinner = winner?.id === s.id && !isExcluded
                 const nivelGuardado = partData?.[s.id]?.nivel ?? null
