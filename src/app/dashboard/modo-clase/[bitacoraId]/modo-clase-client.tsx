@@ -48,6 +48,7 @@ type Props = {
   plantillas?: PlantillaGrupo[]
   itemsEnCurso?: { estudiante_id: string; parcial: number; nombre_item: string; nota: number | null }[]
   participacionInicial?: { estudiante_id: string; nivel: number | null; observacion: string | null }[]
+  calificadosPeriodoIds?: string[]
   numParciales?: number
 }
 
@@ -604,7 +605,7 @@ export function ModoClaseClient({
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
   gruposIniciales, categorias, gruposUltimaSesion, plantillas = [],
-  itemsEnCurso = [], participacionInicial = [], numParciales = 2,
+  itemsEnCurso = [], participacionInicial = [], calificadosPeriodoIds = [], numParciales = 2,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -1266,7 +1267,7 @@ export function ModoClaseClient({
                 </div>
                 {toolOpen === 'ruleta' && (
                   <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} />
+                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
                   </div>
                 )}
                 {toolOpen === 'agrupacion' && (
@@ -1362,7 +1363,7 @@ export function ModoClaseClient({
                 {/* Panel herramienta */}
                 {toolOpen === 'ruleta' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} />
+                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
                   </div>
                 )}
                 {toolOpen === 'agrupacion' && (

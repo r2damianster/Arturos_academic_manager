@@ -29,6 +29,7 @@ export function Ruleta({
   bitacoraId,
   partData,
   onSetNivel,
+  calificadosPeriodoIds,
 }: {
   students: Student[]
   /** Si se pasa, habilita el botón "Proyectar" (ventana emergente sincronizada). */
@@ -36,6 +37,8 @@ export function Ruleta({
   /** Si se pasa junto con onSetNivel, habilita calificar participación del ganador. */
   partData?: PartData
   onSetNivel?: (estudianteId: string, nivel: number) => void
+  /** IDs de estudiantes ya calificados en el período/parcial actual (fuera de hoy). */
+  calificadosPeriodoIds?: string[]
 }) {
   const hasStudents = students.length > 0
   const [mode, setMode] = useState<Mode>('libre')
@@ -45,6 +48,7 @@ export function Ruleta({
   const [winner, setWinner] = useState<Item | null>(null)
   const [rotation, setRotation] = useState(0)
   const [autoExclude, setAutoExclude] = useState(false)
+  const [soloSinCalificar, setSoloSinCalificar] = useState(false)
   const [ticker, setTicker] = useState<string | null>(null)
   const [proyectorAbierto, setProyectorAbierto] = useState(false)
   const spinRef = useRef(0)
@@ -60,6 +64,27 @@ export function Ruleta({
     setRotation(0)
   }, [students])
 
+  const calificable = mode === 'estudiantes' && !!onSetNivel
+
+  // Calificado en el período = ya tiene nivel hoy (partData, en vivo) o ya lo tenía
+  // antes de hoy (calificadosPeriodoIds, cargado del servidor al abrir la clase).
+  const calificadoPeriodoSet = useMemo(() => {
+    const s = new Set(calificadosPeriodoIds ?? [])
+    if (partData) {
+      for (const id in partData) {
+        if (partData[id]?.nivel != null) s.add(id)
+      }
+    }
+    return s
+  }, [calificadosPeriodoIds, partData])
+
+  const pendientesCount = students.filter(s => !calificadoPeriodoSet.has(s.id)).length
+
+  const studentsBase = useMemo(
+    () => (soloSinCalificar ? students.filter(s => !calificadoPeriodoSet.has(s.id)) : students),
+    [students, soloSinCalificar, calificadoPeriodoSet]
+  )
+
   const activeItems = useMemo((): Item[] => {
     if (mode === 'libre') {
       return freeText
@@ -68,10 +93,10 @@ export function Ruleta({
         .filter(Boolean)
         .map((label, i) => ({ id: String(i), label }))
     }
-    return students
+    return studentsBase
       .filter(s => !excluded.has(s.id))
       .map(s => ({ id: s.id, label: s.nombre }))
-  }, [mode, freeText, students, excluded])
+  }, [mode, freeText, studentsBase, excluded])
 
   // ─── Proyector: canal de sincronización ────────────────────────────────
   useEffect(() => {
@@ -155,7 +180,6 @@ export function Ruleta({
   const segAngle = n > 0 ? (2 * Math.PI) / n : 0
   const fs = calcFontSize(n)
 
-  const calificable = mode === 'estudiantes' && !!onSetNivel
   const nivelGanador = winner && partData ? partData[winner.id]?.nivel ?? null : null
 
   return (
@@ -290,6 +314,18 @@ export function Ruleta({
             </label>
           )}
 
+          {calificable && (
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={soloSinCalificar}
+                onChange={e => { setSoloSinCalificar(e.target.checked); setWinner(null); setTicker(null) }}
+                className="rounded accent-indigo-500"
+              />
+              Solo sin calificar del período ({pendientesCount})
+            </label>
+          )}
+
           {bitacoraId && (
             <button
               onClick={abrirProyector}
@@ -340,9 +376,9 @@ export function Ruleta({
                     Incluir todos
                   </button>
                 )}
-                {excluded.size < students.length && (
+                {excluded.size < studentsBase.length && (
                   <button
-                    onClick={() => { setExcluded(new Set(students.map(s => s.id))); setWinner(null) }}
+                    onClick={() => { setExcluded(new Set(studentsBase.map(s => s.id))); setWinner(null) }}
                     className="text-gray-500 hover:text-gray-400 transition-colors"
                   >
                     Excluir todos
@@ -352,7 +388,7 @@ export function Ruleta({
             </div>
 
             <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
-              {students.map(s => {
+              {studentsBase.map(s => {
                 const isExcluded = excluded.has(s.id)
                 const isWinner = winner?.id === s.id && !isExcluded
                 const nivelGuardado = partData?.[s.id]?.nivel ?? null

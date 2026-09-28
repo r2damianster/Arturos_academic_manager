@@ -30,7 +30,7 @@ export default async function ModoClaseActivaPage({
   const diaSemana = dayNames[dow]
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes] = await Promise.all([
+  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes, ultimoCierreRes, participacionPeriodoRes] = await Promise.all([
     db
       .from('estudiantes')
       .select('id, nombre, email, tutoria, estado')
@@ -57,10 +57,30 @@ export default async function ModoClaseActivaPage({
       .select('estudiante_id, nivel, observacion')
       .eq('curso_id', bitacora.curso_id)
       .eq('fecha', bitacora.fecha),
+    db.from('snapshot_parcial')
+      .select('fecha_cierre')
+      .eq('curso_id', bitacora.curso_id)
+      .order('fecha_cierre', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    db.from('participacion')
+      .select('estudiante_id, fecha')
+      .eq('curso_id', bitacora.curso_id)
+      .not('nivel', 'is', null),
   ])
 
   const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }[]
   const asistenciaInicial = (asistenciaRes.data ?? []) as { estudiante_id: string; estado: string; atraso: boolean }[]
+
+  // Estudiantes ya calificados en participación durante el parcial en curso
+  // (todo lo posterior al último cierre de parcial; si ninguno se ha cerrado, todo el historial).
+  const ultimoCierre = (ultimoCierreRes.data as { fecha_cierre: string } | null)?.fecha_cierre ?? null
+  const participacionPeriodo = (participacionPeriodoRes.data ?? []) as { estudiante_id: string; fecha: string }[]
+  const calificadosPeriodoIds = Array.from(new Set(
+    participacionPeriodo
+      .filter(p => !ultimoCierre || p.fecha > ultimoCierre)
+      .map(p => p.estudiante_id)
+  ))
   const actividades: ActividadPlanificada[] = (bitacora.actividades_json as ActividadPlanificada[] | null) ?? []
 
   type HorarioRow = { hora_inicio: string; hora_fin: string; dia_semana: string }
@@ -95,6 +115,7 @@ export default async function ModoClaseActivaPage({
       plantillas={plantillas}
       itemsEnCurso={itemsEnCursoRes.data ?? []}
       participacionInicial={participacionRes.data ?? []}
+      calificadosPeriodoIds={calificadosPeriodoIds}
       numParciales={bitacora.cursos?.num_parciales ?? 2}
     />
   )
