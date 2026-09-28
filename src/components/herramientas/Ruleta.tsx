@@ -1,69 +1,42 @@
 'use client'
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import {
+  type RuletaItem as Item,
+  RULETA_SIZE as SIZE,
+  RULETA_CX as CX,
+  RULETA_CY as CY,
+  RULETA_R as R,
+  getRuletaColor,
+  ruletaPolar as polar,
+  ruletaSegPath as segPath,
+  ruletaShortLabel as shortLabel,
+  ruletaFontSize as calcFontSize,
+  ruletaChannelName,
+  type RuletaSyncState,
+} from './ruleta-geometry'
 
 type Student = { id: string; nombre: string }
-type Item = { id: string; label: string }
 type Mode = 'estudiantes' | 'libre'
 
-const COLORS = [
-  '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-  '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-  '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-]
+const NIVEL_COLORS = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
+const NIVEL_LABELS = ['', '1·Nula', '2·Baja', '3·Media', '4·Alta', '5·Excel']
 
-const getColor = (i: number) => COLORS[i % COLORS.length]
+type PartData = Record<string, { nivel: number | null; obs: string }>
 
-// Ecuador: Nombre1 [Nombre2] Apellido1 [Apellido2]
-// 4 words → Nombre1 + Apellido1 (words[0] + words[2])
-// 3 words → Nombre1 + Apellido1 (words[0] + words[1])
-// 1-2 words → words[0]
-function formatStudentName(nombre: string): string {
-  const words = nombre.trim().split(/\s+/)
-  if (words.length >= 4) return `${words[0]} ${words[2]}`
-  if (words.length === 3) return `${words[0]} ${words[1]}`
-  return words[0]
-}
-
-function shortLabel(label: string, n: number, libre: boolean): string {
-  const base = libre ? label : formatStudentName(label)
-  const max = libre
-    ? (n <= 8 ? 16 : n <= 15 ? 12 : n <= 25 ? 9 : 7)
-    : (n <= 8 ? 14 : n <= 15 ? 11 : n <= 25 ? 8 : 6)
-  return base.length <= max ? base : base.slice(0, max - 1) + '…'
-}
-
-function calcFontSize(n: number): number {
-  if (n <= 6) return 10
-  if (n <= 10) return 9
-  if (n <= 16) return 7.5
-  if (n <= 25) return 6.5
-  return 5.5
-}
-
-const SIZE = 340
-const CX = SIZE / 2
-const CY = SIZE / 2
-const R = SIZE / 2 - 5
-
-function polar(angle: number, r: number) {
-  return {
-    x: CX + r * Math.cos(angle - Math.PI / 2),
-    y: CY + r * Math.sin(angle - Math.PI / 2),
-  }
-}
-
-function segPath(i: number, segAngle: number): string {
-  const a0 = i * segAngle
-  const a1 = a0 + segAngle
-  const s = polar(a0, R)
-  const e = polar(a1, R)
-  const large = segAngle > Math.PI ? 1 : 0
-  return `M ${CX} ${CY} L ${s.x} ${s.y} A ${R} ${R} 0 ${large} 1 ${e.x} ${e.y} Z`
-}
-
-export function Ruleta({ students }: { students: Student[] }) {
+export function Ruleta({
+  students,
+  bitacoraId,
+  partData,
+  onSetNivel,
+}: {
+  students: Student[]
+  /** Si se pasa, habilita el botón "Proyectar" (ventana emergente sincronizada). */
+  bitacoraId?: string
+  /** Si se pasa junto con onSetNivel, habilita calificar participación del ganador. */
+  partData?: PartData
+  onSetNivel?: (estudianteId: string, nivel: number) => void
+}) {
   const hasStudents = students.length > 0
   const [mode, setMode] = useState<Mode>('libre')
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
@@ -73,8 +46,10 @@ export function Ruleta({ students }: { students: Student[] }) {
   const [rotation, setRotation] = useState(0)
   const [autoExclude, setAutoExclude] = useState(false)
   const [ticker, setTicker] = useState<string | null>(null)
+  const [proyectorAbierto, setProyectorAbierto] = useState(false)
   const spinRef = useRef(0)
   const tickerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const channelRef = useRef<BroadcastChannel | null>(null)
 
   useEffect(() => {
     setExcluded(new Set())
@@ -97,6 +72,38 @@ export function Ruleta({ students }: { students: Student[] }) {
       .filter(s => !excluded.has(s.id))
       .map(s => ({ id: s.id, label: s.nombre }))
   }, [mode, freeText, students, excluded])
+
+  // ─── Proyector: canal de sincronización ────────────────────────────────
+  useEffect(() => {
+    if (!bitacoraId || typeof BroadcastChannel === 'undefined') return
+    const ch = new BroadcastChannel(ruletaChannelName(bitacoraId))
+    channelRef.current = ch
+    return () => { ch.close(); channelRef.current = null }
+  }, [bitacoraId])
+
+  useEffect(() => {
+    const ch = channelRef.current
+    if (!ch) return
+    const state: RuletaSyncState = {
+      items: activeItems,
+      rotation,
+      spinning,
+      ticker,
+      winnerLabel: winner ? winner.label : null,
+      libre: mode === 'libre',
+    }
+    ch.postMessage(state)
+  }, [activeItems, rotation, spinning, ticker, winner, mode])
+
+  function abrirProyector() {
+    if (!bitacoraId) return
+    const w = window.open(
+      `/dashboard/modo-clase/${bitacoraId}/proyector`,
+      `ruleta-proyector-${bitacoraId}`,
+      'width=1000,height=800'
+    )
+    if (w) setProyectorAbierto(true)
+  }
 
   const handleSpin = useCallback(() => {
     if (spinning || activeItems.length < 2) return
@@ -148,6 +155,9 @@ export function Ruleta({ students }: { students: Student[] }) {
   const segAngle = n > 0 ? (2 * Math.PI) / n : 0
   const fs = calcFontSize(n)
 
+  const calificable = mode === 'estudiantes' && !!onSetNivel
+  const nivelGanador = winner && partData ? partData[winner.id]?.nivel ?? null : null
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start">
       {/* Wheel column */}
@@ -155,17 +165,42 @@ export function Ruleta({ students }: { students: Student[] }) {
 
         {/* Ticker encima de la ruleta */}
         <div
-          className="flex items-center justify-center rounded-xl border border-gray-700 bg-gray-800/80 px-4 py-2"
+          className="flex flex-col items-center justify-center rounded-xl border border-gray-700 bg-gray-800/80 px-4 py-2"
           style={{ width: SIZE, minHeight: 52 }}
         >
           {ticker ? (
             <p className="text-white font-bold text-lg text-center truncate">{ticker}</p>
           ) : winner && !spinning ? (
-            <div className="text-center">
+            <div className="text-center w-full">
               <p className="text-gray-500 text-xs uppercase tracking-widest leading-none mb-0.5">
                 Seleccionado
               </p>
               <p className="text-indigo-300 font-bold text-lg leading-tight">{winner.label}</p>
+
+              {calificable && (
+                <div className="mt-2 flex flex-col items-center gap-1">
+                  <p className="text-[10px] text-gray-500">
+                    {nivelGanador != null ? 'Corregir participación' : 'Calificar participación'}
+                  </p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(nv => (
+                      <button
+                        key={nv}
+                        type="button"
+                        title={NIVEL_LABELS[nv]}
+                        onClick={() => onSetNivel!(winner.id, nv)}
+                        className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
+                          nivelGanador === nv
+                            ? `${NIVEL_COLORS[nv]} text-white ring-2 ring-white/60`
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {nv}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-gray-600 text-sm">Gira para seleccionar</p>
@@ -198,7 +233,7 @@ export function Ruleta({ students }: { students: Student[] }) {
                     <g key={item.id}>
                       <path
                         d={segPath(i, segAngle)}
-                        fill={getColor(i)}
+                        fill={getRuletaColor(i)}
                         stroke="#1f2937"
                         strokeWidth="1.5"
                       />
@@ -253,6 +288,15 @@ export function Ruleta({ students }: { students: Student[] }) {
               />
               Excluir ganador automáticamente
             </label>
+          )}
+
+          {bitacoraId && (
+            <button
+              onClick={abrirProyector}
+              className="mt-1 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800 text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
+            >
+              🖥 {proyectorAbierto ? 'Reabrir proyector' : 'Proyectar en otra pantalla'}
+            </button>
           )}
         </div>
       </div>
@@ -311,6 +355,7 @@ export function Ruleta({ students }: { students: Student[] }) {
               {students.map(s => {
                 const isExcluded = excluded.has(s.id)
                 const isWinner = winner?.id === s.id && !isExcluded
+                const nivelGuardado = partData?.[s.id]?.nivel ?? null
                 return (
                   <button
                     key={s.id}
@@ -344,6 +389,11 @@ export function Ruleta({ students }: { students: Student[] }) {
                     <span className={isExcluded ? 'line-through' : ''}>
                       {s.nombre}
                     </span>
+                    {calificable && nivelGuardado != null && (
+                      <span className={`ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${NIVEL_COLORS[nivelGuardado]}`}>
+                        {nivelGuardado}
+                      </span>
+                    )}
                     {isWinner && (
                       <span className="ml-auto text-indigo-400 text-xs">★ ganador</span>
                     )}

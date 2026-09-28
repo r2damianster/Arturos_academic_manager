@@ -1266,7 +1266,7 @@ export function ModoClaseClient({
                 </div>
                 {toolOpen === 'ruleta' && (
                   <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} />
+                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} />
                   </div>
                 )}
                 {toolOpen === 'agrupacion' && (
@@ -1362,7 +1362,7 @@ export function ModoClaseClient({
                 {/* Panel herramienta */}
                 {toolOpen === 'ruleta' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} />
+                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} />
                   </div>
                 )}
                 {toolOpen === 'agrupacion' && (
