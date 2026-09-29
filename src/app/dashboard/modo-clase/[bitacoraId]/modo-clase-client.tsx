@@ -1265,11 +1265,11 @@ export function ModoClaseClient({
                     👥 {toolOpen === 'agrupacion' ? 'Cerrar grupos' : 'Crear grupos'}
                   </button>
                 </div>
-                {toolOpen === 'ruleta' && (
-                  <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
-                  </div>
-                )}
+                {/* Montado siempre (solo oculto) mientras esta vista esté activa — cerrar/abrir
+                    el panel no debe perder el estado de la ruleta ni cortar el canal del proyector. */}
+                <div className={`w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700 ${toolOpen === 'ruleta' ? '' : 'hidden'}`}>
+                  <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
+                </div>
                 {toolOpen === 'agrupacion' && (
                   <div className="w-full bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <Agrupacion
@@ -1360,12 +1360,10 @@ export function ModoClaseClient({
                   </button>
                 </div>
 
-                {/* Panel herramienta */}
-                {toolOpen === 'ruleta' && (
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
-                  </div>
-                )}
+                {/* Panel herramienta — montado siempre (solo oculto), mismo motivo que arriba */}
+                <div className={`bg-gray-800/50 rounded-xl p-4 border border-gray-700 ${toolOpen === 'ruleta' ? '' : 'hidden'}`}>
+                  <Ruleta students={students} bitacoraId={bitacoraId} partData={partData} onSetNivel={setNivelPart} calificadosPeriodoIds={calificadosPeriodoIds} />
+                </div>
                 {toolOpen === 'agrupacion' && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <Agrupacion

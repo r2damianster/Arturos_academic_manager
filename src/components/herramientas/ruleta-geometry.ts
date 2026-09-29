@@ -63,6 +63,9 @@ export function ruletaFontSize(n: number): number {
 export type RuletaSyncState = {
   items: RuletaItem[]
   winnerId: string | null
+  /** Identificador único por giro (no por ganador) — evita que el proyector
+   * ignore un giro cuyo ganador coincide con el del giro anterior. */
+  spinId: string | null
   spinning: boolean
   libre: boolean
 }

@@ -25,8 +25,11 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
   const [winnerLabel, setWinnerLabel] = useState<string | null>(null)
   const [conectado, setConectado] = useState(false)
   const spinRef = useRef(0)
-  const lastSpinId = useRef<string | null>(null)
+  // Dedup por spinId (único por giro) — NO por winnerId: si el mismo estudiante
+  // sale dos veces seguidas, ambos giros deben animarse igual.
+  const lastSpinKey = useRef<string | null>(null)
   const tickerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const spinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
@@ -37,11 +40,12 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
       setItems(msg.items)
       setLibre(msg.libre)
 
-      if (msg.spinning && msg.winnerId && msg.winnerId !== lastSpinId.current) {
-        lastSpinId.current = msg.winnerId
+      if (msg.spinning && msg.winnerId && msg.spinId && msg.spinId !== lastSpinKey.current) {
+        lastSpinKey.current = msg.spinId
         const idx = msg.items.findIndex(it => it.id === msg.winnerId)
         if (idx === -1 || msg.items.length < 2) return
 
+        if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current)
         const segDeg = 360 / msg.items.length
         const target = 360 - (idx * segDeg + segDeg / 2)
         const final = spinRef.current + 5 * 360 + target - (spinRef.current % 360)
@@ -50,12 +54,16 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
         setSpinning(true)
         setWinnerLabel(null)
 
-        setTimeout(() => {
+        spinTimeoutRef.current = setTimeout(() => {
           setSpinning(false)
           setWinnerLabel(msg.items[idx]?.label ?? null)
         }, 3200)
       } else if (!msg.spinning) {
-        lastSpinId.current = msg.winnerId
+        // Estado de reposo (reconexión, remount del profesor, etc.) — refleja
+        // sin animar y libera el candado de dedup para el próximo giro real.
+        lastSpinKey.current = null
+        if (spinTimeoutRef.current) { clearTimeout(spinTimeoutRef.current); spinTimeoutRef.current = null }
+        setSpinning(false)
         if (msg.winnerId) {
           const idx = msg.items.findIndex(it => it.id === msg.winnerId)
           setWinnerLabel(idx !== -1 ? msg.items[idx].label : null)
@@ -64,7 +72,11 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
         }
       }
     }
-    return () => { ch.close(); if (tickerTimeoutRef.current) clearTimeout(tickerTimeoutRef.current) }
+    return () => {
+      ch.close()
+      if (tickerTimeoutRef.current) clearTimeout(tickerTimeoutRef.current)
+      if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current)
+    }
   }, [bitacoraId])
 
   // Flicker local del ticker mientras gira (independiente del profesor, mismo look)

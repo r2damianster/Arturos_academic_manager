@@ -133,6 +133,7 @@ export function Ruleta({
     const state: RuletaSyncState = {
       items: displayItems,
       winnerId: winner?.id ?? null,
+      spinId: null,
       spinning: false,
       libre: mode === 'libre',
     }
@@ -169,6 +170,7 @@ export function Ruleta({
     channelRef.current?.postMessage({
       items: displayItems,
       winnerId: w.id,
+      spinId: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       spinning: true,
       libre: mode === 'libre',
     } satisfies RuletaSyncState)
