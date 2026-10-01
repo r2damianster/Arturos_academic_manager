@@ -44,7 +44,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 | # | Tipo | Título | URL | Usado en |
 |---|------|--------|-----|----------|
 | R15 | 💻 Simulador | r2-graphs — Simulador de gráficos estadísticos | [Abrir](https://r2-graphs.vercel.app/) | ODO Ses.11, Ses.12 · GAS Ses.12 (2026-2) |
-| R21 | 📁 Taller | Taller de análisis cuantitativo con Excel (media, mediana, moda, desviación estándar, hasta correlación) | [Abrir](https://drive.google.com/drive/folders/1ZT_STJJt63aYBOxUq1_Q9Vvz6re3plAB?usp=sharing) | GAS Ses.11 · ODO Ses.11 (AA) y Ses.12 (2026-2) |
+| R21 | 📁 Taller | Taller de análisis cuantitativo con Excel (media, mediana, moda, desviación estándar, hasta correlación) | [Abrir](https://drive.google.com/drive/folders/1ZT_STJJt63aYBOxUq1_Q9Vvz6re3plAB?usp=sharing) | GAS Ses.11 · ODO Ses.12 (2026-2) |
 
 ---
 
@@ -69,7 +69,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 
 | # | Tipo | Título | URL | Usado en |
 |---|------|--------|-----|----------|
-| R19 | 🎬 Video | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | GAS Ses.4, Ses.9 · ODO Ses.4 (2026-2) |
+| R19 | 🎬 Video | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | GAS Ses.4 · ODO Ses.4 (2026-2) |
 | R20 | 🎬 Video | Ondas semánticas para superar el segmentalismo | [Abrir](https://youtu.be/MpiR5KwJR8g) | GAS Ses.6, Ses.9 · ODO Ses.4, Ses.6, Ses.9 (2026-2) |
 
 ---
@@ -114,8 +114,8 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 |---|------|--------|-----|----------|
 | R10 | 💻 Simulador | Simulación Formato APA 7 — Corrige un manuscrito (~15 min · Intermedio) | [Abrir](https://elprofesimulations.vercel.app/apa7.html) | ODO Ses.6 · GAS Ses.3, Ses.15 (2026-2) |
 | R11 | 💻 Simulador | Editor APA 7 — Cinta de herramientas (~20 min · Avanzado) | [Abrir](https://elprofesimulations.vercel.app/apa7_2.html) | ODO Ses.6 · GAS Ses.3, Ses.15 (2026-2) |
-| R12 | 💻 Simulador | Constructor PEEL — Redacción argumentativa (~15 min · Básico) | [Abrir](https://elprofesimulations.vercel.app/peel.html) | ODO Ses.1–2 (AA) · GAS Ses.9, Ses.14 (2026-2) |
-| R23 | 📁 Taller | Taller de elaboración de informe de investigación (completo) | [Abrir](https://drive.google.com/drive/folders/19eKBDv96mY6RdgRK67EAchTv_1CxHqmy?usp=sharing) | GAS Ses.11, Ses.15 · ODO Ses.13, Ses.14 (2026-2) |
+| R12 | 💻 Simulador | Constructor PEEL — Redacción argumentativa (~15 min · Básico) | [Abrir](https://elprofesimulations.vercel.app/peel.html) | ODO Ses.1–2 (ACD) · GAS Ses.9, Ses.14 (2026-2) |
+| R23 | 📁 Taller | Taller de elaboración de informe de investigación (completo) | [Abrir](https://drive.google.com/drive/folders/19eKBDv96mY6RdgRK67EAchTv_1CxHqmy?usp=sharing) | GAS Ses.11, Ses.15 · ODO Ses.13 (2026-2) |
 
 ---
 
