@@ -127,3 +127,18 @@ La IA ejecutará un script TS usando la conexión a Producción:
 - Los IDs de curso de este skill corresponden al periodo 2026-2 y **caducan**: antes de operar, confirmar con `select id, asignatura, estado from cursos where estado='activo'`.
 - Verificar el `project_id` de producción (`hxsnyrutyyavvljxwgku`) antes de escribir; no commitear archivos `.xlsx`, logs ni scripts ad hoc.
 - Ver `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`.
+
+---
+
+## 📦 Repositorio de Recursos por Temática
+
+Para asignaturas de **Metodología de la Investigación y afines**, existe un repositorio separado con slides, simuladores y plataformas reutilizables:
+
+📄 **Archivo**: `.agents/skills/subir-planificacion/recursos-investigacion.md`
+
+### Flujo obligatorio al planificar sesiones de investigación:
+1. **LEER** `recursos-investigacion.md` antes de planificar cualquier sesión de investigación.
+2. **ASIGNAR** recursos ✅ Aprobados que coincidan con el tema de la sesión.
+3. Si se descubre un recurso nuevo en la BD (semestres anteriores) → **AGREGAR** en sección `⬜ Pendientes de Revisión` del archivo con todos los campos.
+4. **NUNCA** aprobar automáticamente recursos pendientes — solo el profesor lo hace.
+5. Si el profesor aprueba un pendiente en sesión → moverlo a Aprobados en el mismo archivo.
