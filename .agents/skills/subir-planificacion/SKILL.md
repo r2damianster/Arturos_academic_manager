@@ -143,7 +143,10 @@ Calendario: 16 sesiones; la numeración nunca se salta. Suspendidas (vacaciones)
 
 ### Reglas de campos (bitácora)
 - `tema`: todos los temas y subtemas del sílabo, enumerados (también en sesiones fusionadas).
-- `actividades_json`: texto **fiel al sílabo** (ACD/AA); una entrada por obra bibliográfica; los recursos (simuladores, videos, talleres) son actividades; **nunca** incluir RAA.
+- `actividades_json`: **solo ACD** (actividades en aula), texto **fiel al sílabo**; una entrada por obra bibliográfica; los recursos (simuladores, videos, talleres) son ACD adicionales; **nunca** incluir RAA.
+- **AA / TA / PE** (Actividad Autónoma; TA = Trabajo Autónomo en ULEAM; PE = Práctica Experimental en ambas universidades) son trabajo **fuera del aula**: van en `observaciones`, como texto fiel al sílabo y **sin recursos**. Los recursos solo se usan en ACD.
+- Si el sílabo rotula como AA algo que se hace en clase, se pasa a ACD y se deja la nota en `observaciones`: «en el sílabo figura como AA; se aplica como ACD».
+- `observaciones` completo: `AA/TA/PE … — EACD/EAA … Criterio: … — Palabras clave: conceptos importantes de la sesión.` Incluir también la línea `Criterio:` del sílabo.
 - `materiales`: links a slides. Si falta slide: `[Diapositiva — pendiente de carga]`. Si solo existe una slide indirecta: se agrega el link **y** una actividad `Presentación PPT — Pendiente: <Tema>`. En evaluaciones, vacío.
 - `observaciones`: `EACD/EAA: … Criterio: …` separados por ` — `. No inventar AA que el sílabo no tenga. "Experimentación blanda" solo en ODO (últimas semanas).
 - **No modificar sesiones con placeholder (`Sesion N`) ni sobrescribir sesiones con contenido sin orden explícita.**
