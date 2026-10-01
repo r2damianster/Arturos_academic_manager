@@ -622,11 +622,11 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       <div
         {...dragHandlers}
         className={`w-full h-full min-h-[52px] text-left p-2 rounded-lg border flex flex-col gap-1 ${
-          enRevision ? 'bg-violet-900/20 border-violet-500/40' : 'bg-sky-900/20 border-sky-500/30'
+          enRevision ? 'bg-orange-900/20 border-orange-500/40' : 'bg-sky-900/20 border-sky-500/30'
         }`}
       >
         <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-          <div className={`${enRevision ? 'text-violet-300' : 'text-sky-400'} text-xs font-medium`}>
+          <div className={`${enRevision ? 'text-orange-300' : 'text-sky-400'} text-xs font-medium`}>
             {enRevision ? '🔍 En revisión' : 'Planificado'}
           </div>
           {renderBadges()}
@@ -638,7 +638,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             <button
               onClick={e => { e.stopPropagation(); handleAprobarPlan(entry.id) }}
               disabled={aprobandoId === entry.id}
-              className="text-[10px] text-white font-semibold bg-violet-600 hover:bg-violet-500 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
+              className="text-[10px] text-white font-semibold bg-orange-600 hover:bg-orange-500 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
               title="Aprobar plan (pasa a Planificado)"
             >
               {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
@@ -741,7 +741,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                   </td>
                   <td className="py-2 px-3">
                     {!entry && <span className="text-yellow-400 text-[10px]">Sin planificar</span>}
-                    {entry?.estado === 'en_revision' && <span className="text-violet-300 text-[10px]">🔍 En revisión</span>}
+                    {entry?.estado === 'en_revision' && <span className="text-orange-300 text-[10px]">🔍 En revisión</span>}
                     {entry?.estado === 'planificado' && <span className="text-sky-400 text-[10px]">Planificado</span>}
                     {entry?.estado === 'cumplido' && <span className="text-emerald-400 text-[10px]">Cumplido</span>}
                     {entry?.estado === 'suspendido' && (
@@ -775,7 +775,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                           <button
                             onClick={() => handleAprobarPlan(entry.id)}
                             disabled={aprobandoId === entry.id}
-                            className="text-[10px] text-white font-semibold bg-violet-600 hover:bg-violet-500 px-2.5 py-0.5 rounded transition-colors disabled:opacity-50 whitespace-nowrap"
+                            className="text-[10px] text-white font-semibold bg-orange-600 hover:bg-orange-500 px-2.5 py-0.5 rounded transition-colors disabled:opacity-50 whitespace-nowrap"
                           >
                             {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
                           </button>
@@ -933,7 +933,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                       <button
                         onClick={() => handleAprobarPlan(entry.id)}
                         disabled={aprobandoId === entry.id}
-                        className="text-xs text-white font-medium bg-violet-600 hover:bg-violet-500 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        className="text-xs text-white font-medium bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                       >
                         {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
                       </button>

@@ -896,7 +896,7 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             )}
                             {/* Badge de estado de planificación */}
                             {!fueraDeRango && bitEstado && pos.height >= SLOT_H * 1.5 && (
-                              <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : bitEstado === 'en_revision' ? 'text-violet-300' : 'text-sky-400'}`}>
+                              <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : bitEstado === 'en_revision' ? 'text-orange-300' : 'text-sky-400'}`}>
                                 {bitEstado === 'cumplido' ? '✓ Cumplido' : bitEstado === 'en_revision' ? '🔍 En revisión' : '📋 Planificado'}
                               </p>
                             )}

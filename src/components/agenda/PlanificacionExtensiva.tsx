@@ -309,12 +309,12 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
 
     return (
       <div className={`relative px-3 py-2 rounded-lg border space-y-1.5 ${
-        isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : isEnRevision ? 'bg-violet-900/20 border-violet-500/40' : 'bg-sky-900/20 border-sky-500/30'
+        isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : isEnRevision ? 'bg-orange-900/20 border-orange-500/40' : 'bg-sky-900/20 border-sky-500/30'
       }`}>
         <DraggableHandle id={dragId} />
         <div className="flex items-start justify-between gap-2 pr-5">
           <div className="min-w-0 flex-1">
-            <span className={`text-xs font-medium ${isCumplido ? 'text-emerald-400' : isEnRevision ? 'text-violet-300' : 'text-sky-400'}`}>
+            <span className={`text-xs font-medium ${isCumplido ? 'text-emerald-400' : isEnRevision ? 'text-orange-300' : 'text-sky-400'}`}>
               {isCumplido ? '✓ Cumplido' : isEnRevision ? '🔍 En revisión' : 'Planificado'}
             </span>
             <p className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</p>
@@ -332,7 +332,7 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
           {isEnRevision && (
             <button
               onClick={async () => { await aprobarPlan(entry.id); await loadBitacoras() }}
-              className="text-[10px] px-2 py-0.5 rounded bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+              className="text-[10px] px-2 py-0.5 rounded bg-orange-600 hover:bg-orange-500 text-white font-medium transition-colors"
               title="Aprobar plan (pasa a Planificado)"
             >
               ✓ Aprobar

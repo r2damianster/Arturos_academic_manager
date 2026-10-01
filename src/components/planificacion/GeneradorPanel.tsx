@@ -676,7 +676,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                                 b.estado === 'cumplido'
                                   ? 'bg-emerald-900/30 border-emerald-600/40 text-emerald-400'
                                   : b.estado === 'en_revision'
-                                    ? 'bg-violet-900/30 border-violet-600/40 text-violet-300'
+                                    ? 'bg-orange-900/30 border-orange-600/40 text-orange-300'
                                     : 'bg-sky-900/30 border-sky-600/40 text-sky-400'
                               }`}>
                                 {b.estado === 'cumplido' ? '✓ Cumplida' : b.estado === 'en_revision' ? '🔍 En revisión' : 'Planificada'}
