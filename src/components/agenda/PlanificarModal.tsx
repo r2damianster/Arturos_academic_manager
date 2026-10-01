@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
 import { guardarPlanificacion, aprobarPlan, getClasesFuturas } from '@/lib/actions/bitacora'
 import { corregirPlan } from '@/lib/actions/generar-contenido'
 import { convertirActividadPlanAInbox } from '@/lib/actions/actividades'
@@ -612,15 +613,7 @@ export function PlanificarModal({
                 <>
                   <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
                   {existing && (
-                    <a
-                      href={`/imprimir/plan?id=${existing.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn-ghost flex items-center justify-center px-3"
-                      title="Vista de impresión / PDF"
-                    >
-                      🖨
-                    </a>
+                    <ImprimirPlanButton bitacoraId={existing.id} label="Imprimir" size="sm" />
                   )}
                   <button type="submit" disabled={saving} className={`${isEnRevision ? 'btn-ghost' : 'btn-primary'} flex-1`}>
                     {saving ? 'Guardando...' : existing ? (isEnRevision ? 'Guardar (sigue en revisión)' : 'Actualizar planificación') : 'Guardar planificación'}

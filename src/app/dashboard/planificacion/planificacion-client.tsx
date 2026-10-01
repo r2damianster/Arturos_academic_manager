@@ -9,6 +9,7 @@ import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
 import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, reactivarClase, aprobarPlan, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
+import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
 import { SuspenderClasesModal } from '@/components/agenda/SuspenderClasesModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -651,15 +652,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           >
             ▶ Iniciar clase
           </Link>
-          <Link
-            href={`/imprimir/plan?id=${entry.id}`}
-            target="_blank"
-            onClick={e => e.stopPropagation()}
-            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors"
-            title="Vista de impresión / PDF"
-          >
-            🖨
-          </Link>
+          <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" />
           {entry.actividades_json?.length > 0 && (
             <button
               onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
@@ -792,13 +785,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         >
                           Editar
                         </button>
-                        <Link
-                          href={`/imprimir/plan?id=${entry.id}`}
-                          target="_blank"
-                          className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
-                        >
-                          🖨 Imprimir
-                        </Link>
+                        <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" />
                         {entry.actividades_json?.length > 0 && (
                           <button
                             onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json, grupo.curso.id)}
@@ -869,13 +856,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           </button>
           {hoyOpen && <div className="divide-y divide-gray-800">
             <div className="flex justify-end px-4 py-2">
-              <Link
-                href={`/imprimir/plan?fecha=${hoyStr}`}
-                target="_blank"
-                className="text-[11px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
-              >
-                🖨 Imprimir plan del día
-              </Link>
+              <ImprimirPlanButton fecha={hoyStr} label="Imprimir plan del día" size="sm" />
             </div>
             {clasesDeHoy.map(clase => {
               const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
@@ -947,14 +928,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                       </button>
                     )}
                     {entry && !suspendida && (
-                      <Link
-                        href={`/imprimir/plan?id=${entry.id}`}
-                        target="_blank"
-                        className="text-xs text-gray-400 hover:text-gray-300 border border-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-                        title="Imprimir / guardar PDF"
-                      >
-                        🖨
-                      </Link>
+                      <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" size="sm" />
                     )}
                     {entry && !suspendida && (
                       <Link

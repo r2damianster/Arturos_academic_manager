@@ -9,6 +9,7 @@ import {
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { gestionarDragPlanificacion, eliminarPlanificacion, aprobarPlan } from '@/lib/actions/bitacora'
+import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
 import { PlanificarModal } from './PlanificarModal'
 import { PlanDropModal } from './PlanDropModal'
 
@@ -338,14 +339,7 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
               ✓ Aprobar
             </button>
           )}
-          <Link
-            href={`/imprimir/plan?id=${entry.id}`}
-            target="_blank"
-            className="text-[10px] px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-            title="Vista de impresión / PDF"
-          >
-            🖨
-          </Link>
+          <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" />
           {isPlanned && (
             <>
               <Link

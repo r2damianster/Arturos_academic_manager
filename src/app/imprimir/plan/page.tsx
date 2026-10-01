@@ -53,9 +53,10 @@ interface PlanParaImprimir {
 export default async function ImprimirPlanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; fecha?: string }>
+  searchParams: Promise<{ id?: string; fecha?: string; embed?: string }>
 }) {
-  const { id: bitacoraId, fecha: fechaParam } = await searchParams
+  const { id: bitacoraId, fecha: fechaParam, embed } = await searchParams
+  const isEmbedded = embed === '1' // dentro del modal: el botón de imprimir vive en el modal
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -128,12 +129,14 @@ export default async function ImprimirPlanPage({
       `}</style>
 
       <div className="max-w-3xl mx-auto px-6 py-8 bg-white text-gray-900 min-h-screen">
-        <div className="print:hidden flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-          <a href={volverHref} className="text-sm text-blue-600 hover:underline">
-            &larr; Volver a Mis Clases
-          </a>
-          <PrintButton />
-        </div>
+        {!isEmbedded && (
+          <div className="print:hidden flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+            <a href={volverHref} className="text-sm text-blue-600 hover:underline">
+              &larr; Volver a Mis Clases
+            </a>
+            <PrintButton />
+          </div>
+        )}
 
         {planes.length === 0 && (
           <p className="text-gray-500 italic">
