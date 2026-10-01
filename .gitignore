@@ -35,3 +35,7 @@ scripts/clean_*.js
 scripts/restore_*.js
 scripts/registrar_participacion_*.js
 scripts/query_management_api.js
+scripts/update-*.js
+scripts/ute-planificacion-*.js
+scripts/crear_cursos_*.js
+scripts/query_pensamiento_*.js
