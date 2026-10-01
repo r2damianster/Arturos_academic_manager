@@ -130,6 +130,27 @@ La IA ejecutará un script TS usando la conexión a Producción:
 
 ---
 
+## 🏫 Cursos UTE (`periodo: 2026-2`, institución `UTE`)
+
+| Curso | Código | `curso_id` | Día | Horario |
+|---|---|---|---|---|
+| GAS — Metodología de Investigación | `GAS-MDI-2026II` | `254d9765-0466-4d53-8b02-9d9bab624f53` | Jueves | 07:00–09:00 |
+| ODO — Metodología de Investigación | `ODO-MDI-2026II` | `8d38cfd3-4a7b-4d60-a93f-9491909df306` | Jueves | — |
+| MED — Desarrollo del Pensamiento | `MED-DPE-2026II` | `0f88c94d-f5c0-4262-b8c3-1f8b590e67d9` | Miércoles | — |
+| NEG — Realidad Nacional y Mundial | `NEG-RNM-2026II` | `53966fa1-1401-43bb-bb4b-fc0c8e2d2ea2` | Miércoles | — |
+
+Calendario: 16 sesiones; la numeración nunca se salta. Suspendidas (vacaciones): jueves 15-oct, 24-dic, 31-dic · miércoles 14-oct, 23-dic, 30-dic. Sesiones fusionadas 07/08-oct = "Sesión 1 y 2" y la siguiente clase = "Sesión 3 — Retomar Sesión 2".
+
+### Reglas de campos (bitácora)
+- `tema`: todos los temas y subtemas del sílabo, enumerados (también en sesiones fusionadas).
+- `actividades_json`: texto **fiel al sílabo** (ACD/AA); una entrada por obra bibliográfica; los recursos (simuladores, videos, talleres) son actividades; **nunca** incluir RAA.
+- `materiales`: links a slides. Si falta slide: `[Diapositiva — pendiente de carga]`. Si solo existe una slide indirecta: se agrega el link **y** una actividad `Presentación PPT — Pendiente: <Tema>`. En evaluaciones, vacío.
+- `observaciones`: `EACD/EAA: … Criterio: …` separados por ` — `. No inventar AA que el sílabo no tenga. "Experimentación blanda" solo en ODO (últimas semanas).
+- **No modificar sesiones con placeholder (`Sesion N`) ni sobrescribir sesiones con contenido sin orden explícita.**
+- Ejecutar escrituras contra prod vía MCP Supabase (`hxsnyrutyyavvljxwgku`): el `.env.local` apunta al proyecto de desarrollo.
+
+---
+
 ## 📦 Repositorio de Recursos por Temática
 
 Para asignaturas de **Metodología de la Investigación y afines**, existe un repositorio separado con slides, simuladores y plataformas reutilizables:
