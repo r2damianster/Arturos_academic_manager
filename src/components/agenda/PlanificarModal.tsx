@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { guardarPlanificacion, getClasesFuturas } from '@/lib/actions/bitacora'
+import { guardarPlanificacion, aprobarPlan, getClasesFuturas } from '@/lib/actions/bitacora'
 import { corregirPlan } from '@/lib/actions/generar-contenido'
 import { convertirActividadPlanAInbox } from '@/lib/actions/actividades'
 import type { ActividadPlanificada } from '@/types/domain'
@@ -25,7 +25,8 @@ interface PlanificarModalProps {
   horaFin: string
   centroComputo?: boolean
   onClose: () => void
-  onSaved: () => void
+  /** `estadoAprobado` solo viene cuando el guardado también aprobó el plan */
+  onSaved: (estadoAprobado?: 'planificado') => void
   todosCursos?: { id: string; asignatura: string }[]
   readOnly?: boolean
 }
@@ -359,8 +360,7 @@ export function PlanificarModal({
 
   // ── Save handler ────────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function guardarYCerrar(aprobarDespues: boolean) {
     if (!tema.trim()) { setError('El tema es obligatorio'); return }
 
     const actividadesFiltradas = actividades.filter(a => a.actividad.trim())
@@ -373,10 +373,23 @@ export function PlanificarModal({
       observaciones: observaciones.trim() || null,
     })
 
+    if (result.error) { setSaving(false); setError(result.error); return }
+
+    if (aprobarDespues && result.id) {
+      const approval = await aprobarPlan(result.id)
+      if (approval.error) { setSaving(false); setError(approval.error); return }
+    }
+
     setSaving(false)
-    if (result.error) { setError(result.error); return }
-    onSaved()
+    onSaved(aprobarDespues ? 'planificado' : undefined)
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await guardarYCerrar(false)
+  }
+
+  const isEnRevision = existing?.estado === 'en_revision'
 
   const fmt = (t: string) => t?.slice(0, 5) ?? ''
 
@@ -392,7 +405,7 @@ export function PlanificarModal({
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs bg-blue-600/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
-                {readOnly ? '✓ Plan cumplido' : existing?.estado === 'cumplido' ? '✓ Cumplido' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
+                {readOnly ? '✓ Plan cumplido' : existing?.estado === 'cumplido' ? '✓ Cumplido' : isEnRevision ? '🔍 En revisión' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -598,9 +611,25 @@ export function PlanificarModal({
               ) : (
                 <>
                   <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
-                  <button type="submit" disabled={saving} className="btn-primary flex-1">
-                    {saving ? 'Guardando...' : existing ? 'Actualizar planificación' : 'Guardar planificación'}
+                  {existing && (
+                    <a
+                      href={`/imprimir/plan?id=${existing.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-ghost flex items-center justify-center px-3"
+                      title="Vista de impresión / PDF"
+                    >
+                      🖨
+                    </a>
+                  )}
+                  <button type="submit" disabled={saving} className={`${isEnRevision ? 'btn-ghost' : 'btn-primary'} flex-1`}>
+                    {saving ? 'Guardando...' : existing ? (isEnRevision ? 'Guardar (sigue en revisión)' : 'Actualizar planificación') : 'Guardar planificación'}
                   </button>
+                  {isEnRevision && (
+                    <button type="button" disabled={saving} onClick={() => guardarYCerrar(true)} className="btn-primary flex-1">
+                      {saving ? '...' : '✓ Guardar y aprobar'}
+                    </button>
+                  )}
                 </>
               )}
             </div>

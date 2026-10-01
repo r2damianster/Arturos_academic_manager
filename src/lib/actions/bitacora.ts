@@ -98,15 +98,24 @@ export type PlanificacionData = {
   observaciones?: string | null
 }
 
+type EstadoPlan = 'en_revision' | 'planificado'
+
+/** Al reescribir un plan existente se conserva 'cumplido' y 'en_revision'; cualquier otro pasa a 'planificado'. */
+function estadoConservado(estadoActual: string | null | undefined): 'cumplido' | EstadoPlan {
+  return estadoActual === 'cumplido' || estadoActual === 'en_revision' ? estadoActual : 'planificado'
+}
+
 /**
  * Crea o actualiza la planificación de una clase para una fecha dada.
  * Si ya existe una bitácora para ese curso+fecha, la actualiza.
- * Si no existe, la crea con estado='planificado'.
+ * Si no existe, la crea con `estadoInicial` ('planificado' por defecto; 'en_revision' para planes generados por IA).
+ * Al editar un plan existente se conserva su estado (no aprueba un plan en revisión).
  */
 export async function guardarPlanificacion(
   cursoId: string,
   fecha: string,
-  data: PlanificacionData
+  data: PlanificacionData,
+  estadoInicial: EstadoPlan = 'planificado'
 ): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -133,8 +142,8 @@ export async function guardarPlanificacion(
         tema: data.tema,
         actividades_json: data.actividades_json,
         observaciones: data.observaciones ?? null,
-        // Preservar 'cumplido' si ya fue tomada la lista
-        estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
+        // Preservar 'cumplido' y 'en_revision'
+        estado: estadoConservado(existing.estado),
         // Usuario agrega plan explícito: ya no es espontánea
         sin_planificacion: false,
       })
@@ -156,7 +165,7 @@ export async function guardarPlanificacion(
       tema: data.tema,
       actividades_json: data.actividades_json,
       observaciones: data.observaciones ?? null,
-      estado: 'planificado',
+      estado: estadoInicial,
     })
     .select('id')
     .single()
@@ -164,6 +173,48 @@ export async function guardarPlanificacion(
   if (error) return { error: error.message }
   revalidateBitacoraViews()
   return { id: created.id }
+}
+
+/** Aprueba un plan en revisión: en_revision → planificado. */
+export async function aprobarPlan(bitacoraId: string): Promise<{ error?: string }> {
+  return aprobarPlanes([bitacoraId])
+}
+
+/** Aprueba varios planes en revisión a la vez. Ignora los que no estén en 'en_revision'. */
+export async function aprobarPlanes(bitacoraIds: string[]): Promise<{ error?: string }> {
+  if (bitacoraIds.length === 0) return {}
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ estado: 'planificado' })
+    .in('id', bitacoraIds)
+    .eq('profesor_id', user.id)
+    .eq('estado', 'en_revision')
+
+  if (error) return { error: error.message }
+  revalidateBitacoraViews()
+  return {}
+}
+
+/** Devuelve un plan aprobado (aún no cumplido) a revisión: planificado → en_revision. */
+export async function devolverARevision(bitacoraId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('bitacora_clase')
+    .update({ estado: 'en_revision' })
+    .eq('id', bitacoraId)
+    .eq('profesor_id', user.id)
+    .eq('estado', 'planificado')
+
+  if (error) return { error: error.message }
+  revalidateBitacoraViews()
+  return {}
 }
 
 /**
@@ -819,6 +870,19 @@ export async function gestionarDragPlanificacion(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
+  // El plan movido/copiado conserva su estado de origen (p. ej. 'en_revision')
+  let estadoOrigen: 'cumplido' | EstadoPlan = 'planificado'
+  if (sourceBitacoraId && sourceBitacoraId !== 'temp') {
+    const { data: sourcePlan } = await db
+      .from('bitacora_clase')
+      .select('estado')
+      .eq('id', sourceBitacoraId)
+      .eq('profesor_id', user.id)
+      .maybeSingle()
+    // Un plan cumplido que se copia/mueve vuelve a ser un plan nuevo, no una clase tomada
+    estadoOrigen = sourcePlan?.estado === 'en_revision' ? 'en_revision' : 'planificado'
+  }
+
   if (accion === 'mover' && sourceBitacoraId) {
     if (sourceBitacoraId !== 'temp') {
       const { error: errDel } = await db.from('bitacora_clase').delete().eq('id', sourceBitacoraId).eq('profesor_id', user.id)
@@ -845,7 +909,7 @@ export async function gestionarDragPlanificacion(
        tema: payload.tema,
        actividades_json: payload.actividades_json,
        observaciones: payload.observaciones || null,
-       estado: 'planificado',
+       estado: estadoOrigen,
     })
     if (error) return { error: error.message }
   } else {
@@ -854,7 +918,7 @@ export async function gestionarDragPlanificacion(
            tema: payload.tema,
            actividades_json: payload.actividades_json,
            observaciones: payload.observaciones || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
+           estado: existing.estado === 'cumplido' ? 'cumplido' : estadoOrigen,
        }).eq('id', existing.id)
        if (error) return { error: error.message }
     } else if (colision === 'combinar') {
@@ -869,7 +933,10 @@ export async function gestionarDragPlanificacion(
            tema: comboTema,
            actividades_json: comboActividades,
            observaciones: comboObs || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
+           // Combinar contenido nuevo con el existente → si cualquiera está en revisión, sigue en revisión
+           estado: existing.estado === 'cumplido'
+             ? 'cumplido'
+             : (existing.estado === 'en_revision' || estadoOrigen === 'en_revision') ? 'en_revision' : 'planificado',
        }).eq('id', existing.id)
        if (error) return { error: error.message }
     } else if (colision === 'cascada') {
@@ -877,7 +944,7 @@ export async function gestionarDragPlanificacion(
            tema: payload.tema,
            actividades_json: payload.actividades_json,
            observaciones: payload.observaciones || null,
-           estado: existing.estado === 'cumplido' ? 'cumplido' : 'planificado',
+           estado: existing.estado === 'cumplido' ? 'cumplido' : estadoOrigen,
        }).eq('id', existing.id)
        if (errUpdate) return { error: errUpdate.message }
 
@@ -890,7 +957,7 @@ export async function gestionarDragPlanificacion(
        const allowedDows = new Set([...checkDays].map(d => diaMap[d as string]))
 
        if (allowedDows.size > 0) {
-         let currentPayload = { tema: existing.tema, actividades_json: existing.actividades_json, observaciones: existing.observaciones }
+         let currentPayload = { tema: existing.tema, actividades_json: existing.actividades_json, observaciones: existing.observaciones, estado: estadoConservado(existing.estado) === 'en_revision' ? 'en_revision' : 'planificado' }
          let d = new Date(targetFecha + 'T12:00:00Z')
          while (true) {
             d.setDate(d.getDate() + 1)
@@ -904,15 +971,15 @@ export async function gestionarDragPlanificacion(
                  profesor_id: user.id, curso_id: targetCursoId, fecha: nextDateStr,
                  semana: targetSemana ?? null, tema: currentPayload.tema,
                  actividades_json: currentPayload.actividades_json,
-                 observaciones: currentPayload.observaciones || null, estado: 'planificado',
+                 observaciones: currentPayload.observaciones || null, estado: currentPayload.estado,
                })
                break
             } else {
-               const nextPayload = { tema: stepExisting.tema, actividades_json: stepExisting.actividades_json, observaciones: stepExisting.observaciones }
+               const nextPayload = { tema: stepExisting.tema, actividades_json: stepExisting.actividades_json, observaciones: stepExisting.observaciones, estado: stepExisting.estado === 'en_revision' ? 'en_revision' : 'planificado' }
                await db.from('bitacora_clase').update({
                  tema: currentPayload.tema, actividades_json: currentPayload.actividades_json,
                  observaciones: currentPayload.observaciones || null,
-                 estado: stepExisting.estado === 'cumplido' ? 'cumplido' : 'planificado',
+                 estado: stepExisting.estado === 'cumplido' ? 'cumplido' : currentPayload.estado,
                }).eq('id', stepExisting.id)
                currentPayload = nextPayload
             }

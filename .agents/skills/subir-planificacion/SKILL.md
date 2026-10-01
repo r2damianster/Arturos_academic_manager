@@ -98,18 +98,22 @@ La IA ejecutará un script TS usando la conexión a Producción:
    ```ts
    const { data: existing } = await supabase
      .from('bitacora_clase')
-     .select('id')
+     .select('id, estado')
      .eq('curso_id', cursoId)
      .eq('fecha', fecha)
      .maybeSingle()
 
+   // Los planes cargados por IA entran como 'en_revision' (el profesor los aprueba → 'planificado').
+   // Si ya existe uno 'cumplido' o 'planificado', NO degradar su estado.
    if (existing) {
      await supabase.from('bitacora_clase').update({
-       tema, actividades_json: actividades, materiales, observaciones, estado: 'planificado', sin_planificacion: false
+       tema, actividades_json: actividades, materiales, observaciones,
+       estado: ['cumplido', 'planificado'].includes(existing.estado) ? existing.estado : 'en_revision',
+       sin_planificacion: false
      }).eq('id', existing.id)
    } else {
      await supabase.from('bitacora_clase').insert({
-       profesor_id: profesorId, curso_id: cursoId, fecha, semana: 'Semana N', tema, actividades_json: actividades, materiales, observaciones, estado: 'planificado', sin_planificacion: false
+       profesor_id: profesorId, curso_id: cursoId, fecha, semana: 'Semana N', tema, actividades_json: actividades, materiales, observaciones, estado: 'en_revision', sin_planificacion: false
      })
    }
    ```

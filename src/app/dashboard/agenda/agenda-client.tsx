@@ -896,8 +896,8 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
                             )}
                             {/* Badge de estado de planificación */}
                             {!fueraDeRango && bitEstado && pos.height >= SLOT_H * 1.5 && (
-                              <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : 'text-sky-400'}`}>
-                                {bitEstado === 'cumplido' ? '✓ Cumplido' : '📋 Planificado'}
+                              <p className={`text-[10px] font-medium ${bitEstado === 'cumplido' ? 'text-emerald-400' : bitEstado === 'en_revision' ? 'text-violet-300' : 'text-sky-400'}`}>
+                                {bitEstado === 'cumplido' ? '✓ Cumplido' : bitEstado === 'en_revision' ? '🔍 En revisión' : '📋 Planificado'}
                               </p>
                             )}
                           </div>
@@ -1303,12 +1303,14 @@ export function AgendaClient({ eventos: initEv, clases, horarios: initH, reserva
           horaFin={claseModal.clase.hora_fin}
           readOnly={claseModal.readOnly}
           onClose={() => setClaseModal(null)}
-          onSaved={() => {
+          onSaved={(estadoAprobado) => {
             setClaseModal(null)
-            // Refrescar badges de bitácora
+            // Refrescar badges de bitácora: un plan existente conserva su estado (p. ej. 'en_revision')
             setBitacoraMap(prev => {
               const next = new Map(prev)
-              next.set(`${claseModal.clase.cursos!.id}|${claseModal.fecha}`, { estado: 'planificado' })
+              const claveBitacora = `${claseModal.clase.cursos!.id}|${claseModal.fecha}`
+              const estadoPrevio = prev.get(claveBitacora)?.estado
+              next.set(claveBitacora, { estado: estadoAprobado ?? (estadoPrevio === 'en_revision' || estadoPrevio === 'cumplido' ? estadoPrevio : 'planificado') })
               return next
             })
           }}

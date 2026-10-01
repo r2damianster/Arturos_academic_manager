@@ -8,7 +8,7 @@ import {
   PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { gestionarDragPlanificacion, eliminarPlanificacion } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, aprobarPlan } from '@/lib/actions/bitacora'
 import { PlanificarModal } from './PlanificarModal'
 import { PlanDropModal } from './PlanDropModal'
 
@@ -284,7 +284,8 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
     const curso = cursos.find(c => c.id === cursoId)
     const dragId = `${cursoId}__${fecha}`
     const isCumplido = entry?.estado === 'cumplido'
-    const isPlanned  = entry?.estado === 'planificado'
+    const isEnRevision = entry?.estado === 'en_revision'
+    const isPlanned  = entry?.estado === 'planificado' || isEnRevision
     const isSuspendido = entry?.estado === 'suspendido'
 
     if (isSuspendido) return (
@@ -308,13 +309,13 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
 
     return (
       <div className={`relative px-3 py-2 rounded-lg border space-y-1.5 ${
-        isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-sky-900/20 border-sky-500/30'
+        isCumplido ? 'bg-emerald-900/20 border-emerald-500/30' : isEnRevision ? 'bg-violet-900/20 border-violet-500/40' : 'bg-sky-900/20 border-sky-500/30'
       }`}>
         <DraggableHandle id={dragId} />
         <div className="flex items-start justify-between gap-2 pr-5">
           <div className="min-w-0 flex-1">
-            <span className={`text-xs font-medium ${isCumplido ? 'text-emerald-400' : 'text-sky-400'}`}>
-              {isCumplido ? '✓ Cumplido' : 'Planificado'}
+            <span className={`text-xs font-medium ${isCumplido ? 'text-emerald-400' : isEnRevision ? 'text-violet-300' : 'text-sky-400'}`}>
+              {isCumplido ? '✓ Cumplido' : isEnRevision ? '🔍 En revisión' : 'Planificado'}
             </span>
             <p className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</p>
             {entry.tema && <p className="text-gray-300 text-xs mt-0.5 leading-tight">{truncar(entry.tema)}</p>}
@@ -328,6 +329,23 @@ export function PlanificacionExtensiva({ clases, todosCursos = [] }: Props) {
           >
             {isCumplido ? 'Ver plan' : 'Editar'}
           </button>
+          {isEnRevision && (
+            <button
+              onClick={async () => { await aprobarPlan(entry.id); await loadBitacoras() }}
+              className="text-[10px] px-2 py-0.5 rounded bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+              title="Aprobar plan (pasa a Planificado)"
+            >
+              ✓ Aprobar
+            </button>
+          )}
+          <Link
+            href={`/imprimir/plan?id=${entry.id}`}
+            target="_blank"
+            className="text-[10px] px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+            title="Vista de impresión / PDF"
+          >
+            🖨
+          </Link>
           {isPlanned && (
             <>
               <Link

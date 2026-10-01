@@ -236,7 +236,7 @@ export function GeneradorPanel({ clases, onClose }: Props) {
       .from('bitacora_clase')
       .select('id, fecha, tema, estado, actividades_json, actividades, materiales')
       .eq('curso_id', selectedCursoId)
-      .in('estado', ['planificado', 'cumplido'])
+      .in('estado', ['en_revision', 'planificado', 'cumplido'])
       .order('fecha', { ascending: false })
       .limit(60)
       .then(({ data }) => {
@@ -675,9 +675,11 @@ export function GeneradorPanel({ clases, onClose }: Props) {
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${
                                 b.estado === 'cumplido'
                                   ? 'bg-emerald-900/30 border-emerald-600/40 text-emerald-400'
-                                  : 'bg-sky-900/30 border-sky-600/40 text-sky-400'
+                                  : b.estado === 'en_revision'
+                                    ? 'bg-violet-900/30 border-violet-600/40 text-violet-300'
+                                    : 'bg-sky-900/30 border-sky-600/40 text-sky-400'
                               }`}>
-                                {b.estado === 'cumplido' ? '✓ Cumplida' : 'Planificada'}
+                                {b.estado === 'cumplido' ? '✓ Cumplida' : b.estado === 'en_revision' ? '🔍 En revisión' : 'Planificada'}
                               </span>
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">

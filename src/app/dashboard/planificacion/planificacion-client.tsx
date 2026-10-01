@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
-import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, reactivarClase, type AccionDrag } from '@/lib/actions/bitacora'
+import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, trasladarActividades, crearBitacoraEspontanea, reactivarClase, aprobarPlan, type AccionDrag } from '@/lib/actions/bitacora'
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
 import { SuspenderClasesModal } from '@/components/agenda/SuspenderClasesModal'
 
@@ -168,6 +168,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
   const [showGenerador, setShowGenerador] = useState(false)
   const [showSuspender, setShowSuspender] = useState(false)
   const [reactivandoKey, setReactivandoKey] = useState<string | null>(null)
+  const [aprobandoId, setAprobandoId] = useState<string | null>(null)
 
   // ── Traslado de actividades desde planificación ──────────────────────────
   type ClaseDestinoInfo = { id: string; fecha: string; tema: string | null }
@@ -293,6 +294,16 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       await loadBitacoras()
     } finally {
       setReactivandoKey(null)
+    }
+  }
+
+  async function handleAprobarPlan(bitacoraId: string) {
+    setAprobandoId(bitacoraId)
+    try {
+      await aprobarPlan(bitacoraId)
+      await loadBitacoras()
+    } finally {
+      setAprobandoId(null)
     }
   }
 
@@ -605,24 +616,49 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       )
     }
 
+    const enRevision = entry.estado === 'en_revision'
+
     return (
       <div
         {...dragHandlers}
-        className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-sky-900/20 border border-sky-500/30 flex flex-col gap-1"
+        className={`w-full h-full min-h-[52px] text-left p-2 rounded-lg border flex flex-col gap-1 ${
+          enRevision ? 'bg-violet-900/20 border-violet-500/40' : 'bg-sky-900/20 border-sky-500/30'
+        }`}
       >
         <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-          <div className="text-sky-400 text-xs font-medium">Planificado</div>
+          <div className={`${enRevision ? 'text-violet-300' : 'text-sky-400'} text-xs font-medium`}>
+            {enRevision ? '🔍 En revisión' : 'Planificado'}
+          </div>
           {renderBadges()}
           <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
           {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
         </button>
         <div className="flex gap-1 items-center flex-wrap">
+          {enRevision && (
+            <button
+              onClick={e => { e.stopPropagation(); handleAprobarPlan(entry.id) }}
+              disabled={aprobandoId === entry.id}
+              className="text-[10px] text-white font-semibold bg-violet-600 hover:bg-violet-500 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
+              title="Aprobar plan (pasa a Planificado)"
+            >
+              {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
+            </button>
+          )}
           <Link
             href={`/dashboard/modo-clase/${entry.id}`}
             onClick={e => e.stopPropagation()}
             className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
           >
             ▶ Iniciar clase
+          </Link>
+          <Link
+            href={`/imprimir/plan?id=${entry.id}`}
+            target="_blank"
+            onClick={e => e.stopPropagation()}
+            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors"
+            title="Vista de impresión / PDF"
+          >
+            🖨
           </Link>
           {entry.actividades_json?.length > 0 && (
             <button
@@ -705,6 +741,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                   </td>
                   <td className="py-2 px-3">
                     {!entry && <span className="text-yellow-400 text-[10px]">Sin planificar</span>}
+                    {entry?.estado === 'en_revision' && <span className="text-violet-300 text-[10px]">🔍 En revisión</span>}
                     {entry?.estado === 'planificado' && <span className="text-sky-400 text-[10px]">Planificado</span>}
                     {entry?.estado === 'cumplido' && <span className="text-emerald-400 text-[10px]">Cumplido</span>}
                     {entry?.estado === 'suspendido' && (
@@ -732,8 +769,17 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         )}
                       </div>
                     )}
-                    {entry?.estado === 'planificado' && (
+                    {(entry?.estado === 'planificado' || entry?.estado === 'en_revision') && (
                       <div className="flex items-center gap-1.5 flex-wrap">
+                        {entry.estado === 'en_revision' && (
+                          <button
+                            onClick={() => handleAprobarPlan(entry.id)}
+                            disabled={aprobandoId === entry.id}
+                            className="text-[10px] text-white font-semibold bg-violet-600 hover:bg-violet-500 px-2.5 py-0.5 rounded transition-colors disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
+                          </button>
+                        )}
                         <Link
                           href={`/dashboard/modo-clase/${entry.id}`}
                           className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
@@ -746,7 +792,14 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         >
                           Editar
                         </button>
-{entry.actividades_json?.length > 0 && (
+                        <Link
+                          href={`/imprimir/plan?id=${entry.id}`}
+                          target="_blank"
+                          className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
+                        >
+                          🖨 Imprimir
+                        </Link>
+                        {entry.actividades_json?.length > 0 && (
                           <button
                             onClick={() => abrirTrasladoPlan(entry.id, entry.actividades_json, grupo.curso.id)}
                             className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-600/30 px-2 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
@@ -815,6 +868,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             </svg>
           </button>
           {hoyOpen && <div className="divide-y divide-gray-800">
+            <div className="flex justify-end px-4 py-2">
+              <Link
+                href={`/imprimir/plan?fecha=${hoyStr}`}
+                target="_blank"
+                className="text-[11px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors"
+              >
+                🖨 Imprimir plan del día
+              </Link>
+            </div>
             {clasesDeHoy.map(clase => {
               const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
               const suspendida = entry?.estado === 'suspendido'
@@ -867,6 +929,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                         + Planificar
                       </button>
                     )}
+                    {planificada && entry?.estado === 'en_revision' && (
+                      <button
+                        onClick={() => handleAprobarPlan(entry.id)}
+                        disabled={aprobandoId === entry.id}
+                        className="text-xs text-white font-medium bg-violet-600 hover:bg-violet-500 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
+                      </button>
+                    )}
                     {planificada && (
                       <button
                         onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
@@ -874,6 +945,16 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                       >
                         Editar plan
                       </button>
+                    )}
+                    {entry && !suspendida && (
+                      <Link
+                        href={`/imprimir/plan?id=${entry.id}`}
+                        target="_blank"
+                        className="text-xs text-gray-400 hover:text-gray-300 border border-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                        title="Imprimir / guardar PDF"
+                      >
+                        🖨
+                      </Link>
                     )}
                     {entry && !suspendida && (
                       <Link
