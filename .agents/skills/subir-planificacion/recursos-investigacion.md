@@ -18,6 +18,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 - **Al descubrir un recurso nuevo** en la BD (semestres anteriores u otras asignaturas): agregarlo en la sección **⬜ Pendientes de Revisión** con todos los campos.
 - **Al aprobar**: el profesor mueve la entrada de Pendientes a Aprobados y confirma el tema.
 - **Nunca eliminar** entradas aprobadas; si un recurso queda obsoleto, marcarlo con `[OBSOLETO]`.
+- **Talleres (T##)**: ver sección «📁 Talleres». Incluir **todos** los talleres relacionados con el tema; marcar `[Imprimir]` los que se entregan en papel.
 - Los recursos son **actividades** (van en `actividades_json`); las slides van en `materiales`.
 
 ---
@@ -158,6 +159,19 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 | R27 | 💻 Simulador | Máquina de engranajes argumentativos — conectores discursivos | [Abrir](https://elprofesimulations.vercel.app/conectores.html) | NEG Ses.6 · ARW II Argumentative Essays (2026-2) |
 | R28 | 💻 Simulador | El Mundo de Sofía — Capítulo 1 (filosofía) | [Abrir](https://elprofesimulations.vercel.app/mundoSofia1.html) | FEF 5-oct, Ontología (2026-2) |
 | R29 | 💻 Simulador | Niveles de lectura (literal, inferencial, crítico) | [Abrir](https://elprofesimulations.vercel.app/evaluaciones_lectura.html) | Sin asignar (candidato: control de lectura, Desarrollo del Pensamiento) |
+
+---
+
+## 📁 Talleres (documentos de trabajo)
+
+> Espacio dedicado a **talleres**: documentos de Google Docs/Drive que los estudiantes **resuelven en clase**. Se registran como **ACD** en `actividades_json` (nunca en `materiales`). Si el taller se entrega en papel, la ACD lleva el rótulo **[Imprimir]** para recordar al profesor imprimirlo antes de la sesión.
+> Los talleres anteriores (R21, R23, R24) siguen listados en su sección temática; los nuevos se registran aquí con prefijo **T##**.
+
+| # | Título | Tema | URL | Imprimir | Usado en |
+|---|--------|------|-----|----------|----------|
+| T01 | Habilidades de ciencia: Ética y Publicación | Ética e integridad científica, plagio, publicación | [Abrir](https://docs.google.com/document/d/1-zg2nJNk_Hf7zwyeBRoKVZzMWfqmOWQ-v6AW9UnmXcY/edit?usp=sharing) | ✅ Sí | GAS Ses.1–2 · MI-II Sem.14 (02 y 04-dic) (2026-2) |
+
+**Formato de la ACD:** `Taller «<Título>» [Imprimir]` con `recurso` = URL del taller. Omitir `[Imprimir]` si el taller se resuelve en pantalla.
 
 ---
 

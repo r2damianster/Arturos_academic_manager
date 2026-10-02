@@ -150,4 +150,5 @@ Catálogo de dinámicas de aula independientes del tema (rompehielos, conocimien
 2. **Primera sesión de un curso** (o «Sesión 1 y 2» fusionada): incluir la dinámica de conocimiento del grupo (hoy **D01 «La fiesta»**) como **primera ACD**, **excepto** en `NEG — Realidad Nacional y Mundial` (decisión del profesor, 2026-10-02).
 3. Se registra en `actividades_json` como ACD: `ACD: Dinámica «<Nombre>» (<duración>) — <propósito>.` con `recurso` = `Repositorio de dinámicas: D##`. Nunca en `materiales` ni `observaciones`.
 4. Las dinámicas **se agregan**, no sustituyen actividades del sílabo (el `tema` no cambia).
+6. **Talleres**: leer la sección «📁 Talleres» de `recursos-investigacion.md` (en `.agents/skills/subir-planificacion/`); incluir cada taller relacionado con el tema como ACD con su URL y `[Imprimir]` si se entrega en papel (ej. T01 «Habilidades de ciencia: Ética y Publicación» en sesiones de ética). Sin slide específica de ética → `Presentación PPT — Pendiente: Ética e integridad científica en la investigación`.
 5. Dinámica nueva propuesta por la IA → sección `⬜ Pendientes de Revisión` del archivo; solo el profesor la aprueba.

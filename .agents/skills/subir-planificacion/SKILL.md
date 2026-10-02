@@ -168,6 +168,8 @@ Para asignaturas de **Metodología de la Investigación y afines**, existe un re
 Cuando el profesor pida **planificar** (o replanificar) una sesión, incluir **todas** las diapositivas (S##) y **todos** los talleres, simuladores y videos (R##) del catálogo que se relacionen con el tema de la sesión — no solo uno.
 - Slides → `materiales` (una por línea: `Título (ES|EN): URL`), usando el idioma del curso (títulos en inglés = slide en inglés; en español = español; si el título es bilingüe, ambos).
 - Talleres, simuladores y videos → una ACD por recurso en `actividades_json`.
+- Talleres → una ACD por taller en `actividades_json` (sección «📁 Talleres» de `recursos-investigacion.md`, ids T##/R##), con `recurso` = URL y el rótulo `[Imprimir]` si el taller se entrega en papel.
+- Ética: la sesión con tema de ética/plagio/integridad científica lleva el taller **T01 «Habilidades de ciencia: Ética y Publicación» [Imprimir]**; si no hay slide específica (el catálogo no tiene una), dejar `Presentación PPT — Pendiente: Ética e integridad científica en la investigación`.
 - Si una slide cubre directamente el tema, **no** dejar `Presentación PPT — Pendiente`; si solo hay slides indirectas, incluirlas y dejar el pendiente.
 - Antes de planificar, comprobar que cada URL siga vigente en `recursos-investigacion.md`: las slides eliminadas del repositorio deben quitarse también de los planes en BD.
 - Respetar siempre los temas del sílabo de la sesión; agregar actividades/slides está permitido, cambiar el tema no.
