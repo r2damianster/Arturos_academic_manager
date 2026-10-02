@@ -27,22 +27,21 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 ## 📊 Slides vigentes (catálogo actualizado 2026-10-02)
 
 > Lista **reemplazante**: se eliminaron todas las slides anteriores (R01–R06, R22, P01–P03). Solo existen estas. **Idioma**: usar `ES` en cursos en español y `EN` en cursos en inglés (ARW, ERD…). Las `EN` sin par en español (S07, S30) solo se usan en cursos en inglés.
-> Sin acceso público (HTTP 401 al 2026-10-02; revisar uso compartido en Drive): S03, S09, S11, S12.
 
 | # | Tipo | Título | Idioma | URL | Tema / uso |
 |---|------|--------|--------|-----|-----------|
 | S01 | 📊 Slide | Investigación, ¿por qué? Introducción | ES | [Abrir](https://docs.google.com/presentation/d/1W12rM44OUu9v-HAxm-vlZH8F4Y0urLMSNonA__eo8LY/edit?usp=sharing) | Introducción a la investigación, importancia |
 | S02 | 📊 Slide | Introducción al proceso (completo) — Metodología de investigación para intervenciones educativas | ES | [Abrir](https://docs.google.com/presentation/d/1oXse4mSPfe_Tu-H0HAzLyeNyg5j-sYPt/edit?usp=sharing) | Proceso de investigación (visión general) |
-| S03 | 📊 Slide | El ecosistema de la ciencia y difusión | ES | [Abrir](https://docs.google.com/presentation/d/12_L8WdfX4nJBTQsHH21b0X08cjPZ7LYhdEZOQ6J5xmg/edit?usp=drive_link) | Ciencia, difusión y divulgación científica, revistas |
+| S03 | 📊 Slide | El ecosistema de la ciencia y difusión | ES | [Abrir](https://docs.google.com/presentation/d/12_L8WdfX4nJBTQsHH21b0X08cjPZ7LYhdEZOQ6J5xmg/edit?usp=sharing) | Ciencia, difusión y divulgación científica, revistas |
 | S04 | 📊 Slide | Proceso, plan, diseño y proyecto | ES | [Abrir](https://docs.google.com/presentation/d/1Erc7ORCqgTvY6LfIOmIeKdWmnWWOaDvZ/edit?usp=sharing) | Fases, plan y diseño de la investigación |
 | S05 | 📊 Slide | Process, Design, Plan, and Research Project | EN | [Abrir](https://docs.google.com/presentation/d/1KcoBhhGgE40ViKwbKVfLFrqgazFqzzo0/edit?usp=sharing) | Equivalente en inglés de S04 |
 | S06 | 📊 Slide | El proyecto de investigación: datos generales y administrativos | ES | [Abrir](https://docs.google.com/presentation/d/1Cb4fdS3Sk_g9OrGBiACG-qx1zSe0ddWw/edit?usp=sharing) | Estructura y aspectos administrativos del proyecto |
 | S07 | 📊 Slide | Levels and Spheres in Research | EN | [Abrir](https://docs.google.com/presentation/d/1GvTfwbACxGSeQ1o0Fi-67ICR9Fw68KPh_4eS3bxjR6g/edit?usp=sharing) | Niveles y esferas de la investigación (solo EN) |
 | S08 | 📊 Slide | Metodología y diseños de investigación | ES | [Abrir](https://docs.google.com/presentation/d/1q8vQ5OZLZ9jTqfVntWnR_3PY1MMg4XMOmoqiy2-PySE/edit?usp=sharing) | Enfoques, tipos y diseños |
-| S09 | 📊 Slide | Análisis de información cualitativa en investigación | ES | [Abrir](https://docs.google.com/presentation/d/1on1sv66VP3SUNU3zWoOs2i_9VXbKOOR5376_I8tm7do/edit?usp=drive_link) | Enfoque cualitativo, análisis de datos cualitativos |
+| S09 | 📊 Slide | Análisis de información cualitativa en investigación | ES | [Abrir](https://docs.google.com/presentation/d/1on1sv66VP3SUNU3zWoOs2i_9VXbKOOR5376_I8tm7do/edit?usp=sharing) | Enfoque cualitativo, análisis de datos cualitativos |
 | S10 | 📊 Slide | Estadística e investigación cuantitativa | ES | [Abrir](https://docs.google.com/presentation/d/1JGQ2x19Tpv3N8iIKOFC8GDn_a7Yn0A_zeZxY0gkfDrA/edit?usp=drive_link) | Enfoque cuantitativo, bioestadística, análisis de datos |
-| S11 | 📊 Slide | Bases de datos académicas | ES | [Abrir](https://docs.google.com/presentation/d/1szrgNP_sKDkhB2icdTzHX7ko70D4Dp-J/edit?usp=drive_link) | Scopus, WoS, SciELO; antecedentes |
-| S12 | 📊 Slide | Buscadores bibliográficos (PDF) | ES | [Abrir](https://drive.google.com/file/d/11o5OdXjd2JMRPBCV8iYuWA06Y3FCnnvh/view?usp=drive_link) | Búsqueda de información, buscadores y gestores |
+| S11 | 📊 Slide | Bases de datos académicas | ES | [Abrir](https://docs.google.com/presentation/d/1szrgNP_sKDkhB2icdTzHX7ko70D4Dp-J/edit?usp=sharing) | Scopus, WoS, SciELO; antecedentes |
+| S12 | 📊 Slide | Buscadores bibliográficos (PDF) | ES | [Abrir](https://drive.google.com/file/d/11o5OdXjd2JMRPBCV8iYuWA06Y3FCnnvh/view?usp=sharing) | Búsqueda de información, buscadores y gestores |
 | S13 | 📊 Slide | Del árbol del problema a la matriz de marco lógico | ES | [Abrir](https://docs.google.com/presentation/d/197v91H-zQA6YF761QqWLKIAcS_QHXVSo4h1FV2XZOXM/edit?usp=drive_link) | Problema, objetivos e indicadores |
 | S14 | 📊 Slide | Fundamentos del diagnóstico | ES | [Abrir](https://docs.google.com/presentation/d/1ED5k4sRj8ZwoBkAE3uAYbYon8zfP3Tv4/edit?usp=sharing) | Diagnóstico (MI-II / intervención educativa) |
 | S15 | 📊 Slide | Estado del arte — perspectiva deductiva: macro, meso y micro | ES | [Abrir](https://docs.google.com/presentation/d/1F8s29avVvEhjdXgs9eDFAqvc54EwsTsP/edit?usp=sharing) | Antecedentes, estado del arte, marco teórico |
