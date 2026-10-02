@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useTransition } from 'react'
+import { useState, useEffect, useCallback, useTransition, useRef, useLayoutEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
 import { guardarPlanificacion, aprobarPlan, getClasesFuturas } from '@/lib/actions/bitacora'
@@ -63,6 +63,52 @@ function fmtFecha(s: string) {
 }
 
 
+// ─── Auto-grow field ───────────────────────────────────────────────────────────
+
+const URL_PATTERN = /^https?:\/\/\S+$/i
+
+/** Textarea que crece con su contenido: nunca oculta texto. */
+function AutoGrowTextarea({ value, onChange, placeholder, className }: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    const textareaElement = textareaRef.current
+    if (!textareaElement) return
+    textareaElement.style.height = 'auto'
+    textareaElement.style.height = `${textareaElement.scrollHeight}px`
+  }, [value])
+
+  return (
+    <textarea
+      ref={textareaRef}
+      rows={1}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={`input text-sm py-1.5 resize-none overflow-hidden leading-snug ${className ?? ''}`}
+    />
+  )
+}
+
+/** Texto completo en modo lectura; las URLs son enlaces clicables. */
+function ReadOnlyText({ value }: { value: string }) {
+  if (!value.trim()) return <p className="text-sm text-gray-600 italic">—</p>
+  if (URL_PATTERN.test(value.trim())) {
+    return (
+      <a href={value.trim()} target="_blank" rel="noopener noreferrer"
+        className="text-sm text-brand-400 hover:text-brand-300 underline break-all">
+        {value.trim()}
+      </a>
+    )
+  }
+  return <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{value}</p>
+}
+
 // ─── Sortable row ──────────────────────────────────────────────────────────────
 
 function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTransfer, onSendToInbox, inboxSent }: {
@@ -79,13 +125,14 @@ function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTra
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
 
   return (
-    <div ref={setNodeRef} style={style} className="grid grid-cols-[16px_1fr_1fr_auto] gap-2 items-center">
+    <div ref={setNodeRef} style={style}
+      className="grid grid-cols-[16px_1fr_auto] gap-2 items-start rounded-lg border border-gray-800 bg-gray-800/30 p-2.5">
       {readOnly ? (
         <span />
       ) : (
         <button
           type="button" {...attributes} {...listeners}
-          className="flex items-center justify-center text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing h-full"
+          className="flex items-center justify-center text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing h-8"
           tabIndex={-1}
           aria-label="Arrastrar para reordenar"
         >
@@ -96,22 +143,30 @@ function SortableActividad({ act, readOnly, onUpdate, onRemove, canRemove, onTra
           </svg>
         </button>
       )}
-      <input
-        type="text" value={act.actividad}
-        onChange={e => onUpdate('actividad', e.target.value)}
-        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
-        placeholder="Ej: Exposición grupal"
-        disabled={readOnly}
-      />
-      <input
-        type="text" value={act.recurso}
-        onChange={e => onUpdate('recurso', e.target.value)}
-        className={`input text-sm py-1.5 ${readOnly ? 'bg-gray-800 border-transparent text-gray-300 cursor-default' : ''}`}
-        placeholder="Ej: Presentación PPT"
-        disabled={readOnly}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2 min-w-0">
+        <div className="min-w-0">
+          <span className="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Actividad</span>
+          {readOnly ? <ReadOnlyText value={act.actividad} /> : (
+            <AutoGrowTextarea
+              value={act.actividad}
+              onChange={value => onUpdate('actividad', value)}
+              placeholder="Ej: Exposición grupal"
+            />
+          )}
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Recurso</span>
+          {readOnly ? <ReadOnlyText value={act.recurso} /> : (
+            <AutoGrowTextarea
+              value={act.recurso}
+              onChange={value => onUpdate('recurso', value)}
+              placeholder="Ej: Presentación PPT"
+            />
+          )}
+        </div>
+      </div>
       {!readOnly ? (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 h-8">
           {onTransfer && (
             <button type="button" onClick={onTransfer}
               title="Trasladar esta actividad a otro plan"
@@ -399,7 +454,7 @@ export function PlanificarModal({
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-800 flex-shrink-0">
@@ -469,13 +524,6 @@ export function PlanificarModal({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="grid grid-cols-[16px_1fr_1fr_auto] gap-2 px-1">
-                    <span />
-                    <span className="text-[11px] text-gray-500 uppercase tracking-wide">Actividad</span>
-                    <span className="text-[11px] text-gray-500 uppercase tracking-wide">Recurso</span>
-                    {!readOnly && <span className="w-6" />}
-                  </div>
-
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={actividades.map(a => a.id)} strategy={verticalListSortingStrategy}>
                       {actividades.map(act => (
