@@ -149,6 +149,16 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 | R16 | 💻 Plataforma | r2-argumentum — Debates presenciales | [Abrir](https://r2-argumentum.vercel.app/) | ODO Ses.12, Ses.14 · GAS Ses.13, Ses.16 (2026-2) |
 | R17 | 💻 Plataforma | r2-quiz — Gamificación tipo Kahoot | [Abrir](https://r2-quiz.vercel.app/) | GAS Ses.8, Ses.15 (repaso previo a parciales) (2026-2) |
 
+### 🧠 Muestreo / IA en la investigación / Pensamiento y argumentación (agregado 2026-10-02)
+
+| # | Tipo | Título | URL | Usado en |
+|---|------|--------|-----|----------|
+| R25 | 💻 Simulador | Simulador de muestreos (probabilísticos y no probabilísticos) | [Abrir](https://elprofesimulations.vercel.app/muestreo.html) | ODO Ses.9 · GAS Ses.10 (2026-2) |
+| R26 | 💻 Simulador | SimulAI — creación de temas y búsqueda con IA, detección de alucinaciones (constructos) | [Abrir](https://elprofesimulations.vercel.app/constructos_IA.html) | ODO Ses.3 · GAS Ses.6, Ses.7 · MI-II 7-oct (2026-2) |
+| R27 | 💻 Simulador | Máquina de engranajes argumentativos — conectores discursivos | [Abrir](https://elprofesimulations.vercel.app/conectores.html) | NEG Ses.6 · ARW II Argumentative Essays (2026-2) |
+| R28 | 💻 Simulador | El Mundo de Sofía — Capítulo 1 (filosofía) | [Abrir](https://elprofesimulations.vercel.app/mundoSofia1.html) | FEF 5-oct, Ontología (2026-2) |
+| R29 | 💻 Simulador | Niveles de lectura (literal, inferencial, crítico) | [Abrir](https://elprofesimulations.vercel.app/evaluaciones_lectura.html) | Sin asignar (candidato: control de lectura, Desarrollo del Pensamiento) |
+
 ---
 
 ## ⬜ Pendientes de Revisión
