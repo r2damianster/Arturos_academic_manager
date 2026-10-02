@@ -126,3 +126,13 @@ La IA ejecutará un script TS usando la conexión a Producción:
 - **Nunca** escribir la `service_role` ni otras llaves en scripts, SQL o este skill: usar el MCP de Supabase o `scripts/_supabase-env.js`.
 - IDs de curso y estados de este skill **caducan** cada semestre: confirmar con `select id, asignatura, estado from cursos where estado='activo'`.
 - Verificar el project_id de producción (`hxsnyrutyyavvljxwgku`) antes de escribir. Ver `docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`.
+
+---
+
+### 🔖 REGLA DE PLANIFICACIÓN — incluir TODO lo disponible (2026-10-02)
+Cuando el profesor pida **planificar** (o replanificar) una sesión, incluir **todas** las diapositivas (S##) y **todos** los talleres, simuladores y videos (R##) del catálogo que se relacionen con el tema de la sesión — no solo uno.
+- Slides → `materiales` (una por línea: `Título (ES|EN): URL`), usando el idioma del curso (títulos en inglés = slide en inglés; en español = español; si el título es bilingüe, ambos).
+- Talleres, simuladores y videos → una ACD por recurso en `actividades_json`.
+- Si una slide cubre directamente el tema, **no** dejar `Presentación PPT — Pendiente`; si solo hay slides indirectas, incluirlas y dejar el pendiente.
+- Antes de planificar, comprobar que cada URL siga vigente en `recursos-investigacion.md`: las slides eliminadas del repositorio deben quitarse también de los planes en BD.
+- Respetar siempre los temas del sílabo de la sesión; agregar actividades/slides está permitido, cambiar el tema no.
