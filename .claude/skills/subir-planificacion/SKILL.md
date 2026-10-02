@@ -136,3 +136,18 @@ Cuando el profesor pida **planificar** (o replanificar) una sesión, incluir **t
 - Si una slide cubre directamente el tema, **no** dejar `Presentación PPT — Pendiente`; si solo hay slides indirectas, incluirlas y dejar el pendiente.
 - Antes de planificar, comprobar que cada URL siga vigente en `recursos-investigacion.md`: las slides eliminadas del repositorio deben quitarse también de los planes en BD.
 - Respetar siempre los temas del sílabo de la sesión; agregar actividades/slides está permitido, cambiar el tema no.
+
+---
+
+## 🎲 Repositorio de Dinámicas y Juegos
+
+Catálogo de dinámicas de aula independientes del tema (rompehielos, conocimiento del grupo, activación, cierre):
+
+📄 **Archivo**: `.agents/skills/subir-planificacion/dinamicas-juegos.md`
+
+### Flujo obligatorio al planificar (cualquier asignatura):
+1. **LEER** `dinamicas-juegos.md` y elegir por **propósito/momento** (tabla «Cuándo usar»).
+2. **Primera sesión de un curso** (o «Sesión 1 y 2» fusionada): incluir la dinámica de conocimiento del grupo (hoy **D01 «La fiesta»**) como **primera ACD**, **excepto** en `NEG — Realidad Nacional y Mundial` (decisión del profesor, 2026-10-02).
+3. Se registra en `actividades_json` como ACD: `ACD: Dinámica «<Nombre>» (<duración>) — <propósito>.` con `recurso` = `Repositorio de dinámicas: D##`. Nunca en `materiales` ni `observaciones`.
+4. Las dinámicas **se agregan**, no sustituyen actividades del sílabo (el `tema` no cambia).
+5. Dinámica nueva propuesta por la IA → sección `⬜ Pendientes de Revisión` del archivo; solo el profesor la aprueba.
