@@ -17,6 +17,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 - **Recurso que toca el tema solo de forma indirecta**: se agrega a `materiales` **y además** se deja una actividad `Presentación PPT — Pendiente: <Tema>` para que el profesor cree la slide exacta. Si una slide cubre directamente el tema, no se deja pendiente.
 - **Al descubrir un recurso nuevo** en la BD (semestres anteriores u otras asignaturas): agregarlo en la sección **⬜ Pendientes de Revisión** con todos los campos.
 - **Al aprobar**: el profesor mueve la entrada de Pendientes a Aprobados y confirma el tema.
+- **Bibliografía** (libros, artículos, guías): va en [bibliografia.md](bibliografia.md), organizada por categorías, no aquí.
 - **Nunca eliminar** entradas aprobadas; si un recurso queda obsoleto, marcarlo con `[OBSOLETO]`.
 - **Talleres (T##)**: ver sección «📁 Talleres». Incluir **todos** los talleres relacionados con el tema; marcar `[Imprimir]` los que se entregan en papel.
 - Los recursos son **actividades** (van en `actividades_json`); las slides van en `materiales`.
@@ -158,7 +159,23 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 | R26 | 💻 Simulador | SimulAI — creación de temas y búsqueda con IA, detección de alucinaciones (constructos) | [Abrir](https://elprofesimulations.vercel.app/constructos_IA.html) | ODO Ses.3 · GAS Ses.6, Ses.7 · MI-II 7-oct (2026-2) |
 | R27 | 💻 Simulador | Máquina de engranajes argumentativos — conectores discursivos | [Abrir](https://elprofesimulations.vercel.app/conectores.html) | NEG Ses.6 · ARW II Argumentative Essays (2026-2) |
 | R28 | 💻 Simulador | El Mundo de Sofía — Capítulo 1 (filosofía) | [Abrir](https://elprofesimulations.vercel.app/mundoSofia1.html) | FEF 5-oct, Ontología (2026-2) |
-| R29 | 💻 Simulador | Niveles de lectura (literal, inferencial, crítico) | [Abrir](https://elprofesimulations.vercel.app/evaluaciones_lectura.html) | Sin asignar (candidato: control de lectura, Desarrollo del Pensamiento) |
+| R29 | 💻 Simulador | Niveles de lectura (literal, inferencial, crítico) 🔁 | [Abrir](https://elprofesimulations.vercel.app/evaluaciones_lectura.html) | DP-M 18-jun (2026-1) · FESE 8-oct, Corrientes de la filosofía de educación (2026-2) |
+| R30 | 🔗 Plataforma | Control de lectura con Gimkit: *El Mundo de Sofía* (Caps. 1, 3, 4 y 9) — **URL del juego pendiente** (el plan enlaza al genérico `gimkit.com/me`) 🔁 | — | FESE 5-oct, Ontología (2026-2) |
+| R31 | 🎬 Video | Tutorial de Gimkit | [Abrir](https://youtu.be/wLDmf-ZuVPw) | FESE 5-oct (2026-2) |
+
+---
+
+## 🔁 Talleres recurrentes de lectura y escritura (actividad adicional)
+
+> Actividades reutilizables en **cualquier clase** como actividad adicional/de refuerzo, independientemente del tema del sílabo. Registrar como ACD. Las referencias bibliográficas de apoyo están en [bibliografia.md](bibliografia.md).
+
+| # | Tema | Recurso | Ref. bibliográfica | Usado en |
+|---|------|---------|--------------------|----------|
+| — | Niveles de lectura (literal, inferencial, crítico) | R29 | — | DP-M 18-jun · FESE 8-oct |
+| — | Control de lectura con juego | R30 (+ R31 tutorial) | — | FESE 5-oct |
+| — | Taller de escritura: la coma / puntuación | *(sin recurso interactivo)* | B01 Ciruelo (2014) | FESE 8-oct («Adicional – Taller de escritura: la coma») |
+| — | Constructor PEEL (párrafo argumentativo) | R12 | — | ODO · GAS |
+| — | Conectores discursivos | R27 | — | NEG · ARW II |
 
 ---
 
