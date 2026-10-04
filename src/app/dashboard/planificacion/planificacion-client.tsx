@@ -477,7 +477,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         className="text-[10px] text-violet-300 hover:text-violet-200 border border-violet-700/40 px-1.5 py-0.5 rounded hover:bg-violet-900/20 transition-colors"
         title={esRecuperacion ? 'No daré esta clase: agendar recuperación en otro horario' : 'Quedó incompleta: agendar continuación en otro horario'}
       >
-        {esRecuperacion ? '↻ Recuperar' : '↻ Continuar'}
+        ↻
       </button>
     )
   }
@@ -660,7 +660,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                 className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                 title="Trasladar actividades a otro plan"
               >
-                → Trasladar
+                →
               </button>
             )}
             {renderBotonClaseExtra(entry.id, cursoId, 'continuacion')}
@@ -716,14 +716,14 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
               ▶ Iniciar clase
             </Link>
           )}
-          <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" />
+          <ImprimirPlanButton bitacoraId={entry.id} label="" />
           {entry.actividades_json?.length > 0 && (
             <button
               onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
               className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
               title="Trasladar actividades a otro plan"
             >
-              → Trasladar
+              →
             </button>
           )}
           {!esBorrador && renderBotonClaseExtra(entry.id, cursoId, entry.hora_inicio_real ? 'continuacion' : 'recuperacion')}
@@ -1399,6 +1399,43 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           horaInicio={planificarModal.clase.hora_inicio}
           horaFin={planificarModal.clase.hora_fin}
           todosCursos={cursos}
+          accionesPlan={(() => {
+            const cursoIdModal = planificarModal.clase.cursos?.id ?? planificarModal.clase.curso_id
+            const entryModal = bitacoraMap.get(`${cursoIdModal}|${planificarModal.fecha}`)
+            if (!entryModal) return null
+            const tipoExtra: TipoClaseExtra = entryModal.estado === 'cumplido' || entryModal.hora_inicio_real ? 'continuacion' : 'recuperacion'
+            const claseBtn = 'inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors'
+            return (
+              <>
+                {entryModal.actividades_json?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlanificarModal(null)
+                      abrirTrasladoPlan(entryModal.id, entryModal.actividades_json, cursoIdModal)
+                    }}
+                    className={`${claseBtn} text-amber-400 hover:text-amber-300 border-amber-700/40 hover:bg-amber-900/20`}
+                    title="Trasladar actividades a otro plan"
+                  >
+                    → Trasladar
+                  </button>
+                )}
+                {entryModal.estado !== 'borrador' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlanificarModal(null)
+                      setClaseExtraModal({ cursoId: cursoIdModal, relacionadaId: entryModal.id, tipo: tipoExtra })
+                    }}
+                    className={`${claseBtn} text-violet-300 hover:text-violet-200 border-violet-700/40 hover:bg-violet-900/20`}
+                    title={tipoExtra === 'recuperacion' ? 'No daré esta clase: agendar recuperación en otro horario' : 'Quedó incompleta: agendar continuación en otro horario'}
+                  >
+                    {tipoExtra === 'recuperacion' ? '↻ Recuperar' : '↻ Continuar'}
+                  </button>
+                )}
+              </>
+            )
+          })()}
           onClose={() => setPlanificarModal(null)}
           onSaved={() => {
             setPlanificarModal(null)

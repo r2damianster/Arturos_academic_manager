@@ -30,6 +30,8 @@ interface PlanificarModalProps {
   onSaved: (estadoResultante?: 'planificado' | 'borrador') => void
   todosCursos?: { id: string; asignatura: string }[]
   readOnly?: boolean
+  /** Acciones del plan (trasladar, recuperar…) que el padre quiere mostrar con texto dentro del modal */
+  accionesPlan?: React.ReactNode
 }
 
 interface BitacoraExistente {
@@ -203,7 +205,7 @@ function withIds(acts: ActividadPlanificada[]): (ActividadPlanificada & { id: st
 }
 
 export function PlanificarModal({
-  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, todosCursos = [], readOnly = false
+  cursoId, asignatura, fecha, horaInicio, horaFin, centroComputo, onClose, onSaved, todosCursos = [], readOnly = false, accionesPlan
 }: PlanificarModalProps) {
   const supabase = createClient()
 
@@ -745,6 +747,13 @@ export function PlanificarModal({
                 </p>
               )}
             </div>
+
+            {/* Acciones del plan (con texto) */}
+            {existing && accionesPlan && (
+              <div className="flex items-center gap-2 flex-wrap px-5 py-3 border-t border-gray-800 flex-shrink-0">
+                {accionesPlan}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex gap-3 p-5 border-t border-gray-800 flex-shrink-0">
