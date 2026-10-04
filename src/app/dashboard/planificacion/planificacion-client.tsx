@@ -660,7 +660,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                 className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
                 title="Trasladar actividades a otro plan"
               >
-                →
+                → Trasladar
               </button>
             )}
             {renderBotonClaseExtra(entry.id, cursoId, 'continuacion')}
@@ -723,7 +723,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
               className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
               title="Trasladar actividades a otro plan"
             >
-              →
+              → Trasladar
             </button>
           )}
           {!esBorrador && renderBotonClaseExtra(entry.id, cursoId, entry.hora_inicio_real ? 'continuacion' : 'recuperacion')}
