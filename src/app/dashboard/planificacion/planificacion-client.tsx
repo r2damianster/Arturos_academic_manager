@@ -11,6 +11,8 @@ import { gestionarDragPlanificacion, eliminarPlanificacion, getClasesFuturas, tr
 import { GeneradorPanel } from '@/components/planificacion/GeneradorPanel'
 import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
 import { SuspenderClasesModal } from '@/components/agenda/SuspenderClasesModal'
+import { ClaseExtraModal } from '@/components/agenda/ClaseExtraModal'
+import type { TipoClaseExtra } from '@/lib/actions/bitacora'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +44,16 @@ interface BitacoraEntry {
   hora_inicio_real: string | null
   sin_planificacion: boolean
   razon_suspension: string | null
+  tipo: string
+  recupera_bitacora_id: string | null
+  hora_inicio_manual: string | null
+  hora_fin_manual: string | null
+}
+
+const TIPO_EXTRA_LABEL: Record<string, string> = {
+  recuperacion: 'Recuperación',
+  continuacion: 'Continuación',
+  extra: 'Extra',
 }
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -168,6 +180,12 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
   const [espontaneaLoading, setEspontaneaLoading] = useState<string | null>(null)
   const [showGenerador, setShowGenerador] = useState(false)
   const [showSuspender, setShowSuspender] = useState(false)
+  const [claseExtraModal, setClaseExtraModal] = useState<{
+    cursoId?: string
+    relacionadaId?: string
+    tipo?: TipoClaseExtra
+    fecha?: string
+  } | null>(null)
   const [reactivandoKey, setReactivandoKey] = useState<string | null>(null)
   const [aprobandoId, setAprobandoId] = useState<string | null>(null)
 
@@ -263,6 +281,10 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             hora_inicio_real: null,
             sin_planificacion: true,
             razon_suspension: null,
+            tipo: 'regular',
+            recupera_bitacora_id: null,
+            hora_inicio_manual: null,
+            hora_fin_manual: null,
           })
           return m
         })
@@ -351,6 +373,17 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     return Array.from(map.values())
   }, [clasesVisibles])
 
+  // Sesiones no regulares (recuperación/continuación/extra) cargadas para la semana visible
+  const clasesFueraHorario = useMemo(() => {
+    const lista: { cursoId: string; fecha: string; entry: BitacoraEntry }[] = []
+    for (const [key, entry] of bitacoraMap) {
+      if (entry.tipo === 'regular') continue
+      const [cursoId, fecha] = key.split('|')
+      lista.push({ cursoId, fecha, entry })
+    }
+    return lista.sort((a, b) => a.fecha.localeCompare(b.fecha))
+  }, [bitacoraMap])
+
   async function loadBitacoras() {
     if (weekDates.length === 0) return
 
@@ -365,14 +398,15 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('bitacora_clase')
-      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, sin_planificacion, razon_suspension')
+      .select('id, curso_id, fecha, estado, tema, actividades_json, observaciones, hora_inicio_real, sin_planificacion, razon_suspension, tipo, recupera_bitacora_id, hora_inicio_manual, hora_fin_manual')
       .eq('profesor_id', user.id)
       .in('curso_id', cursoIds)
       .gte('fecha', fechaMin)
       .lte('fecha', fechaMax)
 
     const m = new Map<string, BitacoraEntry>()
-    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null; sin_planificacion: boolean; razon_suspension: string | null }[]) {
+    for (const b of (data ?? []) as { id: string; curso_id: string; fecha: string; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null; sin_planificacion: boolean; razon_suspension: string | null; tipo: string | null; recupera_bitacora_id: string | null; hora_inicio_manual: string | null; hora_fin_manual: string | null }[]) {
+      const tipo = b.tipo ?? 'regular'
       m.set(`${b.curso_id}|${b.fecha}`, {
         id: b.id,
         estado: b.estado,
@@ -382,6 +416,10 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         hora_inicio_real: b.hora_inicio_real ?? null,
         sin_planificacion: b.sin_planificacion ?? false,
         razon_suspension: b.razon_suspension ?? null,
+        tipo,
+        recupera_bitacora_id: b.recupera_bitacora_id ?? null,
+        hora_inicio_manual: b.hora_inicio_manual ?? null,
+        hora_fin_manual: b.hora_fin_manual ?? null,
       })
     }
     setBitacoraMap(m)
@@ -431,6 +469,19 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
 
   // ─── Render helpers ──────────────────────────────────────────────────────────
 
+  function renderBotonClaseExtra(entryId: string, cursoId: string, tipo: TipoClaseExtra) {
+    const esRecuperacion = tipo === 'recuperacion'
+    return (
+      <button
+        onClick={e => { e.stopPropagation(); setClaseExtraModal({ cursoId, relacionadaId: entryId, tipo }) }}
+        className="text-[10px] text-violet-300 hover:text-violet-200 border border-violet-700/40 px-1.5 py-0.5 rounded hover:bg-violet-900/20 transition-colors"
+        title={esRecuperacion ? 'No daré esta clase: agendar recuperación en otro horario' : 'Quedó incompleta: agendar continuación en otro horario'}
+      >
+        {esRecuperacion ? '↻ Recuperar' : '↻ Continuar'}
+      </button>
+    )
+  }
+
   function renderCellContent(clase: Clase, fecha: string, cursoId: string) {
     const key = `${cursoId}|${fecha}`
     const entry = bitacoraMap.get(key)
@@ -473,6 +524,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           >
             {reactivandoKey === reactKey ? '…' : '↩ Reactivar'}
           </button>
+          {renderBotonClaseExtra(entry.id, cursoId, 'recuperacion')}
         </div>
       )
     }
@@ -611,6 +663,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                 →
               </button>
             )}
+            {renderBotonClaseExtra(entry.id, cursoId, 'continuacion')}
             {deleteBtn}
           </div>
         </div>
@@ -673,6 +726,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
               →
             </button>
           )}
+          {!esBorrador && renderBotonClaseExtra(entry.id, cursoId, entry.hora_inicio_real ? 'continuacion' : 'recuperacion')}
           {deleteBtn}
         </div>
       </div>
@@ -1024,6 +1078,12 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setClaseExtraModal({})}
+            className="text-xs text-violet-300 hover:text-violet-200 border border-violet-700/40 px-3 py-1.5 rounded-lg hover:bg-violet-900/20 transition-colors whitespace-nowrap"
+          >
+            ➕ Agregar clase
+          </button>
+          <button
             onClick={() => setShowSuspender(true)}
             className="text-xs text-red-400 hover:text-red-300 border border-red-700/40 px-3 py-1.5 rounded-lg hover:bg-red-900/20 transition-colors whitespace-nowrap"
           >
@@ -1207,6 +1267,93 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           })}
         </div>
       )}
+
+      {/* Clases fuera de horario (recuperación / continuación / extra) */}
+      {clasesFueraHorario.length > 0 && (
+        <div className="rounded-xl bg-gray-900 border border-violet-900/40 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-800 flex items-center gap-2">
+            <span className="text-sm font-semibold text-violet-200">Fuera de horario</span>
+            <span className="text-[11px] text-gray-500">Recuperaciones, continuaciones y clases extra de esta semana</span>
+          </div>
+          <div className="divide-y divide-gray-800">
+            {clasesFueraHorario.map(({ cursoId, fecha, entry }) => {
+              const asignatura = cursos.find(c => c.id === cursoId)?.asignatura ?? ''
+              const key = `${cursoId}|${fecha}`
+              const fechaDate = new Date(fecha + 'T12:00:00')
+              const horaInicio = entry.hora_inicio_manual ?? ''
+              const horaFin = entry.hora_fin_manual ?? ''
+              const isCumplido = entry.estado === 'cumplido'
+              return (
+                <div key={key} className="flex items-center justify-between gap-3 px-4 py-2.5 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                        {TIPO_EXTRA_LABEL[entry.tipo] ?? entry.tipo}
+                      </span>
+                      <span className="text-sm text-gray-200">{asignatura}</span>
+                      {entry.recupera_bitacora_id && <span className="text-[10px] text-gray-500">↩ vinculada a otra clase</span>}
+                      {isCumplido && <span className="text-[10px] text-emerald-400">✓ Cumplida</span>}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {DIAS_SHORT[fechaDate.getDay()]} {fechaDate.getDate()} {MESES_S[fechaDate.getMonth()]} · {fmt(horaInicio)}–{fmt(horaFin)}
+                      {entry.tema && entry.tema !== '(Sin planificación)' ? ` · ${truncarTema(entry.tema)}` : ''}
+                    </div>
+                    {entry.razon_suspension && entry.estado === 'suspendido' && (
+                      <div className="text-[10px] text-gray-500 italic">{entry.razon_suspension}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Link
+                      href={`/dashboard/modo-clase/${entry.id}`}
+                      className={isCumplido
+                        ? 'text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors'
+                        : 'text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-2.5 py-0.5 rounded transition-colors whitespace-nowrap'}
+                    >
+                      {isCumplido ? 'Ver resumen' : '▶ Iniciar clase'}
+                    </Link>
+                    <button
+                      onClick={() => setPlanificarModal({
+                        fecha,
+                        clase: {
+                          id: `extra-${entry.id}`,
+                          dia_semana: DIAS_LONG[fechaDate.getDay()],
+                          hora_inicio: horaInicio,
+                          hora_fin: horaFin,
+                          tipo: 'clase',
+                          centro_computo: false,
+                          curso_id: cursoId,
+                          cursos: { id: cursoId, asignatura, fecha_inicio: null, fecha_fin: null },
+                        },
+                      })}
+                      className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-2 py-0.5 rounded hover:bg-sky-900/20 transition-colors"
+                    >
+                      Editar plan
+                    </button>
+                    {deleteConfirmKey === key ? (
+                      <>
+                        <button onClick={() => handleDeletePlan(cursoId, fecha)} disabled={deletingKey === key}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
+                          {deletingKey === key ? '…' : 'Eliminar'}
+                        </button>
+                        <button onClick={() => setDeleteConfirmKey(null)}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200">
+                          No
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => setDeleteConfirmKey(key)}
+                        className="text-[10px] text-gray-600 hover:text-red-400 transition-colors px-1 py-0.5 rounded hover:bg-red-900/20"
+                        title="Eliminar clase">
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
       </>}
 
       {/* Herramientas */}
@@ -1297,6 +1444,26 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
         <GeneradorPanel
           clases={clases}
           onClose={() => setShowGenerador(false)}
+        />
+      )}
+
+      {claseExtraModal && (
+        <ClaseExtraModal
+          cursos={cursos}
+          defaultCursoId={claseExtraModal.cursoId}
+          defaultRelacionadaId={claseExtraModal.relacionadaId}
+          defaultTipo={claseExtraModal.tipo}
+          defaultFecha={claseExtraModal.fecha}
+          onClose={() => setClaseExtraModal(null)}
+          onSaved={nuevaFecha => {
+            // Llevar la vista a la semana de la nueva clase para que se vea de inmediato
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+            const destino = new Date(nuevaFecha + 'T00:00:00')
+            const diffDays = Math.round((destino.getTime() - hoy.getTime()) / (24 * 3600 * 1000))
+            setWeekOffset(Math.floor(diffDays / 7))
+            setSelectedDate(nuevaFecha)
+            loadBitacoras()
+          }}
         />
       )}
 

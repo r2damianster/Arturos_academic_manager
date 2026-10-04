@@ -362,6 +362,175 @@ export async function crearBitacoraEspontanea(
   return { id: created.id }
 }
 
+// ─── Clases fuera de horario: recuperación / continuación / extra ────────────
+
+export type TipoClaseExtra = 'recuperacion' | 'continuacion' | 'extra'
+
+export type ClaseRelacionable = {
+  id: string
+  fecha: string
+  estado: string
+  tema: string | null
+  tipo: string
+  yaRecuperada: boolean
+}
+
+/**
+ * Clases del curso a las que se puede vincular una recuperación/continuación.
+ * Cualquier estado es válido (suspendida, a medias, cumplida). Marca las que ya
+ * tienen una sesión de recuperación asociada.
+ */
+export async function getClasesRelacionables(cursoId: string): Promise<ClaseRelacionable[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
+    .from('bitacora_clase')
+    .select('id, fecha, estado, tema, tipo, recupera_bitacora_id')
+    .eq('curso_id', cursoId)
+    .eq('profesor_id', user.id)
+    .order('fecha', { ascending: false })
+    .limit(80)
+
+  type Row = { id: string; fecha: string; estado: string; tema: string | null; tipo: string | null; recupera_bitacora_id: string | null }
+  const rows = (data ?? []) as Row[]
+  const vinculadas = new Set(rows.map(r => r.recupera_bitacora_id).filter(Boolean) as string[])
+
+  return rows.map(r => ({
+    id: r.id,
+    fecha: r.fecha,
+    estado: r.estado,
+    tema: r.tema,
+    tipo: r.tipo ?? 'regular',
+    yaRecuperada: vinculadas.has(r.id),
+  }))
+}
+
+const CrearClaseExtraSchema = z.object({
+  cursoId: z.string().uuid(),
+  tipo: z.enum(['recuperacion', 'continuacion', 'extra']),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida'),
+  horaInicio: z.string().regex(/^\d{2}:\d{2}/, 'Hora de inicio inválida'),
+  horaFin: z.string().regex(/^\d{2}:\d{2}/, 'Hora de fin inválida'),
+  relacionadaId: z.string().uuid().optional(),
+  tema: z.string().max(300).optional(),
+  motivo: z.string().max(300).optional(),
+  copiarPlan: z.boolean().optional(),
+})
+
+/**
+ * Crea una sesión fuera del horario regular. Puede o no estar vinculada a una
+ * clase previa (recupera_bitacora_id). Reglas:
+ *  - una sola sesión por curso+fecha (el resto del sistema asume esa unicidad);
+ *  - no se permite en un día con horario regular del curso (usar Planificar);
+ *  - recuperación vinculada: la clase original, si no se dio, pasa a 'suspendido';
+ *  - continuación: la original no se modifica.
+ */
+export async function crearClaseExtra(
+  input: z.infer<typeof CrearClaseExtraSchema>
+): Promise<{ error?: string; id?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const parsed = CrearClaseExtraSchema.safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }
+  const { cursoId, tipo, fecha, horaInicio, horaFin, relacionadaId, tema, motivo, copiarPlan } = parsed.data
+
+  if (horaFin <= horaInicio) return { error: 'La hora de fin debe ser posterior a la de inicio' }
+
+  const { data: curso } = await supabase
+    .from('cursos')
+    .select('id')
+    .eq('id', cursoId)
+    .eq('profesor_id', user.id)
+    .maybeSingle()
+  if (!curso) return { error: 'Curso no encontrado' }
+
+  const { data: existente } = await supabase
+    .from('bitacora_clase')
+    .select('id')
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+    .eq('profesor_id', user.id)
+    .maybeSingle()
+  if (existente) return { error: 'Ya existe una clase de este curso en esa fecha' }
+
+  const diaSemana = DIAS_ES[new Date(fecha + 'T12:00:00').getDay()]
+  const { data: horarioRegular } = await supabase
+    .from('horarios_clases')
+    .select('id')
+    .eq('curso_id', cursoId)
+    .eq('dia_semana', diaSemana)
+    .limit(1)
+  if (horarioRegular && horarioRegular.length > 0) {
+    return { error: `Ese ${diaSemana} el curso tiene clase regular. Planifícala desde su celda.` }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  type Original = { id: string; semana: string | null; estado: string; tema: string | null; actividades_json: unknown; observaciones: string | null; hora_inicio_real: string | null }
+  let original: Original | null = null
+  if (relacionadaId) {
+    const { data } = await db
+      .from('bitacora_clase')
+      .select('id, semana, estado, tema, actividades_json, observaciones, hora_inicio_real')
+      .eq('id', relacionadaId)
+      .eq('curso_id', cursoId)
+      .eq('profesor_id', user.id)
+      .maybeSingle()
+    if (!data) return { error: 'La clase vinculada no existe' }
+    original = data as Original
+  }
+
+  let semana: string | null = original?.semana ?? null
+  if (!semana) {
+    const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
+    semana = semanaData ?? null
+  }
+
+  const copiar = !!(copiarPlan && original)
+  const temaFinal = tema?.trim() || (copiar ? original?.tema : null) || ''
+  const actividades = copiar && Array.isArray(original?.actividades_json) ? original!.actividades_json : []
+  const sinPlan = !temaFinal && (actividades as unknown[]).length === 0
+
+  const { data: creada, error } = await db
+    .from('bitacora_clase')
+    .insert({
+      profesor_id: user.id,
+      curso_id: cursoId,
+      fecha,
+      semana,
+      tema: temaFinal || '(Sin planificación)',
+      actividades_json: actividades,
+      observaciones: copiar ? original?.observaciones ?? null : null,
+      estado: 'planificado',
+      sin_planificacion: sinPlan,
+      tipo,
+      recupera_bitacora_id: original?.id ?? null,
+      motivo: motivo?.trim() || null,
+      hora_inicio_manual: horaInicio,
+      hora_fin_manual: horaFin,
+    })
+    .select('id')
+    .single()
+  if (error) return { error: error.message }
+
+  if (tipo === 'recuperacion' && original && !original.hora_inicio_real
+      && ['borrador', 'planificado', 'en_revision'].includes(original.estado)) {
+    await db
+      .from('bitacora_clase')
+      .update({ estado: 'suspendido', razon_suspension: motivo?.trim() || `Recuperada el ${fecha}` })
+      .eq('id', original.id)
+      .eq('profesor_id', user.id)
+  }
+
+  revalidateBitacoraViews(cursoId)
+  return { id: creada.id }
+}
+
 // ─── Módulo de replplanificación ─────────────────────────────────────────────
 
 export type ReplanificarResult = {

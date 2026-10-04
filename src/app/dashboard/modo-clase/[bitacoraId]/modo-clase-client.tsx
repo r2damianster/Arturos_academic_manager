@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { ClaseExtraModal } from '@/components/agenda/ClaseExtraModal'
 import { iniciarClase, actualizarActividadesEnVivo, confirmarCumplido, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
 import { registrarAsistenciaMasiva, registrarParticipacion } from '@/lib/actions/asistencia'
 import { guardarParticipacion, getGruposDeSesion, moverEstudiante } from '@/lib/actions/grupos'
@@ -953,6 +954,8 @@ export function ModoClaseClient({
   const [confirmandoDetener, setConfirmandoDetener] = useState(false)
   const [deteniendo, setDeteniendo] = useState(false)
   const [claseGuardada, setClaseGuardada] = useState(false)
+  const [mostrarContinuacion, setMostrarContinuacion] = useState(false)
+  const [continuacionFecha, setContinuacionFecha] = useState<string | null>(null)
 
   async function handleFinalizar() {
     setFinalizando(true)
@@ -1051,6 +1054,20 @@ export function ModoClaseClient({
               </p>
             </div>
 
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setMostrarContinuacion(true)}
+                className="w-full text-sm text-violet-300 hover:text-violet-200 border border-violet-700/40 px-4 py-2 rounded-lg hover:bg-violet-900/20 transition-colors"
+              >
+                ↻ ¿Quedó incompleta? Agendar continuación
+              </button>
+              {continuacionFecha && (
+                <p className="text-xs text-emerald-400 text-center">
+                  Continuación agendada para el {formatFecha(continuacionFecha)}
+                </p>
+              )}
+            </div>
+
             <button
               onClick={() => router.back()}
               className="w-full btn-primary py-2.5 text-sm"
@@ -1059,6 +1076,16 @@ export function ModoClaseClient({
             </button>
           </div>
         </div>
+      )}
+      {mostrarContinuacion && (
+        <ClaseExtraModal
+          cursos={[{ id: cursoId, asignatura: cursoNombre }]}
+          defaultCursoId={cursoId}
+          defaultRelacionadaId={bitacoraId}
+          defaultTipo="continuacion"
+          onClose={() => setMostrarContinuacion(false)}
+          onSaved={nuevaFecha => setContinuacionFecha(nuevaFecha)}
+        />
       )}
       {/* Header */}
       <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 px-3 md:px-6 py-3 flex items-center justify-between gap-2 md:gap-4">

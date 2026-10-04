@@ -23,7 +23,10 @@ function fmtCorto(fecha: string) {
   return new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
 
+// horasPorDia admite claves de día ("lunes") y, con prioridad, fechas ISO ("2026-10-25")
+// para clases fuera de horario (recuperación/extra) con hora propia.
 function getHorasFecha(fecha: string, horasPorDia: HorasPorDia): number {
+  if (horasPorDia[fecha] !== undefined) return horasPorDia[fecha]
   const dow = new Date(fecha + 'T12:00:00').getDay()
   const diaNorm = normalize(DIAS[dow])
   return Object.entries(horasPorDia).find(([d]) => normalize(d) === diaNorm)?.[1] ?? 1

@@ -18,7 +18,7 @@ export default async function ModoClaseActivaPage({
 
   const { data: bitacora } = await db
     .from('bitacora_clase')
-    .select('id, curso_id, fecha, tema, estado, hora_inicio_real, actividades_json, observaciones, cursos(asignatura, codigo, num_parciales)')
+    .select('id, curso_id, fecha, tema, estado, hora_inicio_real, actividades_json, observaciones, hora_inicio_manual, hora_fin_manual, cursos(asignatura, codigo, num_parciales)')
     .eq('id', bitacoraId)
     .eq('profesor_id', user.id)
     .single()
@@ -87,10 +87,14 @@ export default async function ModoClaseActivaPage({
   const horarioDelDia = (horariosRes.data ?? [] as HorarioRow[]).find(
     (h: HorarioRow) => normalize(h.dia_semana) === normalize(diaSemana)
   )
+  // Clases fuera de horario (recuperación/extra) traen su propia hora
+  const horarioEfectivo = bitacora.hora_inicio_manual && bitacora.hora_fin_manual
+    ? { hora_inicio: bitacora.hora_inicio_manual as string, hora_fin: bitacora.hora_fin_manual as string }
+    : horarioDelDia
   let horasClase = 1
-  if (horarioDelDia) {
-    const [startH, startM] = horarioDelDia.hora_inicio.split(':').map(Number)
-    const [endH, endM] = horarioDelDia.hora_fin.split(':').map(Number)
+  if (horarioEfectivo) {
+    const [startH, startM] = horarioEfectivo.hora_inicio.split(':').map(Number)
+    const [endH, endM] = horarioEfectivo.hora_fin.split(':').map(Number)
     const mins = (endH * 60 + endM) - (startH * 60 + startM)
     horasClase = Math.max(1, Math.round(mins / 60))
   }

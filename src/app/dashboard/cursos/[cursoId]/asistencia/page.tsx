@@ -19,7 +19,7 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
     db.from('estudiantes').select('id, nombre, email, estado').eq('curso_id', cursoId).order('nombre'),
     db.from('asistencia').select('*').eq('curso_id', cursoId).order('fecha'),
     db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
-    db.from('bitacora_clase').select('fecha').eq('curso_id', cursoId).eq('estado', 'cumplido'),
+    db.from('bitacora_clase').select('fecha, hora_inicio_manual, hora_fin_manual').eq('curso_id', cursoId).eq('estado', 'cumplido'),
   ])
 
   if (!cursoRes.data) notFound()
@@ -35,6 +35,12 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
   const horasPorDia: Record<string, number> = {}
   for (const h of (horariosRes.data ?? []) as HorarioRow[]) {
     horasPorDia[h.dia_semana] = calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
+  }
+  // Clases fuera de horario: la clave es la fecha ISO y tiene prioridad sobre el día de la semana
+  for (const b of (bitacorasRes.data ?? []) as { fecha: string; hora_inicio_manual: string | null; hora_fin_manual: string | null }[]) {
+    if (b.hora_inicio_manual && b.hora_fin_manual) {
+      horasPorDia[b.fecha] = calcularHorasDesdeHorario(b.hora_inicio_manual, b.hora_fin_manual)
+    }
   }
 
   const mapaAsistencia: Record<string, Record<string, { estado: string }>> = {}
