@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useTransition, useRef, useLayoutEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ImprimirPlanButton } from '@/components/planificacion/ImprimirPlanButton'
-import { guardarPlanificacion, aprobarPlan, getClasesFuturas } from '@/lib/actions/bitacora'
+import { guardarPlanificacion, autoguardarPlanificacion, aprobarPlan, getClasesFuturas } from '@/lib/actions/bitacora'
 import { corregirPlan } from '@/lib/actions/generar-contenido'
 import { convertirActividadPlanAInbox } from '@/lib/actions/actividades'
 import type { ActividadPlanificada } from '@/types/domain'
@@ -26,8 +26,8 @@ interface PlanificarModalProps {
   horaFin: string
   centroComputo?: boolean
   onClose: () => void
-  /** `estadoAprobado` solo viene cuando el guardado también aprobó el plan */
-  onSaved: (estadoAprobado?: 'planificado') => void
+  /** `estadoResultante` solo viene cuando el guardado fijó un estado concreto: 'planificado' (aprobó) o 'borrador' (solo autoguardado) */
+  onSaved: (estadoResultante?: 'planificado' | 'borrador') => void
   todosCursos?: { id: string; asignatura: string }[]
   readOnly?: boolean
 }
@@ -231,6 +231,15 @@ export function PlanificarModal({
   const [txError,       setTxError]       = useState<string | null>(null)
   const [txOk,          setTxOk]          = useState(false)
 
+  // Autoguardado
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [autosavedAt,    setAutosavedAt]    = useState<string | null>(null)
+  const lastSavedSnapshotRef = useRef<string | null>(null)   // null = aún no cargó el plan existente
+  const autosaveQueueRef     = useRef<Promise<void>>(Promise.resolve())
+  const autosaveTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasAutosavedRef      = useRef(false)
+  const warnedUnsavedRef     = useRef(false)
+
   async function abrirTrasladoAct(actId: string) {
     setTxActId(actId)
     setTxCursoId(cursoId)
@@ -336,6 +345,75 @@ export function PlanificarModal({
 
   useEffect(() => { fetchExisting() }, [fetchExisting])
 
+  // ── Autoguardado (no cambia el estado de un plan existente; uno nuevo queda en 'borrador') ──
+
+  const payloadActual = {
+    tema: tema.trim(),
+    actividades_json: actividades.filter(a => a.actividad.trim()),
+    observaciones: observaciones.trim() || null,
+  }
+  const snapshotActual = JSON.stringify(payloadActual)
+  const temaVacio = !payloadActual.tema
+  const latestPayloadRef = useRef(payloadActual)
+  latestPayloadRef.current = payloadActual
+  const estadoTrasAutosaveRef = useRef<string | null>(null)
+
+  const ejecutarAutoguardado = useCallback(() => {
+    autosaveQueueRef.current = autosaveQueueRef.current.then(async () => {
+      const payload = latestPayloadRef.current
+      const snapshot = JSON.stringify(payload)
+      if (!payload.tema || snapshot === lastSavedSnapshotRef.current) return
+      setAutosaveStatus('saving')
+      const result = await autoguardarPlanificacion(cursoId, fecha, payload)
+      if (result.error || !result.id) { setAutosaveStatus('error'); return }
+      lastSavedSnapshotRef.current = snapshot
+      hasAutosavedRef.current = true
+      estadoTrasAutosaveRef.current = result.estado ?? null
+      setExisting(prev => prev ?? {
+        id: result.id!,
+        tema: payload.tema,
+        actividades_json: payload.actividades_json,
+        observaciones: payload.observaciones,
+        estado: result.estado ?? 'borrador',
+      })
+      setAutosavedAt(new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }))
+      setAutosaveStatus('saved')
+    }).catch(() => setAutosaveStatus('error'))
+  }, [cursoId, fecha])
+
+  // Línea base: lo que se cargó de la BD no cuenta como cambio
+  useEffect(() => {
+    if (!loading && lastSavedSnapshotRef.current === null) lastSavedSnapshotRef.current = snapshotActual
+  }, [loading, snapshotActual])
+
+  useEffect(() => {
+    if (readOnly || loading || temaVacio) return
+    if (lastSavedSnapshotRef.current === null || snapshotActual === lastSavedSnapshotRef.current) return
+    autosaveTimerRef.current = setTimeout(ejecutarAutoguardado, 1500)
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current) }
+  }, [snapshotActual, temaVacio, readOnly, loading, ejecutarAutoguardado])
+
+  /** Cierra guardando antes lo pendiente; si hay cambios que no se pudieron guardar avisa una vez. */
+  async function handleClose() {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    if (!readOnly && !loading) {
+      ejecutarAutoguardado()
+      await autosaveQueueRef.current
+      const payloadFinal = latestPayloadRef.current
+      const hayCambiosSinGuardar = lastSavedSnapshotRef.current !== null
+        && JSON.stringify(payloadFinal) !== lastSavedSnapshotRef.current
+      if (hayCambiosSinGuardar && !warnedUnsavedRef.current) {
+        warnedUnsavedRef.current = true
+        setError(payloadFinal.tema
+          ? 'No se pudieron guardar los últimos cambios. Reintenta o cierra de nuevo para descartarlos.'
+          : 'Falta el tema: sin él no se guardan los cambios. Escríbelo o cierra de nuevo para descartarlos.')
+        return
+      }
+    }
+    if (hasAutosavedRef.current) onSaved(estadoTrasAutosaveRef.current === 'borrador' ? 'borrador' : undefined)
+    else onClose()
+  }
+
   // ── DnD sensors ────────────────────────────────────────────────────────────
 
   const sensors = useSensors(
@@ -423,6 +501,11 @@ export function PlanificarModal({
     setSaving(true)
     setError(null)
 
+    // Esperar autoguardados en curso para no crear la bitácora dos veces
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    await autosaveQueueRef.current
+    const eraBorrador = existing?.estado === 'borrador' || estadoTrasAutosaveRef.current === 'borrador'
+
     const result = await guardarPlanificacion(cursoId, fecha, {
       tema: tema.trim(),
       actividades_json: actividadesFiltradas,
@@ -437,7 +520,8 @@ export function PlanificarModal({
     }
 
     setSaving(false)
-    onSaved(aprobarDespues ? 'planificado' : undefined)
+    // Guardar con el botón promueve un borrador a 'planificado'
+    onSaved(aprobarDespues || eraBorrador ? 'planificado' : undefined)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -446,6 +530,7 @@ export function PlanificarModal({
   }
 
   const isEnRevision = existing?.estado === 'en_revision'
+  const isBorrador   = existing?.estado === 'borrador'
 
   const fmt = (t: string) => t?.slice(0, 5) ?? ''
 
@@ -453,7 +538,7 @@ export function PlanificarModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      onClick={e => { if (e.target === e.currentTarget) handleClose() }}>
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
@@ -461,8 +546,16 @@ export function PlanificarModal({
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs bg-blue-600/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
-                {readOnly ? '✓ Plan cumplido' : existing?.estado === 'cumplido' ? '✓ Cumplido' : isEnRevision ? '🔍 En revisión' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
+                {readOnly ? '✓ Plan cumplido' : existing?.estado === 'cumplido' ? '✓ Cumplido' : isEnRevision ? '🔍 En revisión' : isBorrador ? '✏️ Borrador' : existing ? '📋 Planificado' : '📋 Nueva planificación'}
               </span>
+              {!readOnly && (
+                <span className={`text-[11px] ${autosaveStatus === 'error' ? 'text-red-400' : 'text-gray-500'}`}>
+                  {autosaveStatus === 'saving' && 'Guardando…'}
+                  {autosaveStatus === 'saved' && autosavedAt && `✓ Guardado automáticamente ${autosavedAt}`}
+                  {autosaveStatus === 'error' && 'No se pudo autoguardar'}
+                  {autosaveStatus === 'idle' && temaVacio && !loading && 'Escribe el tema para activar el autoguardado'}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-white text-base">{asignatura}</h3>
@@ -476,7 +569,7 @@ export function PlanificarModal({
               {fmtFecha(fecha)} · {fmt(horaInicio)}–{fmt(horaFin)}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none mt-0.5">✕</button>
+          <button onClick={handleClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none mt-0.5">✕</button>
         </div>
 
         {/* Body */}
@@ -659,12 +752,12 @@ export function PlanificarModal({
                 <button type="button" onClick={onClose} className="btn-primary w-full">Cerrar</button>
               ) : (
                 <>
-                  <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancelar</button>
+                  <button type="button" onClick={handleClose} className="btn-ghost flex-1">Cerrar</button>
                   {existing && (
                     <ImprimirPlanButton bitacoraId={existing.id} label="Imprimir" size="sm" />
                   )}
                   <button type="submit" disabled={saving} className={`${isEnRevision ? 'btn-ghost' : 'btn-primary'} flex-1`}>
-                    {saving ? 'Guardando...' : existing ? (isEnRevision ? 'Guardar (sigue en revisión)' : 'Actualizar planificación') : 'Guardar planificación'}
+                    {saving ? 'Guardando...' : existing && !isBorrador ? (isEnRevision ? 'Guardar (sigue en revisión)' : 'Actualizar planificación') : 'Guardar planificación'}
                   </button>
                   {isEnRevision && (
                     <button type="button" disabled={saving} onClick={() => guardarYCerrar(true)} className="btn-primary flex-1">

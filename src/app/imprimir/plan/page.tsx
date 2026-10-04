@@ -13,6 +13,7 @@ const MESES = [
 ]
 
 const ETIQUETA_ESTADO: Record<string, string> = {
+  borrador: 'Borrador',
   en_revision: 'En revisión',
   planificado: 'Planificado',
   cumplido: 'Cumplido',

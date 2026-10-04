@@ -12,7 +12,7 @@ export type Trabajo         = Database['public']['Tables']['trabajos_asignados']
 export type ObservacionTrabajo = Database['public']['Tables']['observaciones_trabajo']['Row']
 export type BitacoraClaseRow = Database['public']['Tables']['bitacora_clase']['Row']
 export type BitacoraClase   = BitacoraClaseRow & {
-  estado?: 'en_revision' | 'planificado' | 'cumplido' | 'suspendido' | null
+  estado?: 'borrador' | 'en_revision' | 'planificado' | 'cumplido' | 'suspendido' | null
   actividades_json?: ActividadPlanificada[] | null
 }
 

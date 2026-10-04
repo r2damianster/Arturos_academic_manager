@@ -618,17 +618,18 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     }
 
     const enRevision = entry.estado === 'en_revision'
+    const esBorrador = entry.estado === 'borrador'
 
     return (
       <div
         {...dragHandlers}
         className={`w-full h-full min-h-[52px] text-left p-2 rounded-lg border flex flex-col gap-1 ${
-          enRevision ? 'bg-orange-900/20 border-orange-500/40' : 'bg-sky-900/20 border-sky-500/30'
+          enRevision ? 'bg-orange-900/20 border-orange-500/40' : esBorrador ? 'bg-gray-800/40 border-gray-600/40' : 'bg-sky-900/20 border-sky-500/30'
         }`}
       >
         <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-          <div className={`${enRevision ? 'text-orange-300' : 'text-sky-400'} text-xs font-medium`}>
-            {enRevision ? '🔍 En revisión' : 'Planificado'}
+          <div className={`${enRevision ? 'text-orange-300' : esBorrador ? 'text-gray-400' : 'text-sky-400'} text-xs font-medium`}>
+            {enRevision ? '🔍 En revisión' : esBorrador ? '✏️ Borrador' : 'Planificado'}
           </div>
           {renderBadges()}
           <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
@@ -645,13 +646,23 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
               {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
             </button>
           )}
-          <Link
-            href={`/dashboard/modo-clase/${entry.id}`}
-            onClick={e => e.stopPropagation()}
-            className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
-          >
-            ▶ Iniciar clase
-          </Link>
+          {esBorrador ? (
+            <button
+              onClick={e => { e.stopPropagation(); setPlanificarModal({ clase, fecha }) }}
+              className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-1.5 py-0.5 rounded hover:bg-sky-900/20 transition-colors"
+              title="Abre el plan y pulsa «Guardar planificación» para confirmarlo"
+            >
+              Terminar plan
+            </button>
+          ) : (
+            <Link
+              href={`/dashboard/modo-clase/${entry.id}`}
+              onClick={e => e.stopPropagation()}
+              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+            >
+              ▶ Iniciar clase
+            </Link>
+          )}
           <ImprimirPlanButton bitacoraId={entry.id} label="Imprimir" />
           {entry.actividades_json?.length > 0 && (
             <button
@@ -735,6 +746,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                   <td className="py-2 px-3">
                     {!entry && <span className="text-yellow-400 text-[10px]">Sin planificar</span>}
                     {entry?.estado === 'en_revision' && <span className="text-orange-300 text-[10px]">🔍 En revisión</span>}
+                    {entry?.estado === 'borrador' && <span className="text-gray-400 text-[10px]">✏️ Borrador</span>}
                     {entry?.estado === 'planificado' && <span className="text-sky-400 text-[10px]">Planificado</span>}
                     {entry?.estado === 'cumplido' && <span className="text-emerald-400 text-[10px]">Cumplido</span>}
                     {entry?.estado === 'suspendido' && (
@@ -761,6 +773,14 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                           </button>
                         )}
                       </div>
+                    )}
+                    {entry?.estado === 'borrador' && (
+                      <button
+                        onClick={() => setPlanificarModal({ clase, fecha })}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-2 py-0.5 rounded hover:bg-sky-900/20 transition-colors"
+                      >
+                        Terminar plan
+                      </button>
                     )}
                     {(entry?.estado === 'planificado' || entry?.estado === 'en_revision') && (
                       <div className="flex items-center gap-1.5 flex-wrap">

@@ -175,6 +175,65 @@ export async function guardarPlanificacion(
   return { id: created.id }
 }
 
+/**
+ * Autoguardado del PlanificarModal. Nunca cambia el estado de un plan existente
+ * (ni lo aprueba ni lo promueve): solo actualiza el contenido. Si no existe plan
+ * para ese curso+fecha, lo crea como 'borrador'. No revalida vistas (el modal
+ * notifica al padre al cerrarse).
+ */
+export async function autoguardarPlanificacion(
+  cursoId: string,
+  fecha: string,
+  data: PlanificacionData
+): Promise<{ error?: string; id?: string; estado?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: existing } = await supabase
+    .from('bitacora_clase')
+    .select('id, estado')
+    .eq('curso_id', cursoId)
+    .eq('fecha', fecha)
+    .eq('profesor_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    const { error } = await supabase
+      .from('bitacora_clase')
+      .update({
+        tema: data.tema,
+        actividades_json: data.actividades_json,
+        observaciones: data.observaciones ?? null,
+      })
+      .eq('id', existing.id)
+
+    if (error) return { error: error.message }
+    return { id: existing.id, estado: existing.estado }
+  }
+
+  const { data: semanaData } = await supabase.rpc('calcular_semana', { p_curso_id: cursoId })
+  const { data: created, error } = await supabase
+    .from('bitacora_clase')
+    .insert({
+      profesor_id: user.id,
+      curso_id: cursoId,
+      fecha,
+      semana: semanaData ?? null,
+      tema: data.tema,
+      actividades_json: data.actividades_json,
+      observaciones: data.observaciones ?? null,
+      estado: 'borrador',
+    })
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  return { id: created.id, estado: 'borrador' }
+}
+
 /** Aprueba un plan en revisión: en_revision → planificado. */
 export async function aprobarPlan(bitacoraId: string): Promise<{ error?: string }> {
   return aprobarPlanes([bitacoraId])
