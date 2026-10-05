@@ -474,7 +474,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     return (
       <button
         onClick={e => { e.stopPropagation(); setClaseExtraModal({ cursoId, relacionadaId: entryId, tipo }) }}
-        className="text-[10px] text-violet-300 hover:text-violet-200 border border-violet-700/40 px-1.5 py-0.5 rounded hover:bg-violet-900/20 transition-colors"
+        className="text-[10px] text-violet-300 hover:text-violet-200 border border-violet-700/40 px-1.5 rounded hover:bg-violet-900/20 transition-colors"
         title={esRecuperacion ? 'No daré esta clase: agendar recuperación en otro horario' : 'Quedó incompleta: agendar continuación en otro horario'}
       >
         ↻
@@ -494,37 +494,45 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
 
     if (fueraDeRango) {
       return (
-        <div className="w-full h-full min-h-[52px] p-2 rounded-lg bg-gray-800/20 border border-gray-700/30 flex items-center justify-center">
-          <span className="text-gray-700 text-[10px] text-center leading-tight">Fuera del<br/>período</span>
+        <div className="w-full h-full min-h-[40px] px-2 py-1 rounded-lg bg-gray-800/20 border border-gray-700/30 flex items-center justify-center">
+          <span className="text-gray-700 text-[10px] text-center leading-tight">Fuera del período</span>
         </div>
       )
     }
 
     const renderBadges = () => (
-      <div className="flex flex-wrap gap-1 mt-0.5">
-        {isTutoria && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">👨‍🏫 Tutoría</span>}
-        {clase.centro_computo && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>}
-      </div>
+      <>
+        {isTutoria && <span className="px-1 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30" title="Tutoría">👨‍🏫</span>}
+        {clase.centro_computo && <span className="px-1 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" title="Centro de cómputo">💻</span>}
+      </>
+    )
+
+    const horaLabel = (
+      <span className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</span>
     )
 
     if (entry?.estado === 'suspendido') {
       const reactKey = `${cursoId}|${fecha}`
       return (
-        <div className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-red-950/30 border border-red-800/40 flex flex-col gap-1">
-          <div className="text-red-400 text-xs font-medium">🚫 Suspendida</div>
-          {renderBadges()}
-          <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+        <div className="w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg bg-red-950/30 border border-red-800/40 flex flex-col gap-0.5">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-red-400 text-xs font-medium">🚫 Suspendida</span>
+            {renderBadges()}
+            {horaLabel}
+          </div>
           {entry.razon_suspension && (
             <div className="text-gray-400 text-[10px] leading-tight italic">{entry.razon_suspension}</div>
           )}
-          <button
-            onClick={() => handleReactivar(cursoId, fecha)}
-            disabled={reactivandoKey === reactKey}
-            className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors disabled:opacity-50 self-start"
-          >
-            {reactivandoKey === reactKey ? '…' : '↩ Reactivar'}
-          </button>
-          {renderBotonClaseExtra(entry.id, cursoId, 'recuperacion')}
+          <div className="flex gap-1 items-center">
+            <button
+              onClick={() => handleReactivar(cursoId, fecha)}
+              disabled={reactivandoKey === reactKey}
+              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
+            >
+              {reactivandoKey === reactKey ? '…' : '↩ Reactivar'}
+            </button>
+            {renderBotonClaseExtra(entry.id, cursoId, 'recuperacion')}
+          </div>
         </div>
       )
     }
@@ -532,23 +540,23 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     if (!entry) {
       const espontaneaKey = `${cursoId}|${fecha}`
       return (
-        <div className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-yellow-900/20 border border-yellow-500/30 flex flex-col gap-1">
-          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-            <div className="text-yellow-400 text-xs font-medium">⚠ Sin planificar</div>
+        <div className="w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg bg-yellow-900/20 border border-yellow-500/30 flex flex-col gap-0.5">
+          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full flex items-center gap-1 flex-wrap">
+            <span className="text-yellow-400 text-xs font-medium">⚠ Sin planificar</span>
             {renderBadges()}
-            <div className="text-gray-500 text-[10px] mt-0.5">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+            {horaLabel}
           </button>
-          <div className="flex gap-1 mt-0.5">
+          <div className="flex gap-1">
             <button
               onClick={() => setPlanificarModal({ clase, fecha })}
-              className="text-[10px] text-green-400 hover:text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded hover:bg-green-900/20 transition-colors"
+              className="text-[10px] text-green-400 hover:text-green-300 border border-green-700/40 px-1.5 rounded hover:bg-green-900/20 transition-colors"
             >
               + Planificar
             </button>
             <button
               onClick={() => handleTomarAsistenciaEspontanea(cursoId, fecha)}
               disabled={espontaneaLoading === espontaneaKey}
-              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 rounded hover:bg-amber-900/20 transition-colors disabled:opacity-50"
             >
               {espontaneaLoading === espontaneaKey ? '…' : '📋 Lista'}
             </button>
@@ -578,11 +586,11 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           <>
             <span className="text-[10px] text-red-400">{isCumplido ? '⚠ ¿Borrar clase cumplida?' : '¿Eliminar?'}</span>
             <button onClick={() => handleDeletePlan(cursoId, fecha)} disabled={isDeleting}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
+              className="text-[10px] px-1.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
               {isDeleting ? '…' : 'Sí'}
             </button>
             <button onClick={() => setDeleteConfirmKey(null)}
-              className="text-[10px] px-1.5 py-0.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200">
+              className="text-[10px] px-1.5 rounded border border-gray-600 text-gray-400 hover:text-gray-200">
               No
             </button>
           </>
@@ -600,31 +608,31 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       return (
         <div
           {...dragHandlers}
-          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-amber-900/20 border border-amber-500/30 flex flex-col gap-1"
+          className="w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg bg-amber-900/20 border border-amber-500/30 flex flex-col gap-0.5"
         >
-          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-            <div className="text-amber-400 text-xs font-medium">⚠ Sin plan</div>
+          <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full flex items-center gap-1 flex-wrap">
+            <span className="text-amber-400 text-xs font-medium">⚠ Sin plan</span>
             {renderBadges()}
-            <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+            {horaLabel}
           </button>
           <div className="flex gap-1 items-center flex-wrap">
             <Link
               href={`/dashboard/modo-clase/${entry.id}`}
               onClick={e => e.stopPropagation()}
-              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 rounded text-center transition-colors"
             >
               ▶ Iniciar clase
             </Link>
             <button
               onClick={e => { e.stopPropagation(); setPlanificarModal({ clase, fecha }) }}
-              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 px-1.5 rounded hover:bg-amber-900/20 transition-colors"
             >
               ✏ Agregar plan
             </button>
             <Link
               href={`/dashboard/cursos/${cursoId}/pase-lista`}
               onClick={e => e.stopPropagation()}
-              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors"
+              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 rounded hover:bg-gray-800 transition-colors"
             >
               📋 Lista
             </Link>
@@ -638,26 +646,28 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       return (
         <div
           {...dragHandlers}
-          className="w-full h-full min-h-[52px] text-left p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/30 flex flex-col gap-1"
+          className="w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg bg-emerald-900/20 border border-emerald-500/30 flex flex-col gap-0.5"
         >
           <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-            <div className="text-emerald-400 text-xs font-medium">✓ Cumplido</div>
-            {renderBadges()}
-            <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-emerald-400 text-xs font-medium">✓ Cumplido</span>
+              {renderBadges()}
+              {horaLabel}
+            </div>
             {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
           </button>
           <div className="flex gap-1 items-center flex-wrap">
             <Link
               href={`/dashboard/modo-clase/${entry.id}`}
               onClick={e => e.stopPropagation()}
-              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 py-0.5 rounded text-center hover:bg-gray-800 transition-colors"
+              className="text-[10px] text-gray-400 hover:text-gray-200 border border-gray-700 px-1.5 rounded text-center hover:bg-gray-800 transition-colors"
             >
               Ver resumen
             </Link>
             {entry.actividades_json?.length > 0 && (
               <button
                 onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
-                className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+                className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 rounded hover:bg-amber-900/20 transition-colors"
                 title="Trasladar actividades a otro plan"
               >
                 →
@@ -676,16 +686,18 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     return (
       <div
         {...dragHandlers}
-        className={`w-full h-full min-h-[52px] text-left p-2 rounded-lg border flex flex-col gap-1 ${
+        className={`w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg border flex flex-col gap-0.5 ${
           enRevision ? 'bg-orange-900/20 border-orange-500/40' : esBorrador ? 'bg-gray-800/40 border-gray-600/40' : 'bg-sky-900/20 border-sky-500/30'
         }`}
       >
         <button onClick={() => setPlanificarModal({ clase, fecha })} className="text-left w-full">
-          <div className={`${enRevision ? 'text-orange-300' : esBorrador ? 'text-gray-400' : 'text-sky-400'} text-xs font-medium`}>
-            {enRevision ? '🔍 En revisión' : esBorrador ? '✏️ Borrador' : 'Planificado'}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className={`${enRevision ? 'text-orange-300' : esBorrador ? 'text-gray-400' : 'text-sky-400'} text-xs font-medium`}>
+              {enRevision ? '🔍 En revisión' : esBorrador ? '✏️ Borrador' : 'Planificado'}
+            </span>
+            {renderBadges()}
+            {horaLabel}
           </div>
-          {renderBadges()}
-          <div className="text-gray-500 text-[10px]">{fmt(clase.hora_inicio)}–{fmt(clase.hora_fin)}</div>
           {entry.tema && <div className="text-gray-300 text-[10px] leading-tight">{truncarTema(entry.tema)}</div>}
         </button>
         <div className="flex gap-1 items-center flex-wrap">
@@ -693,7 +705,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             <button
               onClick={e => { e.stopPropagation(); handleAprobarPlan(entry.id) }}
               disabled={aprobandoId === entry.id}
-              className="text-[10px] text-white font-semibold bg-orange-600 hover:bg-orange-500 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50"
+              className="text-[10px] text-white font-semibold bg-orange-600 hover:bg-orange-500 px-1.5 rounded transition-colors disabled:opacity-50"
               title="Aprobar plan (pasa a Planificado)"
             >
               {aprobandoId === entry.id ? '…' : '✓ Aprobar'}
@@ -702,7 +714,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           {esBorrador ? (
             <button
               onClick={e => { e.stopPropagation(); setPlanificarModal({ clase, fecha }) }}
-              className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-1.5 py-0.5 rounded hover:bg-sky-900/20 transition-colors"
+              className="text-[10px] text-sky-400 hover:text-sky-300 border border-sky-600/30 px-1.5 rounded hover:bg-sky-900/20 transition-colors"
               title="Abre el plan y pulsa «Guardar planificación» para confirmarlo"
             >
               Terminar plan
@@ -711,7 +723,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             <Link
               href={`/dashboard/modo-clase/${entry.id}`}
               onClick={e => e.stopPropagation()}
-              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 py-0.5 rounded text-center transition-colors"
+              className="text-[10px] text-white font-semibold bg-brand-600 hover:bg-brand-500 px-1.5 rounded text-center transition-colors"
             >
               ▶ Iniciar clase
             </Link>
@@ -720,7 +732,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
           {entry.actividades_json?.length > 0 && (
             <button
               onClick={e => { e.stopPropagation(); abrirTrasladoPlan(entry.id, entry.actividades_json, clase.curso_id) }}
-              className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded hover:bg-amber-900/20 transition-colors"
+              className="text-[10px] text-amber-500 hover:text-amber-300 border border-amber-700/40 px-1.5 rounded hover:bg-amber-900/20 transition-colors"
               title="Trasladar actividades a otro plan"
             >
               →
@@ -1162,35 +1174,30 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                 {/* Fila del curso */}
                 <div className="grid hover:bg-gray-800/30" style={{ gridTemplateColumns: 'minmax(180px, 1fr) repeat(6, minmax(0, 1fr))' }}>
                   {/* Celda nombre */}
-                  <div className="px-3 py-2">
+                  <div className="px-3 py-1.5">
                     <button
                       onClick={() => handleToggleExpand(curso.id)}
                       className="w-full text-left group"
                     >
-                      <div className="flex items-start gap-1.5 flex-wrap mb-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-gray-200 text-xs font-medium group-hover:text-white transition-colors leading-tight">{curso.asignatura}</span>
-                        <span className={`text-gray-400 text-[10px] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                      </div>
-                      <div className="flex items-center gap-1 flex-wrap mb-1.5">
                         {tieneTutoriaCurso && (
-                          <span className="text-[10px] bg-teal-900/40 text-teal-300 border border-teal-600/30 px-1.5 py-0 rounded-full">Tutoría Curso</span>
+                          <span className="text-[10px] bg-teal-900/40 text-teal-300 border border-teal-600/30 px-1.5 py-0 rounded-full">Tutoría</span>
                         )}
                         {tieneCentroComputo && (
                           <span className="text-[10px] bg-violet-900/40 text-violet-300 border border-violet-600/30 px-1.5 py-0 rounded-full">💻</span>
                         )}
+                        <span className={`text-gray-400 text-[10px] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                       </div>
                       {total > 0 && (
-                        <div className="space-y-0.5">
-                          <div className="flex justify-between text-[10px] text-gray-500">
-                            <span>{planificados}/{total}</span>
-                            <span>{pct}%</span>
-                          </div>
-                          <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="flex items-center gap-1.5 mt-1" title={`${planificados}/${total} · ${pct}%`}>
+                          <div className="h-1 flex-1 bg-gray-700 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : 'bg-sky-500'}`}
                               style={{ width: `${pct}%` }}
                             />
                           </div>
+                          <span className="text-[10px] text-gray-500 tabular-nums">{planificados}/{total}</span>
                         </div>
                       )}
                     </button>
@@ -1211,7 +1218,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     return (
                       <div
                         key={fecha}
-                        className={`p-1.5 transition-colors ${fecha === selectedDate ? 'bg-brand-900/10' : ''} ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
+                        className={`p-1 transition-colors ${fecha === selectedDate ? 'bg-brand-900/10' : ''} ${dragOverKey === targetKey ? 'ring-2 ring-blue-500/50 rounded-xl' : ''}`}
                         onDragOver={e => {
                           if (!dragSource || sameSource) return
                           if (isCompletedTarget) return
