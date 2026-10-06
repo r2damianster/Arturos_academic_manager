@@ -81,8 +81,8 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
         {/* Selector de parcial */}
         <ParcialSelector parcialActivo={parcialActivo} numParciales={numParciales} onChange={setParcialActivo} />
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-zinc-500 text-sm">No hay calificaciones importadas para el Parcial {parcialActivo}.</p>
-          <p className="text-zinc-400 text-xs mt-1">Usa el botón "Importar de Moodle" para cargar calificaciones desde un archivo.</p>
+          <p className="text-gray-400 text-sm">No hay calificaciones importadas para el Parcial {parcialActivo}.</p>
+          <p className="text-gray-400 text-xs mt-1">Usa el botón "Importar de Moodle" para cargar calificaciones desde un archivo.</p>
         </div>
       </div>
     )
@@ -94,26 +94,26 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
       <ParcialSelector parcialActivo={parcialActivo} numParciales={numParciales} onChange={setParcialActivo} />
 
       {/* Tabla */}
-      <div className="overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+      <div className="overflow-auto rounded-xl border border-gray-700">
         <table className="text-sm w-full border-collapse">
           <thead>
-            <tr className="bg-zinc-50 dark:bg-zinc-800">
-              <th className="text-left px-4 py-2.5 font-medium text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 sticky left-0 bg-zinc-50 dark:bg-zinc-800">
+            <tr className="bg-gray-800">
+              <th className="text-left px-4 py-2.5 font-medium text-gray-400 border-b border-gray-700 sticky left-0 bg-gray-800">
                 Estudiante
               </th>
               {nombresItems.map(ni => {
                 const tipo = itemsFiltrados.find(i => i.nombre_item === ni)?.tipo
                 return (
-                  <th key={ni} className="px-2 py-2.5 border-b border-l border-zinc-200 dark:border-zinc-700 text-center min-w-[100px]">
+                  <th key={ni} className="px-2 py-2.5 border-b border-l border-gray-700 text-center min-w-[100px]">
                     <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 max-w-[120px] truncate" title={ni}>{ni}</span>
+                      <span className="text-xs font-medium text-gray-400 max-w-[120px] truncate" title={ni}>{ni}</span>
                       {tipo === 'subtotal_categoria' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">Subtotal</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400">Subtotal</span>
                       )}
                       <button
                         onClick={() => handleEliminarColumna(ni)}
                         title="Eliminar columna"
-                        className="text-zinc-300 hover:text-red-500 transition-colors"
+                        className="text-gray-300 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -125,8 +125,8 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
           </thead>
           <tbody>
             {estudiantes.map(est => (
-              <tr key={est.id} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                <td className="px-4 py-2 font-medium text-zinc-700 dark:text-zinc-300 sticky left-0 bg-white dark:bg-zinc-900 border-r border-zinc-100 dark:border-zinc-800 whitespace-nowrap">
+              <tr key={est.id} className="border-b border-gray-800 hover:bg-gray-800/30">
+                <td className="px-4 py-2 font-medium text-gray-300 sticky left-0 bg-gray-900 border-r border-gray-800 whitespace-nowrap">
                   {est.nombre}
                 </td>
                 {nombresItems.map(ni => {
@@ -134,7 +134,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                   const esteEditando = editando?.itemId === (item?.id ?? `${est.id}|${ni}`)
 
                   return (
-                    <td key={ni} className="border-l border-zinc-100 dark:border-zinc-800 text-center px-2 py-1.5">
+                    <td key={ni} className="border-l border-gray-800 text-center px-2 py-1.5">
                       {esteEditando ? (
                         <div className="flex items-center gap-1 justify-center">
                           <input
@@ -142,28 +142,28 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                             min={0} max={10} step={0.01}
                             value={editando!.nota}
                             onChange={e => setEditando(prev => prev ? { ...prev, nota: e.target.value } : null)}
-                            className="w-16 text-center text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-1 py-0.5"
+                            className="w-16 text-center text-xs rounded border border-gray-600 bg-gray-800 px-1 py-0.5"
                             autoFocus
                           />
                           <button
                             onClick={() => item && handleGuardar(item, editando!.nota)}
                             disabled={isPending}
-                            className="text-green-600 hover:text-green-700"
+                            className="text-green-400 hover:text-green-400"
                           >
                             <Check className="h-4 w-4" />
                           </button>
-                          <button onClick={() => setEditando(null)} className="text-zinc-400 hover:text-zinc-600">
+                          <button onClick={() => setEditando(null)} className="text-gray-400 hover:text-gray-400">
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : item ? (
                         <div className="flex items-center gap-1 justify-center group">
-                          <span className={`font-mono ${item.nota === null ? 'text-zinc-300' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                          <span className={`font-mono ${item.nota === null ? 'text-gray-300' : 'text-gray-200'}`}>
                             {item.nota === null ? '—' : item.nota.toFixed(2)}
                           </span>
                           <button
                             onClick={() => setEditando({ itemId: item.id, nota: item.nota?.toString() ?? '' })}
-                            className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600 transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-400 transition-opacity"
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
@@ -173,7 +173,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                               startTransition(async () => { await eliminarItem(item.id, cursoId) })
                             }}
                             title="Eliminar esta nota"
-                            className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-red-500 transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -182,7 +182,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                           )}
                         </div>
                       ) : (
-                        <span className="text-zinc-300 text-xs">—</span>
+                        <span className="text-gray-300 text-xs">—</span>
                       )}
                     </td>
                   )
@@ -193,7 +193,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
         </table>
       </div>
 
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-gray-400">
         <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" /> Editado manualmente</span>
         {' · '}Hover sobre la nota para editar inline. Los subtotales (en azul) son calculados por Moodle e importados; los totales finales se calculan automáticamente en la pestaña Resumen.
       </p>
@@ -211,7 +211,7 @@ function ParcialSelector({ parcialActivo, numParciales, onChange }: { parcialAct
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             parcialActivo === p
               ? 'bg-blue-600 text-white'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
           }`}
         >
           Parcial {p}

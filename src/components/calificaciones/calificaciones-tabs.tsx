@@ -73,7 +73,7 @@ export function CalificacionesTabs({
               {t.label}
               {t.badge !== undefined && (
                 <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${
-                  tab === t.id ? 'bg-white/20' : 'bg-gray-800 text-gray-500'
+                  tab === t.id ? 'bg-gray-900/20' : 'bg-gray-800 text-gray-400'
                 }`}>
                   {t.badge}
                 </span>
@@ -93,10 +93,10 @@ export function CalificacionesTabs({
 
       {/* Banner post-import */}
       {importadoId && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-sm text-green-800 dark:text-green-300">
-          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-green-900/10 border border-green-800 text-sm text-green-300">
+          <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
           <span>Calificaciones importadas exitosamente.</span>
-          <button onClick={() => setImportadoId(null)} className="ml-auto text-green-600 hover:text-green-800 text-xs">×</button>
+          <button onClick={() => setImportadoId(null)} className="ml-auto text-green-400 hover:text-green-300 text-xs">×</button>
         </div>
       )}
 
@@ -137,7 +137,7 @@ export function CalificacionesTabs({
       {tab === 'asistencia' && (
         fechas.length === 0 ? (
           <div className="card text-center py-12">
-            <p className="text-gray-500">Aún no hay registros de asistencia.</p>
+            <p className="text-gray-400">Aún no hay registros de asistencia.</p>
           </div>
         ) : (
           <AsistenciaGridClient
