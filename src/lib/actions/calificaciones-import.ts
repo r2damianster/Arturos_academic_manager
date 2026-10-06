@@ -124,6 +124,24 @@ export async function calcularMatchesEstudiantes(
   return { matches }
 }
 
+// El import no puede pisar columnas calculadas por rúbrica: cambiaría su fuente a 'moodle'
+// y dejaría la definición huérfana. Devuelve un mensaje de error si hay choque de nombres.
+async function errorPorColisionConRubricas(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cursoId: string,
+  columnas: { parcial: number; nombre_limpio: string }[]
+): Promise<string | null> {
+  const { data: rubricas } = await supabase
+    .from('calificacion_rubricas' as any)
+    .select('parcial, nombre_columna')
+    .eq('curso_id', cursoId)
+  const clavesRubricas = new Set(((rubricas ?? []) as any[]).map(r => `${r.parcial}|${r.nombre_columna}`))
+  const colisiones = columnas.filter(c => clavesRubricas.has(`${c.parcial}|${c.nombre_limpio}`))
+  if (colisiones.length === 0) return null
+  const lista = colisiones.map(c => `"${c.nombre_limpio}" (Parcial ${c.parcial})`).join(', ')
+  return `Estas columnas ya existen como rúbrica: ${lista}. Elimina la rúbrica o renombra la columna antes de importar.`
+}
+
 // ---------------------------------------------------------------------------
 // Paso 5: Calcular preview antes/después (sin escribir en BD)
 // ---------------------------------------------------------------------------
@@ -137,6 +155,9 @@ export async function calcularPreviewImport(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
+
+  const errorColision = await errorPorColisionConRubricas(supabase, cursoId, columnas)
+  if (errorColision) return { error: errorColision }
 
   const matchesConId = matches.filter(m => m.estudiante_id !== null)
   if (matchesConId.length === 0) return { preview: emptyPreview(matches.length), error: undefined }
@@ -232,6 +253,9 @@ export async function confirmarImportCalificaciones(params: {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
+
+  const errorColision = await errorPorColisionConRubricas(supabase, params.cursoId, params.columnas)
+  if (errorColision) return { error: errorColision }
 
   const matchesConId = params.matches.filter(m => m.estudiante_id !== null)
   const estudianteIds = matchesConId.map(m => m.estudiante_id!)

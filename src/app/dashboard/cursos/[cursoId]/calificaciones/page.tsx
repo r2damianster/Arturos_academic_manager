@@ -10,7 +10,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes, itemsRes, importsRes, bitacorasRes, horariosRes] = await Promise.all([
+  const [cursoRes, estudiantesRes, califRes, participacionRes, asistenciaRes, itemsRes, importsRes, bitacorasRes, horariosRes, rubricasRes] = await Promise.all([
     db.from('cursos').select('id, asignatura, codigo, num_parciales, nombres_tareas').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id').eq('curso_id', cursoId).eq('estado', 'activo').order('nombre'),
     db.from('calificaciones').select('*').eq('curso_id', cursoId),
@@ -33,6 +33,11 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .order('created_at', { ascending: false }),
     db.from('bitacora_clase').select('fecha, hora_inicio_manual, hora_fin_manual').eq('curso_id', cursoId).eq('estado', 'cumplido'),
     db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
+    db.from('calificacion_rubricas')
+      .select('id, curso_id, parcial, nombre_columna, escala_salida, definicion')
+      .eq('curso_id', cursoId)
+      .order('parcial')
+      .order('nombre_columna'),
   ])
 
   if (!cursoRes.data) notFound()
@@ -166,6 +171,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
           fechas={fechasAsistencia}
           mapaAsistencia={mapaAsistenciaFechas}
           horasPorDia={horasPorDia}
+          rubricas={rubricasRes.data ?? []}
         />
       )}
     </div>

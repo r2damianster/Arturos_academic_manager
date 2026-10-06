@@ -243,3 +243,28 @@ export function calcularRubrica(
     escalaSalida !== undefined && totalMax > 0 ? redondear((total / totalMax) * escalaSalida) : total
   return { criterios, total, totalMax, notaSalida }
 }
+
+const formatearNumero = (valor: number): string => String(redondear(valor))
+
+/**
+ * Borrador determinista (sin IA) del comentario "qué falta" para pegar en Moodle.
+ * Lista solo los criterios que no alcanzaron el máximo, con el valor de cada fuente,
+ * y marca las actividades obligatorias que no tienen nota.
+ */
+export function borradorComentarioDesdeResultado(resultado: ResultadoRubrica): string {
+  const lineas = resultado.criterios
+    .filter(criterio => criterio.puntos < criterio.puntosMax)
+    .map(criterio => {
+      if (criterio.sinDatos) return `${criterio.nombre}: sin datos registrados.`
+      const detalleFuentes = criterio.fuentes
+        .filter(fuente => fuente.incluida)
+        .map(fuente =>
+          fuente.valorCrudo === null
+            ? `falta: ${fuente.etiqueta}`
+            : `${fuente.etiqueta} ${formatearNumero(fuente.valorCrudo)}/${formatearNumero(fuente.escalaMax)}`
+        )
+        .join('; ')
+      return `${criterio.nombre}: ${formatearNumero(criterio.puntos)}/${formatearNumero(criterio.puntosMax)} (${detalleFuentes}).`
+    })
+  return lineas.join('\n')
+}

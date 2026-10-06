@@ -13,12 +13,14 @@ interface ComentarioCeldaProps {
   parcial: number
   nombreItem: string
   comentarioInicial: string | null
+  /** Solo en columnas de rúbrica: texto generado desde el desglose, para insertarlo y editarlo. */
+  borradorSugerido?: string
   onClose: () => void
 }
 
 /** Popover para registrar "qué falta" en una celda estudiante × columna. Texto pensado para pegar en Moodle. */
 export function ComentarioCelda({
-  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioInicial, onClose,
+  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioInicial, borradorSugerido, onClose,
 }: ComentarioCeldaProps) {
   const [texto, setTexto] = useState(comentarioInicial ?? '')
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null)
@@ -76,6 +78,21 @@ export function ComentarioCelda({
         <span>{texto.length}/{LIMITE_CARACTERES}</span>
         {errorMensaje && <span className="text-red-500">{errorMensaje}</span>}
       </div>
+
+      {borradorSugerido !== undefined && (
+        <button
+          onClick={() =>
+            setTexto(actual =>
+              (actual.trim() === '' ? borradorSugerido : `${actual.trim()}\n${borradorSugerido}`).slice(0, LIMITE_CARACTERES)
+            )
+          }
+          disabled={borradorSugerido === ''}
+          title={borradorSugerido === '' ? 'Todos los criterios están completos' : 'Insertar los criterios que no llegaron al máximo'}
+          className="mt-1 text-xs text-teal-300 hover:text-teal-200 disabled:opacity-40"
+        >
+          ✦ Generar borrador desde la rúbrica
+        </button>
+      )}
 
       <div className="flex items-center justify-between gap-2 mt-2">
         <button

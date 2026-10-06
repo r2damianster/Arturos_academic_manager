@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   calcularRubrica,
   calcularCriterio,
+  borradorComentarioDesdeResultado,
   type CriterioRubrica,
   type DatosEstudianteRubrica,
   type DefinicionRubrica,
@@ -329,4 +330,49 @@ test('valor crudo mayor a la escala se acota a 1', () => {
   }
   const datos: DatosEstudianteRubrica = { items: [{ nombre: 'X', parcial: 1, nota: 12 }], participacion: [], asistencia: [] }
   assert.equal(calcularCriterio(criterio, datos, { fechasClase }).puntos, 2)
+})
+
+test('borrador de comentario lista criterios incompletos y actividades obligatorias sin nota', () => {
+  const definicion: DefinicionRubrica = {
+    criterios: [
+      {
+        nombre: 'Asistencia',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [{ tipo: 'asistencia', escalaMax: 100, obligatoria: false }],
+      },
+      {
+        nombre: 'Debate',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [
+          { tipo: 'item', itemNombre: 'Debate 1', itemParcial: 1, escalaMax: 10, obligatoria: true },
+          { tipo: 'item', itemNombre: 'Debate 2', itemParcial: 1, escalaMax: 10, obligatoria: true },
+        ],
+      },
+    ],
+  }
+  const datos: DatosEstudianteRubrica = {
+    items: [{ nombre: 'Debate 1', parcial: 1, nota: 8 }],
+    participacion: [],
+    asistencia: [{ fecha: '2026-09-01', estado: 'Presente' }],
+  }
+  const borrador = borradorComentarioDesdeResultado(calcularRubrica(definicion, datos, { fechasClase }))
+  // Asistencia 100 % → completa, no aparece. Debate: Debate 2 obligatorio sin nota cuenta 0 (valorCrudo null).
+  assert.equal(borrador, 'Debate: 0.8/2 (Debate 1 8/10; falta: Debate 2).')
+})
+
+test('borrador vacío cuando todos los criterios están completos', () => {
+  const definicion: DefinicionRubrica = {
+    criterios: [
+      {
+        nombre: 'A',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [{ tipo: 'item', itemNombre: 'X', itemParcial: 1, escalaMax: 10, obligatoria: true }],
+      },
+    ],
+  }
+  const datos: DatosEstudianteRubrica = { items: [{ nombre: 'X', parcial: 1, nota: 10 }], participacion: [], asistencia: [] }
+  assert.equal(borradorComentarioDesdeResultado(calcularRubrica(definicion, datos, { fechasClase })), '')
 })

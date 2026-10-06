@@ -9,6 +9,7 @@ import EnCursoTab from './en-curso-tab'
 import HistorialImports from './historial-imports'
 import WizardImportCalificaciones from './import-wizard/wizard-shell'
 import { AsistenciaGridClient } from '@/components/cursos/asistencia-grid-client'
+import type { RubricaGuardada } from '@/lib/actions/rubricas'
 
 interface Estudiante {
   id: string
@@ -32,15 +33,18 @@ interface Props {
   fechas: string[]
   mapaAsistencia: Record<string, Record<string, { estado: string }>>
   horasPorDia: Record<string, number>
+  rubricas: RubricaGuardada[]
 }
 
 type Tab = 'resumen' | 'items' | 'en_curso' | 'participacion' | 'asistencia'
 
 export function CalificacionesTabs({
   cursoId, cursoCodigo, estudiantes, calificaciones, numParciales, nombresTareas, perfiles,
-  participacion, asistenciaMap, calificacionesItems, imports, fechas, mapaAsistencia, horasPorDia,
+  participacion, asistenciaMap, calificacionesItems, imports, fechas, mapaAsistencia, horasPorDia, rubricas,
 }: Props) {
-  const itemsMoodle = calificacionesItems.filter((i: any) => i.fuente === 'moodle' || i.fuente === 'manual')
+  const itemsMoodle = calificacionesItems.filter((i: any) => i.fuente === 'moodle' || i.fuente === 'manual' || i.fuente === 'rubrica')
+  // Notas que pueden alimentar una rúbrica: nunca otras rúbricas (evita ciclos)
+  const itemsFuenteRubrica = calificacionesItems.filter((i: any) => i.fuente !== 'rubrica')
   const itemsEnCurso = calificacionesItems.filter((i: any) => i.fuente === 'en_curso')
 
   const [tab, setTab]                 = useState<Tab>('items')
@@ -119,8 +123,13 @@ export function CalificacionesTabs({
         <ItemsTab
           cursoId={cursoId}
           items={itemsMoodle}
+          itemsFuente={itemsFuenteRubrica}
           estudiantes={estudiantes as any}
           numParciales={numParciales}
+          rubricas={rubricas}
+          participacion={participacion}
+          mapaAsistencia={mapaAsistencia}
+          fechasClase={fechas}
         />
       )}
       {tab === 'en_curso' && (
