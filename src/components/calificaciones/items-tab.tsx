@@ -557,6 +557,11 @@ export default function ItemsTab({
                           rubricas={rubricasDelParcial}
                           resultados={resultadosEnVivo}
                           estudianteId={est.id}
+                          comentarioDe={nombreColumna => {
+                            const itemColumna = indice.get(`${est.id}|${nombreColumna}`)
+                            const texto = comentarioEfectivo(est.id, nombreColumna, itemColumna)
+                            return { texto, automatico: itemColumna?.comentario == null && texto.trim() !== '' }
+                          }}
                         />
                       </td>
                     </tr>
@@ -598,11 +603,12 @@ function formatear(valor: number): string {
 }
 
 function DesgloseRubricas({
-  rubricas, resultados, estudianteId,
+  rubricas, resultados, estudianteId, comentarioDe,
 }: {
   rubricas: RubricaGuardada[]
   resultados: Map<string, ResultadoRubrica>
   estudianteId: string
+  comentarioDe: (nombreColumna: string) => { texto: string; automatico: boolean }
 }) {
   return (
     <div className="space-y-4">
@@ -640,9 +646,43 @@ function DesgloseRubricas({
                 ))}
               </tbody>
             </table>
+            <ComentarioVisible {...comentarioDe(rubrica.nombre_columna)} />
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** "Qué falta" siempre visible bajo el desglose, con botón para copiarlo a Moodle. */
+function ComentarioVisible({ texto, automatico }: { texto: string; automatico: boolean }) {
+  const [copiado, setCopiado] = useState(false)
+
+  if (texto.trim() === '') {
+    return <p className="mt-2 text-xs text-gray-500">Sin pendientes: no falta nada para llegar al máximo.</p>
+  }
+
+  const handleCopiar = async () => {
+    try {
+      await navigator.clipboard.writeText(texto)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 1500)
+    } catch {
+      /* el texto sigue visible para copiarlo a mano */
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-gray-700 bg-gray-900/60 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-[11px] ${automatico ? 'text-teal-300' : 'text-blue-300'}`}>
+          Qué falta · {automatico ? 'automático, no se guarda' : 'guardado por ti'}
+        </span>
+        <button onClick={handleCopiar} className="text-[11px] text-gray-400 hover:text-gray-200">
+          {copiado ? '✓ Copiado' : 'Copiar'}
+        </button>
+      </div>
+      <p className="mt-1 text-xs text-gray-300 whitespace-pre-line">{texto}</p>
     </div>
   )
 }
