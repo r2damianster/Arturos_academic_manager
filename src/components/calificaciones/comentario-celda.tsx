@@ -12,32 +12,46 @@ interface ComentarioCeldaProps {
   estudianteNombre: string
   parcial: number
   nombreItem: string
-  comentarioInicial: string | null
-  /** El comentario lo generó la rúbrica. Si no se modifica, sigue siendo automático. */
-  comentarioEsAutomatico?: boolean
-  /** Solo en columnas de rúbrica: texto generado desde el desglose, para insertarlo y editarlo. */
-  borradorSugerido?: string
+  /** Comentario escrito por el profesor y guardado en la base, o null si no hay. */
+  comentarioGuardado: string | null
+  /**
+   * Solo en columnas de rúbrica: "qué falta" calculado al momento con los datos actuales (no se guarda).
+   * '' = no falta nada; undefined = la columna no es de rúbrica o el automático está apagado.
+   */
+  comentarioAutomatico?: string
   onClose: () => void
 }
 
-/** Popover para registrar "qué falta" en una celda estudiante × columna. Texto pensado para pegar en Moodle. */
+/**
+ * Popover para el "qué falta" de una celda estudiante × columna. Texto pensado para pegar en Moodle.
+ * En rúbricas muestra el automático mientras el profesor no haya escrito el suyo; solo se guarda lo que él escribe.
+ */
 export function ComentarioCelda({
-  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioInicial, comentarioEsAutomatico, borradorSugerido, onClose,
+  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioGuardado, comentarioAutomatico, onClose,
 }: ComentarioCeldaProps) {
-  const [texto, setTexto] = useState(comentarioInicial ?? '')
+  const hayAutomatico = !!comentarioAutomatico
+  const mostrandoAutomatico = comentarioGuardado === null && hayAutomatico
+  const [texto, setTexto] = useState(comentarioGuardado ?? comentarioAutomatico ?? '')
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null)
   const [copiado, setCopiado] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const handleGuardar = () => {
-    // Sin cambios sobre un comentario automático: no se convierte en manual
-    if (comentarioEsAutomatico && texto === (comentarioInicial ?? '')) {
-      onClose()
-      return
+    const textoLimpio = texto.trim()
+    let comentarioAEnviar: string | null
+    if (hayAutomatico && textoLimpio === comentarioAutomatico) {
+      // Igual al automático: no se guarda nada y vuelve a calcularse solo
+      if (comentarioGuardado === null) { onClose(); return }
+      comentarioAEnviar = null
+    } else if (textoLimpio === '') {
+      // Vaciado a propósito en una rúbrica con automático: se guarda '' para que no reaparezca
+      comentarioAEnviar = hayAutomatico ? '' : null
+    } else {
+      comentarioAEnviar = textoLimpio
     }
     startTransition(async () => {
       const resultado = await guardarComentarioItem({
-        cursoId, estudianteId, parcial, nombreItem, comentario: texto,
+        cursoId, estudianteId, parcial, nombreItem, comentario: comentarioAEnviar,
       })
       if (resultado.error) {
         setErrorMensaje(resultado.error)
@@ -72,9 +86,9 @@ export function ComentarioCelda({
         </button>
       </div>
 
-      {comentarioEsAutomatico && (
+      {mostrandoAutomatico && (
         <p className="mb-1 text-[11px] text-teal-300">
-          Generado desde la rúbrica; se actualiza al recalcular. Si lo editas, queda como tuyo y ya no se toca.
+          Automático: se calcula con los datos de hoy y no se guarda. Si lo editas, se guarda tu versión.
         </p>
       )}
       <textarea
@@ -91,18 +105,13 @@ export function ComentarioCelda({
         {errorMensaje && <span className="text-red-500">{errorMensaje}</span>}
       </div>
 
-      {borradorSugerido !== undefined && (
+      {comentarioAutomatico !== undefined && !mostrandoAutomatico && (
         <button
-          onClick={() =>
-            setTexto(actual =>
-              (actual.trim() === '' ? borradorSugerido : `${actual.trim()}\n${borradorSugerido}`).slice(0, LIMITE_CARACTERES)
-            )
-          }
-          disabled={borradorSugerido === ''}
-          title={borradorSugerido === '' ? 'Todos los criterios están completos' : 'Insertar los criterios que no llegaron al máximo'}
-          className="mt-1 text-xs text-teal-300 hover:text-teal-200 disabled:opacity-40"
+          onClick={() => setTexto(comentarioAutomatico)}
+          title="Reemplaza el texto por el automático y, al guardar, deja de guardarse el tuyo"
+          className="mt-1 text-xs text-teal-300 hover:text-teal-200"
         >
-          ✦ Generar borrador desde la rúbrica
+          ↺ Volver al automático
         </button>
       )}
 

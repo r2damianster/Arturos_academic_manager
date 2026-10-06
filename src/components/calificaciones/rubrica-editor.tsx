@@ -455,8 +455,8 @@ export function RubricaEditor({
           <span>
             Comentario "qué falta" automático
             <span className="block text-xs text-gray-500">
-              Cada celda recibe un borrador con los criterios que no llegaron al máximo, listo para copiar a Moodle.
-              Nunca reemplaza un comentario que hayas escrito tú.
+              Se calcula al mostrar cada celda con los criterios que no llegaron al máximo, listo para copiar a Moodle.
+              No se guarda en la base: solo se guarda lo que tú escribas, y eso tiene prioridad.
             </span>
           </span>
         </label>

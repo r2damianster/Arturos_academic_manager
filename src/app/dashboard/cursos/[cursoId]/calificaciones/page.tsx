@@ -23,7 +23,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .eq('curso_id', cursoId)
       .order('fecha'),
     db.from('calificaciones_items')
-      .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, comentario, comentario_auto, fuente, updated_at')
+      .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, comentario, fuente, updated_at')
       .eq('curso_id', cursoId)
       .order('parcial', { ascending: true })
       .order('nombre_item', { ascending: true }),

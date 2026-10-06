@@ -27,7 +27,6 @@ interface CalItem {
   tipo: string
   nota: number | null
   comentario: string | null
-  comentario_auto?: boolean
   fuente: string
   updated_at: string
 }
@@ -182,9 +181,24 @@ export default function ItemsTab({
     })
   }
 
+  // Comentario automático "qué falta" de una rúbrica: se calcula con los datos actuales y NO se guarda en la base
+  const comentarioAutomaticoDeCelda = (estudianteId: string, nombreColumna: string): string | undefined => {
+    const rubrica = rubricaPorColumna.get(nombreColumna)
+    if (!rubrica || rubrica.definicion.comentarioAutomatico === false) return undefined
+    const resultado = resultadosEnVivo.get(`${estudianteId}|${nombreColumna}`)
+    return resultado ? borradorComentarioDesdeResultado(resultado) : undefined
+  }
+
+  // Lo que se muestra y se copia: el comentario guardado por el profesor, o el automático si no hay uno guardado
+  const comentarioEfectivo = (estudianteId: string, nombreColumna: string, item?: CalItem): string =>
+    item?.comentario ?? comentarioAutomaticoDeCelda(estudianteId, nombreColumna) ?? ''
+
   // Nota por debajo del máximo de su columna y sin comentario → pendiente de explicar "qué falta"
   const necesitaComentario = (item: CalItem | undefined) =>
-    !!item && item.nota !== null && Number(item.nota) < maximoDeColumna(item.nombre_item) && !item.comentario?.trim()
+    !!item &&
+    item.nota !== null &&
+    Number(item.nota) < maximoDeColumna(item.nombre_item) &&
+    !comentarioEfectivo(item.estudiante_id, item.nombre_item, item).trim()
 
   const estudiantesVisibles = soloSinComentario
     ? estudiantes.filter(est => nombresItems.some(ni => necesitaComentario(indice.get(`${est.id}|${ni}`))))
@@ -192,12 +206,13 @@ export default function ItemsTab({
 
   const filasComentariosDeColumna = (nombreItem: string) =>
     estudiantes.flatMap(est => {
-      const comentario = indice.get(`${est.id}|${nombreItem}`)?.comentario?.trim()
+      const comentario = comentarioEfectivo(est.id, nombreItem, indice.get(`${est.id}|${nombreItem}`)).trim()
       return comentario ? [{ estudianteNombre: est.nombre, comentario }] : []
     })
 
   const handleEliminarColumna = (nombreItem: string) => {
-    const cantidadComentarios = filasComentariosDeColumna(nombreItem).length
+    // Solo cuentan los comentarios guardados (los escritos por el profesor); el automático no se guarda
+    const cantidadComentarios = itemsFiltrados.filter(i => i.nombre_item === nombreItem && !!i.comentario?.trim()).length
     const avisoComentarios = cantidadComentarios > 0 ? ` Se conservarán las ${cantidadComentarios} celda(s) con comentario, sin nota.` : ''
     const rubrica = rubricaPorColumna.get(nombreItem)
 
@@ -422,24 +437,25 @@ export default function ItemsTab({
                       const item = indice.get(`${est.id}|${ni}`)
                       const esRubrica = rubricaPorColumna.has(ni)
                       const esteEditando = editando?.itemId === (item?.id ?? `${est.id}|${ni}`)
-                      const tieneComentario = !!item?.comentario?.trim()
+                      const comentarioAutomatico = comentarioAutomaticoDeCelda(est.id, ni)
+                      const comentarioMostrado = comentarioEfectivo(est.id, ni, item)
+                      const tieneComentario = !!comentarioMostrado.trim()
+                      const tieneComentarioGuardado = !!item?.comentario?.trim()
+                      const esComentarioAutomatico = tieneComentario && !tieneComentarioGuardado && item?.comentario == null
                       const comentarioEstaAbierto =
                         comentarioAbierto?.estudianteId === est.id && comentarioAbierto?.nombreItem === ni
-                      const borradorSugerido = esRubrica && resultadosEnVivo.get(`${est.id}|${ni}`)
-                        ? borradorComentarioDesdeResultado(resultadosEnVivo.get(`${est.id}|${ni}`)!)
-                        : undefined
 
                       const botonComentario = (
                         <button
                           onClick={() => setComentarioAbierto({ estudianteId: est.id, nombreItem: ni })}
                           title={
                             tieneComentario
-                              ? `${item!.comentario_auto ? '(Automático desde la rúbrica) ' : ''}${item!.comentario!}`
+                              ? `${esComentarioAutomatico ? '(Automático desde la rúbrica, no se guarda) ' : ''}${comentarioMostrado}`
                               : 'Agregar comentario (qué falta)'
                           }
                           className={`transition-opacity ${
                             tieneComentario
-                              ? item!.comentario_auto ? 'text-teal-400' : 'text-blue-400'
+                              ? esComentarioAutomatico ? 'text-teal-400' : 'text-blue-400'
                               : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-400'
                           }`}
                         >
@@ -456,9 +472,8 @@ export default function ItemsTab({
                               estudianteNombre={est.nombre}
                               parcial={parcialActivo}
                               nombreItem={ni}
-                              comentarioInicial={item?.comentario ?? null}
-                              comentarioEsAutomatico={item?.comentario_auto === true}
-                              borradorSugerido={borradorSugerido}
+                              comentarioGuardado={item?.comentario ?? null}
+                              comentarioAutomatico={comentarioAutomatico}
                               onClose={() => setComentarioAbierto(null)}
                             />
                           )}
@@ -507,7 +522,7 @@ export default function ItemsTab({
                               {!esRubrica && (
                                 <button
                                   onClick={() => {
-                                    const avisoComentario = tieneComentario ? ' Se perderá también su comentario.' : ''
+                                    const avisoComentario = tieneComentarioGuardado ? ' Se perderá también su comentario.' : ''
                                     if (!confirm(`¿Eliminar la nota de "${item.nombre_item}" para este estudiante?${avisoComentario}`)) return
                                     startTransition(async () => { await eliminarItem(item.id, cursoId) })
                                   }}
