@@ -376,3 +376,98 @@ test('borrador vacío cuando todos los criterios están completos', () => {
   const datos: DatosEstudianteRubrica = { items: [{ nombre: 'X', parcial: 1, nota: 10 }], participacion: [], asistencia: [] }
   assert.equal(borradorComentarioDesdeResultado(calcularRubrica(definicion, datos, { fechasClase })), '')
 })
+
+test('escalaMin: el nivel 1 de participación vale 0 y el 5 vale 100 %', () => {
+  const criterio: CriterioRubrica = {
+    nombre: 'Participación',
+    puntosMax: 2,
+    modo: 'lineal',
+    fuentes: [{ tipo: 'participacion', escalaMax: 5, escalaMin: 1, obligatoria: false }],
+  }
+  const solo1 = { ...datosVacios, participacion: [{ fecha: '2026-09-01', nivel: 1 }] }
+  const solo5 = { ...datosVacios, participacion: [{ fecha: '2026-09-01', nivel: 5 }] }
+  const nivel3 = { ...datosVacios, participacion: [{ fecha: '2026-09-01', nivel: 3 }] }
+  assert.equal(calcularCriterio(criterio, solo1, { fechasClase }).puntos, 0)
+  assert.equal(calcularCriterio(criterio, solo5, { fechasClase }).puntos, 2)
+  assert.equal(calcularCriterio(criterio, nivel3, { fechasClase }).puntos, 1)
+})
+
+test('escalaMin con participación obligatoria: la sesión sin registro vale el mínimo, no un valor bajo la escala', () => {
+  const criterio: CriterioRubrica = {
+    nombre: 'Participación',
+    puntosMax: 2,
+    modo: 'lineal',
+    fuentes: [{ tipo: 'participacion', escalaMax: 5, escalaMin: 1, obligatoria: true }],
+  }
+  const datos: DatosEstudianteRubrica = {
+    ...datosVacios,
+    participacion: [{ fecha: '2026-09-01', nivel: 5 }],
+  }
+  // 5 sesiones: una con 5 y cuatro sin registro (=1) → promedio crudo 1.8 → (1.8-1)/4 = 0.2 → 0.4
+  assert.equal(calcularCriterio(criterio, datos, { fechasClase }).puntos, 0.4)
+})
+
+test('ingresoTardio: las sesiones anteriores al alta no cuentan (asistencia obligatoria)', () => {
+  const definicion: DefinicionRubrica = {
+    criterios: [
+      {
+        nombre: 'Asistencia',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [{ tipo: 'asistencia', escalaMax: 100, obligatoria: true }],
+      },
+    ],
+    ingresoTardio: [{ estudianteId: 'est-tardia', desde: '2026-09-08' }],
+  }
+  // fechasClase: 09-01, 09-03, 09-08, 09-10, 09-15 → desde 09-08 quedan 3 sesiones
+  const asistencia = [
+    { fecha: '2026-09-08', estado: 'Presente' },
+    { fecha: '2026-09-10', estado: 'Presente' },
+    { fecha: '2026-09-15', estado: 'Ausente' },
+  ]
+  const conIngresoTardio = calcularRubrica(definicion, { ...datosVacios, estudianteId: 'est-tardia', asistencia }, { fechasClase })
+  assert.equal(conIngresoTardio.total, 1.33) // 2 de 3 = 66.7 % → 1.33
+  const sinIngresoTardio = calcularRubrica(definicion, { ...datosVacios, estudianteId: 'otro', asistencia }, { fechasClase })
+  assert.equal(sinIngresoTardio.total, 0.8) // 2 de 5 = 40 % → 0.8
+})
+
+test('ingresoTardio ignora registros previos al alta aunque existan (ausencias antes de ingresar)', () => {
+  const definicion: DefinicionRubrica = {
+    criterios: [
+      {
+        nombre: 'Asistencia',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [{ tipo: 'asistencia', escalaMax: 100, obligatoria: true }],
+      },
+    ],
+    ingresoTardio: [{ estudianteId: 'est-1', desde: '2026-09-08' }],
+  }
+  const asistencia = [
+    { fecha: '2026-09-01', estado: 'Ausente' },
+    { fecha: '2026-09-03', estado: 'Ausente' },
+    { fecha: '2026-09-08', estado: 'Presente' },
+    { fecha: '2026-09-10', estado: 'Presente' },
+    { fecha: '2026-09-15', estado: 'Presente' },
+  ]
+  assert.equal(
+    calcularRubrica(definicion, { ...datosVacios, estudianteId: 'est-1', asistencia }, { fechasClase }).total,
+    2
+  )
+})
+
+test('ingresoTardio no afecta fuentes de tipo actividad', () => {
+  const definicion: DefinicionRubrica = {
+    criterios: [
+      {
+        nombre: 'Anime',
+        puntosMax: 2,
+        modo: 'lineal',
+        fuentes: [{ tipo: 'item', itemNombre: 'Anime', itemParcial: 1, escalaMax: 10, obligatoria: true }],
+      },
+    ],
+    ingresoTardio: [{ estudianteId: 'est-1', desde: '2026-12-31' }],
+  }
+  const datos: DatosEstudianteRubrica = { ...datosVacios, estudianteId: 'est-1', items: [{ nombre: 'Anime', parcial: 1, nota: 5 }] }
+  assert.equal(calcularRubrica(definicion, datos, { fechasClase }).total, 1)
+})

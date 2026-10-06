@@ -165,7 +165,7 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
   if (estudiantes.length === 0) return { actualizados: 0 }
 
   const datosPorEstudiante = new Map<string, DatosEstudianteRubrica>(
-    estudiantes.map(estudiante => [estudiante.id, { items: [], participacion: [], asistencia: [] }])
+    estudiantes.map(estudiante => [estudiante.id, { estudianteId: estudiante.id, items: [], participacion: [], asistencia: [] }])
   )
   for (const item of (itemsRes.data ?? []) as any[]) {
     datosPorEstudiante.get(item.estudiante_id)?.items.push({

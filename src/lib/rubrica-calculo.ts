@@ -18,6 +18,11 @@ export interface FuenteRubrica {
   itemParcial?: number
   /** Escala del valor crudo: 10 para actividades, 5 para participación, 100 para asistencia (%). */
   escalaMax: number
+  /**
+   * Valor crudo que equivale a 0 puntos (por defecto 0). Participación usa 1: el nivel 1 vale 0
+   * y el nivel 5 vale 100 %. En fuentes obligatorias, la sesión sin registro vale este mínimo.
+   */
+  escalaMin?: number
   /** Peso dentro del criterio. Por defecto 1 (promedio simple). */
   peso?: number
   obligatoria: boolean
@@ -43,11 +48,21 @@ export interface CriterioRubrica {
   fuentes: FuenteRubrica[]
 }
 
+/** Estudiante que ingresó después del inicio: sus sesiones anteriores a `desde` no cuentan. */
+export interface IngresoTardio {
+  estudianteId: string
+  desde: string
+}
+
 export interface DefinicionRubrica {
   criterios: CriterioRubrica[]
+  /** Solo afecta fuentes de participación y asistencia (las que dependen de fechas de clase). */
+  ingresoTardio?: IngresoTardio[]
 }
 
 export interface DatosEstudianteRubrica {
+  /** Necesario para aplicar `ingresoTardio` de la definición. */
+  estudianteId?: string
   items: { nombre: string; parcial: number; nota: number | null }[]
   participacion: { fecha: string; nivel: number | null }[]
   asistencia: { fecha: string; estado: string }[]
@@ -56,6 +71,8 @@ export interface DatosEstudianteRubrica {
 export interface ContextoRubrica {
   /** Fechas ISO de todas las sesiones del curso. Denominador de las fuentes obligatorias de fecha. */
   fechasClase: string[]
+  /** Fecha desde la cual cuenta este estudiante (la fija `calcularRubrica` según `ingresoTardio`). */
+  desdeEstudiante?: string
 }
 
 export interface ResultadoFuente {
@@ -101,6 +118,8 @@ const acotar = (valor: number, minimo: number, maximo: number): number =>
 const dentroDeRango = (fecha: string, desde?: string, hasta?: string): boolean =>
   (!desde || fecha >= desde) && (!hasta || fecha <= hasta)
 
+const fechaMasTardia = (a?: string, b?: string): string | undefined => (a && b ? (a > b ? a : b) : a ?? b)
+
 const etiquetaPorDefecto = (fuente: FuenteRubrica): string => {
   if (fuente.etiqueta) return fuente.etiqueta
   if (fuente.tipo === 'item') return fuente.itemNombre ?? 'Actividad'
@@ -120,19 +139,25 @@ function obtenerValorCrudo(
     return item?.nota ?? null
   }
 
-  const fechasEnRango = contexto.fechasClase.filter(fecha => dentroDeRango(fecha, fuente.desde, fuente.hasta))
+  // El ingreso tardío del estudiante recorta el inicio del rango de la fuente
+  const desdeEfectivo = fechaMasTardia(fuente.desde, contexto.desdeEstudiante)
+  const fechasEnRango = contexto.fechasClase.filter(fecha => dentroDeRango(fecha, desdeEfectivo, fuente.hasta))
 
   if (fuente.tipo === 'participacion') {
     const nivelPorFecha = new Map<string, number>()
     for (const registro of datos.participacion) {
-      if (registro.nivel !== null && dentroDeRango(registro.fecha, fuente.desde, fuente.hasta)) {
+      if (registro.nivel !== null && dentroDeRango(registro.fecha, desdeEfectivo, fuente.hasta)) {
         nivelPorFecha.set(registro.fecha, registro.nivel)
       }
     }
     if (fuente.obligatoria) {
-      // Denominador: todas las sesiones del rango; la sesión sin registro vale 0
+      // Denominador: todas las sesiones del rango; la sesión sin registro vale el mínimo de la escala
       if (fechasEnRango.length === 0) return null
-      const suma = fechasEnRango.reduce((acumulado, fecha) => acumulado + (nivelPorFecha.get(fecha) ?? 0), 0)
+      const valorSinRegistro = fuente.escalaMin ?? 0
+      const suma = fechasEnRango.reduce(
+        (acumulado, fecha) => acumulado + (nivelPorFecha.get(fecha) ?? valorSinRegistro),
+        0
+      )
       return suma / fechasEnRango.length
     }
     if (nivelPorFecha.size === 0) return null
@@ -144,7 +169,7 @@ function obtenerValorCrudo(
   const valorAtraso = acotar(fuente.valorAtraso ?? 1, 0, 1)
   const valorPorFecha = new Map<string, number>()
   for (const registro of datos.asistencia) {
-    if (!dentroDeRango(registro.fecha, fuente.desde, fuente.hasta)) continue
+    if (!dentroDeRango(registro.fecha, desdeEfectivo, fuente.hasta)) continue
     valorPorFecha.set(
       registro.fecha,
       registro.estado === 'Presente' ? 1 : registro.estado === 'Atraso' ? valorAtraso : 0
@@ -173,10 +198,12 @@ export function calcularFuente(
   const valorReal = obtenerValorCrudo(fuente, datos, contexto)
 
   if (valorReal !== null) {
+    const escalaMin = fuente.escalaMin ?? 0
+    const amplitud = fuente.escalaMax - escalaMin
     return {
       ...base,
       valorCrudo: valorReal,
-      normalizado: acotar(valorReal / fuente.escalaMax, 0, 1),
+      normalizado: amplitud > 0 ? acotar((valorReal - escalaMin) / amplitud, 0, 1) : 0,
       incluida: true,
     }
   }
@@ -236,7 +263,11 @@ export function calcularRubrica(
   contexto: ContextoRubrica,
   escalaSalida?: number
 ): ResultadoRubrica {
-  const criterios = definicion.criterios.map(criterio => calcularCriterio(criterio, datos, contexto))
+  const desdeEstudiante = datos.estudianteId
+    ? definicion.ingresoTardio?.find(ingreso => ingreso.estudianteId === datos.estudianteId)?.desde
+    : undefined
+  const contextoEstudiante: ContextoRubrica = desdeEstudiante ? { ...contexto, desdeEstudiante } : contexto
+  const criterios = definicion.criterios.map(criterio => calcularCriterio(criterio, datos, contextoEstudiante))
   const total = redondear(criterios.reduce((acumulado, criterio) => acumulado + criterio.puntos, 0))
   const totalMax = redondear(criterios.reduce((acumulado, criterio) => acumulado + criterio.puntosMax, 0))
   const notaSalida =

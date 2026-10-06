@@ -7,9 +7,24 @@ export const ESCALA_POR_DEFECTO: Record<FuenteRubrica['tipo'], number> = {
   asistencia: 100,
 }
 
+/** Valor crudo que equivale a 0 puntos. Participación: el nivel 1 vale 0. */
+export const ESCALA_MIN_POR_DEFECTO: Record<FuenteRubrica['tipo'], number> = {
+  item: 0,
+  participacion: 1,
+  asistencia: 0,
+}
+
 export const BANDAS_RUBRICA_ESTANDAR = [
   { desde: 1, puntos: 2 },
   { desde: 0.9, puntos: 1.5 },
+  { desde: 0.75, puntos: 1 },
+  { desde: 0.6, puntos: 0.5 },
+]
+
+/** Asistencia de Filosofía: con pocas sesiones una falta (≈89 %) sigue siendo "Muy bueno". */
+const BANDAS_ASISTENCIA_FILOSOFIA = [
+  { desde: 1, puntos: 2 },
+  { desde: 0.85, puntos: 1.5 },
   { desde: 0.75, puntos: 1 },
   { desde: 0.6, puntos: 0.5 },
 ]
@@ -26,14 +41,21 @@ export function crearPlantillaFilosofia(): DefinicionRubrica {
         nombre: 'Participación en Clases',
         puntosMax: 2,
         modo: 'lineal',
-        fuentes: [{ tipo: 'participacion', escalaMax: ESCALA_POR_DEFECTO.participacion, obligatoria: false }],
+        fuentes: [
+          {
+            tipo: 'participacion',
+            escalaMax: ESCALA_POR_DEFECTO.participacion,
+            escalaMin: ESCALA_MIN_POR_DEFECTO.participacion,
+            obligatoria: false,
+          },
+        ],
       },
       {
         nombre: 'Asistencia y Puntualidad',
         puntosMax: 2,
         modo: 'bandas',
-        bandas: BANDAS_RUBRICA_ESTANDAR.map(banda => ({ ...banda })),
-        fuentes: [{ tipo: 'asistencia', escalaMax: ESCALA_POR_DEFECTO.asistencia, obligatoria: false, valorAtraso: 1 }],
+        bandas: BANDAS_ASISTENCIA_FILOSOFIA.map(banda => ({ ...banda })),
+        fuentes: [{ tipo: 'asistencia', escalaMax: ESCALA_POR_DEFECTO.asistencia, obligatoria: true, valorAtraso: 1 }],
       },
       {
         nombre: 'Creatividad Propositiva, Debate y Otros Aportes',
@@ -49,6 +71,7 @@ export function crearFuenteVacia(tipo: FuenteRubrica['tipo']): FuenteRubrica {
   return {
     tipo,
     escalaMax: ESCALA_POR_DEFECTO[tipo],
+    ...(ESCALA_MIN_POR_DEFECTO[tipo] > 0 ? { escalaMin: ESCALA_MIN_POR_DEFECTO[tipo] } : {}),
     obligatoria: false,
     ...(tipo === 'asistencia' ? { valorAtraso: 1 } : {}),
   }

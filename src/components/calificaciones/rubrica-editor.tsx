@@ -63,6 +63,9 @@ export function RubricaEditor({
   const [criterios, setCriterios] = useState<CriterioRubrica[]>(
     rubricaExistente?.definicion.criterios ?? crearPlantillaFilosofia().criterios
   )
+  const [ingresosTardios, setIngresosTardios] = useState<{ estudianteId: string; desde: string }[]>(
+    rubricaExistente?.definicion.ingresoTardio ?? []
+  )
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -92,8 +95,13 @@ export function RubricaEditor({
       )
     )
 
-  const definicion: DefinicionRubrica = { criterios }
-  const validacion = useMemo(() => DefinicionRubricaSchema.safeParse(definicion), [criterios]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Se ignoran las filas de ingreso tardío incompletas (sin estudiante o sin fecha)
+  const ingresosTardiosCompletos = ingresosTardios.filter(ingreso => ingreso.estudianteId && ingreso.desde)
+  const definicion: DefinicionRubrica = {
+    criterios,
+    ...(ingresosTardiosCompletos.length > 0 ? { ingresoTardio: ingresosTardiosCompletos } : {}),
+  }
+  const validacion = useMemo(() => DefinicionRubricaSchema.safeParse(definicion), [criterios, ingresosTardios]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalMaximo = criterios.reduce((acumulado, criterio) => acumulado + (Number(criterio.puntosMax) || 0), 0)
   const escalaSalida = escalaSalidaTexto.trim() === '' ? undefined : Number(escalaSalidaTexto)
@@ -344,6 +352,15 @@ export function RubricaEditor({
                           className={`${claseInput} w-16`}
                         />
                       </label>
+                      <label className="flex items-center gap-1" title="Valor que equivale a 0 puntos. En participación, 1 significa que el nivel 1 vale 0.">
+                        Cero en
+                        <input
+                          type="number" min={0}
+                          value={fuente.escalaMin ?? 0}
+                          onChange={e => actualizarFuente(indiceCriterio, indiceFuente, { escalaMin: Number(e.target.value) })}
+                          className={`${claseInput} w-14`}
+                        />
+                      </label>
                       <label className="flex items-center gap-1">
                         Peso
                         <input
@@ -420,6 +437,58 @@ export function RubricaEditor({
             className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
           >
             <Plus className="h-4 w-4" /> Agregar criterio
+          </button>
+        </div>
+
+        {/* Ingreso tardío */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-200">Ingreso tardío</h3>
+          <p className="text-xs text-gray-500">
+            Para un estudiante que entró después del inicio, la asistencia y la participación no cuentan las sesiones anteriores a su fecha.
+          </p>
+          {ingresosTardios.map((ingreso, indiceIngreso) => (
+            <div key={indiceIngreso} className="flex items-center gap-2">
+              <select
+                value={ingreso.estudianteId}
+                onChange={e =>
+                  setIngresosTardios(previos =>
+                    previos.map((actual, i) => (i === indiceIngreso ? { ...actual, estudianteId: e.target.value } : actual))
+                  )
+                }
+                className={`${claseInput} flex-1`}
+              >
+                <option value="">Elegir estudiante…</option>
+                {estudiantes.map(estudiante => (
+                  <option key={estudiante.id} value={estudiante.id}>{estudiante.nombre}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1 text-xs text-gray-400">
+                Cuenta desde
+                <input
+                  type="date"
+                  value={ingreso.desde}
+                  onChange={e =>
+                    setIngresosTardios(previos =>
+                      previos.map((actual, i) => (i === indiceIngreso ? { ...actual, desde: e.target.value } : actual))
+                    )
+                  }
+                  className={claseInput}
+                />
+              </label>
+              <button
+                onClick={() => setIngresosTardios(previos => previos.filter((_, i) => i !== indiceIngreso))}
+                className="text-gray-600 hover:text-red-400"
+                title="Quitar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setIngresosTardios(previos => [...previos, { estudianteId: '', desde: '' }])}
+            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+          >
+            <Plus className="h-3 w-3" /> Agregar estudiante con ingreso tardío
           </button>
         </div>
 

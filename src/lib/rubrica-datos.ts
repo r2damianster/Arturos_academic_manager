@@ -27,6 +27,7 @@ export function armarDatosPorEstudiante(params: {
     params.estudianteIds.map(estudianteId => [
       estudianteId,
       {
+        estudianteId,
         items: [],
         participacion: [],
         asistencia: Object.entries(params.mapaAsistencia[estudianteId] ?? {}).map(([fecha, registro]) => ({

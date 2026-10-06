@@ -9,6 +9,7 @@ export const FuenteRubricaSchema = z
     itemNombre: z.string().min(1).optional(),
     itemParcial: z.number().int().min(1).max(4).optional(),
     escalaMax: z.number().positive('La escala debe ser mayor a 0'),
+    escalaMin: z.number().min(0).optional(),
     peso: z.number().positive().optional(),
     obligatoria: z.boolean(),
     desde: fechaIso.optional(),
@@ -17,6 +18,9 @@ export const FuenteRubricaSchema = z
   })
   .refine(fuente => fuente.tipo !== 'item' || (!!fuente.itemNombre && fuente.itemParcial !== undefined), {
     message: 'Una fuente de tipo actividad requiere nombre de columna y parcial',
+  })
+  .refine(fuente => fuente.escalaMin === undefined || fuente.escalaMin < fuente.escalaMax, {
+    message: 'El valor mínimo debe ser menor que la escala',
   })
   .refine(fuente => !fuente.desde || !fuente.hasta || fuente.desde <= fuente.hasta, {
     message: 'La fecha "desde" no puede ser posterior a "hasta"',
@@ -39,8 +43,14 @@ export const CriterioRubricaSchema = z
     message: 'El modo por bandas requiere al menos una banda',
   })
 
+export const IngresoTardioSchema = z.object({
+  estudianteId: z.string().uuid(),
+  desde: fechaIso,
+})
+
 export const DefinicionRubricaSchema = z.object({
   criterios: z.array(CriterioRubricaSchema).min(1, 'La rúbrica necesita al menos un criterio'),
+  ingresoTardio: z.array(IngresoTardioSchema).optional(),
 })
 
 export const GuardarRubricaSchema = z.object({
