@@ -20,7 +20,7 @@ export default function Paso4MatchEstudiantes({ cursoId, filas, onContinuar, onV
   useEffect(() => {
     calcularMatchesEstudiantes(
       cursoId,
-      filas.map(f => ({ email: f.email, num_id: f.num_id, nombre: f.nombre, apellido: f.apellido }))
+      filas.map(f => ({ email: f.email, num_id: f.num_id }))
     ).then(({ matches: m, error: e }) => {
       if (e || !m) { setError(e ?? 'Error'); return }
       setMatches(m)

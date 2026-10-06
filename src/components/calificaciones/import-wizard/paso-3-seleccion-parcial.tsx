@@ -88,7 +88,7 @@ export default function Paso3SeleccionParcial({ columnas, numParciales, onContin
       <div className="flex gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
         <Info className="h-4 w-4 text-zinc-400 shrink-0 mt-0.5" />
         <p className="text-xs text-zinc-500">
-          Solo se muestran columnas importables (tareas y subtotales). Los totales y ponderaciones calculadas se excluyen automáticamente.
+          Se muestran todas las columnas con calificaciones. Nombre, Apellido(s), Institución, Departamento y Última descarga se ignoran: el estudiante se identifica solo por email.
         </p>
       </div>
 

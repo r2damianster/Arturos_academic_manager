@@ -35,14 +35,12 @@ export interface ColumnaNota {
   tipo: TipoColumna
   parcial: number | null     // extraído del header (P1, P2...)
   categoria: string | null   // nombre de categoría (C1, C2...) si es subtotal
-  importable: boolean        // false si es total/ponderacion/asistencia (no se importa)
+  importable: boolean        // false solo para columnas de identidad/descarga; el resto se importa como calificación
   muestra_valores: string[]  // primeros 5 valores no vacíos/no "-"
 }
 
 export interface FilaEstudiante {
-  nombre: string
-  apellido: string
-  email: string          // campo "Dirección de correo"
+  email: string          // identificador del estudiante: "Dirección de correo" o, si no hay, "Número de ID" con formato email
   num_id: string         // campo "Número de ID" (puede ser email u otro identificador)
   valores: Record<number, number | null>  // col_index → nota (null si "-" o vacío)
 }
@@ -124,23 +122,23 @@ function clasificarColumna(
   const parcial = matchParcial ? parseInt(matchParcial[1], 10) : null
 
   if (RE_TOTAL_CURSO.test(hLower)) {
-    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_curso', parcial: null, categoria: null, importable: false, muestra_valores }
+    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_curso', parcial: null, categoria: null, importable: true, muestra_valores }
   }
   if (RE_TOTAL_RECUP.test(hLower)) {
-    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_recuperacion', parcial: null, categoria: null, importable: false, muestra_valores }
+    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_recuperacion', parcial: null, categoria: null, importable: true, muestra_valores }
   }
   if (RE_DESCARGA.test(hLower)) {
     return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'descarga', parcial: null, categoria: null, importable: false, muestra_valores }
   }
   if (RE_ASISTENCIA.test(hLower)) {
-    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'asistencia', parcial, categoria: null, importable: false, muestra_valores }
+    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'asistencia', parcial, categoria: null, importable: true, muestra_valores }
   }
   if (RE_PONDERACION.test(hLower)) {
-    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'ponderacion', parcial, categoria: null, importable: false, muestra_valores }
+    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'ponderacion', parcial, categoria: null, importable: true, muestra_valores }
   }
   if (RE_TOTAL_PARC.test(h)) {
     const m = RE_TOTAL_PARC.exec(h)!
-    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_parcial', parcial: parseInt(m[1], 10), categoria: null, importable: false, muestra_valores }
+    return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'total_parcial', parcial: parseInt(m[1], 10), categoria: null, importable: true, muestra_valores }
   }
   if (RE_SUBTOTAL.test(h)) {
     const m = RE_SUBTOTAL.exec(h)!
@@ -153,7 +151,7 @@ function clasificarColumna(
   }
 
   // otro
-  return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'otro', parcial, categoria: null, importable: false, muestra_valores }
+  return { col_index: colIndex, header_raw: h, nombre_limpio: normalizarNombreItem(h), tipo: 'otro', parcial, categoria: null, importable: true, muestra_valores }
 }
 
 // ---------------------------------------------------------------------------
@@ -218,16 +216,15 @@ export function parsearArchivoMoodle(buffer: ArrayBuffer): ResultadoParser {
   const getColByRol = (rol: ColumnaIdentidad['rol']) =>
     columnas_identidad.find(c => c.rol === rol)?.col_index ?? -1
 
-  const colNombre   = getColByRol('nombre')
-  const colApellido = getColByRol('apellido')
-  const colEmail    = getColByRol('email')
-  const colNumId    = getColByRol('num_id')
+  // Nombre, Apellido(s), Institución y Departamento se ignoran: solo importa el email,
+  // que puede venir en "Dirección de correo" o en "Número de ID".
+  const colEmail = getColByRol('email')
+  const colNumId = getColByRol('num_id')
 
-  // Heurística: es Moodle si tiene Nombre + Apellido + Email
-  const es_moodle = colNombre >= 0 && colApellido >= 0 && colEmail >= 0
+  const es_moodle = colEmail >= 0 || colNumId >= 0
 
   if (!es_moodle) {
-    advertencias.push('No se detectaron columnas "Nombre", "Apellido(s)" y "Dirección de correo". El archivo puede no ser un export de Moodle.')
+    advertencias.push('No se detectó ninguna columna "Dirección de correo" ni "Número de ID". El archivo puede no ser un export de Moodle.')
   }
 
   // Detectar columna de descarga Moodle para fecha
@@ -246,12 +243,11 @@ export function parsearArchivoMoodle(buffer: ArrayBuffer): ResultadoParser {
   // Parsear filas de estudiantes
   const filas_estudiantes: FilaEstudiante[] = []
   for (const row of dataRows) {
-    const email   = colEmail   >= 0 ? (row[colEmail]   ?? '').toString().trim().toLowerCase() : ''
-    const num_id  = colNumId   >= 0 ? (row[colNumId]   ?? '').toString().trim().toLowerCase() : ''
-    const nombre  = colNombre  >= 0 ? (row[colNombre]  ?? '').toString().trim() : ''
-    const apellido = colApellido >= 0 ? (row[colApellido] ?? '').toString().trim() : ''
+    const emailColumna = colEmail >= 0 ? (row[colEmail] ?? '').toString().trim().toLowerCase() : ''
+    const num_id       = colNumId >= 0 ? (row[colNumId] ?? '').toString().trim().toLowerCase() : ''
+    const email = emailColumna.includes('@') ? emailColumna : (num_id.includes('@') ? num_id : emailColumna || num_id)
 
-    if (!email && !nombre) continue  // fila vacía
+    if (!email) continue  // fila sin identificador
 
     const valores: Record<number, number | null> = {}
     for (const col of columnas_notas) {
@@ -259,7 +255,7 @@ export function parsearArchivoMoodle(buffer: ArrayBuffer): ResultadoParser {
       valores[col.col_index] = parsearNota(row[col.col_index])
     }
 
-    filas_estudiantes.push({ nombre, apellido, email, num_id, valores })
+    filas_estudiantes.push({ email, num_id, valores })
   }
 
   // Advertencias adicionales

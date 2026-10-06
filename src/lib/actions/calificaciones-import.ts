@@ -8,6 +8,12 @@ import { parsearArchivoMoodle, type ResultadoParser, type ColumnaNota } from '@/
 // Tipos exportados para el wizard
 // ---------------------------------------------------------------------------
 
+// El CHECK de calificaciones_items.tipo solo admite estos tres valores
+function tipoParaBD(tipo: ColumnaNota['tipo']): 'tarea' | 'subtotal_categoria' | 'otro' {
+  if (tipo === 'tarea' || tipo === 'subtotal_categoria') return tipo
+  return 'otro'
+}
+
 export interface MatchEstudiante {
   email_moodle: string
   num_id_moodle: string
@@ -78,7 +84,7 @@ export async function parsearArchivoMoodleAction(
 
 export async function calcularMatchesEstudiantes(
   cursoId: string,
-  filas: { email: string; num_id: string; nombre: string; apellido: string }[]
+  filas: { email: string; num_id: string }[]
 ): Promise<{ matches?: MatchEstudiante[]; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -102,27 +108,13 @@ export async function calcularMatchesEstudiantes(
     const emailNorm = fila.email.toLowerCase()
     const numIdNorm = fila.num_id.toLowerCase()
 
-    let match = bdMap.get(emailNorm) ?? bdMap.get(numIdNorm) ?? null
-    let tipo_match: MatchEstudiante['tipo_match'] = match ? 'exacto' : 'ninguno'
-
-    // Fuzzy por nombre si no hubo match exacto
-    if (!match) {
-      const nombreBuscado = normalizeText(`${fila.nombre} ${fila.apellido}`)
-      let mejorScore = 0
-      for (const [, est] of bdMap) {
-        const score = similaridad(nombreBuscado, normalizeText(est.nombre))
-        if (score > mejorScore && score >= 0.85) {
-          mejorScore = score
-          match = est
-          tipo_match = 'fuzzy'
-        }
-      }
-    }
+    const match = bdMap.get(emailNorm) ?? bdMap.get(numIdNorm) ?? null
+    const tipo_match: MatchEstudiante['tipo_match'] = match ? 'exacto' : 'ninguno'
 
     return {
       email_moodle: fila.email,
       num_id_moodle: fila.num_id,
-      nombre_moodle: `${fila.nombre} ${fila.apellido}`.trim(),
+      nombre_moodle: fila.email || fila.num_id,
       estudiante_id: match?.id ?? null,
       nombre_bd: match?.nombre ?? null,
       tipo_match,
@@ -202,7 +194,7 @@ export async function calcularPreviewImport(
         nombre_item: col.nombre_limpio,
         parcial: col.parcial,
         categoria: col.categoria,
-        tipo: col.tipo,
+        tipo: tipoParaBD(col.tipo),
         nota_antes: notaAntes ?? null,
         nota_despues: notaDespues,
         estado,
@@ -274,7 +266,7 @@ export async function confirmarImportCalificaciones(params: {
       fecha_descarga_moodle: params.fechaDescargaMoodle?.toISOString() ?? null,
       parciales_afectados: [...new Set(params.columnas.map(c => c.parcial))].sort(),
       columnas_importadas: params.columnas.map(c => ({
-        nombre: c.nombre_limpio, parcial: c.parcial, categoria: c.categoria, tipo: c.tipo
+        nombre: c.nombre_limpio, parcial: c.parcial, categoria: c.categoria, tipo: tipoParaBD(c.tipo)
       })),
       snapshot_antes: snapshotAntes,
       num_estudiantes_match: matchesConId.length,
@@ -314,7 +306,7 @@ export async function confirmarImportCalificaciones(params: {
         parcial: col.parcial,
         categoria: col.categoria,
         nombre_item: col.nombre_limpio,
-        tipo: col.tipo,
+        tipo: tipoParaBD(col.tipo),
         nota: notaDespues,
         fuente: 'moodle',
         import_id: importId,
@@ -454,26 +446,4 @@ function emptyPreview(totalEstudiantes: number): PreviewImport {
     num_celdas_sin_cambio: 0,
     num_celdas_preservadas: 0,
   }
-}
-
-function normalizeText(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-}
-
-function similaridad(a: string, b: string): number {
-  if (a === b) return 1
-  if (a.length === 0 || b.length === 0) return 0
-  const longer = a.length > b.length ? a : b
-  const shorter = a.length > b.length ? b : a
-  if (longer.includes(shorter)) return shorter.length / longer.length
-  // Bigram similarity
-  const getBigrams = (s: string) => {
-    const bg = new Set<string>()
-    for (let i = 0; i < s.length - 1; i++) bg.add(s.substring(i, i + 2))
-    return bg
-  }
-  const bgA = getBigrams(a), bgB = getBigrams(b)
-  let intersection = 0
-  for (const bg of bgA) if (bgB.has(bg)) intersection++
-  return (2 * intersection) / (bgA.size + bgB.size)
 }
