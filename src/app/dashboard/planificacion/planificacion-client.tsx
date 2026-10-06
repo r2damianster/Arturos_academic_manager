@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useCollapsible } from '@/lib/hooks/use-collapsible'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
@@ -101,6 +102,20 @@ function getClaseForDay(clases: Clase[], dayName: string): Clase | undefined {
   return clases.find(c => c.dia_semana === dayName)
 }
 
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + (minutes || 0)
+}
+
+function formatMinutesUntil(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${totalMinutes} min`
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return minutes === 0 ? `${hours} h` : `${hours} h ${fmt2(minutes)} min`
+}
+
+type ClassMoment = 'ahora' | 'siguiente' | 'luego' | 'pasada'
+
 function truncarTema(tema: string, maxWords = 8): string {
   const words = tema.trim().split(/\s+/)
   if (words.length <= maxWords) return tema
@@ -145,7 +160,19 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     return Math.floor(diffDays / 7)
   })
   const [isMounted, setIsMounted] = useState(false)
-  const [hoyOpen, setHoyOpen] = useState(false)
+  const { open: hoyOpen, toggle: toggleHoy } = useCollapsible('planificacion-hoy-open', true)
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const now = new Date()
+    return now.getHours() * 60 + now.getMinutes()
+  })
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = new Date()
+      setNowMinutes(now.getHours() * 60 + now.getMinutes())
+    }, 60_000)
+    return () => clearInterval(intervalId)
+  }, [])
   const [bitacoraMap, setBitacoraMap] = useState<Map<string, BitacoraEntry>>(new Map())
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showTutoriasCurso, setShowTutoriasCurso] = useState(false)
@@ -922,30 +949,69 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
     )
   }
 
+  // Panel del día: sigue al día seleccionado (?date= o navegación), ordenado por hora de inicio
   const hoyStr = dateToStr(new Date())
-  const hoyDayName = DIAS_LONG[new Date().getDay()]
-  const clasesDeHoy = clases.filter(c => c.dia_semana === hoyDayName)
+  const esHoy = selectedDate === hoyStr
+  const selectedDateObj = new Date(selectedDate + 'T12:00:00')
+  const selectedDayName = DIAS_LONG[selectedDateObj.getDay()]
+  const clasesDelDia = clases
+    .filter(c => {
+      if (c.dia_semana !== selectedDayName) return false
+      if (!c.cursos) return true
+      if (c.cursos.estado && c.cursos.estado !== 'activo') return false
+      if (c.cursos.fecha_inicio && selectedDate < c.cursos.fecha_inicio) return false
+      if (c.cursos.fecha_fin && selectedDate > c.cursos.fecha_fin) return false
+      return true
+    })
+    .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
+
+  const momentByClassId = new Map<string, ClassMoment>()
+  const minutesUntilNext = new Map<string, number>()
+  if (esHoy) {
+    let nextAssigned = false
+    for (const clase of clasesDelDia) {
+      const startMinutes = timeToMinutes(clase.hora_inicio)
+      const endMinutes = timeToMinutes(clase.hora_fin)
+      if (nowMinutes >= endMinutes) {
+        momentByClassId.set(clase.id, 'pasada')
+      } else if (nowMinutes >= startMinutes) {
+        momentByClassId.set(clase.id, 'ahora')
+      } else if (!nextAssigned) {
+        nextAssigned = true
+        momentByClassId.set(clase.id, 'siguiente')
+        minutesUntilNext.set(clase.id, startMinutes - nowMinutes)
+      } else {
+        momentByClassId.set(clase.id, 'luego')
+      }
+    }
+  }
 
   return (
     <div className="space-y-5">
-      {/* Sección Hoy */}
-      {weekOffset === 0 && clasesDeHoy.length > 0 && (
+      {/* Sección del día */}
+      {clasesDelDia.length > 0 && (
         <div className="rounded-xl bg-gray-900 border border-gray-800 overflow-hidden">
           <button
-            onClick={() => setHoyOpen(v => !v)}
+            onClick={toggleHoy}
             className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-800/40 transition-colors"
           >
-            <span className="text-sm font-semibold text-white">Hoy</span>
+            <span className="text-sm font-semibold text-white">
+              {esHoy ? 'Hoy' : `${DIAS_SHORT[selectedDateObj.getDay()]} ${selectedDateObj.getDate()} ${MESES_S[selectedDateObj.getMonth()]}`}
+              <span className="ml-2 text-xs font-normal text-gray-500">
+                {clasesDelDia.length} {clasesDelDia.length === 1 ? 'clase' : 'clases'}
+              </span>
+            </span>
             <svg className={`w-4 h-4 text-gray-500 transition-transform ${hoyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           {hoyOpen && <div className="divide-y divide-gray-800">
             <div className="flex justify-end px-4 py-2">
-              <ImprimirPlanButton fecha={hoyStr} label="Imprimir plan del día" size="sm" />
+              <ImprimirPlanButton fecha={selectedDate} label="Imprimir plan del día" size="sm" />
             </div>
-            {clasesDeHoy.map(clase => {
-              const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`)
+            {clasesDelDia.map(clase => {
+              const entry = bitacoraMap.get(`${clase.cursos?.id ?? clase.curso_id}|${selectedDate}`)
+              const moment = momentByClassId.get(clase.id)
               const suspendida = entry?.estado === 'suspendido'
               const sinPlan = !entry
               const cumplida = entry?.estado === 'cumplido'
@@ -960,10 +1026,28 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                 : 'bg-brand-600 hover:bg-brand-500'
 
               return (
-                <div key={clase.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div
+                  key={clase.id}
+                  className={`flex items-center justify-between gap-4 px-4 py-3 border-l-2 ${
+                    moment === 'ahora' ? 'border-emerald-500 bg-emerald-900/15'
+                    : moment === 'siguiente' ? 'border-brand-500 bg-brand-900/15'
+                    : 'border-transparent'
+                  } ${moment === 'pasada' ? 'opacity-60' : ''}`}
+                >
+                  <div className="w-12 flex-shrink-0 text-base font-semibold tabular-nums text-gray-100">
+                    {fmt(clase.hora_inicio)}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm text-gray-100 truncate">{clase.cursos?.asignatura ?? 'Curso'}</span>
+                      {moment === 'ahora' && (
+                        <span className="px-1.5 py-0 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">● Ahora</span>
+                      )}
+                      {moment === 'siguiente' && (
+                        <span className="px-1.5 py-0 rounded text-[10px] font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                          Siguiente · en {formatMinutesUntil(minutesUntilNext.get(clase.id) ?? 0)}
+                        </span>
+                      )}
                       {clase.centro_computo && (
                         <span className="px-1.5 py-0 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">💻 Cómputo</span>
                       )}
@@ -980,8 +1064,8 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                           🚫 Suspendida{entry?.razon_suspension ? ` — ${entry.razon_suspension}` : ''}
                         </span>
                         <button
-                          onClick={() => handleReactivar(clase.cursos?.id ?? clase.curso_id, hoyStr)}
-                          disabled={reactivandoKey === `${clase.cursos?.id ?? clase.curso_id}|${hoyStr}`}
+                          onClick={() => handleReactivar(clase.cursos?.id ?? clase.curso_id, selectedDate)}
+                          disabled={reactivandoKey === `${clase.cursos?.id ?? clase.curso_id}|${selectedDate}`}
                           className="text-xs text-gray-400 hover:text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
                         >
                           ↩ Reactivar
@@ -990,7 +1074,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     )}
                     {sinPlan && (
                       <button
-                        onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
+                        onClick={() => setPlanificarModal({ clase, fecha: selectedDate })}
                         className="text-xs text-yellow-400 hover:text-yellow-300 border border-yellow-600/30 px-3 py-1.5 rounded-lg hover:bg-yellow-900/20 transition-colors"
                       >
                         + Planificar
@@ -1007,7 +1091,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     )}
                     {planificada && (
                       <button
-                        onClick={() => setPlanificarModal({ clase, fecha: hoyStr })}
+                        onClick={() => setPlanificarModal({ clase, fecha: selectedDate })}
                         className="text-xs text-gray-400 hover:text-gray-300 border border-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
                       >
                         Editar plan
