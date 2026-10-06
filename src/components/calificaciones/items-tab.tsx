@@ -68,8 +68,13 @@ export default function ItemsTab({
 
   const itemsFiltrados = items.filter(i => i.parcial === parcialActivo)
 
+  // Una rúbrica guardada siempre muestra su columna, aunque aún no tenga notas calculadas
+  const nombresColumnasRubrica = rubricas
+    .filter(rubrica => rubrica.parcial === parcialActivo)
+    .map(rubrica => rubrica.nombre_columna)
+
   // Columnas únicas del parcial activo, ordenadas por tipo y nombre
-  const nombresItems: string[] = [...new Set(itemsFiltrados.map(i => i.nombre_item))].sort((a, b) => {
+  const nombresItems: string[] = [...new Set([...itemsFiltrados.map(i => i.nombre_item), ...nombresColumnasRubrica])].sort((a, b) => {
     // Tareas antes que subtotales
     const tipoA = items.find(x => x.nombre_item === a)?.tipo ?? 'otro'
     const tipoB = items.find(x => x.nombre_item === b)?.tipo ?? 'otro'
@@ -307,7 +312,7 @@ export default function ItemsTab({
     />
   )
 
-  if (itemsFiltrados.length === 0 && numParciales > 0) {
+  if (nombresItems.length === 0 && numParciales > 0) {
     return (
       <div className="flex flex-col gap-4">
         {barraSuperior}
