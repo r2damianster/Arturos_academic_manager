@@ -375,12 +375,20 @@ export async function revertirImport(
   const snapshot = rec.snapshot_antes as Record<string, { nota: number | null; fuente: string; import_id: string | null }> | null
   if (!snapshot) return { error: 'No hay snapshot de estado anterior disponible.' }
 
-  // Borrar items que vinieron de este import
+  // Borrar items que vinieron de este import, salvo los que tienen comentario del profesor:
+  // esos se conservan sin nota ni vínculo al import para no perder la retroalimentación.
   const { error: errDel } = await supabase
     .from('calificaciones_items' as any)
     .delete()
     .eq('import_id', importId)
+    .is('comentario', null)
   if (errDel) return { error: errDel.message }
+
+  const { error: errConservar } = await supabase
+    .from('calificaciones_items' as any)
+    .update({ nota: null, import_id: null, fuente: 'manual', updated_at: new Date().toISOString() })
+    .eq('import_id', importId)
+  if (errConservar) return { error: errConservar.message }
 
   // Restaurar items del snapshot que tenían nota previa
   const restaurar: any[] = []

@@ -1,7 +1,71 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+
+const ComentarioItemSchema = z.object({
+  cursoId: z.string().uuid(),
+  estudianteId: z.string().uuid(),
+  parcial: z.number().int().min(1).max(4),
+  nombreItem: z.string().min(1),
+  comentario: z.string().max(1000, 'Máximo 1000 caracteres'),
+})
+
+/**
+ * Guarda el comentario del profesor ("qué falta") de una celda estudiante × columna.
+ * Si la celda aún no tiene fila, la crea con nota null. Vacío → null.
+ */
+export async function guardarComentarioItem(
+  params: z.input<typeof ComentarioItemSchema>
+): Promise<{ error?: string }> {
+  const parsed = ComentarioItemSchema.safeParse(params)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const { cursoId, estudianteId, parcial, nombreItem, comentario } = parsed.data
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const comentarioLimpio = comentario.trim() === '' ? null : comentario.trim()
+  const ahora = new Date().toISOString()
+
+  const { data: filasActualizadas, error: errorUpdate } = await supabase
+    .from('calificaciones_items' as any)
+    .update({ comentario: comentarioLimpio, updated_at: ahora })
+    .eq('curso_id', cursoId)
+    .eq('estudiante_id', estudianteId)
+    .eq('parcial', parcial)
+    .eq('nombre_item', nombreItem)
+    .eq('profesor_id', user.id)
+    .select('id')
+
+  if (errorUpdate) return { error: errorUpdate.message }
+
+  if (!filasActualizadas || filasActualizadas.length === 0) {
+    if (comentarioLimpio === null) return {}
+    const { error: errorInsert } = await supabase
+      .from('calificaciones_items' as any)
+      .insert({
+        profesor_id: user.id,
+        curso_id: cursoId,
+        estudiante_id: estudianteId,
+        parcial,
+        categoria: null,
+        nombre_item: nombreItem,
+        tipo: 'tarea',
+        nota: null,
+        comentario: comentarioLimpio,
+        fuente: 'manual',
+        import_id: null,
+        updated_at: ahora,
+      })
+    if (errorInsert) return { error: errorInsert.message }
+  }
+
+  revalidatePath(`/dashboard/cursos/${cursoId}/calificaciones`)
+  return {}
+}
 
 export async function upsertItemManual(params: {
   cursoId: string
@@ -184,7 +248,7 @@ export async function getItemsPorCurso(
 
   let query = supabase
     .from('calificaciones_items' as any)
-    .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, fuente, updated_at')
+    .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, comentario, fuente, updated_at')
     .eq('curso_id', cursoId)
     .order('parcial', { ascending: true })
     .order('nombre_item', { ascending: true })

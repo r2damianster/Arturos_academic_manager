@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pencil, Check, X, Trash2 } from 'lucide-react'
+import { Pencil, Check, X, Trash2, MessageSquare, ClipboardCopy } from 'lucide-react'
 import { upsertItemManual, eliminarItem } from '@/lib/actions/calificaciones-items'
+import { ComentarioCelda, CopiarComentariosModal } from './comentario-celda'
+
+const NOTA_MAXIMA = 10
 
 interface CalItem {
   id: string
@@ -12,6 +15,7 @@ interface CalItem {
   nombre_item: string
   tipo: string
   nota: number | null
+  comentario: string | null
   fuente: string
   updated_at: string
 }
@@ -31,6 +35,9 @@ interface Props {
 export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: Props) {
   const [parcialActivo, setParcialActivo] = useState(1)
   const [editando, setEditando] = useState<{ itemId: string; nota: string } | null>(null)
+  const [comentarioAbierto, setComentarioAbierto] = useState<{ estudianteId: string; nombreItem: string } | null>(null)
+  const [columnaParaCopiar, setColumnaParaCopiar] = useState<string | null>(null)
+  const [soloSinComentario, setSoloSinComentario] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const itemsFiltrados = items.filter(i => i.parcial === parcialActivo)
@@ -67,8 +74,24 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
     })
   }
 
+  // Nota por debajo del máximo y sin comentario → pendiente de explicar "qué falta"
+  const necesitaComentario = (item: CalItem | undefined) =>
+    !!item && item.nota !== null && item.nota < NOTA_MAXIMA && !item.comentario?.trim()
+
+  const estudiantesVisibles = soloSinComentario
+    ? estudiantes.filter(est => nombresItems.some(ni => necesitaComentario(indice.get(`${est.id}|${ni}`))))
+    : estudiantes
+
+  const filasComentariosDeColumna = (nombreItem: string) =>
+    estudiantes.flatMap(est => {
+      const comentario = indice.get(`${est.id}|${nombreItem}`)?.comentario?.trim()
+      return comentario ? [{ estudianteNombre: est.nombre, comentario }] : []
+    })
+
   const handleEliminarColumna = (nombreItem: string) => {
-    if (!confirm(`¿Eliminar la columna "${nombreItem}" y todas sus notas en este parcial?`)) return
+    const cantidadComentarios = filasComentariosDeColumna(nombreItem).length
+    const avisoComentarios = cantidadComentarios > 0 ? ` Se perderán también ${cantidadComentarios} comentario(s).` : ''
+    if (!confirm(`¿Eliminar la columna "${nombreItem}" y todas sus notas en este parcial?${avisoComentarios}`)) return
     const idsAEliminar = itemsFiltrados.filter(i => i.nombre_item === nombreItem).map(i => i.id)
     startTransition(async () => {
       for (const id of idsAEliminar) await eliminarItem(id, cursoId)
@@ -91,7 +114,17 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
   return (
     <div className="flex flex-col gap-4">
       {/* Selector de parcial */}
-      <ParcialSelector parcialActivo={parcialActivo} numParciales={numParciales} onChange={setParcialActivo} />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <ParcialSelector parcialActivo={parcialActivo} numParciales={numParciales} onChange={setParcialActivo} />
+        <label className="flex items-center gap-2 text-xs text-zinc-500 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={soloSinComentario}
+            onChange={e => setSoloSinComentario(e.target.checked)}
+          />
+          Solo con nota &lt; {NOTA_MAXIMA} sin comentario
+        </label>
+      </div>
 
       {/* Tabla */}
       <div className="overflow-auto rounded-xl border border-gray-700">
@@ -110,13 +143,22 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                       {tipo === 'subtotal_categoria' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400">Subtotal</span>
                       )}
-                      <button
-                        onClick={() => handleEliminarColumna(ni)}
-                        title="Eliminar columna"
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setColumnaParaCopiar(ni)}
+                          title="Copiar comentarios de la columna"
+                          className="text-gray-300 hover:text-blue-400 transition-colors"
+                        >
+                          <ClipboardCopy className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleEliminarColumna(ni)}
+                          title="Eliminar columna"
+                          className="text-gray-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </th>
                 )
@@ -124,7 +166,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
             </tr>
           </thead>
           <tbody>
-            {estudiantes.map(est => (
+            {estudiantesVisibles.map(est => (
               <tr key={est.id} className="border-b border-gray-800 hover:bg-gray-800/30">
                 <td className="px-4 py-2 font-medium text-gray-300 sticky left-0 bg-gray-900 border-r border-gray-800 whitespace-nowrap">
                   {est.nombre}
@@ -132,9 +174,37 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                 {nombresItems.map(ni => {
                   const item = indice.get(`${est.id}|${ni}`)
                   const esteEditando = editando?.itemId === (item?.id ?? `${est.id}|${ni}`)
+                  const tieneComentario = !!item?.comentario?.trim()
+                  const comentarioEstaAbierto =
+                    comentarioAbierto?.estudianteId === est.id && comentarioAbierto?.nombreItem === ni
+
+                  const botonComentario = (
+                    <button
+                      onClick={() => setComentarioAbierto({ estudianteId: est.id, nombreItem: ni })}
+                      title={tieneComentario ? item!.comentario! : 'Agregar comentario (qué falta)'}
+                      className={`transition-opacity ${
+                        tieneComentario
+                          ? 'text-blue-400'
+                          : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-400'
+                      }`}
+                    >
+                      <MessageSquare className={`h-3 w-3 ${tieneComentario ? 'fill-current' : ''}`} />
+                    </button>
+                  )
 
                   return (
-                    <td key={ni} className="border-l border-gray-800 text-center px-2 py-1.5">
+                    <td key={ni} className="relative border-l border-gray-800 text-center px-2 py-1.5">
+                      {comentarioEstaAbierto && (
+                        <ComentarioCelda
+                          cursoId={cursoId}
+                          estudianteId={est.id}
+                          estudianteNombre={est.nombre}
+                          parcial={parcialActivo}
+                          nombreItem={ni}
+                          comentarioInicial={item?.comentario ?? null}
+                          onClose={() => setComentarioAbierto(null)}
+                        />
+                      )}
                       {esteEditando ? (
                         <div className="flex items-center gap-1 justify-center">
                           <input
@@ -152,6 +222,7 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                           >
                             <Check className="h-4 w-4" />
                           </button>
+                          <span className="group">{botonComentario}</span>
                           <button onClick={() => setEditando(null)} className="text-gray-400 hover:text-gray-400">
                             <X className="h-4 w-4" />
                           </button>
@@ -167,9 +238,14 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
+                          {botonComentario}
+                          {necesitaComentario(item) && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Nota menor al máximo sin comentario" />
+                          )}
                           <button
                             onClick={() => {
-                              if (!confirm(`¿Eliminar la nota de "${item.nombre_item}" para este estudiante?`)) return
+                              const avisoComentario = tieneComentario ? ' Se perderá también su comentario.' : ''
+                              if (!confirm(`¿Eliminar la nota de "${item.nombre_item}" para este estudiante?${avisoComentario}`)) return
                               startTransition(async () => { await eliminarItem(item.id, cursoId) })
                             }}
                             title="Eliminar esta nota"
@@ -182,7 +258,10 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-300 text-xs">—</span>
+                        <div className="flex items-center gap-1 justify-center group">
+                          <span className="text-gray-300 text-xs">—</span>
+                          {botonComentario}
+                        </div>
                       )}
                     </td>
                   )
@@ -195,8 +274,18 @@ export default function ItemsTab({ cursoId, items, estudiantes, numParciales }: 
 
       <p className="text-xs text-gray-400">
         <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" /> Editado manualmente</span>
-        {' · '}Hover sobre la nota para editar inline. Los subtotales (en azul) son calculados por Moodle e importados; los totales finales se calculan automáticamente en la pestaña Resumen.
+        {' · '}<span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" /> Nota &lt; {NOTA_MAXIMA} sin comentario</span>
+        {' · '}Hover sobre la nota para editar inline; 💬 para registrar qué falta. Los subtotales (en azul) son calculados por Moodle e importados; los totales finales se calculan automáticamente en la pestaña Resumen.
       </p>
+
+      {columnaParaCopiar && (
+        <CopiarComentariosModal
+          nombreItem={columnaParaCopiar}
+          parcial={parcialActivo}
+          filas={filasComentariosDeColumna(columnaParaCopiar)}
+          onClose={() => setColumnaParaCopiar(null)}
+        />
+      )}
     </div>
   )
 }

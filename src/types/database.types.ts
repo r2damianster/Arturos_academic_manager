@@ -1157,6 +1157,7 @@ export type Database = {
           nombre_item: string
           tipo: 'tarea' | 'subtotal_categoria' | 'otro'
           nota: number | null
+          comentario: string | null
           fuente: 'moodle' | 'manual'
           import_id: string | null
           created_at: string
@@ -1172,6 +1173,7 @@ export type Database = {
           nombre_item: string
           tipo: 'tarea' | 'subtotal_categoria' | 'otro'
           nota?: number | null
+          comentario?: string | null
           fuente?: 'moodle' | 'manual'
           import_id?: string | null
           created_at?: string
@@ -1183,6 +1185,7 @@ export type Database = {
           nombre_item?: string
           tipo?: 'tarea' | 'subtotal_categoria' | 'otro'
           nota?: number | null
+          comentario?: string | null
           fuente?: 'moodle' | 'manual'
           import_id?: string | null
           updated_at?: string
