@@ -58,6 +58,11 @@ export interface DefinicionRubrica {
   criterios: CriterioRubrica[]
   /** Solo afecta fuentes de participación y asistencia (las que dependen de fechas de clase). */
   ingresoTardio?: IngresoTardio[]
+  /**
+   * Genera automáticamente el comentario "qué falta" de cada celda al calcular (por defecto sí).
+   * No lo usa el motor: lo lee la acción que guarda las notas. Nunca pisa un comentario escrito a mano.
+   */
+  comentarioAutomatico?: boolean
 }
 
 export interface DatosEstudianteRubrica {

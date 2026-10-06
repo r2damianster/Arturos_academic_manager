@@ -66,6 +66,9 @@ export function RubricaEditor({
   const [ingresosTardios, setIngresosTardios] = useState<{ estudianteId: string; desde: string }[]>(
     rubricaExistente?.definicion.ingresoTardio ?? []
   )
+  const [comentarioAutomatico, setComentarioAutomatico] = useState(
+    rubricaExistente?.definicion.comentarioAutomatico !== false
+  )
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -100,8 +103,9 @@ export function RubricaEditor({
   const definicion: DefinicionRubrica = {
     criterios,
     ...(ingresosTardiosCompletos.length > 0 ? { ingresoTardio: ingresosTardiosCompletos } : {}),
+    comentarioAutomatico,
   }
-  const validacion = useMemo(() => DefinicionRubricaSchema.safeParse(definicion), [criterios, ingresosTardios]) // eslint-disable-line react-hooks/exhaustive-deps
+  const validacion = useMemo(() => DefinicionRubricaSchema.safeParse(definicion), [criterios, ingresosTardios, comentarioAutomatico]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalMaximo = criterios.reduce((acumulado, criterio) => acumulado + (Number(criterio.puntosMax) || 0), 0)
   const escalaSalida = escalaSalidaTexto.trim() === '' ? undefined : Number(escalaSalidaTexto)
@@ -439,6 +443,23 @@ export function RubricaEditor({
             <Plus className="h-4 w-4" /> Agregar criterio
           </button>
         </div>
+
+        {/* Comentario automático */}
+        <label className="flex items-start gap-2 text-sm text-gray-300 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={comentarioAutomatico}
+            onChange={e => setComentarioAutomatico(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            Comentario "qué falta" automático
+            <span className="block text-xs text-gray-500">
+              Cada celda recibe un borrador con los criterios que no llegaron al máximo, listo para copiar a Moodle.
+              Nunca reemplaza un comentario que hayas escrito tú.
+            </span>
+          </span>
+        </label>
 
         {/* Ingreso tardío */}
         <div className="space-y-2">

@@ -14,7 +14,10 @@ const ComentarioItemSchema = z.object({
 
 /**
  * Guarda el comentario del profesor ("qué falta") de una celda estudiante × columna.
- * Si la celda aún no tiene fila, la crea con nota null. Vacío → null.
+ * Un comentario guardado aquí es siempre manual: la rúbrica ya no lo sobrescribe al recalcular.
+ * Si se vacía un comentario que era automático, queda como "" (vaciado a propósito) para que
+ * la rúbrica no lo vuelva a generar; en cualquier otro caso, vacío → null.
+ * Si la celda aún no tiene fila, la crea con nota null.
  */
 export async function guardarComentarioItem(
   params: z.input<typeof ComentarioItemSchema>
@@ -27,23 +30,30 @@ export async function guardarComentarioItem(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const comentarioLimpio = comentario.trim() === '' ? null : comentario.trim()
+  const textoLimpio = comentario.trim()
   const ahora = new Date().toISOString()
 
-  const { data: filasActualizadas, error: errorUpdate } = await supabase
+  const { data: filaExistente, error: errorLectura } = await supabase
     .from('calificaciones_items' as any)
-    .update({ comentario: comentarioLimpio, updated_at: ahora })
+    .select('id, comentario_auto')
     .eq('curso_id', cursoId)
     .eq('estudiante_id', estudianteId)
     .eq('parcial', parcial)
     .eq('nombre_item', nombreItem)
     .eq('profesor_id', user.id)
-    .select('id')
+    .maybeSingle()
+  if (errorLectura) return { error: errorLectura.message }
 
-  if (errorUpdate) return { error: errorUpdate.message }
-
-  if (!filasActualizadas || filasActualizadas.length === 0) {
-    if (comentarioLimpio === null) return {}
+  if (filaExistente) {
+    const vaciadoDeAutomatico = textoLimpio === '' && (filaExistente as any).comentario_auto === true
+    const comentarioAGuardar = textoLimpio !== '' ? textoLimpio : vaciadoDeAutomatico ? '' : null
+    const { error: errorUpdate } = await supabase
+      .from('calificaciones_items' as any)
+      .update({ comentario: comentarioAGuardar, comentario_auto: false, updated_at: ahora })
+      .eq('id', (filaExistente as any).id)
+      .eq('profesor_id', user.id)
+    if (errorUpdate) return { error: errorUpdate.message }
+  } else if (textoLimpio !== '') {
     const { error: errorInsert } = await supabase
       .from('calificaciones_items' as any)
       .insert({
@@ -55,7 +65,8 @@ export async function guardarComentarioItem(
         nombre_item: nombreItem,
         tipo: 'tarea',
         nota: null,
-        comentario: comentarioLimpio,
+        comentario: textoLimpio,
+        comentario_auto: false,
         fuente: 'manual',
         import_id: null,
         updated_at: ahora,
@@ -248,7 +259,7 @@ export async function getItemsPorCurso(
 
   let query = supabase
     .from('calificaciones_items' as any)
-    .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, comentario, fuente, updated_at')
+    .select('id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, comentario, comentario_auto, fuente, updated_at')
     .eq('curso_id', cursoId)
     .order('parcial', { ascending: true })
     .order('nombre_item', { ascending: true })

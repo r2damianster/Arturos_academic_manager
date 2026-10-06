@@ -27,6 +27,7 @@ interface CalItem {
   tipo: string
   nota: number | null
   comentario: string | null
+  comentario_auto?: boolean
   fuente: string
   updated_at: string
 }
@@ -431,10 +432,14 @@ export default function ItemsTab({
                       const botonComentario = (
                         <button
                           onClick={() => setComentarioAbierto({ estudianteId: est.id, nombreItem: ni })}
-                          title={tieneComentario ? item!.comentario! : 'Agregar comentario (qué falta)'}
+                          title={
+                            tieneComentario
+                              ? `${item!.comentario_auto ? '(Automático desde la rúbrica) ' : ''}${item!.comentario!}`
+                              : 'Agregar comentario (qué falta)'
+                          }
                           className={`transition-opacity ${
                             tieneComentario
-                              ? 'text-blue-400'
+                              ? item!.comentario_auto ? 'text-teal-400' : 'text-blue-400'
                               : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-400'
                           }`}
                         >
@@ -452,6 +457,7 @@ export default function ItemsTab({
                               parcial={parcialActivo}
                               nombreItem={ni}
                               comentarioInicial={item?.comentario ?? null}
+                              comentarioEsAutomatico={item?.comentario_auto === true}
                               borradorSugerido={borradorSugerido}
                               onClose={() => setComentarioAbierto(null)}
                             />

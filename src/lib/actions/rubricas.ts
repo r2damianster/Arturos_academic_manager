@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { GuardarRubricaSchema, type GuardarRubricaInput } from '@/lib/rubrica-schema'
 import {
+  borradorComentarioDesdeResultado,
   calcularRubrica,
   type DatosEstudianteRubrica,
   type DefinicionRubrica,
@@ -84,7 +85,10 @@ export async function guardarRubrica(
   return { rubricaId: (data as any).id }
 }
 
-/** Borra la rúbrica y sus notas calculadas. Las celdas con comentario se conservan sin nota. */
+/**
+ * Borra la rúbrica y sus notas calculadas. Las celdas con un comentario escrito a mano se conservan
+ * sin nota; los comentarios automáticos se borran junto con la rúbrica.
+ */
 export async function eliminarRubrica(rubricaId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -109,7 +113,7 @@ export async function eliminarRubrica(rubricaId: string): Promise<{ error?: stri
 
   const { error: errorBorrado } = await filtroItemsDeRubrica(
     supabase.from('calificaciones_items' as any).delete()
-  ).is('comentario', null)
+  ).or('comentario.is.null,comentario.eq.,comentario_auto.eq.true')
   if (errorBorrado) return { error: errorBorrado.message }
 
   const { error: errorConservar } = await filtroItemsDeRubrica(
@@ -130,7 +134,9 @@ export async function eliminarRubrica(rubricaId: string): Promise<{ error?: stri
 
 /**
  * Calcula la rúbrica para todos los estudiantes activos y guarda el resultado como ítems fuente='rubrica'.
- * El upsert no envía `comentario`, así que los comentarios del profesor se conservan.
+ * Comentarios: si la rúbrica tiene `comentarioAutomatico` (por defecto sí), cada celda recibe el borrador
+ * "qué falta", salvo que ya tenga un comentario escrito o vaciado a propósito por el profesor, que se conserva.
+ * Los comentarios automáticos previos se actualizan con los datos nuevos.
  */
 export async function recalcularRubrica(rubricaId: string): Promise<{ actualizados?: number; error?: string }> {
   const supabase = await createClient()
@@ -147,7 +153,7 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
   const { curso_id: cursoId, parcial, nombre_columna: nombreColumna, escala_salida: escalaSalida } = rubrica as any
   const definicion = (rubrica as any).definicion as DefinicionRubrica
 
-  const [estudiantesRes, itemsRes, participacionRes, asistenciaRes, bitacorasRes] = await Promise.all([
+  const [estudiantesRes, itemsRes, participacionRes, asistenciaRes, bitacorasRes, comentariosRes] = await Promise.all([
     supabase.from('estudiantes').select('id').eq('curso_id', cursoId).eq('estado', 'activo'),
     supabase
       .from('calificaciones_items' as any)
@@ -157,8 +163,16 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
     supabase.from('participacion').select('estudiante_id, fecha, nivel').eq('curso_id', cursoId),
     supabase.from('asistencia').select('estudiante_id, fecha, estado').eq('curso_id', cursoId),
     supabase.from('bitacora_clase').select('fecha').eq('curso_id', cursoId).eq('estado', 'cumplido'),
+    supabase
+      .from('calificaciones_items' as any)
+      .select('estudiante_id, comentario, comentario_auto')
+      .eq('curso_id', cursoId)
+      .eq('parcial', parcial)
+      .eq('nombre_item', nombreColumna),
   ])
-  const errorCarga = [estudiantesRes, itemsRes, participacionRes, asistenciaRes, bitacorasRes].find(res => res.error)
+  const errorCarga = [estudiantesRes, itemsRes, participacionRes, asistenciaRes, bitacorasRes, comentariosRes].find(
+    res => res.error
+  )
   if (errorCarga?.error) return { error: errorCarga.error.message }
 
   const estudiantes = (estudiantesRes.data ?? []) as { id: string }[]
@@ -188,6 +202,14 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
     ].filter(Boolean))
   ).sort() as string[]
 
+  const comentarioAutomatico = definicion.comentarioAutomatico !== false
+  const comentarioPrevioPorEstudiante = new Map<string, { comentario: string | null; automatico: boolean }>(
+    ((comentariosRes.data ?? []) as any[]).map(fila => [
+      fila.estudiante_id,
+      { comentario: fila.comentario ?? null, automatico: fila.comentario_auto === true },
+    ])
+  )
+
   const ahora = new Date().toISOString()
   const filas = estudiantes.map(estudiante => {
     const resultado = calcularRubrica(
@@ -196,6 +218,18 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
       { fechasClase },
       escalaSalida ?? undefined
     )
+
+    // Un comentario escrito (o vaciado a propósito, "") por el profesor no se toca
+    const previo = comentarioPrevioPorEstudiante.get(estudiante.id)
+    const comentarioEsDelProfesor = !!previo && previo.comentario !== null && !previo.automatico
+    let comentario: string | null = previo?.comentario ?? null
+    let comentarioAuto = previo?.automatico ?? false
+    if (!comentarioEsDelProfesor && comentarioAutomatico) {
+      const borrador = borradorComentarioDesdeResultado(resultado)
+      comentario = borrador === '' ? null : borrador
+      comentarioAuto = borrador !== ''
+    }
+
     return {
       profesor_id: user.id,
       curso_id: cursoId,
@@ -205,6 +239,8 @@ export async function recalcularRubrica(rubricaId: string): Promise<{ actualizad
       nombre_item: nombreColumna,
       tipo: 'tarea',
       nota: resultado.notaSalida,
+      comentario,
+      comentario_auto: comentarioAuto,
       fuente: 'rubrica',
       import_id: null,
       updated_at: ahora,

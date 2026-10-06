@@ -13,6 +13,8 @@ interface ComentarioCeldaProps {
   parcial: number
   nombreItem: string
   comentarioInicial: string | null
+  /** El comentario lo generó la rúbrica. Si no se modifica, sigue siendo automático. */
+  comentarioEsAutomatico?: boolean
   /** Solo en columnas de rúbrica: texto generado desde el desglose, para insertarlo y editarlo. */
   borradorSugerido?: string
   onClose: () => void
@@ -20,7 +22,7 @@ interface ComentarioCeldaProps {
 
 /** Popover para registrar "qué falta" en una celda estudiante × columna. Texto pensado para pegar en Moodle. */
 export function ComentarioCelda({
-  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioInicial, borradorSugerido, onClose,
+  cursoId, estudianteId, estudianteNombre, parcial, nombreItem, comentarioInicial, comentarioEsAutomatico, borradorSugerido, onClose,
 }: ComentarioCeldaProps) {
   const [texto, setTexto] = useState(comentarioInicial ?? '')
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null)
@@ -28,6 +30,11 @@ export function ComentarioCelda({
   const [isPending, startTransition] = useTransition()
 
   const handleGuardar = () => {
+    // Sin cambios sobre un comentario automático: no se convierte en manual
+    if (comentarioEsAutomatico && texto === (comentarioInicial ?? '')) {
+      onClose()
+      return
+    }
     startTransition(async () => {
       const resultado = await guardarComentarioItem({
         cursoId, estudianteId, parcial, nombreItem, comentario: texto,
@@ -65,6 +72,11 @@ export function ComentarioCelda({
         </button>
       </div>
 
+      {comentarioEsAutomatico && (
+        <p className="mb-1 text-[11px] text-teal-300">
+          Generado desde la rúbrica; se actualiza al recalcular. Si lo editas, queda como tuyo y ya no se toca.
+        </p>
+      )}
       <textarea
         value={texto}
         onChange={e => setTexto(e.target.value.slice(0, LIMITE_CARACTERES))}

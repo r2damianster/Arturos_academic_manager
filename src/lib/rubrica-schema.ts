@@ -51,6 +51,7 @@ export const IngresoTardioSchema = z.object({
 export const DefinicionRubricaSchema = z.object({
   criterios: z.array(CriterioRubricaSchema).min(1, 'La rúbrica necesita al menos un criterio'),
   ingresoTardio: z.array(IngresoTardioSchema).optional(),
+  comentarioAutomatico: z.boolean().optional(),
 })
 
 export const GuardarRubricaSchema = z.object({
