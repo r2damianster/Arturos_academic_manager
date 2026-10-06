@@ -87,26 +87,26 @@ export default function Paso1Upload({ onParsed }: Props) {
         className={`
           flex flex-col items-center justify-center gap-4 p-12 rounded-xl border-2 border-dashed cursor-pointer transition-all
           ${dragging
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+            ? 'border-blue-500 bg-blue-900/20'
+            : 'border-gray-600 hover:border-gray-500 hover:bg-gray-800/50'
           }
         `}
       >
         {cargando ? (
           <div className="flex flex-col items-center gap-3">
             <div className="h-10 w-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-            <p className="text-sm text-zinc-500">Leyendo archivo…</p>
+            <p className="text-sm text-gray-400">Leyendo archivo…</p>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30">
-              <Upload className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-blue-900/30">
+              <Upload className="h-7 w-7 text-blue-400" />
             </div>
             <div className="text-center">
-              <p className="text-base font-medium text-zinc-800 dark:text-zinc-200">
+              <p className="text-base font-medium text-gray-200">
                 Arrastra el archivo aquí o haz clic para seleccionarlo
               </p>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-gray-400">
                 Formatos soportados: .ods · .xlsx · .xls · .csv · Máximo 5 MB
               </p>
             </div>
@@ -123,17 +123,17 @@ export default function Paso1Upload({ onParsed }: Props) {
       />
 
       {error && (
-        <div className="flex gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800 dark:text-amber-300">{error}</p>
+        <div className="flex gap-3 p-4 rounded-xl bg-amber-900/20 border border-amber-800">
+          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-300">{error}</p>
         </div>
       )}
 
       {/* Instrucciones */}
-      <div className="flex gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
-        <FileSpreadsheet className="h-5 w-5 text-zinc-500 shrink-0 mt-0.5" />
-        <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1">
-          <p className="font-medium text-zinc-700 dark:text-zinc-300">¿Cómo exportar desde Moodle?</p>
+      <div className="flex gap-3 p-4 rounded-xl bg-gray-800/50 border border-gray-700">
+        <FileSpreadsheet className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
+        <div className="text-sm text-gray-400 space-y-1">
+          <p className="font-medium text-gray-300">¿Cómo exportar desde Moodle?</p>
           <p>En tu curso de Moodle ve a <strong>Calificaciones → Exportar → Hoja de cálculo ODS</strong>. Descarga el archivo y súbelo aquí.</p>
         </div>
       </div>
