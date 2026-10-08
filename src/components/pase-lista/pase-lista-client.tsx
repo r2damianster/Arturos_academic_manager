@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva, type RegistroAsistenciaInput } from '@/lib/actions/asistencia'
 import { guardarBitacoraData } from '@/lib/actions/bitacora'
-import { formatNombreCorto } from '@/lib/format'
+import { nombreParaLlamar } from '@/lib/format'
+import { NombrePreferidoEditor } from '@/components/estudiantes/NombrePreferidoEditor'
 import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
 import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lista/page'
@@ -16,6 +17,7 @@ type Paso = 'bitacora' | 'lista' | 'resumen'
 interface Estudiante {
   id: string
   nombre: string
+  nombre_preferido?: string | null
   email: string
   tutoria: boolean
   auth_user_id: string | null
@@ -77,6 +79,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
   const [paso, setPaso] = useState<Paso>('bitacora')
   const [bitacora, setBitacora] = useState<BitacoraLocal>({ tema: '', actividades: '', materiales: '', observaciones: '' })
   const [indice, setIndice] = useState(0)
+  const [preferredNameOverrides, setPreferredNameOverrides] = useState<Record<string, string | null>>({})
   const [registros, setRegistros] = useState<Record<string, RegistroLocal>>({})
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -391,7 +394,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
         {estudiantes.map((est, i) => {
           const reg = registros[est.id]
           return (
-            <button key={est.id} onClick={() => setIndice(i)} title={est.nombre}
+            <button key={est.id} onClick={() => setIndice(i)} title={nombreParaLlamar(est)}
               className={`w-3 h-3 rounded-full transition-all ${
                 i === indice     ? 'scale-150 bg-brand-500' :
                 !reg             ? 'bg-gray-700' :
@@ -409,8 +412,21 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
           <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center text-3xl font-bold text-gray-400 mx-auto mb-3">
             {actual.nombre.charAt(0).toUpperCase()}
           </div>
-          <h2 className="text-xl font-bold text-white mb-0.5">{formatNombreCorto(actual.nombre)}</h2>
+          <h2 className="text-xl font-bold text-white mb-0.5">
+            {nombreParaLlamar({ nombre: actual.nombre, nombre_preferido: preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido })}
+          </h2>
+          {(preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido) && (
+            <p className="text-gray-600 text-xs mb-0.5" title="Nombre real (el que se usa en reportes)">{actual.nombre}</p>
+          )}
           <p className="text-gray-500 text-sm">{actual.email}</p>
+          <div className="mt-1">
+            <NombrePreferidoEditor
+              studentId={actual.id}
+              cursoId={cursoId}
+              currentPreferredName={preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido}
+              onSaved={savedName => setPreferredNameOverrides(previous => ({ ...previous, [actual.id]: savedName }))}
+            />
+          </div>
           
           <div className="mt-3 flex justify-center">
             <button

@@ -6,6 +6,7 @@ export type FichaEstudianteData = {
   estudiante: {
     id: string
     nombre: string
+    nombre_preferido: string | null
     email: string
     auth_user_id: string | null
     tutoria: boolean
@@ -69,7 +70,7 @@ export async function getFichaEstudiante(
 
   const [estRes, asistRes, partRes, trabajosRes, citRes] = await Promise.all([
     db.from('estudiantes')
-      .select('id, nombre, email, auth_user_id, tutoria, estado, nota_incidencia')
+      .select('id, nombre, nombre_preferido, email, auth_user_id, tutoria, estado, nota_incidencia')
       .eq('id', estudianteId)
       .eq('profesor_id', user.id)
       .single(),

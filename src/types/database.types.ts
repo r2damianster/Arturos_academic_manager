@@ -233,6 +233,7 @@ export type Database = {
           estado: string
           retirado_at: string | null
           persona_id: string
+          nombre_preferido: string | null
           created_at: string
         }
         Insert: {
@@ -246,6 +247,7 @@ export type Database = {
           estado?: string
           retirado_at?: string | null
           persona_id?: string
+          nombre_preferido?: string | null
           created_at?: string
         }
         Update: {
@@ -256,6 +258,7 @@ export type Database = {
           estado?: string
           retirado_at?: string | null
           persona_id?: string
+          nombre_preferido?: string | null
         }
         Relationships: [
           {

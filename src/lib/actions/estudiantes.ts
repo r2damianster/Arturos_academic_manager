@@ -13,6 +13,33 @@ const EstudianteEstadoSchema = z.enum(['activo', 'retirado'])
 
 type EstudianteEstado = z.infer<typeof EstudianteEstadoSchema>
 
+const NombrePreferidoSchema = z.string().trim().max(40)
+
+/** Nombre informal para llamar al estudiante en clase. Vacío = sin preferencia. No altera `nombre`. */
+export async function setNombrePreferido(
+  estudianteId: string,
+  preferredName: string,
+  cursoId: string
+): Promise<{ error?: string }> {
+  const parsed = NombrePreferidoSchema.safeParse(preferredName)
+  if (!parsed.success) return { error: 'Máximo 40 caracteres' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase.from('estudiantes')
+    .update({ nombre_preferido: parsed.data === '' ? null : parsed.data })
+    .eq('id', estudianteId)
+    .eq('profesor_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/cursos/${cursoId}/pase-lista`)
+  revalidatePath('/dashboard/modo-clase', 'layout')
+  revalidatePath(`/dashboard/estudiantes/${estudianteId}`)
+  return {}
+}
+
 export async function setTutoria(estudianteId: string, activar: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

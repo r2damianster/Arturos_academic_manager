@@ -33,7 +33,7 @@ export default async function ModoClaseActivaPage({
   const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes, ultimoCierreRes, participacionPeriodoRes] = await Promise.all([
     db
       .from('estudiantes')
-      .select('id, nombre, email, tutoria, estado')
+      .select('id, nombre, nombre_preferido, email, tutoria, estado')
       .eq('curso_id', bitacora.curso_id)
       .order('nombre'),
     db
@@ -69,7 +69,7 @@ export default async function ModoClaseActivaPage({
       .not('nivel', 'is', null),
   ])
 
-  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }[]
+  const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; nombre_preferido?: string | null; email: string; tutoria: boolean; estado?: string }[]
   const asistenciaInicial = (asistenciaRes.data ?? []) as { estudiante_id: string; estado: string; atraso: boolean }[]
 
   // Estudiantes ya calificados en participación durante el parcial en curso

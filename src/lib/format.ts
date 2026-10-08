@@ -5,3 +5,13 @@ export function formatNombreCorto(nombre: string): string {
   if (w.length === 3) return `${w[1]} ${w[0]}`
   return nombre
 }
+
+/**
+ * Nombre para llamar al estudiante en clase (pase de lista, modo clase, ruleta).
+ * Usa el nombre preferido si existe; si no, el formato corto normal.
+ * NO usar en reportes, calificaciones, exportaciones ni registros formales.
+ */
+export function nombreParaLlamar(estudiante: { nombre: string; nombre_preferido?: string | null }): string {
+  const preferredName = estudiante.nombre_preferido?.trim()
+  return preferredName ? preferredName : formatNombreCorto(estudiante.nombre)
+}

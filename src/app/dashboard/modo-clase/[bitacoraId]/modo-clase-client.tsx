@@ -11,7 +11,7 @@ import type { ActividadPlanificada, ActividadTipo } from '@/types/domain'
 import { Ruleta } from '@/components/herramientas/Ruleta'
 import { Agrupacion } from '@/components/herramientas/Agrupacion'
 import { buildMoodleCSV, downloadCSV, avisarOmitidosMoodle } from '@/lib/moodle-csv'
-import { formatNombreCorto } from '@/lib/format'
+import { nombreParaLlamar } from '@/lib/format'
 import { FichaEstudianteDrawer } from '@/components/ficha-estudiante/FichaEstudianteDrawer'
 import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/ficha-estudiante'
 import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actions'
@@ -19,7 +19,7 @@ import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 import EnCursoVistaClase from '@/components/modo-clase/EnCursoVistaClase'
 import { upsertItemEnCurso } from '@/lib/actions/calificaciones-items'
 
-type Student = { id: string; nombre: string; email: string; tutoria: boolean; estado?: string }
+type Student = { id: string; nombre: string; nombre_preferido?: string | null; email: string; tutoria: boolean; estado?: string }
 type EstadoA = 'Presente' | 'Ausente' | 'Atraso' | null
 type GrupoIntegrante = { id: string; estudiante_id: string; estudiantes: { id: string; nombre: string } | null }
 type GrupoItem = { id: string; nombre: string; categoria: string | null; orden: number; tipo?: string; abierto?: boolean; grupo_integrantes: GrupoIntegrante[] }
@@ -257,12 +257,12 @@ function VistGrupo({
     const total = 20
     const id = setInterval(() => {
       const r = disponibles[Math.floor(Math.random() * disponibles.length)]
-      setExpositTicker(formatNombreCorto(r.nombre))
+      setExpositTicker(nombreParaLlamar(r))
       count++
       if (count >= total) {
         clearInterval(id)
         const winner = disponibles[Math.floor(Math.random() * disponibles.length)]
-        setExpositTicker(formatNombreCorto(winner.nombre))
+        setExpositTicker(nombreParaLlamar(winner))
         setExpositElegidoId(winner.id)
         setExpositGirando(false)
         if (autoExcluirExposit) {
@@ -363,7 +363,7 @@ function VistGrupo({
               {miembros.filter(s => expositExcluidos.has(s.id)).map(s => (
                 <button key={s.id} onClick={() => setExpositExcluidos(prev => { const n = new Set(prev); n.delete(s.id); return n })}
                   className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-500 line-through hover:text-gray-300 hover:bg-gray-700 transition-colors">
-                  {formatNombreCorto(s.nombre)}
+                  {nombreParaLlamar(s)}
                 </button>
               ))}
               <button onClick={() => setExpositExcluidos(new Set())} className="text-[10px] text-amber-700 hover:text-amber-500 transition-colors ml-1">↺</button>
@@ -390,7 +390,7 @@ function VistGrupo({
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium flex-1 truncate flex items-center gap-1.5">
                     {esElegido && <span className="text-amber-400">🎤</span>}
-                    <span className={esElegido ? 'text-amber-200' : 'text-gray-200'}>{formatNombreCorto(s.nombre)}</span>
+                    <span className={esElegido ? 'text-amber-200' : 'text-gray-200'}>{nombreParaLlamar(s)}</span>
                   </p>
                   {/* P/A/F */}
                   <div className="flex gap-1 shrink-0">
@@ -1682,7 +1682,7 @@ export function ModoClaseClient({
                     <div key={s.id} className="rounded-lg hover:bg-gray-800/30 transition-colors">
                       <div className="flex items-center gap-2 px-2 py-1.5">
                         <span className="flex-1 text-sm text-gray-300 truncate flex items-center gap-2">
-                          {formatNombreCorto(s.nombre)}
+                          {nombreParaLlamar(s)}
                           {s.tutoria && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/40 text-blue-300 border border-blue-700">
                               📘
@@ -1818,7 +1818,7 @@ export function ModoClaseClient({
                     <button
                       key={s.id}
                       onClick={() => setUnoIdx(i)}
-                      title={s.nombre}
+                      title={nombreParaLlamar(s)}
                       className={`w-3 h-3 rounded-sm transition-all ${
                         i === safeIdx ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-950' : ''
                       } ${
@@ -1838,7 +1838,10 @@ export function ModoClaseClient({
                 {/* ── Cabecera: nombre + botón drawer completo ── */}
                 <div className="flex items-start justify-between gap-2 pt-1">
                   <div className="min-w-0">
-                    <p className="text-base font-bold text-white leading-tight">{estudianteUno.nombre}</p>
+                    <p className="text-base font-bold text-white leading-tight">{estudianteUno.nombre_preferido?.trim() || estudianteUno.nombre}</p>
+                    {estudianteUno.nombre_preferido?.trim() && (
+                      <p className="text-[10px] text-gray-600" title="Nombre real (el que se usa en reportes)">{estudianteUno.nombre}</p>
+                    )}
                     <p className="text-[11px] text-gray-500 mt-0.5">
                       {safeIdx + 1} de {students.length}
                       {estudianteUno.tutoria && (

@@ -798,6 +798,11 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, esTut
               {data ? (
                 <>
                   <p className="text-white font-semibold text-sm truncate">{data.estudiante.nombre}</p>
+                  {data.estudiante.nombre_preferido && (
+                    <p className="text-brand-400 text-[11px] truncate" title="Se usa solo al pasar lista y en clase">
+                      Prefiere que le llamen: {data.estudiante.nombre_preferido}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-gray-500 text-[11px] truncate">{data.estudiante.email}</p>
                     {data.estudiante.tutoria && (

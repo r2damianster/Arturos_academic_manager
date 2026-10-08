@@ -7,6 +7,7 @@ import type { EstudiantePerfil } from '@/app/dashboard/cursos/[cursoId]/pase-lis
 interface Estudiante {
   id: string
   nombre: string
+  nombre_preferido?: string | null
   email: string
   tutoria: boolean
   auth_user_id: string | null
