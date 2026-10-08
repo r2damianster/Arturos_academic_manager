@@ -18,11 +18,11 @@ export default async function HerramientasPage() {
   const categoriasData = (categorias ?? []) as { id: string; nombre: string; valores: string[]; orden: number }[]
   const primerCurso = cursosData[0] ?? null
 
-  let estudiantesIniciales: { id: string; nombre: string; estado: string | null }[] = []
+  let estudiantesIniciales: { id: string; nombre: string; nombre_preferido?: string | null; estado: string | null }[] = []
   if (primerCurso) {
     const { data } = await db
       .from('estudiantes')
-      .select('id, nombre, estado')
+      .select('id, nombre, nombre_preferido, estado')
       .eq('curso_id', primerCurso.id)
       .order('nombre')
     estudiantesIniciales = data ?? []

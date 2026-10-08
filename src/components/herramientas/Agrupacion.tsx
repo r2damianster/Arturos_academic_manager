@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { formatNombreCorto } from '@/lib/format'
+import { nombreParaLlamar } from '@/lib/format'
 import { CSS } from '@dnd-kit/utilities'
 import {
   crearGrupos,
@@ -13,7 +13,7 @@ import {
 import type { GrupoBase, PlantillaGrupo } from '@/lib/actions/grupos'
 import { ExclusionPanel } from './ExclusionPanel'
 
-type Student = { id: string; nombre: string; estado?: string | null }
+type Student = { id: string; nombre: string; nombre_preferido?: string | null; estado?: string | null }
 type Categoria = { id: string; nombre: string; valores: string[] }
 type TipoTab = 'aleatoria' | 'manual' | 'afinidad'
 
@@ -55,7 +55,7 @@ function DraggableStudent({ student }: { student: Student }) {
         isDragging ? 'opacity-30' : 'text-gray-100 hover:bg-white/10'
       }`}
     >
-      {student.nombre}
+      {student.nombre_preferido?.trim() || student.nombre}
     </div>
   )
 }
@@ -556,7 +556,7 @@ function TabAleatoria({
                 </p>
                 <ul className="space-y-1.5">
                   {g.members.map(s => (
-                    <li key={s.id} className="text-sm text-gray-100">{formatNombreCorto(s.nombre)}</li>
+                    <li key={s.id} className="text-sm text-gray-100">{nombreParaLlamar(s)}</li>
                   ))}
                 </ul>
                 <p className={`text-xs opacity-40 mt-3 ${c.text}`}>

@@ -16,7 +16,7 @@ import {
   type RuletaSyncState,
 } from './ruleta-geometry'
 
-type Student = { id: string; nombre: string }
+type Student = { id: string; nombre: string; nombre_preferido?: string | null }
 type Mode = 'estudiantes' | 'libre'
 
 const NIVEL_COLORS = ['', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'bg-lime-600', 'bg-emerald-600']
@@ -108,13 +108,13 @@ export function Ruleta({
   // Pool real del sorteo (de aquí sale el ganador)
   const drawItems = useMemo((): Item[] => {
     if (mode === 'libre') return freeItems
-    return drawStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre }))
+    return drawStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre }))
   }, [mode, freeItems, drawStudents, excluded])
 
   // Pool visual — lo que dibuja la rueda (profesor y proyector)
   const displayItems = useMemo((): Item[] => {
     if (mode === 'libre') return freeItems
-    return displayStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre }))
+    return displayStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre }))
   }, [mode, freeItems, displayStudents, excluded])
 
   // ─── Proyector: canal de sincronización ────────────────────────────────
@@ -477,7 +477,7 @@ export function Ruleta({
                       )}
                     </span>
                     <span className={isExcluded ? 'line-through' : ''}>
-                      {s.nombre}
+                      {s.nombre_preferido?.trim() || s.nombre}
                     </span>
                     {calificable && nivelGuardado != null && (
                       <span className={`ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${NIVEL_COLORS[nivelGuardado]}`}>
