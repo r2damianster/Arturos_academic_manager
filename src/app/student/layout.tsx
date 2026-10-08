@@ -5,6 +5,10 @@ import Link from 'next/link'
 import { StudentLogoutButton } from '@/components/student/logout-button'
 import { ChatBot } from '@/components/student/ChatBot'
 
+// Desactivado temporalmente: las encuestas (inicial y de parcial) no bloquean el portal.
+// Poner en true para reactivar ambos bloqueos.
+const BLOQUEO_ENCUESTAS_ACTIVO = false
+
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,7 +34,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const pathname = headersList.get('x-pathname') ?? ''
   const enOnboarding = pathname.startsWith('/student/onboarding')
 
-  if (!enOnboarding) {
+  if (BLOQUEO_ENCUESTAS_ACTIVO && !enOnboarding) {
     const { data: encuesta } = await db
       .from('encuesta_estudiante')
       .select('auth_user_id')
@@ -43,7 +47,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
   // Bloqueo encuesta parcial
   const enEncuestaParcial = pathname.startsWith('/student/encuesta-parcial')
 
-  if (!enOnboarding && !enEncuestaParcial) {
+  if (BLOQUEO_ENCUESTAS_ACTIVO && !enOnboarding && !enEncuestaParcial) {
     const { data: pendientes } = await (db as any)
       .rpc('get_encuestas_parciales_pendientes', { p_auth_user_id: user.id })
 
