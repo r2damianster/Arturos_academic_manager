@@ -53,8 +53,20 @@ export function redactarCorreoIndividual(datos: DatosCorreoCitacion): CorreoReda
 }
 
 /** Correo genérico para envío en bloque (sin datos individuales: los destinatarios van en copia oculta). */
-export function redactarCorreoBloque(datos: Omit<DatosCorreoCitacion, 'nombreEstudiante' | 'motivos'>): CorreoRedactado {
+export function redactarCorreoBloque(
+  datos: Omit<DatosCorreoCitacion, 'nombreEstudiante' | 'motivos'> & { correosDestinatarios?: string[] }
+): CorreoRedactado {
+  // Algunos clientes ignoran el CCO del enlace: los correos van también al inicio del cuerpo para copiarlos
+  const cabeceraCorreos = datos.correosDestinatarios && datos.correosDestinatarios.length > 0
+    ? [
+        'CORREOS PARA COPIAR EN CCO (borre este bloque antes de enviar):',
+        datos.correosDestinatarios.join(', '),
+        '--------------------------------------------------',
+        '',
+      ]
+    : []
   const lineas = [
+    ...cabeceraCorreos,
     'Estimado/a estudiante:',
     '',
     `Reciba un cordial saludo. Me dirijo a usted en relación con la asignatura ${datos.asignatura}. Tras revisar el avance académico del curso, le invito a una sesión de tutoría con el fin de analizar su desempeño y acordar estrategias que le permitan mejorarlo.`,

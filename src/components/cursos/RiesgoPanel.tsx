@@ -155,7 +155,10 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
   const enlacesBloque = construirEnlacesCorreo({
     para: [emailProfesor],
     cco: conCorreo.map(est => est.email),
-    correo: redactarCorreoBloque({ asignatura, nombreProfesor, horarios: horariosTutoria }),
+    correo: redactarCorreoBloque({
+      asignatura, nombreProfesor, horarios: horariosTutoria,
+      correosDestinatarios: conCorreo.map(est => est.email),
+    }),
   })
   const [correosCopiados, setCorreosCopiados] = useState(false)
   async function copiarCorreos() {
