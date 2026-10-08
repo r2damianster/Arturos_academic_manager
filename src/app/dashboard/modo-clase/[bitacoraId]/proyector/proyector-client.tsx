@@ -10,6 +10,7 @@ import {
   ruletaPolar as polar,
   ruletaSegPath as segPath,
   ruletaShortLabel as shortLabel,
+  ruletaFullLabel,
   ruletaFontSize as calcFontSize,
   ruletaChannelName,
   type RuletaSyncState,
@@ -56,7 +57,7 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
 
         spinTimeoutRef.current = setTimeout(() => {
           setSpinning(false)
-          setWinnerLabel(msg.items[idx]?.label ?? null)
+          setWinnerLabel(idx !== -1 ? ruletaFullLabel(msg.items[idx]) : null)
         }, 3200)
       } else if (!msg.spinning) {
         // Estado de reposo (reconexión, remount del profesor, etc.) — refleja
@@ -66,7 +67,7 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
         setSpinning(false)
         if (msg.winnerId) {
           const idx = msg.items.findIndex(it => it.id === msg.winnerId)
-          setWinnerLabel(idx !== -1 ? msg.items[idx].label : null)
+          setWinnerLabel(idx !== -1 ? ruletaFullLabel(msg.items[idx]) : null)
         } else {
           setWinnerLabel(null)
         }
@@ -89,7 +90,7 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
     let delay = 50
     const tick = () => {
       if (!running) return
-      setTicker(items[Math.floor(Math.random() * items.length)].label)
+      setTicker(ruletaFullLabel(items[Math.floor(Math.random() * items.length)]))
       delay = Math.min(delay * 1.06, 300)
       tickerTimeoutRef.current = setTimeout(tick, delay)
     }
@@ -150,7 +151,7 @@ export function ProyectorClient({ bitacoraId }: { bitacoraId: string }) {
                       fill="white"
                       fontWeight="700"
                     >
-                      {shortLabel(item.label, n, libre)}
+                      {shortLabel(item.label, n, libre, item.isNickname)}
                     </text>
                   </g>
                 )

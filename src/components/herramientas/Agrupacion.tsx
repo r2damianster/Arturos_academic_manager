@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { nombreParaLlamar } from '@/lib/format'
+import { NombreLlamar } from '@/components/estudiantes/NombreLlamar'
 import { CSS } from '@dnd-kit/utilities'
 import {
   crearGrupos,
@@ -55,7 +55,7 @@ function DraggableStudent({ student }: { student: Student }) {
         isDragging ? 'opacity-30' : 'text-gray-100 hover:bg-white/10'
       }`}
     >
-      {student.nombre_preferido?.trim() || student.nombre}
+      <NombreLlamar student={student} />
     </div>
   )
 }
@@ -556,7 +556,7 @@ function TabAleatoria({
                 </p>
                 <ul className="space-y-1.5">
                   {g.members.map(s => (
-                    <li key={s.id} className="text-sm text-gray-100">{nombreParaLlamar(s)}</li>
+                    <li key={s.id} className="text-sm text-gray-100"><NombreLlamar student={s} /></li>
                   ))}
                 </ul>
                 <p className={`text-xs opacity-40 mt-3 ${c.text}`}>

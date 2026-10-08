@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { registrarAsistenciaMasiva, type RegistroAsistenciaInput } from '@/lib/actions/asistencia'
 import { guardarBitacoraData } from '@/lib/actions/bitacora'
 import { nombreParaLlamar } from '@/lib/format'
+import { NombreLlamar } from '@/components/estudiantes/NombreLlamar'
 import { NombrePreferidoEditor } from '@/components/estudiantes/NombrePreferidoEditor'
 import { asignarTutoriaDirecta } from '@/lib/actions/tutorias'
 import { useRouter } from 'next/navigation'
@@ -413,7 +414,7 @@ export function PaseListaClient({ cursoId, estudiantes, fecha, horasSesion, perf
             {actual.nombre.charAt(0).toUpperCase()}
           </div>
           <h2 className="text-xl font-bold text-white mb-0.5">
-            {nombreParaLlamar({ nombre: actual.nombre, nombre_preferido: preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido })}
+            <NombreLlamar student={{ nombre: actual.nombre, nombre_preferido: preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido }} />
           </h2>
           {(preferredNameOverrides[actual.id] !== undefined ? preferredNameOverrides[actual.id] : actual.nombre_preferido) && (
             <p className="text-gray-600 text-xs mb-0.5" title="Nombre real (el que se usa en reportes)">{actual.nombre}</p>

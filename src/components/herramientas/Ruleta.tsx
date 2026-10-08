@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { NombreLlamar } from '@/components/estudiantes/NombreLlamar'
 import {
   type RuletaItem as Item,
   RULETA_SIZE as SIZE,
@@ -11,6 +12,7 @@ import {
   ruletaPolar as polar,
   ruletaSegPath as segPath,
   ruletaShortLabel as shortLabel,
+  ruletaFullLabel,
   ruletaFontSize as calcFontSize,
   ruletaChannelName,
   type RuletaSyncState,
@@ -108,13 +110,13 @@ export function Ruleta({
   // Pool real del sorteo (de aquí sale el ganador)
   const drawItems = useMemo((): Item[] => {
     if (mode === 'libre') return freeItems
-    return drawStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre }))
+    return drawStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre, isNickname: !!s.nombre_preferido?.trim() }))
   }, [mode, freeItems, drawStudents, excluded])
 
   // Pool visual — lo que dibuja la rueda (profesor y proyector)
   const displayItems = useMemo((): Item[] => {
     if (mode === 'libre') return freeItems
-    return displayStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre }))
+    return displayStudents.filter(s => !excluded.has(s.id)).map(s => ({ id: s.id, label: s.nombre_preferido?.trim() || s.nombre, isNickname: !!s.nombre_preferido?.trim() }))
   }, [mode, freeItems, displayStudents, excluded])
 
   // ─── Proyector: canal de sincronización ────────────────────────────────
@@ -180,7 +182,7 @@ export function Ruleta({
     let delay = 50
     const tick = () => {
       if (!isRunning) return
-      setTicker(displayItems[Math.floor(Math.random() * displayItems.length)].label)
+      setTicker(ruletaFullLabel(displayItems[Math.floor(Math.random() * displayItems.length)]))
       delay = Math.min(delay * 1.06, 300)
       tickerRef.current = setTimeout(tick, delay)
     }
@@ -232,7 +234,7 @@ export function Ruleta({
               <p className="text-gray-500 text-xs uppercase tracking-widest leading-none mb-0.5">
                 Seleccionado
               </p>
-              <p className="text-indigo-300 font-bold text-lg leading-tight">{winner.label}</p>
+              <p className="text-indigo-300 font-bold text-lg leading-tight">{ruletaFullLabel(winner)}</p>
 
               {calificable && (
                 <div className="mt-2 flex flex-col items-center gap-1">
@@ -304,7 +306,7 @@ export function Ruleta({
                         fontWeight="700"
                         style={{ userSelect: 'none', pointerEvents: 'none' }}
                       >
-                        {shortLabel(item.label, n, mode === 'libre')}
+                        {shortLabel(item.label, n, mode === 'libre', item.isNickname)}
                       </text>
                     </g>
                   )
@@ -477,7 +479,7 @@ export function Ruleta({
                       )}
                     </span>
                     <span className={isExcluded ? 'line-through' : ''}>
-                      {s.nombre_preferido?.trim() || s.nombre}
+                      <NombreLlamar student={s} />
                     </span>
                     {calificable && nivelGuardado != null && (
                       <span className={`ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${NIVEL_COLORS[nivelGuardado]}`}>

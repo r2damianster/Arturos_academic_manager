@@ -1,7 +1,14 @@
 // Geometría compartida entre la ruleta principal (Ruleta.tsx) y la ventana
 // proyector (modo-clase/[bitacoraId]/proyector) — deben dibujar el mismo círculo.
 
-export type RuletaItem = { id: string; label: string }
+export type RuletaItem = { id: string; label: string; isNickname?: boolean }
+
+export const NICKNAME_MARK = '✎'
+
+/** Texto completo para ganador/ticker: agrega la marca si es apodo. */
+export function ruletaFullLabel(item: RuletaItem): string {
+  return item.isNickname ? `${item.label} ${NICKNAME_MARK}` : item.label
+}
 
 export const RULETA_COLORS = [
   '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
@@ -41,12 +48,14 @@ export function formatStudentName(nombre: string): string {
   return words[0]
 }
 
-export function ruletaShortLabel(label: string, n: number, libre: boolean): string {
-  const base = libre ? label : formatStudentName(label)
-  const max = libre
+export function ruletaShortLabel(label: string, n: number, libre: boolean, isNickname = false): string {
+  const keepFullText = libre || isNickname
+  const base = keepFullText ? label : formatStudentName(label)
+  const max = keepFullText
     ? (n <= 8 ? 16 : n <= 15 ? 12 : n <= 25 ? 9 : 7)
     : (n <= 8 ? 14 : n <= 15 ? 11 : n <= 25 ? 8 : 6)
-  return base.length <= max ? base : base.slice(0, max - 1) + '…'
+  const text = base.length <= max ? base : base.slice(0, max - 1) + '…'
+  return isNickname ? `${text}${NICKNAME_MARK}` : text
 }
 
 export function ruletaFontSize(n: number): number {
