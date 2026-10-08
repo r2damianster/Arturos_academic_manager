@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { getFichaEstudiante, type FichaEstudianteData } from '@/lib/actions/ficha-estudiante'
 import { saveNotaIncidencia, clearProblemas } from '@/lib/actions/encuesta-actions'
 import { citarEstudiante } from '@/lib/actions/citaciones'
+import { NombrePreferidoEditor } from '@/components/estudiantes/NombrePreferidoEditor'
 import { useSensibleToggle } from '@/lib/hooks/use-sensible-toggle'
 
 type Tab = 'resumen' | 'trabajos' | 'participacion' | 'encuesta' | 'trayectoria'
@@ -803,6 +804,13 @@ export function FichaEstudianteDrawer({ estudianteId, cursoId, bitacoraId, esTut
                       Prefiere que le llamen: {data.estudiante.nombre_preferido}
                     </p>
                   )}
+                  <NombrePreferidoEditor
+                    studentId={data.estudiante.id}
+                    cursoId={cursoId}
+                    currentPreferredName={data.estudiante.nombre_preferido}
+                    alignment="start"
+                    onSaved={savedName => setData(previous => previous ? { ...previous, estudiante: { ...previous.estudiante, nombre_preferido: savedName } } : previous)}
+                  />
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-gray-500 text-[11px] truncate">{data.estudiante.email}</p>
                     {data.estudiante.tutoria && (

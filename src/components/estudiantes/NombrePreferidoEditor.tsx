@@ -8,10 +8,11 @@ interface NombrePreferidoEditorProps {
   cursoId: string
   currentPreferredName: string | null | undefined
   onSaved?: (preferredName: string | null) => void
+  alignment?: 'center' | 'start'
 }
 
 /** Edita cómo se llama al estudiante en clase. El nombre real no cambia. */
-export function NombrePreferidoEditor({ studentId, cursoId, currentPreferredName, onSaved }: NombrePreferidoEditorProps) {
+export function NombrePreferidoEditor({ studentId, cursoId, currentPreferredName, onSaved, alignment = 'center' }: NombrePreferidoEditorProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [draftName, setDraftName] = useState(currentPreferredName ?? '')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -49,7 +50,7 @@ export function NombrePreferidoEditor({ studentId, cursoId, currentPreferredName
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className={`flex flex-col gap-1 ${alignment === 'start' ? 'items-start' : 'items-center'}`}>
       <div className="flex items-center gap-2">
         <input
           type="text"
