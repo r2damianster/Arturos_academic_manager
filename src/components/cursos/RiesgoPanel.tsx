@@ -57,6 +57,9 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
   const [citados,   setCitados]   = useState(0)
   const [collapsed, setCollapsed] = useState(false)
   const [registrados, setRegistrados] = useState<Set<string>>(new Set())
+  // Correo abierto pero aún sin confirmar que se envió: todavía NO es una citación
+  const [correoAbierto, setCorreoAbierto] = useState<Set<string>>(new Set())
+  const [bloqueAbierto, setBloqueAbierto] = useState(false)
   const [silPending, startSil]    = useTransition()
   const [excPending, startExc]    = useTransition()
 
@@ -113,7 +116,19 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
     setEstado(ok > 0 ? 'done' : 'error')
   }
 
-  /** Registra la citación una sola vez por estudiante; el correo se abre aparte, sin esperar. */
+  const marcarCorreoAbierto = (ids: string[]) =>
+    setCorreoAbierto(previos => new Set([...previos, ...ids]))
+  const descartarCorreoAbierto = (ids: string[]) =>
+    setCorreoAbierto(previos => new Set([...previos].filter(id => !ids.includes(id))))
+
+  /** Solo se llama cuando el profesor confirma que el correo se envió. */
+  function confirmarEnvio(destinatarios: EstudianteEnRiesgo[]) {
+    registrarCitaciones(destinatarios)
+    descartarCorreoAbierto(destinatarios.map(est => est.id))
+    setBloqueAbierto(false)
+  }
+
+  /** Registra la citación una sola vez por estudiante. */
   function registrarCitaciones(destinatarios: EstudianteEnRiesgo[]) {
     const pendientes = destinatarios.filter(est => !registrados.has(est.id))
     if (pendientes.length === 0) return
@@ -249,13 +264,19 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
                   {est.email ? (
                     <span className="flex items-center gap-1 ml-1">
                       {registrados.has(est.id) && <span className="text-xs text-emerald-400">✓</span>}
-                      {(() => {
+                      {correoAbierto.has(est.id) ? (
+                        <>
+                          <span className="text-xs text-amber-300">¿Enviaste el correo?</span>
+                          <button type="button" onClick={() => confirmarEnvio([est])} className="text-xs px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white transition-colors">Sí, citar</button>
+                          <button type="button" onClick={() => descartarCorreoAbierto([est.id])} className={claseEnlace}>No</button>
+                        </>
+                      ) : (() => {
                         const enlaces = enlaceIndividual(est)
                         return (
                           <>
-                            <a href={enlaces.gmail} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Redactar en Gmail">✉ Gmail</a>
-                            <a href={enlaces.outlook} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Redactar en Outlook">Outlook</a>
-                            <a href={enlaces.mailto} onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Abrir la app de correo">App</a>
+                            <a href={enlaces.gmail} target="_blank" rel="noopener noreferrer" onClick={() => marcarCorreoAbierto([est.id])} className={claseEnlace} title="Redactar en Gmail">✉ Gmail</a>
+                            <a href={enlaces.outlook} target="_blank" rel="noopener noreferrer" onClick={() => marcarCorreoAbierto([est.id])} className={claseEnlace} title="Redactar en Outlook">Outlook</a>
+                            <a href={enlaces.mailto} onClick={() => marcarCorreoAbierto([est.id])} className={claseEnlace} title="Abrir la app de correo">App</a>
                           </>
                         )
                       })()}
@@ -271,16 +292,23 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
           {conCorreo.length > 1 && (
             <div className="rounded-lg border border-gray-700/60 bg-gray-900/40 px-3 py-2 space-y-2">
               <p className="text-xs text-gray-400">
-                Correo en bloque a {conCorreo.length} estudiantes (con copia oculta: no ven los correos de los demás). Registra la citación de todos.
+                Correo en bloque a {conCorreo.length} estudiantes (con copia oculta: no ven los correos de los demás). La citación se registra solo cuando confirmes el envío.
               </p>
               <div className="flex flex-wrap gap-2">
-                <a href={enlacesBloque.gmail} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>✉ Gmail</a>
-                <a href={enlacesBloque.outlook} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>Outlook</a>
-                <a href={enlacesBloque.mailto} onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>App de correo</a>
+                <a href={enlacesBloque.gmail} target="_blank" rel="noopener noreferrer" onClick={() => setBloqueAbierto(true)} className={claseEnlace}>✉ Gmail</a>
+                <a href={enlacesBloque.outlook} target="_blank" rel="noopener noreferrer" onClick={() => setBloqueAbierto(true)} className={claseEnlace}>Outlook</a>
+                <a href={enlacesBloque.mailto} onClick={() => setBloqueAbierto(true)} className={claseEnlace}>App de correo</a>
                 <button type="button" onClick={copiarCorreos} className={claseEnlace} title="Copia los correos para pegarlos en CCO">
                   {correosCopiados ? '✓ Copiados' : 'Copiar correos'}
                 </button>
               </div>
+              {bloqueAbierto && (
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-700/60">
+                  <span className="text-xs text-amber-300">¿Enviaste el correo a los {conCorreo.length}?</span>
+                  <button type="button" onClick={() => confirmarEnvio(conCorreo)} className="text-xs px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white transition-colors">Sí, registrar las {conCorreo.length} citaciones</button>
+                  <button type="button" onClick={() => setBloqueAbierto(false)} className={claseEnlace}>No</button>
+                </div>
+              )}
             </div>
           )}
 
