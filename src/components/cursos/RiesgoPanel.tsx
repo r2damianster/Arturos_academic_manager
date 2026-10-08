@@ -28,6 +28,8 @@ interface Props {
   silenciado?: boolean
   asignatura: string
   nombreProfesor: string
+  /** Va en "Para" del correo en bloque: con "Para" vacío algunos clientes ignoran la copia oculta. */
+  emailProfesor: string
   horariosTutoria: string[]
 }
 
@@ -50,7 +52,7 @@ function razonYDetalle(e: EstudianteEnRiesgo): { razon: string; detalleRazon: st
 
 type Estado = 'idle' | 'loading' | 'done' | 'error'
 
-export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatura, nombreProfesor, horariosTutoria }: Props) {
+export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatura, nombreProfesor, emailProfesor, horariosTutoria }: Props) {
   const [estado,    setEstado]    = useState<Estado>('idle')
   const [citados,   setCitados]   = useState(0)
   const [collapsed, setCollapsed] = useState(false)
@@ -136,9 +138,20 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
 
   const conCorreo = estudiantes.filter(est => est.email)
   const enlacesBloque = construirEnlacesCorreo({
+    para: [emailProfesor],
     cco: conCorreo.map(est => est.email),
     correo: redactarCorreoBloque({ asignatura, nombreProfesor, horarios: horariosTutoria }),
   })
+  const [correosCopiados, setCorreosCopiados] = useState(false)
+  async function copiarCorreos() {
+    try {
+      await navigator.clipboard.writeText(conCorreo.map(est => est.email).join(', '))
+      setCorreosCopiados(true)
+      setTimeout(() => setCorreosCopiados(false), 2500)
+    } catch {
+      window.prompt('Copia los correos:', conCorreo.map(est => est.email).join(', '))
+    }
+  }
   const claseEnlace = 'text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors'
 
   return (
@@ -264,6 +277,9 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatu
                 <a href={enlacesBloque.gmail} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>✉ Gmail</a>
                 <a href={enlacesBloque.outlook} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>Outlook</a>
                 <a href={enlacesBloque.mailto} onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>App de correo</a>
+                <button type="button" onClick={copiarCorreos} className={claseEnlace} title="Copia los correos para pegarlos en CCO">
+                  {correosCopiados ? '✓ Copiados' : 'Copiar correos'}
+                </button>
               </div>
             </div>
           )}

@@ -66,7 +66,7 @@ export default async function CursoDetailPage({
       .select('dia_semana, hora_inicio, hora_fin')
       .eq('curso_id', cursoId)
       .eq('tipo', 'tutoria_curso'),
-    db.from('profesores').select('nombre').eq('id', user.id).single(),
+    db.from('profesores').select('nombre, email').eq('id', user.id).single(),
   ])
 
   const curso = cursoRes.data as Curso | null
@@ -154,6 +154,7 @@ export default async function CursoDetailPage({
     })
   ))
   const nombreProfesor: string = profesorRes.data?.nombre ?? ''
+  const emailProfesor: string = profesorRes.data?.email ?? user.email ?? ''
 
   // Construir lista con métricas
   const estudiantesConMetricas = todosEstudiantes.map(est => {
@@ -400,6 +401,7 @@ export default async function CursoDetailPage({
         silenciado={riesgoSilenciado}
         asignatura={curso.asignatura}
         nombreProfesor={nombreProfesor}
+        emailProfesor={emailProfesor}
         horariosTutoria={horariosTutoria}
       />
 

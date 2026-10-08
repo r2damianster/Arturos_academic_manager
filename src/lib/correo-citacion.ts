@@ -29,41 +29,45 @@ const saludo = (nombre: string) => nombre.trim() || 'estudiante'
 
 function bloqueHorarios(horarios: string[]): string[] {
   return horarios.length > 0
-    ? ['Mis horarios de tutoría:', ...horarios.map(horario => `  - ${horario}`), '']
-    : ['Por favor responde este correo para coordinar un horario de tutoría.', '']
+    ? ['Mis horarios de atención para tutorías son:', ...horarios.map(horario => `  - ${horario}`), '']
+    : ['Le agradeceré responder a este correo para coordinar un horario de tutoría.', '']
 }
 
-/** Correo personalizado: menciona las notas concretas del estudiante. */
+/** Correo personalizado: menciona las notas concretas del estudiante. Tono formal, trato de usted. */
 export function redactarCorreoIndividual(datos: DatosCorreoCitacion): CorreoRedactado {
   const lineas = [
-    `Estimado/a ${saludo(datos.nombreEstudiante)},`,
+    `Estimado/a ${saludo(datos.nombreEstudiante)}:`,
     '',
-    `Te escribo por la asignatura ${datos.asignatura}. Revisando tu avance, te cito a una tutoría para conversar sobre cómo mejorar tus resultados.`,
+    `Reciba un cordial saludo. Me dirijo a usted en relación con la asignatura ${datos.asignatura}. Tras revisar su avance académico, le invito a una sesión de tutoría con el fin de analizar su desempeño y acordar estrategias que le permitan mejorarlo.`,
     '',
-    ...(datos.motivos.length > 0 ? ['Motivo de la citación:', ...datos.motivos.map(motivo => `  - ${motivo}`), ''] : []),
+    ...(datos.motivos.length > 0 ? ['Aspectos que motivan la tutoría:', ...datos.motivos.map(motivo => `  - ${motivo}`), ''] : []),
     ...bloqueHorarios(datos.horarios),
-    'Puedes reservar tu horario desde el portal del estudiante o respondiendo este correo.',
+    'Podrá reservar el horario de su preferencia desde el portal del estudiante o respondiendo a este correo.',
     '',
-    'Saludos cordiales,',
+    'Quedo atento/a a su confirmación.',
+    '',
+    'Atentamente,',
     datos.nombreProfesor,
   ]
-  return { asunto: `Citación a tutoría — ${datos.asignatura}`, cuerpo: lineas.join('\n') }
+  return { asunto: `Invitación a tutoría académica — ${datos.asignatura}`, cuerpo: lineas.join('\n') }
 }
 
 /** Correo genérico para envío en bloque (sin datos individuales: los destinatarios van en copia oculta). */
 export function redactarCorreoBloque(datos: Omit<DatosCorreoCitacion, 'nombreEstudiante' | 'motivos'>): CorreoRedactado {
   const lineas = [
-    'Estimado/a estudiante,',
+    'Estimado/a estudiante:',
     '',
-    `Te escribo por la asignatura ${datos.asignatura}. Revisando el avance del curso, te cito a una tutoría para conversar sobre cómo mejorar tus resultados.`,
+    `Reciba un cordial saludo. Me dirijo a usted en relación con la asignatura ${datos.asignatura}. Tras revisar el avance académico del curso, le invito a una sesión de tutoría con el fin de analizar su desempeño y acordar estrategias que le permitan mejorarlo.`,
     '',
     ...bloqueHorarios(datos.horarios),
-    'Puedes reservar tu horario desde el portal del estudiante o respondiendo este correo.',
+    'Podrá reservar el horario de su preferencia desde el portal del estudiante o respondiendo a este correo.',
     '',
-    'Saludos cordiales,',
+    'Quedo atento/a a su confirmación.',
+    '',
+    'Atentamente,',
     datos.nombreProfesor,
   ]
-  return { asunto: `Citación a tutoría — ${datos.asignatura}`, cuerpo: lineas.join('\n') }
+  return { asunto: `Invitación a tutoría académica — ${datos.asignatura}`, cuerpo: lineas.join('\n') }
 }
 
 /**
