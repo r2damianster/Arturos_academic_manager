@@ -3,14 +3,22 @@
 import { useState, useTransition } from 'react'
 import { citarEstudiante } from '@/lib/actions/citaciones'
 import { silenciarAlerta, restaurarAlerta, excluirEstudianteDeRiesgo } from '@/lib/actions/cursos'
+import { describirNotaBaja, type NotaBaja } from '@/lib/riesgo-notas'
+import {
+  construirEnlacesCorreo,
+  redactarCorreoBloque,
+  redactarCorreoIndividual,
+} from '@/lib/correo-citacion'
 
 export interface EstudianteEnRiesgo {
   id: string
   nombre: string
+  email: string
   pctAsistencia: number | null
   trabajosActivos: number
   participacionPromedio: number | null
   notasEnCursoPct: number | null
+  notasBajas: NotaBaja[]
   factoresRiesgo: number
 }
 
@@ -18,10 +26,13 @@ interface Props {
   cursoId: string
   estudiantes: EstudianteEnRiesgo[]
   silenciado?: boolean
+  asignatura: string
+  nombreProfesor: string
+  horariosTutoria: string[]
 }
 
 function razonYDetalle(e: EstudianteEnRiesgo): { razon: string; detalleRazon: string } {
-  const factores: string[] = []
+  const factores: string[] = e.notasBajas.map(describirNotaBaja)
   if (e.pctAsistencia !== null && e.pctAsistencia < 75)
     factores.push(`asistencia de ${e.pctAsistencia}%`)
   if (e.participacionPromedio !== null && e.participacionPromedio < 2.5)
@@ -32,17 +43,18 @@ function razonYDetalle(e: EstudianteEnRiesgo): { razon: string; detalleRazon: st
     factores.push(`${e.trabajosActivos} trabajos activos sin completar`)
 
   return {
-    razon: 'Seguimiento académico',
+    razon: e.notasBajas.length > 0 ? 'bajo_desempeño' : 'Seguimiento académico',
     detalleRazon: `Se detectaron los siguientes indicadores de atención: ${factores.join(', ')}. Se recomienda conversar sobre estrategias de mejora.`,
   }
 }
 
 type Estado = 'idle' | 'loading' | 'done' | 'error'
 
-export function RiesgoPanel({ cursoId, estudiantes, silenciado = false }: Props) {
+export function RiesgoPanel({ cursoId, estudiantes, silenciado = false, asignatura, nombreProfesor, horariosTutoria }: Props) {
   const [estado,    setEstado]    = useState<Estado>('idle')
   const [citados,   setCitados]   = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+  const [registrados, setRegistrados] = useState<Set<string>>(new Set())
   const [silPending, startSil]    = useTransition()
   const [excPending, startExc]    = useTransition()
 
@@ -90,7 +102,7 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false }: Props)
     setEstado('loading')
     setCitados(0)
     let ok = 0
-    for (const est of estudiantes) {
+    for (const est of estudiantes.filter(e => !registrados.has(e.id))) {
       const { razon, detalleRazon } = razonYDetalle(est)
       const result = await citarEstudiante({ cursoId, estudianteId: est.id, razon, detalleRazon })
       if (!result.error) ok++
@@ -98,6 +110,36 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false }: Props)
     }
     setEstado(ok > 0 ? 'done' : 'error')
   }
+
+  /** Registra la citación una sola vez por estudiante; el correo se abre aparte, sin esperar. */
+  function registrarCitaciones(destinatarios: EstudianteEnRiesgo[]) {
+    const pendientes = destinatarios.filter(est => !registrados.has(est.id))
+    if (pendientes.length === 0) return
+    setRegistrados(previos => new Set([...previos, ...pendientes.map(est => est.id)]))
+    for (const est of pendientes) {
+      const { razon, detalleRazon } = razonYDetalle(est)
+      void citarEstudiante({ cursoId, estudianteId: est.id, razon, detalleRazon })
+    }
+  }
+
+  const enlaceIndividual = (est: EstudianteEnRiesgo) => {
+    const motivos = est.notasBajas.length > 0
+      ? est.notasBajas.map(describirNotaBaja)
+      : [razonYDetalle(est).detalleRazon]
+    return construirEnlacesCorreo({
+      para: [est.email],
+      correo: redactarCorreoIndividual({
+        nombreEstudiante: est.nombre, asignatura, nombreProfesor, motivos, horarios: horariosTutoria,
+      }),
+    })
+  }
+
+  const conCorreo = estudiantes.filter(est => est.email)
+  const enlacesBloque = construirEnlacesCorreo({
+    cco: conCorreo.map(est => est.email),
+    correo: redactarCorreoBloque({ asignatura, nombreProfesor, horarios: horariosTutoria }),
+  })
+  const claseEnlace = 'text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors'
 
   return (
     <div className={panelClasses}>
@@ -182,10 +224,49 @@ export function RiesgoPanel({ cursoId, estudiantes, silenciado = false }: Props)
                       {est.trabajosActivos} trabajos
                     </span>
                   )}
+                  {est.notasBajas.map(notaBaja => (
+                    <span
+                      key={`${notaBaja.parcial}|${notaBaja.columna}`}
+                      title={describirNotaBaja(notaBaja)}
+                      className="text-xs font-mono px-1.5 py-0.5 rounded bg-rose-900/40 text-rose-300"
+                    >
+                      {notaBaja.columna.length > 22 ? `${notaBaja.columna.slice(0, 22)}…` : notaBaja.columna} {notaBaja.nota}/{notaBaja.max}
+                    </span>
+                  ))}
+                  {est.email ? (
+                    <span className="flex items-center gap-1 ml-1">
+                      {registrados.has(est.id) && <span className="text-xs text-emerald-400">✓</span>}
+                      {(() => {
+                        const enlaces = enlaceIndividual(est)
+                        return (
+                          <>
+                            <a href={enlaces.gmail} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Redactar en Gmail">✉ Gmail</a>
+                            <a href={enlaces.outlook} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Redactar en Outlook">Outlook</a>
+                            <a href={enlaces.mailto} onClick={() => registrarCitaciones([est])} className={claseEnlace} title="Abrir la app de correo">App</a>
+                          </>
+                        )
+                      })()}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-600 ml-1">sin correo</span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+
+          {conCorreo.length > 1 && (
+            <div className="rounded-lg border border-gray-700/60 bg-gray-900/40 px-3 py-2 space-y-2">
+              <p className="text-xs text-gray-400">
+                Correo en bloque a {conCorreo.length} estudiantes (con copia oculta: no ven los correos de los demás). Registra la citación de todos.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a href={enlacesBloque.gmail} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>✉ Gmail</a>
+                <a href={enlacesBloque.outlook} target="_blank" rel="noopener noreferrer" onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>Outlook</a>
+                <a href={enlacesBloque.mailto} onClick={() => registrarCitaciones(conCorreo)} className={claseEnlace}>App de correo</a>
+              </div>
+            </div>
+          )}
 
           {estado === 'done' ? (
             <p className="text-sm text-emerald-400 bg-emerald-900/20 border border-emerald-800/40 rounded-lg px-3 py-2">

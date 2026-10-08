@@ -9,6 +9,7 @@ import { DuplicarCursoModal } from '@/components/cursos/DuplicarCursoModal'
 import { CierreParcialesPanel } from '@/components/cursos/CierreParcialesPanel'
 import { RiesgoHistoricoPanel } from '@/components/cursos/RiesgoHistoricoPanel'
 import { getSnapshotsParcial } from '@/lib/actions/parcial'
+import { calcularNotasBajas, type ItemNotaRiesgo, type RubricaEscala } from '@/lib/riesgo-notas'
 import type { Tables } from '@/types/database.types'
 
 type Curso = Tables<'cursos'>
@@ -32,8 +33,10 @@ export default async function CursoDetailPage({
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login')
 
-  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes, citacionesRes, participacionRes, notasEnCursoRes, snapshots] = await Promise.all([
+  const [cursoRes, estudiantesRes, asistenciaRes, trabajosRes, citacionesRes, participacionRes, notasEnCursoRes, snapshots, notasFormalesRes, rubricasRes, horariosTutoriaRes, horariosTutoriaCursoRes, profesorRes] = await Promise.all([
     db.from('cursos').select('*').eq('id', cursoId).single(),
     db.from('estudiantes')
       .select('id, nombre, email, tutoria, estado, auth_user_id')
@@ -48,6 +51,22 @@ export default async function CursoDetailPage({
     db.from('participacion').select('estudiante_id, nivel').eq('curso_id', cursoId),
     db.from('calificaciones_items').select('estudiante_id, nota').eq('curso_id', cursoId).eq('fuente', 'en_curso'),
     getSnapshotsParcial(cursoId),
+    db.from('calificaciones_items')
+      .select('estudiante_id, parcial, nombre_item, tipo, nota, fuente')
+      .eq('curso_id', cursoId)
+      .in('fuente', ['moodle', 'manual', 'rubrica']),
+    db.from('calificacion_rubricas')
+      .select('parcial, nombre_columna, escala_salida, definicion')
+      .eq('curso_id', cursoId),
+    db.from('horarios')
+      .select('dia_semana, hora_inicio, hora_fin')
+      .eq('profesor_id', user.id)
+      .eq('estado', 'disponible'),
+    db.from('horarios_clases')
+      .select('dia_semana, hora_inicio, hora_fin')
+      .eq('curso_id', cursoId)
+      .eq('tipo', 'tutoria_curso'),
+    db.from('profesores').select('nombre').eq('id', user.id).single(),
   ])
 
   const curso = cursoRes.data as Curso | null
@@ -120,6 +139,22 @@ export default async function CursoDetailPage({
     if (n.nota !== null) notasEnCursoMap[n.estudiante_id].completadas++
   }
 
+  // Notas bajas (< 70 % del máximo de su columna): una sola columna basta para listar al estudiante
+  const notasBajasPorEstudiante = calcularNotasBajas(
+    (notasFormalesRes.data ?? []) as ItemNotaRiesgo[],
+    (rubricasRes.data ?? []) as RubricaEscala[]
+  )
+
+  // Horarios de tutoría para el correo de citación (sin repetir)
+  const horariosTutoria: string[] = Array.from(new Set(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [...(horariosTutoriaRes.data ?? []), ...(horariosTutoriaCursoRes.data ?? [])].map((h: any) => {
+      const dia = String(h.dia_semana ?? '')
+      return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${String(h.hora_inicio).slice(0, 5)} - ${String(h.hora_fin).slice(0, 5)}`
+    })
+  ))
+  const nombreProfesor: string = profesorRes.data?.nombre ?? ''
+
   // Construir lista con métricas
   const estudiantesConMetricas = todosEstudiantes.map(est => {
     const asist = asistMap[est.id]
@@ -139,18 +174,20 @@ export default async function CursoDetailPage({
       notasEnCursoPct: notasEnCursoMap[est.id]
         ? Math.round((notasEnCursoMap[est.id].completadas / notasEnCursoMap[est.id].total) * 100)
         : null,
+      notasBajas: notasBajasPorEstudiante[est.id] ?? [],
     }
   })
 
   const activos   = estudiantesConMetricas.filter(e => e.estado !== 'retirado')
   const retirados = estudiantesConMetricas.filter(e => e.estado === 'retirado')
 
-  function contarFactores(e: { pctAsistencia: number | null; trabajosActivos: number; participacionPromedio: number | null; notasEnCursoPct: number | null }): number {
+  function contarFactores(e: { pctAsistencia: number | null; trabajosActivos: number; participacionPromedio: number | null; notasEnCursoPct: number | null; notasBajas: unknown[] }): number {
     let f = 0
     if (e.pctAsistencia !== null && e.pctAsistencia < 75) f++
     if (e.participacionPromedio !== null && e.participacionPromedio < 2.5) f++
     if (e.notasEnCursoPct !== null && e.notasEnCursoPct < 50) f++
     if (e.trabajosActivos >= 3) f++
+    if (e.notasBajas.length > 0) f++
     return f
   }
 
@@ -167,15 +204,17 @@ export default async function CursoDetailPage({
       if (citadosSet.has(e.id)) return false
       if (riesgoExcluidos.has(e.id)) return false
       const factores = contarFactores(e)
-      return (e.pctAsistencia !== null && e.pctAsistencia < 60) || factores >= 2
+      return (e.pctAsistencia !== null && e.pctAsistencia < 60) || factores >= 2 || e.notasBajas.length > 0
     })
     .map(e => ({
       id: e.id,
       nombre: e.nombre,
+      email: e.email,
       pctAsistencia: e.pctAsistencia,
       trabajosActivos: e.trabajosActivos,
       participacionPromedio: e.participacionPromedio,
       notasEnCursoPct: e.notasEnCursoPct,
+      notasBajas: e.notasBajas,
       factoresRiesgo: contarFactores(e),
     }))
     .sort((a, b) => b.factoresRiesgo - a.factoresRiesgo)
@@ -355,7 +394,14 @@ export default async function CursoDetailPage({
       </div>
 
       {/* Panel de riesgo actual */}
-      <RiesgoPanel cursoId={cursoId} estudiantes={enRiesgo} silenciado={riesgoSilenciado} />
+      <RiesgoPanel
+        cursoId={cursoId}
+        estudiantes={enRiesgo}
+        silenciado={riesgoSilenciado}
+        asignatura={curso.asignatura}
+        nombreProfesor={nombreProfesor}
+        horariosTutoria={horariosTutoria}
+      />
 
       {/* Alerta preventiva post-parcial */}
       <RiesgoHistoricoPanel cursoId={cursoId} numeroParcial={parcialHistorico} estudiantes={enRiesgoHistorico} />
