@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCollapsible } from '@/lib/hooks/use-collapsible'
+import { getInstitucionStyle } from '@/lib/institucion-style'
 import { PlanificarModal } from '@/components/agenda/PlanificarModal'
 import { PlanDropModal } from '@/components/agenda/PlanDropModal'
 import { PlanificacionExtensiva } from '@/components/agenda/PlanificacionExtensiva'
@@ -20,6 +21,7 @@ import type { TipoClaseExtra } from '@/lib/actions/bitacora'
 interface Curso {
   id: string
   asignatura: string
+  institucion?: string | null
   fecha_inicio: string | null
   fecha_fin: string | null
   estado?: string | null
@@ -1040,6 +1042,11 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm text-gray-100 truncate">{clase.cursos?.asignatura ?? 'Curso'}</span>
+                      {clase.cursos?.institucion && (
+                        <span className={`text-[10px] px-1.5 py-0 rounded-full ${getInstitucionStyle(clase.cursos.institucion).badgeClass}`}>
+                          {clase.cursos.institucion}
+                        </span>
+                      )}
                       {moment === 'ahora' && (
                         <span className="px-1.5 py-0 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">● Ahora</span>
                       )}
@@ -1254,7 +1261,7 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
             const tieneCentroComputo = grupoClases.some(c => c.centro_computo)
 
             return (
-              <div key={curso.id} className="border-b border-gray-800 last:border-b-0">
+              <div key={curso.id} className={`border-b border-gray-800 last:border-b-0 border-l-[3px] ${getInstitucionStyle(curso.institucion).borderClass}`}>
                 {/* Fila del curso */}
                 <div className="grid hover:bg-gray-800/30" style={{ gridTemplateColumns: 'minmax(180px, 1fr) repeat(6, minmax(0, 1fr))' }}>
                   {/* Celda nombre */}
@@ -1265,6 +1272,9 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
                     >
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-gray-200 text-xs font-medium group-hover:text-white transition-colors leading-tight">{curso.asignatura}</span>
+                        {curso.institucion && (
+                          <span className={`text-[10px] px-1.5 py-0 rounded-full ${getInstitucionStyle(curso.institucion).badgeClass}`}>{curso.institucion}</span>
+                        )}
                         {tieneTutoriaCurso && (
                           <span className="text-[10px] bg-teal-900/40 text-teal-300 border border-teal-600/30 px-1.5 py-0 rounded-full">Tutoría</span>
                         )}
