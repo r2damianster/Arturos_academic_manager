@@ -251,15 +251,22 @@ Tono motivador pero directo. En español.`,
   return { sugerencias: result.content, error: result.error }
 }
 
-export async function generarAutodiagnostico(params: {
+interface ProgresoEstudiante {
   asignatura: string
   pctAsistencia: number | null
   trabajosActivos: number
   trabajosCompletados: number
+  trabajosTotal?: number
   tutoriasAsistidas: number
   tutoriasFaltadas: number
-}): Promise<{ mensaje: string; error?: string }> {
-  const { asignatura, pctAsistencia, trabajosActivos, trabajosCompletados, tutoriasAsistidas, tutoriasFaltadas } = params
+}
+
+/**
+ * Texto de datos del estudiante para los prompts de autodiagnóstico y retroalimentación.
+ * Los umbrales (asistencia < 75 %, más de 3 trabajos activos) se evalúan aquí, no en el prompt.
+ */
+function describirProgresoEstudiante(progreso: ProgresoEstudiante): string {
+  const { asignatura, pctAsistencia, trabajosActivos, trabajosCompletados, trabajosTotal, tutoriasAsistidas, tutoriasFaltadas } = progreso
 
   const puntosDeAtencion = [
     pctAsistencia !== null && pctAsistencia < 75 ? 'Asistencia por debajo del 75 %' : null,
@@ -267,14 +274,18 @@ export async function generarAutodiagnostico(params: {
     trabajosActivos > 3 ? 'Carga alta de trabajos activos' : null,
   ].filter(Boolean)
 
-  const contexto = [
+  return [
     `Asignatura: ${asignatura}`,
     pctAsistencia !== null ? `Asistencia estimada: ${pctAsistencia}%` : 'Asistencia: sin registros aún',
     `Trabajos activos (pendiente/en progreso): ${trabajosActivos}`,
-    `Trabajos completados (entregado/aprobado): ${trabajosCompletados}`,
+    `Trabajos completados (entregado/aprobado): ${trabajosCompletados}${trabajosTotal !== undefined ? ` de ${trabajosTotal} en total` : ''}`,
     `Tutorías asistidas: ${tutoriasAsistidas} | Tutorías faltadas: ${tutoriasFaltadas}`,
     `Puntos de atención: ${puntosDeAtencion.length > 0 ? puntosDeAtencion.join('; ') : 'ninguno'}`,
   ].join('\n')
+}
+
+export async function generarAutodiagnostico(params: ProgresoEstudiante): Promise<{ mensaje: string; error?: string }> {
+  const contexto = describirProgresoEstudiante(params)
 
   const result = await callGroq([
     {
@@ -601,31 +612,10 @@ export async function mejorarContenido(params: {
   ])
 }
 
-export async function generarRetroalimentacionFormativa(params: {
-  asignatura: string
-  pctAsistencia: number | null
-  trabajosCompletados: number
-  trabajosActivos: number
-  trabajosTotal: number
-  tutoriasAsistidas: number
-  tutoriasFaltadas: number
-}): Promise<{ retroalimentacion: string; error?: string }> {
-  const {
-    asignatura,
-    pctAsistencia,
-    trabajosCompletados,
-    trabajosActivos,
-    trabajosTotal,
-    tutoriasAsistidas,
-    tutoriasFaltadas,
-  } = params
-
-  const context = [
-    `Asignatura: ${asignatura}`,
-    `Asistencia: ${pctAsistencia !== null ? `${pctAsistencia}%` : 'sin datos'}`,
-    `Trabajos: ${trabajosCompletados} completados de ${trabajosTotal} total, ${trabajosActivos} en progreso`,
-    `Tutorías: ${tutoriasAsistidas} asistidas, ${tutoriasFaltadas} no asistidas`,
-  ].join('. ')
+export async function generarRetroalimentacionFormativa(
+  params: ProgresoEstudiante & { trabajosTotal: number },
+): Promise<{ retroalimentacion: string; error?: string }> {
+  const context = describirProgresoEstudiante(params)
 
   const result = await callGroq([
     {
@@ -634,7 +624,7 @@ export async function generarRetroalimentacionFormativa(params: {
     },
     {
       role: 'user',
-      content: `Genera retroalimentación formativa para un estudiante con estos datos: ${context}`,
+      content: `Genera retroalimentación formativa para un estudiante con estos datos:\n${context}`,
     },
   ])
 
