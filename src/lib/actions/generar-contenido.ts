@@ -6,12 +6,15 @@ import { actividadesDesdeBitacora } from '@/lib/bitacora-legacy'
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b'
 
+const ENCABEZADO_INSTRUCCION_PRIORITARIA =
+  'INSTRUCCIÓN PRIORITARIA DEL PROFESOR (puede filtrar, limitar o enfocar el contenido; "únicamente" o "solo" significa ignorar el resto):'
+
 const SYSTEM_HTML = `Eres un arquitecto experto en HTML educativo para LMS (Moodle, Canvas, Blackboard).
 
 Genera código HTML optimizado para dispositivos móviles (Mobile-First) con:
 - Contenedor máximo 900px centrado, font-family: 'Segoe UI', Arial, sans-serif
 - Estilos 100% inline (sin <script>, sin <style> externo ni bloques de estilo en el <head>)
-- Paleta: fondos de sección en pastel (#d1e9ff encabezado, #e8f6f3 recursos/multimedia, #fef9e7 actividades). Los colores pastel son EXCLUSIVAMENTE para fondos de sección. El texto de todos los encabezados (<h1>, <h2>, <h3>) debe ser siempre #1a3a5c. NUNCA texto claro sobre fondo claro.
+- Paleta: fondos de sección en pastel (#d1e9ff encabezado, #e8f6f3 recursos/multimedia, #fef9e7 actividades). Los pasteles se usan solo como fondo de sección; los encabezados (<h1>, <h2>, <h3>) van siempre en #1a3a5c para mantener el contraste.
 - Layout Flexbox de scroll vertical — sin pestañas, sin acordeones, todo visible al hacer scroll
 - Bordes redondeados (10-15px) y sombras sutiles (box-shadow: 0 2px 8px rgba(0,0,0,0.08))
 - TONO ACADÉMICO FORMAL en todo el contenido generado. PROHIBIDO cualquier lenguaje coloquial o informal del plan del profesor: no usar "chicos", "les dejo", "recuerden que", "vamos a ver", "les cuento", "aquí les va", "bueno" como muletilla, ni ninguna expresión conversacional. Transformar todo a lenguaje académico universitario formal.
@@ -28,13 +31,12 @@ Secciones en orden:
 6. ACTIVIDADES: solo si hay tareas o actividades registradas. Fondo #fef9e7. Encabezados en #1a3a5c.
 7. CIERRE: reflexión académica final breve (1-2 oraciones formales). Sin frases informales.
 
-REGLAS CRÍTICAS — NUNCA VIOLAR:
-- PROHIBIDO absolutamente: <iframe>, <frame>, <frameset>, <script>, <object>, <embed>
-- PROHIBIDO: atributos frameborder, allowfullscreen, onclick, onload, onerror
-- PROHIBIDO inventar secciones MULTIMEDIA o RECURSOS si no hay URLs concretas en los datos del profesor. La ausencia de URL = sección omitida, sin excepción.
-- Solo estilos inline con style="". Sin bloques <style>.
-- Todos los enlaces externos: target="_blank" rel="noopener noreferrer"
-- Si el prompt incluye "INSTRUCCIÓN PRIORITARIA DEL PROFESOR", esa instrucción tiene MÁXIMA PRIORIDAD y puede modificar, limitar o filtrar las secciones. Aplicarla estrictamente antes de procesar los datos.
+Restricciones del destino (el HTML se pega tal cual en el LMS):
+- Sin <iframe>, <frame>, <frameset>, <script>, <object>, <embed> ni atributos frameborder, allowfullscreen, onclick, onload, onerror: videos y presentaciones van siempre como botón CTA.
+- Solo estilos inline con style="", sin bloques <style>.
+- Todos los enlaces externos: target="_blank" rel="noopener noreferrer".
+- Las secciones RECURSOS y MULTIMEDIA existen solo si los datos del profesor traen URLs concretas; sin URL, se omiten.
+- Una "INSTRUCCIÓN PRIORITARIA DEL PROFESOR" puede modificar, limitar o filtrar las secciones: aplícala antes de procesar los datos.
 
 Responde ÚNICAMENTE con el código HTML completo listo para copiar, sin explicaciones, sin bloques markdown, sin texto fuera del HTML.`
 
@@ -90,7 +92,7 @@ REGLAS:
 - No uses markdown (sin **, sin ##, sin *).
 - Usa solo encabezados en MAYÚSCULAS como se indica arriba.
 - Los encabezados deben aparecer solos en su línea, en mayúsculas, con dos puntos al final.
-- Si el prompt incluye "INSTRUCCIÓN PRIORITARIA DEL PROFESOR", esa instrucción tiene MÁXIMA PRIORIDAD y puede modificar, limitar o filtrar las secciones o el contenido. Aplícala estrictamente antes de procesar los datos.`
+- Una "INSTRUCCIÓN PRIORITARIA DEL PROFESOR" puede modificar, limitar o filtrar las secciones o el contenido: aplícala antes de procesar los datos.`
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant'
@@ -205,7 +207,7 @@ export async function generarHtmlSemanal(params: {
   }
 
   const userPrompt = [
-    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
+    params.instruccionAdicional ? `${ENCABEZADO_INSTRUCCION_PRIORITARIA}\n${params.instruccionAdicional}\n` : '',
     `Genera el HTML completo para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     'Los recursos, videos y materiales ya están incluidos en el campo "recurso" de cada actividad — úsalos para las secciones de Recursos y Multimedia.',
     historialTexto ? `\nCONTEXTO DE CLASES ANTERIORES (solo como referencia para no repetir temas — NO incluir en el HTML):\n${historialTexto}` : '',
@@ -253,7 +255,7 @@ export async function generarGuiaSemanal(params: {
   }
 
   const userPrompt = [
-    params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (aplicar con máxima prioridad — puede filtrar, limitar o enfocar el contenido generado; si dice "únicamente" o "solo", ignorar todo lo demás):\n${params.instruccionAdicional}\n` : '',
+    params.instruccionAdicional ? `${ENCABEZADO_INSTRUCCION_PRIORITARIA}\n${params.instruccionAdicional}\n` : '',
     `Crea la guía de estudio para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
     `Nivel del curso: ${nivelLabel}.`,
     params.logroDescripcion
@@ -303,28 +305,27 @@ export async function generarAutodiagnostico(params: {
 }): Promise<{ mensaje: string; error?: string }> {
   const { asignatura, pctAsistencia, trabajosActivos, trabajosCompletados, tutoriasAsistidas, tutoriasFaltadas } = params
 
+  const puntosDeAtencion = [
+    pctAsistencia !== null && pctAsistencia < 75 ? 'Asistencia por debajo del 75 %' : null,
+    tutoriasFaltadas > 0 ? 'Tiene tutorías a las que no asistió' : null,
+    trabajosActivos > 3 ? 'Carga alta de trabajos activos' : null,
+  ].filter(Boolean)
+
   const contexto = [
     `Asignatura: ${asignatura}`,
     pctAsistencia !== null ? `Asistencia estimada: ${pctAsistencia}%` : 'Asistencia: sin registros aún',
     `Trabajos activos (pendiente/en progreso): ${trabajosActivos}`,
     `Trabajos completados (entregado/aprobado): ${trabajosCompletados}`,
     `Tutorías asistidas: ${tutoriasAsistidas} | Tutorías faltadas: ${tutoriasFaltadas}`,
+    `Puntos de atención: ${puntosDeAtencion.length > 0 ? puntosDeAtencion.join('; ') : 'ninguno'}`,
   ].join('\n')
 
   const result = await callGroq([
     {
       role: 'system',
-      content: `Eres un tutor universitario empático. Con los datos del estudiante, escribe exactamente 2-3 oraciones motivacionales y concretas.
-
-REGLAS ESTRICTAS:
-- Solo 2-3 oraciones. Ni más ni menos.
-- Tono positivo y alentador, nunca alarmista ni condescendiente
-- Menciona algo concreto basado en los datos (no frases genéricas)
-- Si la asistencia es < 75%, sugiere mejorarla con tacto
-- Si tiene tutorías faltadas, mencionarlo con amabilidad
-- Si trabajos activos > 3, reconoce la carga
-- Sin saludos, sin títulos, sin listas. Solo párrafo corrido.
-- En español, tono de tutor cercano`,
+      content: `Eres un tutor universitario empático. Con los datos del estudiante, escribe un solo párrafo de 2-3 oraciones motivacionales, en español y con tono cercano, alentador y nunca alarmista ni condescendiente.
+Apóyate en un dato concreto del estudiante (no frases genéricas). Los puntos de atención ya vienen marcados en los datos: menciónalos con tacto y amabilidad.
+Sin saludos, títulos ni listas.`,
     },
     { role: 'user', content: contexto },
   ])
@@ -352,7 +353,7 @@ Párrafo 3 — RECOMENDACIONES: sugiere 3 estrategias concretas y accionables ad
 REGLAS:
 - Solo texto plano, sin markdown, sin asteriscos, sin encabezados
 - Español universitario formal
-- Máximo 250 palabras en total
+- Párrafos breves: el resultado se muestra en una tarjeta
 - Basarte SOLO en los datos proporcionados, no inventar`,
     },
     {
@@ -370,18 +371,7 @@ export async function corregirPlan(params: {
   const result = await callGroq([
     {
       role: 'system',
-      content: `Eres un corrector ortográfico minimalista. Tu ÚNICA tarea:
-1. Corregir errores ortográficos y de puntuación
-2. Agregar conectores lógicos (por tanto, sin embargo, además, luego, etc.) SOLO donde la frase quede entrecortada o ambigua sin ellos
-
-PROHIBIDO:
-- Reescribir frases
-- Cambiar el significado
-- Agregar contenido nuevo
-- Eliminar contenido
-- Cambiar el estilo o vocabulario
-
-Devuelve ÚNICAMENTE el texto corregido, sin explicaciones, sin comillas, sin prefijos.`,
+      content: `Corrige la ortografía y la puntuación del texto. Añade un conector lógico (por tanto, sin embargo, además, luego, etc.) solo donde la frase quede entrecortada o ambigua. Conserva las palabras, el significado y el estilo del autor: el profesor revisa el resultado como texto suyo. Devuelve únicamente el texto corregido, sin comillas ni explicaciones.`,
     },
     {
       role: 'user',
@@ -546,7 +536,7 @@ export async function generarEvaluacionMoodle(params: {
 
   // La cuenta Groq tiene TPM=8000 (tokens por minuto, prompt+completion) — un solo request para
   // 15-20 preguntas lo supera. Se generan en lotes pequeños y se ensamblan en un único <quiz>.
-  // callGroq reintenta sola vez si igual pega un 429 (espera lo que indique la API).
+  // callGroq reintenta hasta 2 veces ante un 429 (espera lo que indique la API).
   const BATCH_SIZE = 3
   const lotes: number[] = []
   for (let restante = params.totalPreguntas; restante > 0; restante -= BATCH_SIZE) {
@@ -561,7 +551,7 @@ export async function generarEvaluacionMoodle(params: {
     if (i > 0) await new Promise(r => setTimeout(r, 6000)) // deja recuperar el cupo de TPM entre lotes
 
     const loteUserPrompt = [
-      params.instruccionAdicional ? `INSTRUCCIÓN PRIORITARIA DEL PROFESOR (máxima prioridad — puede enfocar o limitar el contenido):\n${params.instruccionAdicional}\n` : '',
+      params.instruccionAdicional ? `${ENCABEZADO_INSTRUCCION_PRIORITARIA}\n${params.instruccionAdicional}\n` : '',
       `Genera un banco de preguntas en formato Moodle XML para la semana ${params.semanaNum} de la asignatura "${params.asignatura}".`,
       ``,
       `Configuración:`,
@@ -621,7 +611,7 @@ export async function mejorarContenido(params: {
       { role: 'system', content: SYSTEM_MOODLE_XML },
       {
         role: 'user',
-        content: `INSTRUCCIÓN PRIORITARIA: ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,
+        content: `${ENCABEZADO_INSTRUCCION_PRIORITARIA} ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,
       },
     ], maxTokens)
     if (result.error) return result
@@ -633,8 +623,8 @@ export async function mejorarContenido(params: {
   const systemPrompt = params.tipo === 'html' ? SYSTEM_HTML : SYSTEM_GUIA
 
   const userPrompt = params.tipo === 'html'
-    ? `INSTRUCCIÓN PRIORITARIA (aplicar con máxima prioridad; si dice "únicamente" o "solo", ignorar secciones no relacionadas): ${params.solicitud}\n\nAquí está el HTML actual:\n\n${params.contenidoActual}\n\nDevuelve el HTML completo actualizado según la instrucción, sin explicaciones.`
-    : `INSTRUCCIÓN PRIORITARIA (aplicar con máxima prioridad; si dice "únicamente" o "solo", ignorar secciones no relacionadas): ${params.solicitud}\n\nAquí está la guía actual:\n\n${params.contenidoActual}\n\nDevuelve la guía completa actualizada según la instrucción, sin explicaciones.`
+    ? `${ENCABEZADO_INSTRUCCION_PRIORITARIA} ${params.solicitud}\n\nAquí está el HTML actual:\n\n${params.contenidoActual}\n\nDevuelve el HTML completo actualizado según la instrucción, sin explicaciones.`
+    : `${ENCABEZADO_INSTRUCCION_PRIORITARIA} ${params.solicitud}\n\nAquí está la guía actual:\n\n${params.contenidoActual}\n\nDevuelve la guía completa actualizada según la instrucción, sin explicaciones.`
 
   return callGroq([
     { role: 'system', content: systemPrompt },
@@ -671,7 +661,7 @@ export async function generarRetroalimentacionFormativa(params: {
   const result = await callGroq([
     {
       role: 'system',
-      content: `Eres un tutor académico empático. Generas retroalimentación formativa breve (máximo 180 palabras) basada SOLO en datos reales. Estructura: exactamente 3 párrafos cortos. Párrafo 1 (Fortalezas): destaca lo positivo observable. Párrafo 2 (Oportunidades): señala UN área concreta de mejora. Párrafo 3 (Estrategias): sugiere DOS acciones específicas para las próximas semanas. Tono: constructivo, motivador, nunca peyorativo. Sin saludos, sin despedidas, sin listas con viñetas, solo prosa.`,
+      content: `Eres un tutor académico empático. Generas retroalimentación formativa breve basada SOLO en datos reales. Estructura: exactamente 3 párrafos cortos. Párrafo 1 (Fortalezas): destaca lo positivo observable. Párrafo 2 (Oportunidades): señala UN área concreta de mejora. Párrafo 3 (Estrategias): sugiere DOS acciones específicas para las próximas semanas. Tono: constructivo, motivador, nunca peyorativo. Sin saludos, sin despedidas, sin listas con viñetas, solo prosa.`,
     },
     {
       role: 'user',

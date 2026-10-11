@@ -115,6 +115,8 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 ## Skills disponibles (`.claude/skills/` y `.agents/skills/`)
 - **`subir-planificacion`** — Carga masiva y estructurada de planificación/sílabo completo en Supabase
 - **`registrar-clase`** — Registro e ingreso individual de sesión, cumplido y asistencia
+- **`evaluar-participacion`** — Participación / control de lectura con fuzzy matching; no altera `asistencia`
+- **`registrar-tutoria`** — Registra tutorías manuales en `reservas` (origen `manual`)
 
 ## Supabase — acceso y migraciones
 
@@ -139,7 +141,7 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cliente autenticado normal |
 | `SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()` — bypasea RLS |
 | `GROQ_API_KEY` | Groq — requerido para `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria`, `corregirPlan`, `/api/student/chat`. Sin ella todos caen a fallback amigable. |
-| `GROQ_MODEL` | Modelo Groq (opcional, default `llama-3.3-70b-versatile`) |
+| `GROQ_MODEL` | Modelo Groq (opcional, default `openai/gpt-oss-120b`) |
 | `RESEND_API_KEY` | Envío de emails de citación a tutoría (`citaciones.ts`) |
 | `RESEND_FROM_EMAIL` | Dirección remitente para emails de citación |
 
@@ -200,17 +202,23 @@ Siempre crear el archivo en `supabase/migrations/YYYYMMDD_nombre.sql` aunque se 
 20260727_sistema_heartbeat / _status_tracking → (histórico) tablas del keep-alive, eliminadas por 20260924_drop_keep_alive
 20260922_enable_rls_all_tables      → (histórico) RLS explícita en tablas sistema_*
 20260924_harden_security_definer_functions → REVOKE EXECUTE anon/PUBLIC en RPC SECURITY DEFINER + search_path (aplicada en prod)
+20260614_suspender_clases           → Estado 'suspendido' en bitacora_clase_estado_check (feriados, paros)
+20261001_estado_en_revision         → Estado 'en_revision' (planes generados con IA pendientes de aprobar)
+20261004_estado_borrador            → Estado 'borrador' (autoguardado de PlanificarModal); ciclo borrador → planificado → cumplido
+20261005_clases_extra_recuperacion  → bitacora_clase.tipo (regular|recuperacion|continuacion|extra) para clases fuera de horario
+20261006_calificacion_rubricas      → Tabla calificacion_rubricas (criterios JSONB); resultados como calificaciones_items fuente='rubrica'
+20261006_calificaciones_items_comentario → Columna calificaciones_items.comentario (retroalimentación del profesor por celda)
+20261006_calificaciones_items_comentario_auto / _drop_comentario_auto → columna comentario_auto añadida y retirada (comentario automático se calcula al mostrar)
+20261006_filosofia_acd1_rubrica / _filosofia_sync_lista_oficial → datos de curso FESE262A (rúbrica ACD1 y lista oficial); no reutilizables
+20261008_nombre_preferido_estudiantes → Columna estudiantes.nombre_preferido (solo uso informal en clase)
 ```
 
 ## Tipos TypeScript (`src/types/database.types.ts`)
 Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas extras no en el schema inicial):
 - `horarios`, `reservas`, `encuesta_estudiante` — agregadas manualmente
 - `estudiantes.auth_user_id`, `horarios_clases.centro_computo`, `cursos.nombres_tareas/num_parciales`, `asistencia.bitacora_id` — campos agregados via dashboard sin migración previa
-- `tipos_tutoria` — SÓLAMENTE esta tabla fue agregada manualmente (línea 520)
+- Tablas ya tipadas a mano: `tipos_tutoria`, `logros_aprendizaje`, `citaciones_tutoria`, `actividades_inbox`, `encuesta_parcial`
 - **Deuda técnica acumulada** (tablas/columnas no reflejadas en los tipos, usan `as any`):
-  - `actividades_inbox` — tabla nueva completa (color, checklist_items JSONB, pinned, completada, archivada)
-  - `citaciones_tutoria` — tabla nueva completa
-  - `logros_aprendizaje` — tabla nueva completa
   - `reemplazantes` — tabla nueva completa
   - `snapshot_parcial` — tabla nueva completa (resumen JSONB)
   - `tutorado_perfil` — tabla nueva completa (~25 columnas)
@@ -223,7 +231,6 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
   - `cursos.tipo`, `cursos.estado`, `cursos.link_publicacion`, `cursos.alertas_silenciadas`, `cursos.encuesta_parcial_forzada` — columnas nuevas
   - `cursos.encuesta_inicial_habilitada`, `cursos.encuesta_parcial_habilitada` — columnas nuevas
   - `encuesta_estudiante` — campos `uso_ia_*` sin tipado estricto
-  - `encuesta_parcial` — tabla nueva completa (~60 columnas)
 
 ## Features recientes (2026-09-14 → 2026-09-24 — sesiones 31-32)
 
@@ -303,7 +310,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **FEAT** Tabla `reemplazantes(profesor_id, email_reemplazante, nombre, fecha_inicio, fecha_fin, activo)` con RLS. RPC `get_reemplazante_info(email)` SECURITY DEFINER — detecta si un usuario autenticado es reemplazante activo.
 - **FEAT** `src/lib/actions/reemplazantes.ts` — `getReemplazantes`, `agregarReemplazante`, `desactivarReemplazante`. Validación Zod completa.
 - **FEAT** `src/components/config/ReemplazantesPanel.tsx` — formulario + tabla en `/dashboard/config`.
-- **NOTA**: middleware.ts modificado pero la lógica de restricción de acceso al reemplazante **no está completamente implementada** — la tabla existe y el panel de gestión funciona, pero el middleware no restringe rutas según rol reemplazante todavía.
+- `middleware.ts` (l.68-94) redirige a `/dashboard?acceso=restringido` las rutas `/editar`, `/calificaciones`, `/encuesta-parcial`, `/dashboard/config` y `/dashboard/cursos/nuevo` cuando `get_reemplazante_info(email)` devuelve fila. No bloquea asistencia ni exportación Moodle CSV.
 
 ### Snapshot / Cierre de Parcial (sesión 25 — 2026-05-27)
 - **FEAT** Tabla `snapshot_parcial(id, profesor_id, curso_id, numero_parcial, fecha_cierre, semana_cierre, resumen JSONB)` — UNIQUE(curso_id, numero_parcial). RLS.
@@ -500,7 +507,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **MOD** `src/app/dashboard/tutorias/tutorias-page-client.tsx` — 3 tabs: **Horarios** | **Historial** | **Citaciones**.
 
 ### Generador IA con Groq (`/dashboard/planificacion`)
-- **FEAT** `src/lib/actions/generar-contenido.ts` — Groq API (`llama-3.3-70b-versatile`): `generarHtmlSemanal` (HTML estilo Moodle LMS con restricciones estrictas: no inventar referencias, video YouTube como CTA, iframe solo para Google Slides), `generarGuiaSemanal` (texto plano con competencias blandas, rúbrica 4 niveles, logros institucionales opcionales), `mejorarContenido` (chat de refinamiento con historial).
+- **FEAT** `src/lib/actions/generar-contenido.ts` — Groq API (modelo en `GROQ_MODEL`): `generarHtmlSemanal` (HTML estilo Moodle LMS con restricciones estrictas: no inventar referencias, videos y Google Slides como botón CTA, sin `<iframe>`), `generarGuiaSemanal` (texto plano con competencias blandas, rúbrica 4 niveles, logros institucionales opcionales), `mejorarContenido` (chat de refinamiento con historial).
 - **FEAT** `src/components/planificacion/GeneradorPanel.tsx` — panel 3 pasos: selección curso+semana → configuración tipo+instrucción → resultado con preview + descarga .txt/.docx/.pdf + modo chat.
 - **FEAT** `src/app/api/generar-docx/route.ts` — text→`.docx` via librería `docx`. Parsea encabezados MAYÚSCULAS, bullets, campos clave:valor.
 - **FEAT** `src/app/api/generar-pdf/route.ts` — text→PDF via `pdf-lib`. Tipografía A4 con word-wrap.
@@ -545,7 +552,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 - **FIX** `UNIQUE INDEX participacion_curso_estudiante_fecha_key` — sin este índice el upsert en `registrarParticipacion` fallaba silenciosamente. Registros previos al 2026-05-14 pueden estar incompletos.
 
 ### Sidebar — orden actualizado (sesión 15+)
-- Orden actual: **Panel → Clases → Tutorías → Mis Cursos → Herramientas** · Footer: **Administración**
+- Orden vigente: ver «Navegación — CRÍTICO» en Convenciones críticas.
 - **Tutorias** re-agregado al sidebar (había sido removido en sesión 7). Verificar siempre que `sidebar.tsx` y `mobile-nav.tsx` estén sincronizados.
 - **ACTUALIZADO (sesión 27+)**: Sidebar centralizado en `src/components/layout/nav-items.tsx` — array `NAV_ITEMS` + `FOOTER_ITEMS`. Ver convención de navegación actualizada.
 
@@ -630,7 +637,6 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ### Convenciones clave (sesión 10)
 - **`crearGruposConIntegrantes`** es la action principal para modos Aleatoria y Manual. `crearGrupos` solo para Por afinidad.
 - **Participación de grupos** va a tabla `participacion` existente (nivel 1-5, observacion), **NO** a `grupo_participacion`. La tabla `grupo_participacion` existe en BD pero no tiene uso desde el frontend.
-- **Migraciones pendientes de aplicar manualmente en Supabase**: `20260426_grupos_clase.sql` y `20260426_grupos_student_rls.sql`.
 
 ---
 
@@ -731,7 +737,7 @@ Archivo mantenido **manualmente** (no regenerar sin revisar — tiene tablas ext
 ### Dashboard unificado (Panel)
 - **Sidebar hover** (`sidebar.tsx`, `layout.tsx`): sidebar desktop colapsa a `w-16` (solo iconos) en reposo y expande a `w-[260px]` al hover. CSS puro con clase `group` + `group-hover`. Layout ajustado a `md:ml-16`.
 - **Fusión dashboard + agenda**: `/dashboard/page.tsx` ahora incluye `AgendaClient` completo con todos sus controles (tutorías, eventos, planificación, pase de lista). `/dashboard/agenda/page.tsx` redirige a `/dashboard`.
-- **Sidebar limpiado**: eliminados "Agenda" y "Tutorías" del nav. "Inicio" renombrado a "Panel". Orden actual: Panel → Planificación → Modo Clase → Mis Cursos → Herramientas. Cambio replicado en `sidebar.tsx` y `mobile-nav.tsx`.
+- **Sidebar limpiado**: eliminados "Agenda" y "Tutorías" del nav. "Inicio" renombrado a "Panel". Cambio replicado en `sidebar.tsx` y `mobile-nav.tsx`.
 
 ### Nuevos componentes (`src/components/dashboard/`)
 - **`SummaryPanel.tsx`**: panel colapsable con 3 stats + lista de cursos + botón Tomar Lista. Estado en `localStorage('summary-panel-open')`.
@@ -807,8 +813,8 @@ Al inicio del PDF generado por el estudiante, incluir:
 ### Reporte PDF del profesor
 Generar PDF por estudiante/curso con: notas de participación, observaciones, asistencia, si faltó a tutoría agendada.
 
-### Acceso a reemplazante — PARCIALMENTE IMPLEMENTADO
-Tabla `reemplazantes` + panel de gestión en `/dashboard/config` + RPC `get_reemplazante_info` están implementados (sesión 25). **PENDIENTE**: middleware de restricción de acceso — el reemplazante aún puede acceder a todas las rutas del profesor. Falta: detectar rol reemplazante en `middleware.ts` → redirigir intentos de acceso a rutas prohibidas (editar curso, Moodle CSV) a página de "Acceso restringido".
+### Acceso a reemplazante — IMPLEMENTADO
+Tabla `reemplazantes` + panel de gestión en `/dashboard/config` + RPC `get_reemplazante_info` están implementados (sesión 25). El middleware ya redirige a `/dashboard?acceso=restringido` las rutas de edición, calificaciones, encuesta parcial, configuración y nuevo curso. **Pendiente (opcional)**: restringir también el export Moodle CSV.
 
 ### ~~Seguimiento avanzado de citaciones a tutoría~~ ✅ IMPLEMENTADO
 ~~Nueva tabla `citaciones_tutoria`, ciclo de vida pendiente → agendada → asistida → cumplida, vista mensual.~~
@@ -838,8 +844,7 @@ Tabla `reemplazantes` + panel de gestión en `/dashboard/config` + RPC `get_reem
 
 ## Bugs pendientes y deuda técnica
 
-- **`database.types.ts` muy desactualizado**: 7 tablas nuevas (`actividades_inbox`, `citaciones_tutoria`, `logros_aprendizaje`, `reemplazantes`, `snapshot_parcial`, `tutorado_perfil`, `tutorado_sesiones`) y ~15 columnas nuevas no tienen tipos. Ver sección "Tipos TypeScript" para lista completa. Priorizar antes de añadir más features.
-- **Reemplazante sin restricción de acceso**: tabla `reemplazantes` y panel de gestión implementados, pero `middleware.ts` NO restringe rutas al reemplazante. Puede acceder a todo. Completar lógica de roles en middleware.
+- **`database.types.ts` desactualizado**: faltan las tablas `reemplazantes`, `snapshot_parcial`, `tutorado_perfil`, `tutorado_sesiones` y ~15 columnas nuevas. Ver sección "Tipos TypeScript" para lista completa. Priorizar antes de añadir más features.
 - **Datos de participación pre-2026-05-14 pueden estar corruptos**: el `UNIQUE INDEX` que habilita el upsert no existía antes de esa fecha. Registros de ese período pueden ser incompletos. Auditar con: `SELECT curso_id, estudiante_id, fecha, COUNT(*) FROM participacion GROUP BY 1,2,3 HAVING COUNT(*) > 1`
 - **Groq en producción**: `GROQ_API_KEY` requerida en Vercel para: `GeneradorPanel`, `PerfilPedagogicoPanel`, `AutodiagnosticoWidget`, `generarPrepTutoria`, `/api/student/chat`, `RetroalimentacionWidget`. Sin ella todos caen a fallback amigable. También `RESEND_API_KEY` + `RESEND_FROM_EMAIL` para `enviarEmailCitacion`.
 - **`horario_id` nullable en `reservas`**: la migración `20260514_historial_tutorias.sql` hace `horario_id` nullable. Verificar que queries en `tutorias-manager.tsx` y `tutorias-page-client.tsx` no asumen NOT NULL.
@@ -855,8 +860,6 @@ El proyecto de producción (Vercel) es **`hxsnyrutyyavvljxwgku`**. El proyecto l
 - **Registro individual**: `supabase.auth.signUp()` desde la app ✓
 - **Carga masiva**: `importarEstudiantesMasivo(cursoId, lista, passwordInicial)` → usa `auth.admin.createUser()` ✓
 - **Emergencia**: `auth.admin.updateUserById()` desde código, nunca SQL directo
-
-## Convenciones críticas
 
 ### Navegación — CRÍTICO
 **A partir de sesión 27, los items del nav están centralizados en `src/components/layout/nav-items.tsx`.**
@@ -895,5 +898,5 @@ Inputs en pasos no activos desaparecen del DOM → `new FormData()` no los captu
 - Editar asistencias pasadas: ir a Bitácora y Lista → cambiar la fecha en el date picker
 
 ### Datos
-- `centro_computo` es columna booleana en `horarios_clase`, no un enum de tipo de aula
+- `centro_computo` es columna booleana en `horarios_clases`, no un enum de tipo de aula
 - Portal estudiante usa RPC `get_occupied_slots` para bypassear RLS donde es necesario

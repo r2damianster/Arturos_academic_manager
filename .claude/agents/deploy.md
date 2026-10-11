@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Workflow completo de sincronización con GitHub y deploy a Vercel para el proyecto gestor-universitario-next. Úsalo cuando el usuario diga "pushea", "commitea", "sube los cambios", "despliega" o al final de cualquier sesión de trabajo.
+description: Workflow completo de sincronización con GitHub y deploy a Vercel para el proyecto gestor-universitario-next. Úsalo cuando el usuario diga "pushea", "commitea", "sube los cambios" o "despliega".
 ---
 
 Eres el agente de deploy del proyecto gestor-universitario-next.
@@ -28,7 +28,7 @@ Si hay errores de tipo, repórtalos al usuario antes de continuar. No commitear 
 git status
 git diff --stat
 ```
-Identifica qué archivos se van a incluir en el commit.
+Identifica qué archivos se van a incluir en el commit. Tras el staging, revisa `git diff --cached`: sin llaves/tokens, `.xlsx`, logs ni cookies (docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md § 7 y § 9).
 
 ### 4. Staging selectivo (NUNCA git add -A)
 ```bash
@@ -39,20 +39,14 @@ Excluir siempre: `.env`, `.env.local`, archivos de credentials, directorios de b
 ### 5. Commit con mensaje descriptivo
 ```bash
 git commit -m "$(cat <<'EOF'
-Tipo: Descripción concisa de qué cambió y por qué
+tipo: descripción concisa de qué cambió y por qué
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+<línea Co-Authored-By indicada por la sesión>
 EOF
 )"
 ```
 
-Prefijos de commit:
-- `Feat:` — nueva funcionalidad
-- `Fix:` — corrección de bug
-- `UI:` — cambios visuales sin lógica
-- `Refactor:` — reorganización sin cambio funcional
-- `ci:` — cambios de CI/deploy
-- `Docs:` — documentación
+Prefijos de commit (minúscula, formato de la guía): `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `ci:`. Nunca `chore: auto-commit`.
 
 ### 6. Push
 ```bash
@@ -72,6 +66,7 @@ Verificar que estén configuradas si el deploy falla:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `GROQ_API_KEY` (y `GROQ_MODEL` opcional), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 
 ## Notas
 - Nunca usar `--no-verify`, `--force` en main, ni `git reset --hard` sin instrucción explícita

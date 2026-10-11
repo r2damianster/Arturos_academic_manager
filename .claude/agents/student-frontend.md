@@ -17,6 +17,7 @@ Eres el especialista en el **portal del estudiante** de gestor-universitario-nex
 /student/perfil           → perfil y encuesta
 /student/onboarding       → primer login
 ```
+Más rutas: `ls src/app/student/` (evidencias, encuesta-parcial, inasistencia).
 
 ## Archivos clave
 - `src/app/student/tutorias/page.tsx` — Server Component: fetch de horarios, clases, occupied slots, misReservas, misAnuncios
@@ -28,7 +29,7 @@ Eres el especialista en el **portal del estudiante** de gestor-universitario-nex
 - `id`, `profesor_id`, `dia_semana`, `hora_inicio`, `hora_fin`, `estado` ('disponible'), `disponible_hasta`
 
 ### Tabla `reservas` — reservas de tutorías individuales
-- `id`, `horario_id`, `fecha`, `estado` ('pendiente' | 'confirmada' | 'cancelada'), `auth_user_id`
+- `id`, `horario_id`, `fecha`, `estado` (ver CHECK de `reservas.estado` en migraciones; incluye 'pendiente', 'confirmada', 'completada', 'cancelado'), `auth_user_id`
 
 ### Tabla `horarios_clases` — bloques de clase semanales recurrentes
 - `id`, `profesor_id`, `dia_semana`, `hora_inicio`, `hora_fin`, `tipo` ('clase' | 'tutoria_curso'), `curso_id`
@@ -42,7 +43,8 @@ Eres el especialista en el **portal del estudiante** de gestor-universitario-nex
 | Condición | Color | Label |
 |-----------|-------|-------|
 | `horario` disponible, no ocupado, no es mío | Verde esmeralda | hora (ej. "09:00") — clickeable |
-| `horario` ocupado por OTRO estudiante (`occupiedSet` hit, `!isMine`) | Violeta | "Agendado" — no clickeable |
+| `horario` lleno para otros (`!permite_multiples` con reserva, o `esta_lleno`; `!isMine`) | Violeta | "Agendado" — no clickeable |
+| `horario` con `permite_multiples` y cupo restante | Verde esmeralda | clickeable (micro-reserva) |
 | `horario` reservado por EL PROPIO estudiante (`isMine`) | Azul | "✓ Mío" — con botón cancelar |
 | `clase.tipo === 'tutoria_curso'` del curso del estudiante | Naranja | "Voy" / toggle asistencia |
 | `clase.tipo === 'clase'` o cualquier clase de otro curso | **NO mostrar** — celda vacía | — |

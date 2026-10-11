@@ -16,7 +16,7 @@ El proyecto está vinculado a investigación en pedagogía EFL con foco en:
 
 - **Student Talking Time (STT)** — maximizar el tiempo de habla del estudiante vs. TTT del docente
 - **Modelo KEYHOLE** — estructura de intervención para tutoría comunicativa
-- **Métricas de fluencia** — el sistema registra y compara scores de fluencia entre sesiones (incremento de referencia: +1.11 en fluencia entre sesiones tutoriales documentadas)
+- **Métricas de fluencia** — el sistema registra y compara scores de fluencia entre sesiones
 - **Reservas y asistencia a tutorías** — el flujo completo (slot → reserva → confirmación por token → asistencia) es el núcleo del pipeline de datos pedagógicos
 
 Cuando un cambio técnico impacta este pipeline (ej: nueva columna en `reservas`, nuevo estado en `horarios_tutoria`), mencionarlo explícitamente en el resumen pedagógico.
@@ -29,17 +29,7 @@ Cuando un cambio técnico impacta este pipeline (ej: nueva columna en `reservas`
 Usar `git log --oneline -20` y `git diff --stat HEAD~5` para inferir qué módulos fueron tocados recientemente.
 
 ### Módulos principales
-| Módulo | Ruta | Estado inferido desde git |
-|--------|------|--------------------------|
-| Cursos | `/dashboard/cursos` | — |
-| Estudiantes | `/dashboard/estudiantes` | — |
-| Pase de lista | `/dashboard/pase-lista` | — |
-| Agenda | `/dashboard/agenda` | — |
-| Tutorías | `/dashboard/tutorias` | — |
-| Portal estudiante | `/student/` | — |
-| Confirmación token | `/tutoria-action/` | — |
-
-Completar la columna "Estado" basándose en el git log de la sesión actual.
+Derivarlos de `src/app/` (`ls src/app/dashboard src/app/student`) y de `git log`; no mantener una tabla fija. Rutas públicas: `/auth/*`, `/tutoria-action/`.
 
 ---
 

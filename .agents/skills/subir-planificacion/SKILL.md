@@ -33,7 +33,7 @@ El skill mantiene esta lista en caché activa. Si el usuario solicita un plan pa
 ## 🤖 Regla de Ejecución Directa por la IA
 
 La IA (Antigravity o Claude Code) **NO debe pedirle al usuario que ejecute scripts ni SQLs a mano**. 
-La IA ejecutará la inserción **directamente en Supabase Producción** mediante un script en Node.js/TypeScript usando `@supabase/supabase-js` con la **Service Role Key** o la **Management API Token** (`SUPABASE_ACCESS_TOKEN`) disponible en el proyecto.
+La IA ejecutará la inserción **directamente en Supabase Producción** (`hxsnyrutyyavvljxwgku`) con el MCP de Supabase (`execute_sql`). `scripts/_supabase-env.js` lee `.env.local`, que apunta al proyecto de desarrollo: no usarlo para escribir en producción.
 
 ---
 
@@ -86,7 +86,7 @@ Presentar al usuario la tabla resumen con las fechas exactas, temas, desglose de
 
 ### Paso 4 — Inserción Directa e Infallible en Supabase Producción
 
-La IA ejecutará un script TS usando la conexión a Producción:
+La IA aplica esta lógica con `execute_sql` sobre Producción (el código TS describe el resultado esperado; traducirlo a `insert` / `update` SQL):
 
 1. **Reemplazo de Logros**:
    ```ts
@@ -134,16 +134,9 @@ La IA ejecutará un script TS usando la conexión a Producción:
 
 ---
 
-## 🏫 Cursos UTE (`periodo: 2026-2`, institución `UTE`)
+## 🏫 Cursos UTE (institución `UTE`)
 
-| Curso | Código | `curso_id` | Día | Horario |
-|---|---|---|---|---|
-| GAS — Metodología de Investigación | `GAS-MDI-2026II` | `254d9765-0466-4d53-8b02-9d9bab624f53` | Jueves | 07:00–09:00 |
-| ODO — Metodología de Investigación | `ODO-MDI-2026II` | `8d38cfd3-4a7b-4d60-a93f-9491909df306` | Jueves | — |
-| MED — Desarrollo del Pensamiento | `MED-DPE-2026II` | `0f88c94d-f5c0-4262-b8c3-1f8b590e67d9` | Miércoles | — |
-| NEG — Realidad Nacional y Mundial | `NEG-RNM-2026II` | `53966fa1-1401-43bb-bb4b-fc0c8e2d2ea2` | Miércoles | — |
-
-Calendario: 16 sesiones; la numeración nunca se salta. Suspendidas (vacaciones): jueves 15-oct, 24-dic, 31-dic · miércoles 14-oct, 23-dic, 30-dic. Sesiones fusionadas 07/08-oct = "Sesión 1 y 2" y la siguiente clase = "Sesión 3 — Retomar Sesión 2".
+Cursos y horarios del periodo: consultar `cursos where estado='activo' and institucion='UTE'` y `horarios_clases`. La numeración de sesiones nunca se salta; las suspendidas y fusionadas se toman del calendario académico vigente (no se guardan en este archivo).
 
 ### Reglas de campos (bitácora)
 - `tema`: todos los temas y subtemas del sílabo, enumerados (también en sesiones fusionadas).

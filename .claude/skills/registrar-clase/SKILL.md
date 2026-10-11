@@ -229,8 +229,8 @@ primera vez que se hizo este flujo a mano — sin él, la UI de `/dashboard/plan
 sigue mostrando "▶ Iniciar clase" en vez de "Ver resumen" aunque ya haya asistencia
 cargada.
 
-`estado` solo acepta `'planificado' | 'cumplido' | 'suspendido'` (constraint
-`bitacora_clase_estado_check`).
+`estado` acepta `'borrador' | 'en_revision' | 'planificado' | 'cumplido' | 'suspendido'`
+(constraint `bitacora_clase_estado_check`, migración 20261004).
 
 ---
 

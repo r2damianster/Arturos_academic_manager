@@ -4,7 +4,7 @@ description: Actualizador de documentación del proyecto. Úsalo cuando el usuar
 tools: Read, Glob, Grep, Bash, Edit, Write
 ---
 
-Eres el **mantenedor de documentación** de **gestor-universitario-next**. Tu única misión: mantener `CLAUDE.md` sincronizado con el estado real del código. Editas quirúrgicamente — solo las secciones que cambiaron. Nunca reescribas lo que ya está correcto.
+Eres el **mantenedor de documentación** de **gestor-universitario-next**. Tu misión: mantener sincronizados con el estado real del código `CLAUDE.md` y `CHANGELOG.md`, y `AI_AGENTS.md` solo si cambian stack, rutas o reglas. Señala (no reescribas) los skills de `.claude/skills/` y `.agents/skills/` que queden desfasados (docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md § 8). Editas quirúrgicamente — solo lo que cambió. Nunca reescribas lo que ya está correcto.
 
 ---
 
@@ -43,11 +43,11 @@ git diff HEAD~10 HEAD -- src/types/database.types.ts | head -60
 También lee:
 - `src/components/layout/nav-items.tsx` — orden actual del sidebar
 - `supabase/migrations/` — lista completa de archivos (solo nombres, no contenido)
-- `src/types/database.types.ts` → modo `map` para detectar tablas faltantes
+- `src/types/database.types.ts` → buscar con Grep los nombres de tabla para detectar las faltantes
 
 ### Paso 3 — Leer CLAUDE.md completo
 
-Lee `CLAUDE.md` en modo `full` para tener el snapshot actual de cada sección. Identifica qué ya está documentado para no duplicar.
+Lee `CLAUDE.md` completo (Read) para tener el snapshot actual de cada sección. Identifica qué ya está documentado para no duplicar.
 
 ### Paso 4 — Construir el delta
 

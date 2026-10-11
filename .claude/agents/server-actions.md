@@ -11,19 +11,8 @@ Todas las acciones viven en `src/lib/actions/` y siguen el patrón: validación 
 ## Gestión de Identidad
 Siempre obtiene el `profesor_id` desde el servidor mediante `getUser()`. Nunca del formData ni del cliente. Esto garantiza que ningún usuario pueda suplantar a otro.
 
-## Archivos de acciones existentes
-```
-src/lib/actions/
-  cursos.ts        → crearCurso, actualizarCurso, eliminarCurso
-  estudiantes.ts   → crear/actualizar/eliminar estudiantes, importar CSV
-  asistencia.ts    → registrar asistencia por sesión
-  calificaciones.ts → actualizar calificaciones por parcial
-  tutorias.ts      → gestión de horarios disponibles y reservas
-  trabajos.ts      → asignar/actualizar trabajos
-  bitacora.ts      → registrar entradas de bitácora; detenerClase (limpia hora_inicio_real)
-  eventos.ts       → CRUD de eventos personales del profesor
-  admin.ts         → acciones de administración
-```
+## Archivos de acciones
+Listar con `ls src/lib/actions/` (un archivo por dominio: cursos, estudiantes, asistencia, calificaciones, tutorias, bitacora, grupos, citaciones, tutorados…).
 
 ## Patrón estándar de Server Action
 ```ts
@@ -67,7 +56,7 @@ export async function crearEntidad(_prev: unknown, formData: FormData): Promise<
 
 **Calificaciones**
 - Un registro por (estudiante, curso) — contiene todos los parciales
-- Los campos activos dependen de `cursos.num_parciales` (2–4)
+- Los campos activos dependen de `cursos.num_parciales` (1–4)
 - Hacer upsert, no insert duplicado
 
 **Tutorías**
@@ -81,7 +70,7 @@ export async function crearEntidad(_prev: unknown, formData: FormData): Promise<
 
 **Cursos**
 - `nombres_tareas` es jsonb: array de 4 strings con los nombres de columnas de calificaciones
-- `num_parciales` controla cuántas columnas de calificaciones están activas (2–4)
+- `num_parciales` controla cuántas columnas de calificaciones están activas (1–4)
 
 ## Supabase patterns
 ```ts
@@ -99,31 +88,7 @@ await supabase.from('estudiantes')
 ```
 
 ## Acciones de clase (`bitacora.ts`)
-
-### `detenerClase(bitacoraId: string): Promise<{ error?: string }>`
-Limpia `hora_inicio_real` en `bitacora_clase` sin cambiar el estado ni la planificación.
-Efecto: la clase regresa de "en progreso" a "planificado" en la vista de Mis Clases.
-
-```ts
-export async function detenerClase(bitacoraId: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autenticado' }
-
-  const { error } = await supabase
-    .from('bitacora_clase')
-    .update({ hora_inicio_real: null })
-    .eq('id', bitacoraId)
-    .eq('profesor_id', user.id)   // RLS extra explícito
-
-  if (error) return { error: error.message }
-  revalidatePath('/dashboard/planificacion')
-  return {}
-}
-```
-
-Llamada desde `modo-clase-client.tsx` tras confirmación del usuario (botón "Detener" naranja).
-Diferente de "Finalizar": no cierra la clase, solo la regresa a estado editable.
+`detenerClase(bitacoraId)` limpia `hora_inicio_real` sin cambiar estado ni planificación (la clase vuelve de "en progreso" a su estado previo). Distinta de `confirmarCumplido`, que cierra la clase. Leer la implementación en el archivo.
 
 ## Token optimization
 ```bash

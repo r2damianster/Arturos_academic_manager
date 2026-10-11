@@ -75,11 +75,10 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 | `estudiantes` | Estudiantes vinculados a cursos |
 | `asistencia` | Registros de asistencia por clase |
 | `calificaciones` | Notas por estudiante y curso |
-| `trabajos` | Trabajos/tareas por curso |
-| `tutorias` | Sesiones de tutoría (disponibilidad + reservas) |
-| `horarios_clase` | Horarios de clases regulares |
-| `horarios_tutoria_profesor` | Disponibilidad del profesor para tutorías |
-| `eventos` | Eventos en la agenda del profesor |
+| `trabajos_asignados` | Trabajos/tareas por estudiante |
+| `horarios` / `reservas` | Disponibilidad de tutoría / citas de estudiantes |
+| `horarios_clases` | Horario semanal de clases |
+| `eventos_profesor` | Eventos personales de la agenda |
 | `perfiles_estudiante` | Perfil vinculado a auth.users del estudiante |
 | `bitacora_clase` | Planificación de clases (tema, actividades_json, estado) |
 
@@ -95,9 +94,9 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 3. RLS activo — no filtrar por profesor_id en SELECTs
 4. Calificaciones: upsert(estudiante_id, curso_id), no insert duplicado
 5. estado en asistencia: 'Presente' | 'Ausente' | 'Atraso' (mayúscula inicial)
-6. centro_computo en horarios_clase es boolean, no enum
+6. centro_computo en horarios_clases es boolean, no enum
 7. Portal estudiante: usar RPC get_occupied_slots para bypassear RLS
-8. bitacora_clase.estado: 'planificado' (antes de clase) | 'cumplido' (tras tomar lista)
+8. bitacora_clase.estado: 'borrador' | 'en_revision' | 'planificado' | 'cumplido' | 'suspendido'
 9. Calificaciones solo se pueden mover si estado='planificado', nunca si='cumplido'
 10. Replanificación: modo 'merge' fusiona actividades; modo 'shift' desplaza en cascada
 ```
@@ -108,71 +107,15 @@ Guía general del proyecto para cualquier asistente IA (Claude, Qwen, Gemini, GP
 
 - **`subir-planificacion`**: Procesa, estructura e inserta automáticamente una planificación académica completa (sílabo, lista de temas, ejercicios, talleres, recursos y calendarios) en Supabase (`bitacora_clase` y `logros_aprendizaje`).
 - **`registrar-clase`**: Planifica una sesión individual, la marca como cumplida y registra la asistencia a partir de descripción en lenguaje natural.
+- **`evaluar-participacion`** y **`registrar-tutoria`** (`.agents/skills/`): participación/control de lectura y tutorías manuales con fuzzy matching.
 
 ---
 
-## Migraciones SQL (`supabase/migrations/`)
+## Migraciones SQL
 
-Ejecutar en orden para inicializar la base de datos:
+Orden y descripción en `supabase/migrations/` y en `CLAUDE.md` § Migraciones.
 
-1. `001_initial_schema.sql` — Tablas base
-2. `002_rls_policies.sql` — Políticas RLS
-3. `003_functions.sql` — Funciones PG auxiliares
-4. `004_email_action_tokens.sql` — Tokens de acción por email
-5. `20260331_add_disponible_hasta.sql` — Expiración de disponibilidad
-6. `20260404_add_encuesta_campos.sql` — Campos encuesta en tutorías
-7. `20260404_add_progreso.sql` — Progreso en planificación
-8. `20260405_add_horarios_clases.sql` — Horarios de clase
-9. `20260405_add_horarios_tutoria.sql` — Horarios disponibles del profesor
-10. `20260405_fix_anuncios_rls.sql` — Fix RLS en anuncios
-11. `20260411_get_occupied_slots.sql` — RPC para portal estudiante
-12. `20260411_planificacion_clase.sql` — Planificación de clases en agenda
-13. `20260413_replanificar_clases.sql` — Replanificación de clases (merge + shift en cascada)
-14. `20260414_add_auth_user_id_estudiantes.sql` — Columna auth_user_id en tabla estudiantes
-
-⚠️ **Queries pendientes de verificación** (ver sección "Causas potenciales de bugs" abajo)
-
----
-
-## Bugs reportados y causas potenciales (Actualizado 2026-04-16)
-
-### 1. Planes cumplidos no se visualizan correctamente
-**Descripción**: No se pueden ver/editar planes que ya tienen estado `'cumplido'` (asistencia tomada)  
-**Localización**: `/dashboard/agenda` → PlanificarModal  
-**Causa probable**: 
-- Query en `agenda-client.tsx:269` trae todas las bitácoras SIN filtro de estado → datos disponibles ✓
-- `PlanificarModal.tsx` recibe prop `readOnly=true` y controles ESTÁN deshabilitados correctamente ✓
-- `confirmarCumplido()` en `PasarListaModal.tsx:222` marca estado como 'cumplido' ✓
-- **Causa posible 1**: RLS de tabla `bitacora_clase` está bloqueando SELECTs cuando estado='cumplido'
-- **Causa posible 2**: El plan NO está siendo guardado con estado='cumplido' (fallar silencioso en confirmarCumplido)
-- **Acción principal**: Revisar RLS en tabla `bitacora_clase` → ¿permite SELECT cuando estado='cumplido'?
-- **Acción secundaria**: Agregar validación/error handling en PasarListaModal.confirmarCumplido para confirmar éxito
-
-### 2. Asistencia no se puede editar después de tomada
-**Descripción**: Una vez registrada asistencia de una fecha, no se puede modificar (ni participación, ni estado)  
-**Localización**: `/dashboard/cursos/[id]/pase-lista` → PaseListaClient  
-**Causa probable**:
-- `registrarAsistenciaMasiva()` (asistencia.ts:45) usa `upsert` → debería permitir editar ✓
-- Posible validación de fecha en PaseListaClient que rechaza fechas pasadas
-- Posible política RLS en tabla `asistencia` que bloquea updates si fecha < hoy
-- **Acción**: Verificar:
-  1. Si hay `.lte('fecha', new Date())` o similar en PaseListaClient
-  2. Si RLS en tabla `asistencia` tiene restricción de fecha
-
-### 3. Pestaña "Planificación" no visible en móvil
-**Descripción**: En teléfono, la navegación no muestra opción "Planificación"  
-**Localización**: `src/components/layout/mobile-nav.tsx:13-35`  
-**Causa**: Inconsistencia entre arrays de navegación
-- `sidebar.tsx` navItems → INCLUYE `/dashboard/planificacion`
-- `mobile-nav.tsx` navItems → NO INCLUYE `/dashboard/planificacion`
-- La ruta existe y funciona en desktop ✓
-- **Acción**: Agregar item Planificación al array navItems en mobile-nav.tsx
-
-### Queries/RLS que podrían estar afectando:
-1. **Tabla `bitacora_clase`**: Verificar RLS permite `SELECT` con `estado='cumplido'`
-2. **Tabla `asistencia`**: Verificar RLS permite `UPDATE` incluso si `fecha < TODAY()`
-3. **Tabla `horarios_clases`**: En PlanificarModal, si query de horarios_clases no trae datos → lookup de `DIA_TO_DOW` falla
-4. **Triggers pendientes**: ¿Hay algún trigger que marca automáticamente `estado='cumplido'` y luego bloquea cambios?
+## Desarrollo local
 
 ```bash
 # 1. Clonar e instalar
@@ -194,11 +137,13 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
+Variables de servidor (Vercel): `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `GROQ_MODEL` (opcional), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`. Detalle en `CLAUDE.md`.
+
 ---
 
 ## Seguridad
 
-- **Middleware** (`src/middleware.ts`): Protege `/dashboard/*` y `/student/*` — redirige a login si no hay sesión.
+- **Middleware** (`middleware.ts`, raíz): Protege `/dashboard/*` y `/student/*` — redirige a login si no hay sesión.
 - **RLS**: Cada tabla filtra automáticamente por `profesor_id = auth.uid()`.
 - **Server Actions**: `profesor_id` siempre se obtiene del servidor, nunca del cliente.
 - **PKCE**: Reset de password y OAuth usan flujo PKCE via `/auth/callback`.

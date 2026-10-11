@@ -42,7 +42,6 @@
 - `useEffect` que copia props → estado **pisa ediciones locales** cuando el RSC se refresca. Usar dependencias serializadas (`JSON.stringify(prop)`) o sincronizar solo claves ausentes.
 - `getUser()` en servidor, nunca `getSession()`. Inserts con `profesor_id: user.id`, nunca desde formData.
 - Formularios multi-paso: campos en `FormState` + `fd.set()` (ver CLAUDE.md).
-- Textos visibles: `t('clave')` con `translations.js` (ES + EN); nada de `lang === 'en' ? … : …`.
 - Nombres descriptivos (`scenario`, `isVisible`), no `s`, `i`, `val`, `tmp`.
 - Navegación: solo `src/components/layout/nav-items.tsx`.
 
