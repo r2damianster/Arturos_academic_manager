@@ -57,10 +57,10 @@ Para cada cambio detectado en el Paso 2, clasifica:
 |--------|----------------------------------|
 | Nueva ruta `src/app/.../page.tsx` | **Rutas** |
 | Nuevo archivo `supabase/migrations/YYYYMMDD_*.sql` | **Migraciones** |
-| Nueva action en `src/lib/actions/` | **Features recientes** |
-| Nuevo componente con feature visible | **Features recientes** |
+| Nueva action en `src/lib/actions/` | **`docs/HISTORIAL_FEATURES.md`** |
+| Nuevo componente con feature visible | **`docs/HISTORIAL_FEATURES.md`** |
 | Nueva columna en `database.types.ts` | **Tipos TypeScript — Deuda técnica** |
-| Feature listada en "próximas" ahora implementada | Mover a **Features recientes** + marcar ✅ en "próximas" |
+| Feature listada en "próximas" ahora implementada | Registrar en `CHANGELOG.md` / `docs/HISTORIAL_FEATURES.md` + marcar ✅ en "próximas" |
 | Bug listado en "pendientes" ahora corregido | Eliminarlo de **Bugs pendientes** |
 | Nueva variable de entorno | **Variables de entorno** |
 
@@ -94,7 +94,7 @@ Reemplaza la línea:
 
 **Para deuda técnica en tipos TS** — añade a la lista de tablas/columnas sin tipos si aplica.
 
-### Paso 6 — Actualizar fecha en la sección "Features recientes"
+### Paso 6 — Actualizar fecha en la `docs/HISTORIAL_FEATURES.md` (y `CHANGELOG.md`)
 
 Si la sesión documentada no tiene encabezado, agrégalo con la fecha del commit más reciente del grupo.
 
@@ -127,7 +127,7 @@ Después de editar, verifica:
 | `## Migraciones` | Nuevo archivo en `supabase/migrations/` |
 | `## Tipos TypeScript` | Nueva tabla sin tipo, nueva columna en deuda técnica |
 | `## Variables de entorno` | Nueva `process.env.*` en actions o API routes |
-| `## Features recientes` | Cualquier feature nueva o fix significativo |
+| `docs/HISTORIAL_FEATURES.md` | Cualquier feature nueva o fix significativo |
 | `### Features próximas sesiones` | Feature completada → marcar ✅ |
 | `## Bugs pendientes` | Bug resuelto → eliminar; bug nuevo → agregar |
 | `## Convenciones críticas` | Cambio en patrones establecidos (nav, auth, RLS) |
@@ -145,7 +145,7 @@ Al finalizar, reporta en formato:
 ### Secciones modificadas
 - **Rutas**: +N entradas (lista)
 - **Migraciones**: +N entradas (lista)
-- **Features recientes**: sesión YYYY-MM-DD — N features
+- **`docs/HISTORIAL_FEATURES.md`**: sesión YYYY-MM-DD — N features
 - **Features próximas**: N marcadas como ✅
 - **Bugs pendientes**: N eliminados, N nuevos
 - **Tipos TS**: N columnas/tablas añadidas a deuda técnica

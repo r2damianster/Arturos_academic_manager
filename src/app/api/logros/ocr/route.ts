@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct'
+import { callGroq, GROQ_VISION_MODEL, type GroqMessage } from '@/lib/groq'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -43,34 +41,27 @@ Reglas:
 - Si no encuentras logros de aprendizaje claros, devuelve: {"logros": []}
 - Responde SOLO con el JSON, sin texto adicional`
 
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: VISION_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: dataUrl } },
-            { type: 'text', text: prompt },
-          ],
-        },
+  const messages: GroqMessage[] = [
+    {
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: dataUrl } },
+        { type: 'text', text: prompt },
       ],
-      max_tokens: 1024,
-      temperature: 0.1,
-    }),
-  })
+    },
+  ]
 
-  if (!response.ok) {
-    return NextResponse.json({ error: `Error del modelo de visión (${response.status})` }, { status: 500 })
+  // Modo JSON de Groq; si el modelo de visión lo rechaza (400), reintenta con el prompt solo.
+  let result = await callGroq(messages, 1024, { model: GROQ_VISION_MODEL, temperature: 0.1, jsonMode: true })
+  if (result.error?.includes('(400)')) {
+    result = await callGroq(messages, 1024, { model: GROQ_VISION_MODEL, temperature: 0.1 })
   }
 
-  const result = await response.json()
-  const content: string = result.choices?.[0]?.message?.content ?? ''
+  if (result.error) {
+    return NextResponse.json({ error: `Error del modelo de visión: ${result.error}` }, { status: 500 })
+  }
+
+  const content = result.content
 
   try {
     const jsonMatch = content.match(/\{[\s\S]*"logros"[\s\S]*\}/)

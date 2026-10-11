@@ -6,11 +6,12 @@ tools: Read, Glob, Grep, Bash
 
 Eres el **filtro final de calidad** de **gestor-universitario-next**. Tu misión es auditar código antes de cualquier commit para evitar errores de seguridad o inconsistencias técnicas.
 
-Tu revisión cubre cuatro dominios:
+Tu revisión cubre cinco dominios:
 1. **Seguridad** — `profesor_id` nunca del cliente, `getUser()` siempre
 2. **TypeScript** — tipos correctos de `domain.ts`, sin `any`, nullables manejados
 3. **Estándares del proyecto** — `revalidatePath`, estados correctos, tokens marcados
 4. **Lógica de dominio** — upserts, parciales, tokens de tutoría
+5. **Reglas del repo** — secretos y datos de estudiantes, cursos activos, RLS explícita (ver abajo)
 
 ---
 
@@ -145,6 +146,18 @@ if (!parsed.success) return { error: parsed.error.flatten() }
 | D3 | Horarios de tutoría: validar solapamiento | insertar slot sin verificar conflicto de horario | query previa para detectar solapamiento mismo día/hora |
 | D4 | Reservas: estado coherente | actualizar `asistio` sin actualizar `estado` | actualizar ambos campos atómicamente |
 | D5 | Tokens: expiración | procesar token sin verificar `expires_at` | validar `expires_at > now()` y `used_at IS NULL` antes de actuar |
+
+---
+
+## Dominio 5 — Reglas del repo (`docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md`)
+
+| # | Qué revisar | Señal de error | Fix |
+|---|-------------|----------------|-----|
+| R1 | Secretos | `service_role`, `eyJ…`, tokens en código, SQL, skills o docs | leer de `.env.local` vía `scripts/_supabase-env.js` |
+| R2 | Datos de estudiantes | nombres, correos o IDs en skills, scripts, migraciones o fixtures; `.xlsx`/`.ods`/`.json` de exportes | quitarlos; el repo es público |
+| R3 | Cursos activos | consulta con join a `cursos`/`horarios_clases` sin `estado='activo'` en esa misma consulta | filtrar en la consulta |
+| R4 | RLS/SQL | migración con bucle sobre `pg_tables`, `DISABLE ROW LEVEL SECURITY`, SECURITY DEFINER sin `search_path` ni `REVOKE` a anon | política explícita por tabla |
+| R5 | Mezcla de datos | participación que modifica `asistencia`; `fuente='en_curso'` usada en riesgo, citaciones o IA | separar |
 
 ---
 

@@ -2,9 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { actividadesDesdeBitacora } from '@/lib/bitacora-legacy'
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b'
+import { callGroq } from '@/lib/groq'
 
 const ENCABEZADO_INSTRUCCION_PRIORITARIA =
   'INSTRUCCIÓN PRIORITARIA DEL PROFESOR (puede filtrar, limitar o enfocar el contenido; "únicamente" o "solo" significa ignorar el resto):'
@@ -93,48 +91,6 @@ REGLAS:
 - Usa solo encabezados en MAYÚSCULAS como se indica arriba.
 - Los encabezados deben aparecer solos en su línea, en mayúsculas, con dos puntos al final.
 - Una "INSTRUCCIÓN PRIORITARIA DEL PROFESOR" puede modificar, limitar o filtrar las secciones o el contenido: aplícala antes de procesar los datos.`
-
-interface GroqMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
-
-async function callGroq(messages: GroqMessage[], maxTokens = 2500, reintentos = 2): Promise<{ content: string; error?: string }> {
-  const key = process.env.GROQ_API_KEY
-  if (!key) return { content: '', error: 'GROQ_API_KEY no configurado en variables de entorno' }
-
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-
-    // 429 TPM: Groq indica en el mensaje "Please try again in X.XXXs" — esperar ese tiempo y reintentar
-    if (res.status === 429 && reintentos > 0) {
-      const espera = err.match(/try again in ([\d.]+)s/)
-      const esperaMs = espera ? Math.ceil(parseFloat(espera[1]) * 1000) + 500 : 8000
-      await new Promise(r => setTimeout(r, esperaMs))
-      return callGroq(messages, maxTokens, reintentos - 1)
-    }
-
-    return { content: '', error: `Error Groq API (${res.status}): ${err.slice(0, 200)}` }
-  }
-
-  const data = await res.json()
-  const content = data.choices?.[0]?.message?.content ?? ''
-  return { content }
-}
 
 interface BitacoraRaw {
   fecha: string
@@ -382,28 +338,7 @@ export async function corregirPlan(params: {
   return { corregido: result.content, error: result.error }
 }
 
-const SYSTEM_MOODLE_XML = `Eres un generador experto de bancos de preguntas en formato Moodle XML.
-
-Tu salida DEBE cumplir estrictamente estas reglas:
-
-FORMATO DE SALIDA:
-- Responde ÚNICAMENTE con el XML completo, empezando exactamente con <?xml version="1.0" encoding="UTF-8"?>
-- PROHIBIDO: texto antes del XML, markdown, fences de código (triple backtick), explicaciones, comentarios fuera del XML
-- El XML debe terminar con </quiz>
-
-ESTRUCTURA OBLIGATORIA:
-<?xml version="1.0" encoding="UTF-8"?>
-<quiz>
-  <!-- primer nodo: categoría -->
-  <question type="category">
-    <category>
-      <text>$course$/NOMBRE_CATEGORIA</text>
-    </category>
-  </question>
-  <!-- luego las preguntas -->
-</quiz>
-
-REGLAS DE CONTENIDO:
+const MOODLE_XML_REGLAS = `REGLAS DE CONTENIDO:
 1. Todo texto dentro de <name>, <questiontext>, <text> de respuestas y <feedback> DEBE estar en bloques <![CDATA[ ... ]]>
 2. <questiontext> siempre con atributo format="html"
 3. Usar español formal y pedagógico; feedback explicativo por cada opción
@@ -455,6 +390,40 @@ VALIDACIONES CRÍTICAS:
 - Cada pregunta debe tener <name> con código único (COD_01, COD_02, etc.)
 - Cierre correcto de todas las etiquetas: cada <question> cierra con </question>`
 
+const MOODLE_XML_PREAMBULO = `Eres un generador experto de bancos de preguntas en formato Moodle XML.
+
+FORMATO DE SALIDA:
+- Responde únicamente con el XML, empezando exactamente con <?xml version="1.0" encoding="UTF-8"?> y terminando con </quiz>.
+- Sin texto antes ni después del XML, sin markdown ni fences de código (triple backtick), sin explicaciones.`
+
+// Generación por lotes: el código agrega el nodo de categoría al ensamblar el <quiz>,
+// así que el modelo solo emite las preguntas.
+const SYSTEM_MOODLE_XML_LOTE = `${MOODLE_XML_PREAMBULO}
+
+ESTRUCTURA:
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <!-- solo nodos <question>; el nodo de categoría se agrega después -->
+</quiz>
+
+${MOODLE_XML_REGLAS}`
+
+// Edición de un banco completo: el XML devuelto reemplaza al actual, con su nodo de categoría.
+const SYSTEM_MOODLE_XML_EDICION = `${MOODLE_XML_PREAMBULO}
+
+ESTRUCTURA:
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="category">
+    <category>
+      <text>$course$/NOMBRE_CATEGORIA</text>
+    </category>
+  </question>
+  <!-- luego las preguntas -->
+</quiz>
+
+${MOODLE_XML_REGLAS}`
+
 function sanitizeXml(raw: string): string {
   const idx = raw.indexOf('<?xml')
   if (idx === -1) return ''
@@ -492,7 +461,7 @@ const TOKENS_POR_TIPO: Record<TipoPregunta, number> = {
   shortanswer: 130,
 }
 
-// Cuenta de tokens estimada del XML de salida + margen. La cuenta Groq tiene TPM=8000 (prompt+completion
+// Cuenta de tokens estimada del XML de salida + margen. El plan de Groq limita TPM (tokens por minuto; al escribir esto, 8000 — ver console.groq.com/settings/limits) y (prompt+completion
 // cuentan juntos), así que el tope deja margen para el prompt del lote (system + contexto de clases).
 function estimarMaxTokensEvaluacion(total: number, tipos: TipoPregunta[]): number {
   if (tipos.length === 0) return 2000
@@ -534,7 +503,7 @@ export async function generarEvaluacionMoodle(params: {
   const categoria = params.categoria?.trim() || `$course$/Semana ${params.semanaNum} - ${params.asignatura}`
   const tiposTexto = params.tipos.map(t => TIPO_LABELS[t]).join(', ')
 
-  // La cuenta Groq tiene TPM=8000 (tokens por minuto, prompt+completion) — un solo request para
+  // El plan de Groq limita TPM (tokens por minuto, prompt+completion; ver console.groq.com/settings/limits) — un solo request para
   // 15-20 preguntas lo supera. Se generan en lotes pequeños y se ensamblan en un único <quiz>.
   // callGroq reintenta hasta 2 veces ante un 429 (espera lo que indique la API).
   const BATCH_SIZE = 3
@@ -569,7 +538,7 @@ export async function generarEvaluacionMoodle(params: {
     const maxTokens = estimarMaxTokensEvaluacion(cantidad, params.tipos)
 
     const result = await callGroq([
-      { role: 'system', content: SYSTEM_MOODLE_XML },
+      { role: 'system', content: SYSTEM_MOODLE_XML_LOTE },
       { role: 'user', content: loteUserPrompt },
     ], maxTokens)
 
@@ -608,7 +577,7 @@ export async function mejorarContenido(params: {
     // El XML actualizado ronda el tamaño del actual; acotar al límite de TPM de la cuenta Groq (8000, prompt+completion)
     const maxTokens = Math.min(3500, Math.max(2000, Math.round(params.contenidoActual.length / 3)))
     const result = await callGroq([
-      { role: 'system', content: SYSTEM_MOODLE_XML },
+      { role: 'system', content: SYSTEM_MOODLE_XML_EDICION },
       {
         role: 'user',
         content: `${ENCABEZADO_INSTRUCCION_PRIORITARIA} ${params.solicitud}\n\nAquí está el XML actual:\n\n${params.contenidoActual}\n\nDevuelve el XML completo actualizado. Mantén formato Moodle XML válido. Sin explicaciones, sin markdown, sin fences.`,

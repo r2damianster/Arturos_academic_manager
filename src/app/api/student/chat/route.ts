@@ -1,8 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b'
+import { callGroq, type GroqMessage } from '@/lib/groq'
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
@@ -76,30 +74,17 @@ Usa estos datos para responder preguntas sobre asistencia, trabajos y tutorías.
   const key = process.env.GROQ_API_KEY
   if (!key) return NextResponse.json({ reply: 'El asistente IA no está disponible en este momento. Revisa la sección de FAQ o contacta a tu profesor.' })
 
-  const groqMessages = [
-    { role: 'system' as const, content: contexto },
+  const groqMessages: GroqMessage[] = [
+    { role: 'system', content: contexto },
     ...messages.map(m => ({ role: m.role, content: m.content })),
   ]
 
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: groqMessages,
-      temperature: 0.6,
-      max_tokens: 400,
-    }),
-  })
+  // Respuesta corta de chat: esfuerzo de razonamiento bajo y margen para no truncar.
+  const result = await callGroq(groqMessages, 1000, { temperature: 0.6, reasoningEffort: 'low' })
 
-  if (!res.ok) {
+  if (result.error) {
     return NextResponse.json({ reply: 'No pude conectarme al asistente. Intenta de nuevo.' })
   }
 
-  const data = await res.json()
-  const reply = data.choices?.[0]?.message?.content ?? 'Sin respuesta.'
-  return NextResponse.json({ reply })
+  return NextResponse.json({ reply: result.content || 'Sin respuesta.' })
 }

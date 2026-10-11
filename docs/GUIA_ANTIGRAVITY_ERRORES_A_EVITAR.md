@@ -5,7 +5,7 @@
 
 ## 0. Antes de tocar nada
 1. `git fetch && git pull`. Leer `CLAUDE.md`.
-2. **Producción = Supabase `hxsnyrutyyavvljxwgku`**. `.env.local` apunta a `vylkasmcveazzaspwgcr` (desarrollo). Confirmar el `project_id` antes de ejecutar SQL/migraciones.
+2. **Producción = Supabase `hxsnyrutyyavvljxwgku`**. `.env.local` apunta hoy a producción y `.env` a `vylkasmcveazzaspwgcr` (desarrollo); `scripts/_supabase-prod.js` aborta si `.env.local` no es producción. Confirmar el `project_id` antes de ejecutar SQL/migraciones.
 3. Cerrar la tarea con la checklist de la sección 9.
 
 ## 1. Seguridad y secretos (el error más grave encontrado)
@@ -60,7 +60,7 @@
 
 ## 8. Documentación (Antigravity no la estaba actualizando)
 Cada feature/fix debe terminar con, **en el mismo commit o el siguiente**:
-1. `CLAUDE.md`: sección "Features recientes (fecha — sesión N)" + nueva migración en la lista + rutas nuevas + deuda técnica si la hay.
+1. `CLAUDE.md`: solo lo vigente (reglas, rutas nuevas, migración en la lista, variables de entorno, deuda técnica). El detalle de la feature va a `CHANGELOG.md` y, si es extenso, a `docs/HISTORIAL_FEATURES.md`.
 2. `CHANGELOG.md`: entrada con fecha, tipo y archivos clave.
 3. `AI_AGENTS.md`: solo si cambia stack, rutas o reglas.
 4. Skills (`.agents/skills/`, `.claude/skills/`): si cambia el flujo o el esquema que usan. Sin secretos ni IDs efímeros.

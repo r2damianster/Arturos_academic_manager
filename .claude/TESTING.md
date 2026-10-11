@@ -1,3 +1,5 @@
+> ⚠ **HISTÓRICO (checklist de la sesión 24-25, mayo 2026).** Ninguna casilla se llegó a marcar y varias descripciones ya no coinciden con la app. Para un seguimiento nuevo, crear una lista nueva con la fecha y las features a probar.
+
 # Testing — Sesión 24-25 (2026-05-27)
 
 > Estado: [ ] Pendiente  [~] En pruebas  [x] Confirmado  [!] Bug encontrado

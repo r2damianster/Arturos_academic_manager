@@ -49,7 +49,7 @@ Este skill define la guía estándar, automatizada y de **ejecución directa** p
 
 ## 🤖 Regla de Ejecución Directa por la IA
 
-La IA (Antigravity o Claude Code) **ejecuta los registros directamente en Supabase Producción** (`hxsnyrutyyavvljxwgku`) con el MCP de Supabase (`execute_sql`). `scripts/_supabase-env.js` apunta a desarrollo; no usarlo para producción.
+La IA (Antigravity o Claude Code) **ejecuta los registros directamente en Supabase Producción** (`hxsnyrutyyavvljxwgku`) con el MCP de Supabase (`execute_sql`). Los scripts usan `scripts/_supabase-env.js` (lee `.env.local`, hoy producción): revisar la URL que imprimen.
 
 ---
 
@@ -78,7 +78,11 @@ Ante ambigüedad, preguntar. No guardar nombres ni IDs de estudiantes en este ar
 
 ---
 
-## ⚡ Inserción (SQL vía MCP)
+## ⚡ Inserción
+
+**Opción A — script reutilizable** (`scripts/evaluar_participacion.js`): recibe un `config.json` (cursoId, fecha, actividad, parcial, listas `cumplen` / `incumplen`; guardarlo en `scratch/`, ignorado por git). Simula por defecto, informa ambiguos y estudiantes sin lista, y solo escribe con `--apply`. Imprime la URL de la base antes de escribir (lee `.env.local`, hoy producción).
+
+**Opción B — SQL vía MCP** (producción):
 
 ```sql
 -- 1. Participación (upsert por el índice único curso_id, estudiante_id, fecha)
@@ -90,7 +94,7 @@ on conflict (curso_id, estudiante_id, fecha) do update
 -- 2. Notas en curso (nunca alimentan riesgo, citaciones ni IA)
 insert into calificaciones_items (profesor_id, curso_id, estudiante_id, parcial, nombre_item, tipo, nota, fuente)
 values ('<profesor_id>', '<curso_id>', '<estudiante_id>', <parcial>, '<Actividad>', 'tarea', <10 | 0>, 'en_curso')
-on conflict (curso_id, estudiante_id, nombre_item, fuente) do update set nota = excluded.nota;
+on conflict (curso_id, estudiante_id, parcial, nombre_item) do update set nota = excluded.nota;
 ```
 
 Mostrar el plan (estudiantes resueltos, nivel y nota) y esperar confirmación antes de escribir.

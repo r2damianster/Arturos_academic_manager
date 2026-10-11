@@ -1,213 +1,198 @@
+/**
+ * Registra participación y notas en curso (control de lectura) a partir de dos listas informales.
+ * NO toca la tabla `asistencia` (ver docs/GUIA_ANTIGRAVITY_ERRORES_A_EVITAR.md § 4).
+ *
+ * Uso:
+ *   node scripts/evaluar_participacion.js <config.json>           # simulación (no escribe)
+ *   node scripts/evaluar_participacion.js <config.json> --apply   # escribe en la base de .env.local
+ *
+ * config.json (guardarlo en scratch/, que está en .gitignore; nunca commitear nombres de estudiantes):
+ *   {
+ *     "cursoId": "<uuid del curso>",
+ *     "fecha": "YYYY-MM-DD",
+ *     "actividad": "Control de lectura: ...",
+ *     "parcial": 1,
+ *     "semana": "Semana 3",                 // opcional
+ *     "cumplen":   ["nombre informal", ...],
+ *     "incumplen": ["nombre informal", ...]
+ *   }
+ *
+ * Los estudiantes activos que no aparecen en ninguna lista o cuyo nombre es ambiguo se informan
+ * y NO se escriben: decide el profesor.
+ * Lee `.env.local` (hoy producción): el script imprime la URL de la base; revisar la simulación antes de --apply.
+ */
+const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
-const { url, serviceKey, anonKey } = require('./_supabase-env');
+const { url, serviceKey } = require('./_supabase-env');
 
+const MIN_SCORE = 7;
+const AMBIGUITY_MARGIN = 2;
 
-const supabase = createClient(url, serviceKey);
-
-const PROFESOR_ID = '6d3391b6-68da-4127-a424-aa8a88b2a785';
-const CURSO_ID = '3409c0a6-d716-490b-a6ca-3b437be3494e'; // FILOSOFÍA
-const FECHA_EVALUACION = '2026-09-17';
-const BITACORA_ID = 'd84a6640-e138-4b33-8a93-a08ea8c8a79c';
-const ACTIVIDAD_NOMBRE = 'Control de lectura: Videos de Paulo Freire';
-
-const zeroListRaw = [
-  "anthony ortegga", "inmNOL", "FATIMA IBARRA", "YELENA CORNEJO", "MELANY MEJIA",
-  "ARIELKA NAREA", "ASLEY VERA", "jonathan vera", "brithany mero", "yulia zambrnao",
-  "geovana lascano", "sherlye cheme", "cristhoper leon", "bryen macias", "melanie barberan",
-  "paola roman", "nicollw lucas", "steffany artos", "jasson velez"
-];
-
-const excellentListRaw = [
-  "karime", "maria pia carreño", "daniela zambrano", "españo romero", "sebastian rodriguez",
-  "daniela alexandra", "alexandra delgado", "emily cadena", "bravo santana", "isamae esavi",
-  "nathaly mera", "valeska perez", "alisson vera", "valentina lucas", "alvarez romina",
-  "danna vaca", "gislayne posligua", "daniela maritza", "nohely rodriguez", "malany zambrano",
-  "camelia romero"
-];
-
-function normalize(str) {
-  return str ? str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
+function normalize(text) {
+  return text ? text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim() : '';
 }
 
-function levenshtein(a, b) {
-  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
+function levenshtein(first, second) {
+  const matrix = Array.from({ length: first.length + 1 }, () => Array(second.length + 1).fill(0));
+  for (let row = 0; row <= first.length; row++) matrix[row][0] = row;
+  for (let column = 0; column <= second.length; column++) matrix[0][column] = column;
+  for (let row = 1; row <= first.length; row++) {
+    for (let column = 1; column <= second.length; column++) {
+      const cost = first[row - 1] === second[column - 1] ? 0 : 1;
+      matrix[row][column] = Math.min(
+        matrix[row - 1][column] + 1,
+        matrix[row][column - 1] + 1,
+        matrix[row - 1][column - 1] + cost,
+      );
     }
   }
-  return matrix[a.length][b.length];
+  return matrix[first.length][second.length];
 }
 
 function scoreMatch(studentName, query) {
-  const normName = normalize(studentName);
-  const normQ = normalize(query);
-  const qParts = normQ.split(/\s+/).filter(Boolean);
-  const nParts = normName.split(/\s+/).filter(Boolean);
+  const nameParts = normalize(studentName).split(/\s+/).filter(Boolean);
+  const queryParts = normalize(query).split(/\s+/).filter(Boolean);
 
   let totalScore = 0;
-  for (const qp of qParts) {
+  for (const queryPart of queryParts) {
     let bestWordScore = 0;
-    for (const np of nParts) {
-      if (np === qp) { bestWordScore = 10; break; }
-      if (np.startsWith(qp) || qp.startsWith(np)) bestWordScore = Math.max(bestWordScore, 8);
-      if (np.includes(qp) || qp.includes(np)) bestWordScore = Math.max(bestWordScore, 7);
-      const dist = levenshtein(qp, np);
-      if (dist <= 2) bestWordScore = Math.max(bestWordScore, 6 - dist);
+    for (const namePart of nameParts) {
+      if (namePart === queryPart) { bestWordScore = 10; break; }
+      if (namePart.startsWith(queryPart) || queryPart.startsWith(namePart)) bestWordScore = Math.max(bestWordScore, 8);
+      if (namePart.includes(queryPart) || queryPart.includes(namePart)) bestWordScore = Math.max(bestWordScore, 7);
+      const distance = levenshtein(queryPart, namePart);
+      if (distance <= 2) bestWordScore = Math.max(bestWordScore, 6 - distance);
     }
     totalScore += bestWordScore;
   }
   return totalScore;
 }
 
-async function runEvaluation() {
-  console.log(`=== RUNNING EVALUATION FOR ${FECHA_EVALUACION} (Active Students Only) ===`);
-  
-  const { data: students, error: sErr } = await supabase
-    .from('estudiantes')
-    .select('*')
-    .eq('curso_id', CURSO_ID);
+/** Devuelve { student } si hay un único mejor candidato claro; si no, { reason }. */
+function resolveStudent(query, students) {
+  const ranked = students
+    .map(student => ({ student, score: scoreMatch(student.nombre, query) }))
+    .filter(candidate => candidate.score > 0)
+    .sort((first, second) => second.score - first.score);
 
-  if (sErr || !students) {
-    console.error("Error loading students:", sErr);
+  if (ranked.length === 0 || ranked[0].score < MIN_SCORE) return { reason: 'sin coincidencia' };
+  if (ranked[1] && ranked[0].score - ranked[1].score < AMBIGUITY_MARGIN) {
+    return { reason: `ambiguo: ${ranked[0].student.nombre} / ${ranked[1].student.nombre}` };
+  }
+  return { student: ranked[0].student };
+}
+
+async function main() {
+  const configPath = process.argv[2];
+  const shouldApply = process.argv.includes('--apply');
+  if (!configPath || configPath.startsWith('--')) {
+    console.error('Uso: node scripts/evaluar_participacion.js <config.json> [--apply]');
+    process.exitCode = 1;
     return;
   }
 
-  // Filter ONLY active students
-  const activeStudents = students.filter(s => s.estado === 'activo' || !s.estado);
-  console.log(`Active students count: ${activeStudents.length}`);
-
-  const evaluations = [];
-
-  for (const s of activeStudents) {
-    let bestZero = { score: 0, query: null };
-    let bestExc = { score: 0, query: null };
-
-    for (const z of zeroListRaw) {
-      const sc = scoreMatch(s.nombre, z);
-      if (sc > bestZero.score) bestZero = { score: sc, query: z };
-    }
-    for (const e of excellentListRaw) {
-      const sc = scoreMatch(s.nombre, e);
-      if (sc > bestExc.score) bestExc = { score: sc, query: e };
-    }
-
-    let cumple = null;
-    let matchedQuery = null;
-
-    const norm = normalize(s.nombre);
-    if (norm.includes("emily domenica cadena")) {
-      cumple = true; matchedQuery = "emily cadena";
-    } else if (norm.includes("emily dayana loor")) {
-      cumple = false; matchedQuery = "Omitido (Opción A)";
-    } else if (norm.includes("dayana michelle murillo")) {
-      cumple = false; matchedQuery = "Omitido (Opción A)";
-    } else if (norm.includes("imannol paolo")) {
-      cumple = false; matchedQuery = "inmNOL";
-    }
-
-    if (cumple === null) {
-      if (bestZero.score >= 12 || bestExc.score >= 12) {
-        cumple = bestExc.score > bestZero.score;
-        matchedQuery = cumple ? bestExc.query : bestZero.query;
-      } else if (bestZero.score >= 7 || bestExc.score >= 7) {
-        cumple = bestExc.score > bestZero.score;
-        matchedQuery = cumple ? bestExc.query : bestZero.query;
-      }
-    }
-
-    // Default to false (Option A) if unassigned
-    if (cumple === null) {
-      cumple = false;
-      matchedQuery = "Omitido (Opción A)";
-    }
-
-    evaluations.push({
-      student_id: s.id,
-      nombre: s.nombre,
-      email: s.email,
-      cumple,
-      nota: cumple ? 10 : 0,
-      nivelParticipacion: cumple ? 5 : 1,
-      estadoAsistencia: cumple ? 'Presente' : 'Ausente',
-      matchedQuery
-    });
+  // Quita el BOM que añaden algunos editores de Windows.
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^﻿/, ''));
+  const { cursoId, fecha, actividad, parcial = 1, semana = null, cumplen = [], incumplen = [] } = config;
+  if (!cursoId || !fecha || !actividad) {
+    console.error('config.json requiere cursoId, fecha y actividad');
+    process.exitCode = 1;
+    return;
   }
 
-  console.log(`\nCLASSIFICATION SUMMARY (${evaluations.length} active students):`);
-  console.log(`- Cumplen Excelente (Nota 10 / Nivel 5): ${evaluations.filter(e => e.cumple).length}`);
-  console.log(`- Incumplen / Omitidos A (Nota 0 / Nivel 1): ${evaluations.filter(e => !e.cumple).length}`);
+  const supabase = createClient(url, serviceKey);
+  console.log(`Base: ${url}${shouldApply ? '  (--apply: ESCRIBE)' : '  (simulación)'}`);
 
-  // 1. UPSERT INTO `participacion` TABLE
-  console.log(`\n1. Upserting into table 'participacion'...`);
-  const participacionRecords = evaluations.map(e => ({
-    profesor_id: PROFESOR_ID,
-    curso_id: CURSO_ID,
-    estudiante_id: e.student_id,
-    fecha: FECHA_EVALUACION,
-    semana: 'Semana 3',
-    nivel: e.nivelParticipacion,
-    observacion: `${ACTIVIDAD_NOMBRE} - ${e.cumple ? 'Cumple Excelente' : 'Incumple'}`
+  const { data: course, error: courseError } = await supabase
+    .from('cursos').select('id, profesor_id, asignatura, estado').eq('id', cursoId).single();
+  if (courseError || !course) {
+    console.error('Curso no encontrado en esta base:', courseError?.message);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Curso: ${course.asignatura} (${course.estado})`);
+
+  const { data: students, error: studentsError } = await supabase
+    .from('estudiantes').select('id, nombre, estado').eq('curso_id', cursoId);
+  if (studentsError || !students) {
+    console.error('Error cargando estudiantes:', studentsError?.message);
+    process.exitCode = 1;
+    return;
+  }
+  const activeStudents = students.filter(student => student.estado !== 'retirado');
+
+  const evaluations = new Map(); // student.id -> { student, cumple, query }
+  const problems = [];
+
+  const register = (queries, cumple) => {
+    for (const query of queries) {
+      const resolution = resolveStudent(query, activeStudents);
+      if (!resolution.student) {
+        problems.push(`"${query}" → ${resolution.reason}`);
+        continue;
+      }
+      const previous = evaluations.get(resolution.student.id);
+      if (previous && previous.cumple !== cumple) {
+        problems.push(`"${query}" y "${previous.query}" apuntan a ${resolution.student.nombre} con resultado distinto`);
+        continue;
+      }
+      evaluations.set(resolution.student.id, { student: resolution.student, cumple, query });
+    }
+  };
+  register(cumplen, true);
+  register(incumplen, false);
+
+  const withoutList = activeStudents.filter(student => !evaluations.has(student.id));
+
+  console.log(`\nCumplen: ${[...evaluations.values()].filter(item => item.cumple).length}` +
+    ` | Incumplen: ${[...evaluations.values()].filter(item => !item.cumple).length}` +
+    ` | Sin lista: ${withoutList.length} | Problemas: ${problems.length}`);
+  for (const item of evaluations.values()) {
+    console.log(`  ${item.cumple ? '✔' : '✘'} ${item.student.nombre}  ← "${item.query}"`);
+  }
+  if (problems.length) console.log('\nRevisar (no se escriben):\n  ' + problems.join('\n  '));
+  if (withoutList.length) {
+    console.log('\nActivos sin lista (no se escriben; decide el profesor):\n  ' +
+      withoutList.map(student => student.nombre).join('\n  '));
+  }
+
+  if (!shouldApply) {
+    console.log('\nSimulación terminada. Repetir con --apply para escribir.');
+    return;
+  }
+
+  const rows = [...evaluations.values()];
+  const participationRows = rows.map(item => ({
+    profesor_id: course.profesor_id,
+    curso_id: cursoId,
+    estudiante_id: item.student.id,
+    fecha,
+    semana,
+    nivel: item.cumple ? 5 : 1,
+    observacion: `${actividad} - ${item.cumple ? 'Cumple Excelente' : 'Incumple'}`,
   }));
-
-  const { error: pErr } = await supabase
+  const { error: participationError } = await supabase
     .from('participacion')
-    .upsert(participacionRecords, { onConflict: 'curso_id,estudiante_id,fecha' });
+    .upsert(participationRows, { onConflict: 'curso_id,estudiante_id,fecha' });
+  console.log(participationError ? `Error participacion: ${participationError.message}` : `participacion: ${participationRows.length} filas`);
 
-  if (pErr) console.error("Error upserting participacion:", pErr);
-  else console.log("✅ Participación (nivel 1 a 5 con observaciones) registrada exitosamente en Supabase!");
-
-  // 2. UPSERT INTO `asistencia` TABLE
-  console.log(`\n2. Upserting into table 'asistencia'...`);
-  const asistenciaRecords = evaluations.map(e => ({
-    profesor_id: PROFESOR_ID,
-    curso_id: CURSO_ID,
-    estudiante_id: e.student_id,
-    fecha: FECHA_EVALUACION,
-    semana: 'Semana 3',
-    estado: e.estadoAsistencia,
-    horas: 2,
-    observacion_part: `${ACTIVIDAD_NOMBRE} - ${e.cumple ? 'Cumple Excelente' : 'Incumple'}`,
-    bitacora_id: BITACORA_ID
-  }));
-
-  const { error: aErr } = await supabase
-    .from('asistencia')
-    .upsert(asistenciaRecords, { onConflict: 'curso_id,estudiante_id,fecha' });
-
-  if (aErr) console.error("Error upserting asistencia:", aErr);
-  else console.log("✅ Asistencia vinculada a la Bitácora registrada exitosamente!");
-
-  // 3. UPSERT INTO `calificaciones_items` (Notas en curso)
-  console.log(`\n3. Upserting into table 'calificaciones_items' (Notas en curso)...`);
-  const calificacionesItemsRecords = evaluations.map(e => ({
-    profesor_id: PROFESOR_ID,
-    curso_id: CURSO_ID,
-    estudiante_id: e.student_id,
-    parcial: 1,
-    nombre_item: ACTIVIDAD_NOMBRE,
+  const itemRows = rows.map(item => ({
+    profesor_id: course.profesor_id,
+    curso_id: cursoId,
+    estudiante_id: item.student.id,
+    parcial,
+    nombre_item: actividad,
     tipo: 'tarea',
-    nota: e.nota,
-    fuente: 'en_curso'
+    nota: item.cumple ? 10 : 0,
+    fuente: 'en_curso',
   }));
-
-  // Clean old item entries for this activity if needed, then insert
-  await supabase
+  const { error: itemsError } = await supabase
     .from('calificaciones_items')
-    .delete()
-    .eq('curso_id', CURSO_ID)
-    .eq('nombre_item', ACTIVIDAD_NOMBRE)
-    .eq('fuente', 'en_curso');
-
-  const { error: ciErr } = await supabase
-    .from('calificaciones_items')
-    .insert(calificacionesItemsRecords);
-
-  if (ciErr) console.error("Error inserting calificaciones_items:", ciErr);
-  else console.log("✅ Calificaciones_items (Notas en curso: 10/0) registradas exitosamente!");
+    .upsert(itemRows, { onConflict: 'curso_id,estudiante_id,parcial,nombre_item' });
+  console.log(itemsError ? `Error calificaciones_items: ${itemsError.message}` : `calificaciones_items: ${itemRows.length} filas`);
 }
 
-runEvaluation().catch(console.error);
+main().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { callGroq } from '@/lib/groq'
 
 export type Criterio = { texto: string; peso?: number }
 
@@ -384,19 +385,13 @@ REGLAS:
 - Solo devuelve los criterios mejorados, uno por línea, sin numeración ni guiones`
 
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 300,
-        temperature: 0.4,
-      }),
-    })
-    const json = await res.json()
-    const text: string = json.choices?.[0]?.message?.content ?? ''
-    const criterios = text.split('\n').map((l: string) => l.trim()).filter(Boolean)
+    const result = await callGroq(
+      [{ role: 'user', content: prompt }],
+      800,
+      { temperature: 0.4, reasoningEffort: 'low' },
+    )
+    if (result.error) return { error: 'Error al conectar con IA' }
+    const criterios = result.content.split('\n').map((l: string) => l.trim()).filter(Boolean)
     return { criterios }
   } catch {
     return { error: 'Error al conectar con IA' }

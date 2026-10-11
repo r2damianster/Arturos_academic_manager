@@ -44,7 +44,7 @@ acceso a un MCP de Supabase (`execute_sql`) o al SQL Editor del dashboard, apunt
 | Entorno | project_id / URL |
 |---|---|
 | Producción (Vercel, estudiantes reales) | `hxsnyrutyyavvljxwgku` |
-| Local/dev (`.env.local`) | `vylkasmcveazzaspwgcr` |
+| Desarrollo (`.env`) | `vylkasmcveazzaspwgcr` |
 
 **Siempre preguntar al usuario cuál de los dos, si no es obvio por contexto** — escribir
 asistencia/bitácora en el proyecto equivocado es difícil de notar y molesto de revertir.

@@ -33,7 +33,7 @@ El skill mantiene esta lista en caché activa. Si el usuario solicita un plan pa
 ## 🤖 Regla de Ejecución Directa por la IA
 
 La IA (Antigravity o Claude Code) **NO debe pedirle al usuario que ejecute scripts ni SQLs a mano**. 
-La IA ejecutará la inserción **directamente en Supabase Producción** (`hxsnyrutyyavvljxwgku`) con el MCP de Supabase (`execute_sql`). `scripts/_supabase-env.js` lee `.env.local`, que apunta al proyecto de desarrollo: no usarlo para escribir en producción.
+La IA ejecutará la inserción **directamente en Supabase Producción** (`hxsnyrutyyavvljxwgku`) con el MCP de Supabase (`execute_sql`). Para scripts, `scripts/_supabase-prod.js` lee `.env.local` y aborta si no apunta a producción.
 
 ---
 
@@ -147,7 +147,7 @@ Cursos y horarios del periodo: consultar `cursos where estado='activo' and insti
 - `materiales`: links a slides. Si falta slide: `[Diapositiva — pendiente de carga]`. Si solo existe una slide indirecta: se agrega el link **y** una actividad `Presentación PPT — Pendiente: <Tema>`. En evaluaciones, vacío.
 - `observaciones`: `EACD/EAA: … Criterio: …` separados por ` — `. No inventar AA que el sílabo no tenga. "Experimentación blanda" solo en ODO (últimas semanas).
 - **No modificar sesiones con placeholder (`Sesion N`) ni sobrescribir sesiones con contenido sin orden explícita.**
-- Ejecutar escrituras contra prod vía MCP Supabase (`hxsnyrutyyavvljxwgku`): el `.env.local` apunta al proyecto de desarrollo.
+- Ejecutar escrituras contra prod vía MCP Supabase (`hxsnyrutyyavvljxwgku`): confirmar siempre la URL del proyecto antes de escribir (`.env.local` y `.env` apuntan a proyectos distintos).
 
 ---
 
