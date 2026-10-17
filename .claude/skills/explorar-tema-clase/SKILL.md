@@ -1,6 +1,6 @@
 ---
 name: explorar-tema-clase
-description: Dossier de propuesta para un tema de clase del gestor universitario. Se invoca con el tema (por ejemplo `/explorar-tema-clase "El giro lingüístico"`) y MUESTRA, sin ejecutar nada: dónde cae el tema en el plan del curso, textos y materiales existentes, enfoques alternativos con recomendación, actividades candidatas con tiempos, prompts listos para NotebookLM y un brief para Gemini. No planifica, no escribe en la base de datos, no genera imágenes ni diapositivas. Úsalo cuando el profesor diga "no sé cómo enfocar este tema", "qué opciones tengo para X", "muéstrame textos y actividades sobre Y" o "dame propuestas para la clase de Z".
+description: Dossier de propuesta para un tema de clase del gestor universitario. Se invoca con el tema (por ejemplo `/explorar-tema-clase "El giro lingüístico"`) y MUESTRA, sin ejecutar nada: dónde cae el tema en el plan del curso, textos y materiales existentes, enfoques alternativos con recomendación, actividades candidatas con tiempos, prompts listos para NotebookLM, opciones de estilo visual para que el profesor elija y la arquitectura detallada slide a slide para Gemini. No planifica, no escribe en la base de datos, no genera imágenes ni diapositivas. Úsalo cuando el profesor diga "no sé cómo enfocar este tema", "qué opciones tengo para X", "muéstrame textos y actividades sobre Y" o "dame propuestas para la clase de Z".
 ---
 
 # Explorar un tema de clase (dossier de propuesta)
@@ -77,10 +77,20 @@ prompt de **guía de lectura previa** (con referencias APA al final) y, opcional
 el Studio (audio overview, mapa mental, cuestionario, tarjetas). Indicar qué revisar después
 (citas textuales y referencias).
 
-### 6. Para ejecutar en Gemini (solo mostrar)
-Entregar el **esqueleto** del brief de slides de `plantillas.md` § 3 con el listado de diapositivas
-propuestas (título y función de cada una). La arquitectura detallada solo se produce si el profesor
-la pide ("arquitectura completa de slides").
+### 6. Para ejecutar en Gemini (solo mostrar): estilo + arquitectura slide a slide
+
+**6.1 Decisión de estilo (la toma el profesor).** Ofrecer **3 estilos distintos entre sí** del
+catálogo de `plantillas.md` § 3, cada uno con colores en hex, tipografías, motivo, tratamiento de
+ilustraciones, cómo se ve un GANCHO frente a un AUTOR y un riesgo. Cada mazo debe verse distinto:
+revisar los estilos de mazos anteriores (`ejemplo-*.md`, dossiers previos) y no repetirlos. Dejar
+claro que puede mezclar o pedir otro. Hasta que elija, el encabezado del brief lleva
+`ESTILO ELEGIDO: [por definir]`.
+
+**6.2 Arquitectura completa.** Entregar el brief con el encabezado de `plantillas.md` § 4.1 y **una
+ficha por cada diapositiva** (§ 4.2): tipo, tiempo, layout con zonas, texto en pantalla literal,
+visual, color y énfasis, animación, notas del orador y consigna. Con ganchos antes de cada autor o
+concepto (§ 4.3), referencias al final y tabla resumen de tiempos. Debe poder pegarse en Gemini sin
+que este tenga que interpretar nada. Si la sesión es larga, marcar qué bloques son opcionales.
 
 ### 7. Promoción (solo propuesta)
 Si el tema culmina en un evento público, proponer texto del afiche, formatos (horizontal para
@@ -88,6 +98,7 @@ diapositiva, vertical 4:5 para WhatsApp) y mensaje corto. No generar la imagen.
 
 ### 8. Cierre del dossier
 - **Decisiones pendientes** (fecha, formato, tiempos, qué actividades) como preguntas cortas.
+  **Siempre incluir la decisión de estilo visual** (colores, tipografías, motivo): elige el profesor.
 - **Siguientes pasos** como menú, por ejemplo: "desarrolla la opción B", "arquitectura completa de
   slides", "genera el afiche", "planifica las sesiones", "aplica en la bitácora".
 
