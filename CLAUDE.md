@@ -117,7 +117,7 @@ App Next.js 15 para gestión docente universitaria — cursos, asistencia, calif
 - **`registrar-clase`** — Registro e ingreso individual de sesión, cumplido y asistencia
 - **`evaluar-participacion`** — Participación / control de lectura con fuzzy matching; no altera `asistencia`
 - **`registrar-tutoria`** — Registra tutorías manuales en `reservas` (origen `manual`)
-- **`planificar-tema-clase`** — Solo este proyecto. Planifica uno o varios días sobre un tópico: diagnóstico del plan, enfoque, sesiones con minutos, prompts NotebookLM, arquitectura de slides para Gemini, afiche y actualización de bitácora (ejemplo en `.claude/skills/planificar-tema-clase/ejemplo-giro-linguistico.md`)
+- **`explorar-tema-clase`** — Solo este proyecto, solo lectura. `/explorar-tema-clase "Tema"` muestra un dossier de propuesta (ubicación en el plan, textos existentes, enfoques alternativos, actividades, prompts de NotebookLM y brief de Gemini) sin ejecutar ni escribir nada (ejemplo en `.claude/skills/explorar-tema-clase/ejemplo-giro-linguistico.md`)
 
 ## Supabase — acceso y migraciones
 
