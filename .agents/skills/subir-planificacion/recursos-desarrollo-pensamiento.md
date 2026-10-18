@@ -160,3 +160,32 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 | S18 | Retroalimentación | — | — |
 
 > Vacíos: S13 (Chicago) ni S18. Sin slide específica de «mentefacto» (S9): dejar `Presentación PPT — Pendiente: Mentefacto`.
+
+---
+
+## 🧱 Recursos faltantes por sesión (propuesta de plan 2026-2, 2026-10-18)
+
+> Detectados al armar la propuesta de planes. Cada uno queda en el plan como actividad `Presentación PPT — Pendiente: <Tema>` (slides) o nota equivalente hasta que el profesor lo cree/apruebe. Al crearse, pasar a Aprobados.
+
+| Sesión | Tipo | Falta | Cómo queda en el plan |
+|--------|------|-------|-----------------------|
+| S1 | 📊 Slide | Presentación del sílabo | `Presentación PPT — Pendiente: Sílabo` |
+| S2 | 📊 Slide | Sensación vs. percepción (exposición docente de apoyo) | `Presentación PPT — Pendiente: Percepción y sensación` |
+| S2 | 🔗 Enlace | URL del Test de Atención Selectiva (Chile) | Pendiente en ACD de T5 |
+| S2 | 🔗 Enlace | URL de la Ilusión de Müller-Lyer (Dinamarca) | Pendiente en ACD de T5 |
+| S2 | 🔗 Enlace | URL de la Prueba de la Mancha Ciega (Egipto) | Pendiente en ACD de T5 |
+| S3 | 🖼️ Láminas | Láminas del Observation Rally (refugio, cubos, guitarra, oficina, tejedora, gasolinera, columpio, escritorio): sin archivo/URL en el repositorio | Pendiente: subir a Drive |
+| S4 | 📊 Slide | Comparación con ejemplos de ciencias de la salud (DP-S03 es indirecta) | `Presentación PPT — Pendiente: Comparación (ejemplos de ciencias de la salud)` |
+| S7 | 📄 Material | Tema asignado por grupo (puntos de la temática) | Definir reparto |
+| S8 | 🎬 Video | Título/confirmación del video de organizadores (DP-V04) | Pendiente de aprobar |
+| S9 | 📊 Slide | Resumen y mentefacto (no hay slide específica) | `Presentación PPT — Pendiente: Mentefacto y resumen` |
+| S9 | 📄 Plantilla | Plantilla/guía del cartel grupal con declaración de uso de IA | Pendiente |
+| S12 | 📊 Slide | Repositorios digitales y gestores de referencias (S11/S12 son indirectas) | `Presentación PPT — Pendiente: Repositorios digitales y gestores de referencias` |
+| S13 | 📊 Slide | Estilo Chicago | `Presentación PPT — Pendiente: Chicago` |
+| S14 | 📊 Slide | Informe académico (S21 es indirecta) | `Presentación PPT — Pendiente: Informe académico` |
+| S14 | 📄 Material | Textos generados con IA contrastados con fuentes académicas | Pendiente: preparar ejemplos |
+| S14 | 📊 Slide | Ética y plagio: DP-S08 existe pero está pendiente de aprobar | Aprobar DP-S08 |
+| S15 | 📊 Slide | Ensayo académico y estructura PEEL (S21 y R12 son indirectos) | `Presentación PPT — Pendiente: Ensayo académico y PEEL` |
+| S18 | 📊 Slide | Guía de repaso integrador de las Unidades 1–3 | `Presentación PPT — Pendiente: Repaso integrador` |
+
+Sin faltantes de recurso: S5, S6, S10, S11, S16, S17 (exámenes en Moodle).
