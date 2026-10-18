@@ -183,6 +183,8 @@ Para **Desarrollo del Pensamiento** (Medicina UTE y afines) existe un catálogo 
 📄 **Archivo**: `.agents/skills/subir-planificacion/recursos-desarrollo-pensamiento.md`
 
 - **LEER** ese archivo antes de planificar cualquier sesión de Desarrollo del Pensamiento; los ids `S##/R##` que referencia viven en `recursos-investigacion.md`.
+- **Búsqueda cruzada obligatoria**: buscar también en `recursos-investigacion.md` y `bibliografia.md` (slides, simuladores, talleres y videos de las asignaturas de investigación: APA, redacción, lectura, argumentación, Zotero, ética, etc.) e incluir todo lo que coincida con el tema de la sesión.
+- Películas/animes de AA (`DP-A##`) van en `observaciones`, sin recurso.
 - Los recursos Aprobados se asignan según el «Mapa por sesión»; los Pendientes solo los aprueba el profesor.
 - Tareas de Moodle → `observaciones` (AA/TA, sin recurso). Archivos de Moodle sin URL no se enlazan hasta que estén en Drive.
 

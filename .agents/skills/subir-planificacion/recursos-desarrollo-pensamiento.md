@@ -12,7 +12,7 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 
 ## 📋 Instrucciones de uso
 
-- **Al planificar**: leer este archivo y asignar por sesión del sílabo (tabla «Mapa por sesión»). Los recursos transversales con id `S##`, `R##`, `T##` viven en [recursos-investigacion.md](recursos-investigacion.md); aquí solo se referencian.
+- **Al planificar**: leer este archivo **y también [recursos-investigacion.md](recursos-investigacion.md) y [bibliografia.md](bibliografia.md)** (las asignaturas de investigación comparten slides, simuladores, talleres y videos: APA, redacción, lectura, argumentación, Zotero, ética…) y asignar por sesión del sílabo (tabla «Mapa por sesión»). Todo recurso de investigación cuyo tema coincida con una sesión se incluye, aunque no figure en la tabla. Los recursos transversales con id `S##`, `R##`, `T##` viven en [recursos-investigacion.md](recursos-investigacion.md); aquí solo se referencian.
 - **REGLA de planificación (2026-10-02)**: incluir **todas** las slides y recursos relacionados con el tema; slides en `materiales`, el resto como ACD en `actividades_json`.
 - **Ids propios**: `DP-S##` slide · `DP-V##` video · `DP-E##` ejercicio/dinámica · `DP-P##` plataforma · `DP-M##` archivo de Moodle.
 - **Tareas de Moodle** (entregas fuera del aula): van en `observaciones` como AA/TA, **sin recurso**. Los archivos de Moodle (DOCX, PDF, PNG) no tienen URL: para usarlos como ACD deben subirse antes a Drive.
@@ -31,6 +31,25 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 | DP-V01 | La naturaleza y el viaje de la mente | [Abrir](https://youtu.be/fjWLRv_30a0) | S1 — La mente, el pensamiento y la inteligencia | DP-M 7-may (2026-1) |
 | R18 / DP-V02 | Desde el conocimiento vulgar hasta el entorno científico | [Abrir](https://youtu.be/4DXwlwY1SPk) | S7 — Qué es el conocimiento, tipos y elementos | DP-M 28-may, 8-jun (2026-1) · GAS/ODO Ses.1–2 (2026-2) |
 | R19 / DP-V03 | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | S14–S15 — Informe y ensayo académico (redacción) | GAS/ODO Ses.4 (2026-2) |
+
+### 📊 Slides (Google Slides)
+
+| # | Título | URL | Sesión sílabo 2026-2 |
+|---|--------|-----|----------------------|
+| DP-S03 | Observación, Semejanzas y Comparación | [Abrir](https://docs.google.com/presentation/d/1teprkQ2vxOy9asb-yhE9gbpoJyNjOy-mJ5rgMqxEsOU/edit?usp=sharing) | S3, S4, S5 |
+| DP-S04 | Organizadores Gráficos | [Abrir](https://docs.google.com/presentation/d/1kQxeJ7yrKsq8iDgxpobZrlPFhIvKONBlD8QdLgiehJw/edit?usp=sharing) | S8, S9 |
+| DP-S06 | Conocimiento empírico vs. científico | [Abrir](https://docs.google.com/presentation/d/1tTaCAgdsmYKNFGZlWndzDhU3uxCj_dfqMdxfJF-T4_s/edit?usp=sharing) | S7 |
+| DP-S07 | Niveles de lectura | [Abrir](https://docs.google.com/presentation/d/1DG2TSnd_rKf0AzxOO8Jf6Qtfkn3dQWP6wa2fUVn4DQ0/edit?usp=sharing) | S10 |
+
+### 🎞️ Películas y animes — Actividad Autónoma (AA, fuera del aula; van en `observaciones`, sin recurso)
+
+| # | Título | Tipo | Sesión sugerida | Vínculo con el sílabo |
+|---|--------|------|-----------------|-----------------------|
+| DP-A01 | Dr. Stone | Anime | S3–S5 | Observación, comparación y método científico |
+| DP-A02 | Interestelar | Película | S1–S2 | Mente, percepción y razonamiento |
+| DP-A03 | Una mente maravillosa | Película | S1–S2 | Mente, percepción y pensamiento |
+
+*(El vínculo con el sílabo es sugerencia; el profesor elige la sesión.)*
 
 ### 🔁 Recursos transversales ya aprobados (en recursos-investigacion.md)
 
@@ -56,9 +75,7 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 |---|--------|-----|-----------------|---------------|
 | DP-S01 | Presentación personal del docente | [Abrir](https://docs.google.com/presentation/d/1FlIHGLETfZJFHtn3s_1726HeqEY_6oCAM1dmLlW65ns/edit?usp=sharing) | S1 | gestor 7-may |
 | DP-S02 | Tarea grupal «cada grupo se hace cargo de un punto» (mente, pensamiento, inteligencia) | [Abrir](https://docs.google.com/presentation/d/14ssaJAuemuSlojn4XIavxBudkR9AFZjamPb5AxnFSb4/edit?usp=sharing) | S1 | gestor 7-may |
-| DP-S03 | Guía de observación y comparación | [Abrir](https://docs.google.com/presentation/d/1teprkQ2vxOy9asb-yhE9gbpoJyNjOy-mJ5rgMqxEsOU/edit?usp=sharing) | S3, S4, S5 | gestor 21 y 28-may |
-| DP-S04 | Organizadores gráficos — exposición docente | [Abrir](https://docs.google.com/presentation/d/1kQxeJ7yrKsq8iDgxpobZrlPFhIvKONBlD8QdLgiehJw/edit?usp=sharing) | S8, S9 | gestor 11-jun |
-| DP-S05 | Niveles de lectura / lectura científica | [Abrir](https://docs.google.com/presentation/d/1bEIdwMWbGs2r7AUvdNUvyje11ozqad_n/edit?usp=sharing) | S10 | gestor 18-jun |
+| DP-S05 | Niveles de lectura / lectura científica (versión 2026-1; la vigente es DP-S07) | [Abrir](https://docs.google.com/presentation/d/1bEIdwMWbGs2r7AUvdNUvyje11ozqad_n/edit?usp=sharing) | S10 | gestor 18-jun |
 
 ### 🧩 Ejercicios, dinámicas y plataformas
 
@@ -108,16 +125,16 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 
 | Sesión | Tema del sílabo | Aprobados | Pendientes |
 |--------|-----------------|-----------|-----------|
-| S1 | La mente, el pensamiento, la inteligencia | DP-V01 | DP-E01, DP-S01, DP-S02, PB04 |
+| S1 | La mente, el pensamiento, la inteligencia | DP-V01, DP-A02/A03 (AA) | DP-E01, DP-S01, DP-S02, PB04 |
 | S2 | Percepción y sensación | — | DP-P01, DP-P02, DP-M01 (PB06) |
-| S3 | Observación y descripción | — | DP-S03, DP-E02, DP-P03, DP-M02, DP-M03 |
-| S4 | Comparación | — | DP-S03, DP-E03, DP-P03 |
-| S5 | Comparación (continuación) | R17 (repaso) | DP-S03, DP-P03 |
+| S3 | Observación y descripción | DP-S03, DP-A01 (AA) | DP-E02, DP-P03, DP-M02, DP-M03 |
+| S4 | Comparación | DP-S03 | DP-E03, DP-P03 |
+| S5 | Comparación (continuación) | DP-S03, R17 (repaso) | DP-P03 |
 | S6 | Evaluación parcial I (Unidad 1) | — | DP-P06 |
-| S7 | Qué es el conocimiento, tipos y elementos | R18 | — |
-| S8 | Organizadores gráficos (1ra parte) | — | DP-S04, DP-M04 (PB01), DP-M05, DP-M06 |
-| S9 | Organizadores gráficos: resumen y mentefacto | — | DP-S04, DP-M04, DP-M05 |
-| S10 | Lectura científica y niveles de comprensión | R29 | DP-S05, DP-M07 |
+| S7 | Qué es el conocimiento, tipos y elementos | DP-S06, R18 | — |
+| S8 | Organizadores gráficos (1ra parte) | DP-S04 | DP-M04 (PB01), DP-M05, DP-M06 |
+| S9 | Organizadores gráficos: resumen y mentefacto | DP-S04 | DP-M04, DP-M05 |
+| S10 | Lectura científica y niveles de comprensión | DP-S07, R29 | DP-M07 |
 | S11 | Evaluación parcial II (Unidad 2) | R17 | DP-P06 |
 | S12 | Repositorios y gestores de referencias | R26 | DP-P04 |
 | S13 | APA, Vancouver, Chicago | S19, S20 | — |
@@ -127,4 +144,4 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 | S17 | Evaluación final | — | DP-P06 |
 | S18 | Retroalimentación | — | — |
 
-> Vacíos: no hay recursos para S1 (más allá del video), S7 (más allá de R18), S13 (Chicago) ni S18. Sin slide específica de «mentefacto» (S9): dejar `Presentación PPT — Pendiente: Mentefacto`.
+> Vacíos: S13 (Chicago) ni S18. Sin slide específica de «mentefacto» (S9): dejar `Presentación PPT — Pendiente: Mentefacto`.
