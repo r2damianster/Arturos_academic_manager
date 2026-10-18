@@ -51,6 +51,17 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 
 *(El vínculo con el sílabo es sugerencia; el profesor elige la sesión.)*
 
+### 🔬 Laboratorios de percepción — S2 (Centro de Cómputo)
+
+| # | Recurso | URL | Uso |
+|---|---------|-----|-----|
+| DP-L01 | The Illusion Index (Albania) | [Abrir](https://www.illusionsindex.org/i/) | Laboratorio de ilusiones |
+| DP-L02 | Michael Bach — Optical Illusions (Brasil) | [Abrir](https://michaelbach.de/ot/) | Laboratorio de ilusiones ópticas |
+| DP-L03 | Blob Opera, Google Arts & Culture (Francia) — sensación sonora | [Abrir](https://artsandculture.google.com/experiment/blob-opera/AAHWrq360NcGbw?hl=en) | Laboratorio de sensación sonora |
+| DP-E04 | **Actividad T5 — Aplicación experimental (TA2)**: cada equipo aplica su prueba y explica la distorsión percibida | — | Chile: Test de Atención Selectiva · Dinamarca: Ilusión de Müller-Lyer · Egipto: Prueba de la Mancha Ciega · Francia: Blob Opera |
+
+> Aplicada en 2026-1 en el Centro de Cómputo (Moodle, sección «Percepción y sensación», T4–T5). Los equipos representan países. El URL de Blob Opera de Moodle (`…AAHWrq360s_S6A`) es distinto; se usa el enviado por el profesor.
+
 ### 🔁 Recursos transversales ya aprobados (en recursos-investigacion.md)
 
 | Id | Recurso | Sesión sugerida |
@@ -90,6 +101,10 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 | DP-P04 | Plataforma | Zotero (descarga y práctica) | [Abrir](https://www.zotero.org/) | S12 | gestor 18 y 25-jun |
 | DP-P05 | Plataforma | Compilatio — entrega de ensayo sin plagio (enlace de envío del curso) | [Abrir](https://app.compilatio.net/app/document-submission/W31-F83-1E7) | S15 (TA) | Moodle «Ensayo académico sin plagio» |
 | DP-P06 | Plataforma | Aula Moodle UTE (evaluaciones) | [Abrir](https://lms.ute.edu.ec/) | S6, S11, S16, S17 | gestor 4-jun |
+| DP-P07 | Plataforma | Mendeley (descarga) | [Abrir](https://www.mendeley.com/download-desktop-new/) | S12 | Moodle, sección Repositorios/Gestores |
+| DP-P08 | Plataforma | Repositorio de tesis UTE | [Abrir](https://repositorio.ute.edu.ec/) | S12 | Moodle, sección Repositorios/Gestores |
+| DP-V04 | Video | Video de organizadores gráficos (título por confirmar) | [Abrir](http://www.youtube.com/watch?v=_vnxQG8uebY) | S8–S9 | Moodle, sección Organizadores gráficos |
+| DP-S08 | Slide | Ética e integridad académica | [Abrir](https://docs.google.com/presentation/d/19LNC7TuhRlJzId5cd3fsA1TUKsMy7ClE/edit?usp=sharing) | S12 | Moodle, sección Repositorios/Gestores |
 
 ### 📎 Archivos de Moodle (sin URL: subir a Drive antes de usar como ACD)
 
@@ -126,18 +141,18 @@ Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`,
 | Sesión | Tema del sílabo | Aprobados | Pendientes |
 |--------|-----------------|-----------|-----------|
 | S1 | La mente, el pensamiento, la inteligencia | DP-V01, DP-A02/A03 (AA) | DP-E01, DP-S01, DP-S02, PB04 |
-| S2 | Percepción y sensación | — | DP-P01, DP-P02, DP-M01 (PB06) |
+| S2 | Percepción y sensación | DP-L01, DP-L02, DP-L03, DP-E04 | DP-P01, DP-P02, DP-M01 (PB06) |
 | S3 | Observación y descripción | DP-S03, DP-A01 (AA) | DP-E02, DP-P03, DP-M02, DP-M03 |
 | S4 | Comparación | DP-S03 | DP-E03, DP-P03 |
 | S5 | Comparación (continuación) | DP-S03, R17 (repaso) | DP-P03 |
 | S6 | Evaluación parcial I (Unidad 1) | — | DP-P06 |
 | S7 | Qué es el conocimiento, tipos y elementos | DP-S06, R18 | — |
-| S8 | Organizadores gráficos (1ra parte) | DP-S04 | DP-M04 (PB01), DP-M05, DP-M06 |
+| S8 | Organizadores gráficos (1ra parte) | DP-S04 | DP-V04, DP-M04 (PB01), DP-M05, DP-M06 |
 | S9 | Organizadores gráficos: resumen y mentefacto | DP-S04 | DP-M04, DP-M05 |
 | S10 | Lectura científica y niveles de comprensión | DP-S07, R29 | DP-M07 |
 | S11 | Evaluación parcial II (Unidad 2) | R17 | DP-P06 |
-| S12 | Repositorios y gestores de referencias | R26 | DP-P04 |
-| S13 | APA, Vancouver, Chicago | S19, S20 | — |
+| S12 | Repositorios y gestores de referencias | R26 | DP-P04, DP-P07, DP-P08, DP-S08 |
+| S13 | APA, Vancouver, Chicago | S19, S20, R10, R11 (simuladores APA 7) | — |
 | S14 | Informe académico | S21, R19 | DP-M08, DP-M09 |
 | S15 | Ensayo académico | S21, R19, R27 | DP-P05, DP-M10 |
 | S16 | Evaluación parcial III (Unidad 3) | R17 | DP-P06 |

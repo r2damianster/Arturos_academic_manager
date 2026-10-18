@@ -59,5 +59,7 @@ Catálogo de **referencias bibliográficas** (libros, artículos, guías) que se
 | PB05 | 📄 Artículo | Lectura (Redalyc 44026102) | [Abrir](https://www.redalyc.org/pdf/440/44026102.pdf) | Por definir | MIAP-B | 2026-10-03 |
 | PB06 | 📖 Libro | Cuaderno de ejercicios mentales — *Desarrollo de habilidades* | [Abrir](https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf) | Pensamiento | dp-m261 | 2026-10-03 |
 | PB07 | 📄 Guía | Guía de rúbrica de escritura (TESOL Union) | [Abrir](https://www.tesolunion.org/attachments/files/9NZCY8MGRIBZMNMBZJEY7YJEZ4NDA2BNMQ14OWI5BYJJIFNDDL5OTE36ZDG0BZDGYAMTVL0ZGY50NZY04NJHI9NMMZALJQ00NZCY9ODQ00LJA0.pdf) | Inglés académico | ARW2-A | 2026-10-03 |
+| PB08 | 📖 Libro | Hessen, J. (1970). *Teoría del conocimiento* (J. Gaos, Trad.). Espasa-Calpe. | [Abrir](https://trabajosocialucen.wordpress.com/wp-content/uploads/2012/05/hessen_johannes-_teoria_del_conocimiento_pdf-1.pdf) | Filosofía y pensamiento (S7) | dp-m261 / MED-DPE (Moodle) | 2026-10-18 |
+| PB09 | 📄 Artículo | Simbaña Gallardo, V. P., et al. (2021). Estrategias lectoras para el desarrollo del pensamiento crítico. *TSAFIQUI*, (17). | [Abrir](https://doi.org/10.29019/tsafiqui.v12i17.921) | Lectura crítica y niveles de comprensión (S10) | dp-m261 / MED-DPE (Moodle) | 2026-10-18 |
 
 > Las URLs de PB01–PB07 están por verificar (ver `recursos_por_verificar.xlsx`).
