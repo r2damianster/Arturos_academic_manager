@@ -210,7 +210,20 @@ Recursos: **DP-P06** Aula Moodle UTE — https://lms.ute.edu.ec/ (†). Sin mate
 
 ---
 
-# Fuera del sílabo 2026-2 (archivo de 2026-1)
-Experimentación blanda del semestre anterior; no figura en el sílabo vigente. Se conserva por si se retoma.
-- **DP-M08** Plantilla de inscripción y autorización del proyecto (.docx) · **DP-M09** Plantilla diario de campo (.docx) · **DP-M10** `Título del Experimento.pptx`.
+# 🔬 Experimentación blanda (transversal S12–S15; orden del profesor 2026-10-18)
+No figura en el sílabo; se agrega como ACD adicional en las sesiones posteriores al segundo parcial (S11), sin cambiar temas ni la ACD/AA oficiales. Se explica de forma progresiva y **se presenta en la última clase (S15)**.
+Meta: diseñar un experimento viable y seguro, con grupo de control (A) y experimental (B); parejas (máx. 3 si se justifica).
+
+| Sesión | Fase | Recurso |
+|---|---|---|
+| S12 | Presentación de la experimentación blanda: meta, grupos A/B, pautas y calendario | 🧱 Slide **Experimentación blanda** (existe S18 «template de presentación», solo para ODO; ver si aplica) |
+| S13 | Inscripción del experimento en clase, con apoyo de IA (parejas, pregunta científica, control) | **DP-M08** Plantilla de inscripción y autorización (.docx)† |
+| S14 | Instrumento de observación y diario de campo (mín. 6 entradas, cada 2 días, PDF; AA en `observaciones`) | **DP-M09** Plantilla diario de campo (.docx)† |
+| S15 | Exposición oral de los proyectos (10 min + 5 de defensa) | **DP-M10** `Título del Experimento.pptx`† |
+
+🧱 Subir DP-M08–M10 a Drive para enlazarlos. S15 queda cargada (ensayo + exposiciones): confirmar si las exposiciones ocupan toda la clase.
+
+---
+
+# Archivo de 2026-1 (no se usa en el plan 2026-2)
 - Tareas Moodle 2026-1: Infografía de vacío de investigación con Zotero · Ensayo sin plagio · APA 7 simulación · Inscripción del experimento · Diario de campo · Exposición.
