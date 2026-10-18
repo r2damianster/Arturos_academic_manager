@@ -1,191 +1,216 @@
 ---
 name: recursos-desarrollo-pensamiento
-description: Repositorio de recursos reutilizables para la asignatura Desarrollo del Pensamiento (Medicina UTE y afines). Slides, videos, ejercicios, plataformas y recursos de Moodle organizados por sesión del sílabo. Referenciado por el skill subir-planificacion.
+description: Repositorio de recursos de Desarrollo del Pensamiento (Medicina UTE) organizado por sesión y tema del sílabo. Cada sesión conserva la ACD/AA oficiales del sílabo y lista debajo los recursos del profesor (aprobados, pendientes y faltantes) que caben dentro de ellas. Referenciado por el skill subir-planificacion.
 ---
 
 # 📦 Repositorio de Recursos — Desarrollo del Pensamiento
-*Prof. Arturo Rodríguez — Gestor Universitario*
+*Prof. Arturo Rodríguez — Gestor Universitario · curso `MED-DPE-2026II` (UTE Medicina) · antecedente 2026-1 `dp-m261`*
 
-Catálogo de recursos de **Desarrollo del Pensamiento** (curso `MED-DPE-2026II`, UTE Medicina; antecedente 2026-1 `dp-m261`). Se construyó cruzando el plan del gestor 2026-1 con el respaldo Moodle `Moodel_UTE_Medicina_Pensamiento.mbz` (2026-10-18).
+**Eje = tema del sílabo.** Cada sesión tiene sus temas y su ACD/AA oficiales. Los recursos propios del profesor se ubican **dentro** de lo que el sílabo estipula, ordenados por la ACD o AA que respaldan. Construido con el plan 2026-1 del gestor y el respaldo Moodle (2026-10-18).
 
 ---
 
 ## 📋 Instrucciones de uso
 
-- **Al planificar**: leer este archivo **y también [recursos-investigacion.md](recursos-investigacion.md) y [bibliografia.md](bibliografia.md)** (las asignaturas de investigación comparten slides, simuladores, talleres y videos: APA, redacción, lectura, argumentación, Zotero, ética…) y asignar por sesión del sílabo (tabla «Mapa por sesión»). Todo recurso de investigación cuyo tema coincida con una sesión se incluye, aunque no figure en la tabla. Los recursos transversales con id `S##`, `R##`, `T##` viven en [recursos-investigacion.md](recursos-investigacion.md); aquí solo se referencian.
-- **REGLA de planificación (2026-10-02)**: incluir **todas** las slides y recursos relacionados con el tema; slides en `materiales`, el resto como ACD en `actividades_json`.
-- **Ids propios**: `DP-S##` slide · `DP-V##` video · `DP-E##` ejercicio/dinámica · `DP-P##` plataforma · `DP-M##` archivo de Moodle.
-- **Tareas de Moodle** (entregas fuera del aula): van en `observaciones` como AA/TA, **sin recurso**. Los archivos de Moodle (DOCX, PDF, PNG) no tienen URL: para usarlos como ACD deben subirse antes a Drive.
-- **Nunca aprobar automáticamente** lo que está en Pendientes: solo el profesor lo mueve a Aprobados.
-- **Bibliografía** (libros y artículos): [bibliografia.md](bibliografia.md).
-- Si un recurso queda obsoleto, marcarlo `[OBSOLETO]`; no eliminar.
+1. **El sílabo manda.** El `tema` y las ACD de la bitácora son los del sílabo (texto fiel). Los recursos propios se agregan **dentro** de esas ACD, nunca cambian el tema ni añaden actividades ajenas al sílabo.
+2. **Búsqueda cruzada obligatoria**: leer también [recursos-investigacion.md](recursos-investigacion.md) y [bibliografia.md](bibliografia.md) y sumar lo que coincida con el tema (ids `S##`, `R##`, `T##`, `B##`, `PB##`).
+3. **Dónde va cada cosa**: slides → `materiales`. Simuladores, videos, talleres, plataformas y dinámicas → ACD en `actividades_json`. **AA/TA y evaluaciones → `observaciones`, sin recursos.** Películas/animes de AA → `observaciones`.
+4. **Slide faltante** → `Presentación PPT — Pendiente: <Tema>` y `materiales = [Diapositiva — pendiente de carga]` si no hay ninguna.
+5. **Nunca aprobar automáticamente** (†). Solo el profesor mueve de pendiente a aprobado.
+6. **Ids propios**: `DP-S` slide · `DP-V` video · `DP-E` ejercicio/dinámica · `DP-P` plataforma · `DP-L` laboratorio · `DP-A` película/anime · `DP-M` archivo de Moodle (sin URL: subir a Drive antes de enlazar).
+7. Leyenda: ✅ aprobado · † pendiente de aprobación · 🧱 falta crear.
 
 ---
 
-## ✅ Recursos Aprobados
+# UNIDAD 1. PENSAMIENTO Y RAZONAMIENTO
 
-### 🎬 Videos
+## Sesión 1 — 1.1 La mente · 1.2 El pensamiento · 1.3 La inteligencia
+**ACD:** Presentación del sílabo, dinámica de integración y presentación personal. Lectura en grupos de un artículo científico sobre la mente, presentación de video y exposición de cada grupo.
+**AA:** Tarea grupal en la que cada grupo prepara un subtema para exponer. **EACD:** lista de cotejo.
 
-| # | Título | URL | Sesión sílabo 2026-2 | Usado en |
-|---|--------|-----|----------------------|----------|
-| DP-V01 | La naturaleza y el viaje de la mente | [Abrir](https://youtu.be/fjWLRv_30a0) | S1 — La mente, el pensamiento y la inteligencia | DP-M 7-may (2026-1) |
-| R18 / DP-V02 | Desde el conocimiento vulgar hasta el entorno científico | [Abrir](https://youtu.be/4DXwlwY1SPk) | S7 — Qué es el conocimiento, tipos y elementos | DP-M 28-may, 8-jun (2026-1) · GAS/ODO Ses.1–2 (2026-2) |
-| R19 / DP-V03 | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | S14–S15 — Informe y ensayo académico (redacción) | GAS/ODO Ses.4 (2026-2) |
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **D01 «La fiesta»** (dinamicas-juegos.md) | Dinámica de integración |
+| ✅ | **DP-V01** Video «La naturaleza y el viaje de la mente» — https://youtu.be/fjWLRv_30a0 | Presentación de video |
+| † | **DP-S01** Slides presentación personal — https://docs.google.com/presentation/d/1FlIHGLETfZJFHtn3s_1726HeqEY_6oCAM1dmLlW65ns/edit?usp=sharing | Presentación personal |
+| † | **PB04** Medina, N. (2008). La ciencia cognitiva y el estudio de la mente — https://dialnet.unirioja.es/descarga/articulo/2747355.pdf | Artículo científico sobre la mente |
+| † | **DP-S02** Slides de reparto de subtemas por grupo — https://docs.google.com/presentation/d/14ssaJAuemuSlojn4XIavxBudkR9AFZjamPb5AxnFSb4/edit?usp=sharing | AA tarea grupal |
+| ✅ | **DP-A02** Interestelar · **DP-A03** Una mente maravillosa (películas, solo `observaciones`) | AA: mente y pensamiento |
+| 🧱 | Slide **Presentación del sílabo** | Presentación del sílabo |
 
-### 📊 Slides (Google Slides)
+## Sesión 2 — 1.4 Percepción · 1.5 Sensación
+**ACD:** Presentaciones grupales sobre sensación y percepción con preguntas de los compañeros y retroalimentación docente. Ejercicios del cuaderno de ejercicios mentales.
+**AA:** Lectura colaborativa en plataforma digital Perusall. **EACD:** escala de participación · **EAA:** control de lectura en plataforma.
 
-| # | Título | URL | Sesión sílabo 2026-2 |
-|---|--------|-----|----------------------|
-| DP-S03 | Observación, Semejanzas y Comparación | [Abrir](https://docs.google.com/presentation/d/1teprkQ2vxOy9asb-yhE9gbpoJyNjOy-mJ5rgMqxEsOU/edit?usp=sharing) | S3, S4, S5 |
-| DP-S04 | Organizadores Gráficos | [Abrir](https://docs.google.com/presentation/d/1kQxeJ7yrKsq8iDgxpobZrlPFhIvKONBlD8QdLgiehJw/edit?usp=sharing) | S8, S9 |
-| DP-S06 | Conocimiento empírico vs. científico | [Abrir](https://docs.google.com/presentation/d/1tTaCAgdsmYKNFGZlWndzDhU3uxCj_dfqMdxfJF-T4_s/edit?usp=sharing) | S7 |
-| DP-S07 | Niveles de lectura | [Abrir](https://docs.google.com/presentation/d/1DG2TSnd_rKf0AzxOO8Jf6Qtfkn3dQWP6wa2fUVn4DQ0/edit?usp=sharing) | S10 |
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-L01** Illusion Index — https://www.illusionsindex.org/i/ · **DP-L02** Michael Bach — https://michaelbach.de/ot/ · **DP-L03** Blob Opera — https://artsandculture.google.com/experiment/blob-opera/AAHWrq360NcGbw?hl=en | Material de las presentaciones sobre percepción y sensación (Centro de Cómputo) |
+| ✅ | **DP-E04** Actividad T5, aplicación experimental TA2: cada equipo aplica su prueba y explica la distorsión percibida — Chile Test de Atención Selectiva · Dinamarca Müller-Lyer · Egipto Mancha Ciega · Francia Blob Opera | Presentaciones grupales |
+| † | **PB06** Cuaderno de ejercicios mentales (Amestoy de Sánchez, 2004) — https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf · **DP-M01** `1_desarrollo_de_habilidades-25-67.pdf` | Ejercicios del cuaderno |
+| † | **DP-P02** Perusall — https://app.perusall.com/join/RODRIGUEZ-E7RKF | AA (solo `observaciones`, sin recurso) |
+| † | **DP-P01** Academic Manager — https://arturos-academic-manager.vercel.app/ | Apoyo opcional |
+| 🧱 | URL del Test de Atención Selectiva, de la Ilusión de Müller-Lyer y de la Prueba de la Mancha Ciega | T5 |
 
-### 🎞️ Películas y animes — Actividad Autónoma (AA, fuera del aula; van en `observaciones`, sin recurso)
+## Sesión 3 — 1.6 Operaciones mentales fundamentales (1ra parte): 1.6.1 Observación · 1.6.2 Descripción
+**ACD:** Exposición guiada sobre observación y descripción. Actividad grupal de observación por escenarios.
+**AA:** Ejercicios de observación y descripción del cuaderno. **EACD:** escala de participación.
 
-| # | Título | Tipo | Sesión sugerida | Vínculo con el sílabo |
-|---|--------|------|-----------------|-----------------------|
-| DP-A01 | Dr. Stone | Anime | S3–S5 | Observación, comparación y método científico |
-| DP-A02 | Interestelar | Película | S1–S2 | Mente, percepción y razonamiento |
-| DP-A03 | Una mente maravillosa | Película | S1–S2 | Mente, percepción y pensamiento |
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-S03** Observación, Semejanzas y Comparación — https://docs.google.com/presentation/d/1teprkQ2vxOy9asb-yhE9gbpoJyNjOy-mJ5rgMqxEsOU/edit?usp=sharing | Exposición guiada |
+| † | **DP-E02** Observation Rally (escenarios: refugio, cubos, guitarra, oficina, tejedora, gasolinera, columpio, escritorio) | Observación por escenarios |
+| † | **DP-M02** `Definir, describir y caracterizar.docx` · **DP-M03** «Ejercicios de Observación y Comparación» | Apoyo |
+| ✅ | **R07** Simulador de observación en investigación social — https://elprofesimulations.vercel.app/observaci%C3%B3n.html | Opcional |
+| ✅ | **DP-A01** Dr. Stone (anime, solo `observaciones`) | AA: observación y método científico |
+| 🧱 | Láminas del Observation Rally (subir a Drive) | Observación por escenarios |
 
-*(El vínculo con el sílabo es sugerencia; el profesor elige la sesión.)*
+## Sesión 4 — 1.7 Operaciones mentales fundamentales (2da parte): 1.7.1 Comparación
+**ACD:** Exposición guía sobre comparación y relación con ejemplos de ciencias de la salud. Trabajo en grupos por afinidad, presentación grupal y dinámica de cierre.
+**AA:** Ejercicios de comparación. **EACD:** rúbrica del cuadro comparativo.
 
-### 🔬 Laboratorios de percepción — S2 (Centro de Cómputo)
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-S03** (misma slide de la sesión 3) | Exposición guía |
+| † | **DP-P01** Academic Manager (grupos por afinidad) | Grupos por afinidad |
+| † | **DP-E03** «Dos verdades y una mentira» | Dinámica de cierre |
+| † | **DP-M03** Ejercicios de observación y comparación | Apoyo |
+| 🧱 | Slide **Comparación con ejemplos de ciencias de la salud** (DP-S03 es indirecta) | Exposición guía |
+| 🧱 | Rúbrica del cuadro comparativo | EACD |
 
-| # | Recurso | URL | Uso |
-|---|---------|-----|-----|
-| DP-L01 | The Illusion Index (Albania) | [Abrir](https://www.illusionsindex.org/i/) | Laboratorio de ilusiones |
-| DP-L02 | Michael Bach — Optical Illusions (Brasil) | [Abrir](https://michaelbach.de/ot/) | Laboratorio de ilusiones ópticas |
-| DP-L03 | Blob Opera, Google Arts & Culture (Francia) — sensación sonora | [Abrir](https://artsandculture.google.com/experiment/blob-opera/AAHWrq360NcGbw?hl=en) | Laboratorio de sensación sonora |
-| DP-E04 | **Actividad T5 — Aplicación experimental (TA2)**: cada equipo aplica su prueba y explica la distorsión percibida | — | Chile: Test de Atención Selectiva · Dinamarca: Ilusión de Müller-Lyer · Egipto: Prueba de la Mancha Ciega · Francia: Blob Opera |
+## Sesión 5 — 1.7 Operaciones mentales fundamentales (2da parte, continuación): 1.7.1 Comparación
+**ACD:** Actividad interactiva en Brisk Teaching para definir, describir, caracterizar, comparar y relacionar. Trabajo grupal.
+**AA:** Repaso de los contenidos de la unidad. **EACD:** lista de cotejo.
 
-> Aplicada en 2026-1 en el Centro de Cómputo (Moodle, sección «Percepción y sensación», T4–T5). Los equipos representan países. El URL de Blob Opera de Moodle (`…AAHWrq360s_S6A`) es distinto; se usa el enviado por el profesor.
+| Estado | Recurso | Respalda |
+|---|---|---|
+| † | **DP-P03** Brisk — https://app.briskteaching.com/ws/bhgfx3 | Actividad interactiva |
+| † | **DP-M02** `Definir, describir y caracterizar.docx` | Base de la actividad |
+| ✅ | **DP-S03** (soporte) | Comparación |
 
-### 🔁 Recursos transversales ya aprobados (en recursos-investigacion.md)
-
-| Id | Recurso | Sesión sugerida |
-|----|---------|-----------------|
-| R29 | Simulador de niveles de lectura (literal, inferencial, crítico) | S10 |
-| S19 | Normas APA 7 (slides) | S13 |
-| S20 | Normas Vancouver (slides) — es la misma `1Nq9q7…` de la «Guía práctica T3» de Moodle | S13 |
-| S21 | Redacción y estilo (slides) | S14–S15 |
-| R26 | SimulAI — búsqueda con IA y detección de alucinaciones | S12 |
-| R27 | Máquina de engranajes argumentativos (conectores) | S15 (ensayo) |
-| R16 / R17 | r2-argumentum (debates) / r2-quiz (repaso previo a parciales) | Repaso S5, S10, S15 |
-
----
-
-## ⬜ Pendientes de Revisión
-
-> Hallados en el plan 2026-1 del gestor (`dp-m261`) o en el respaldo Moodle. Requieren aprobación del profesor.
-
-### 📊 Slides (Google Slides)
-
-| # | Título | URL | Sesión sugerida | Encontrado en |
-|---|--------|-----|-----------------|---------------|
-| DP-S01 | Presentación personal del docente | [Abrir](https://docs.google.com/presentation/d/1FlIHGLETfZJFHtn3s_1726HeqEY_6oCAM1dmLlW65ns/edit?usp=sharing) | S1 | gestor 7-may |
-| DP-S02 | Tarea grupal «cada grupo se hace cargo de un punto» (mente, pensamiento, inteligencia) | [Abrir](https://docs.google.com/presentation/d/14ssaJAuemuSlojn4XIavxBudkR9AFZjamPb5AxnFSb4/edit?usp=sharing) | S1 | gestor 7-may |
-| DP-S05 | Niveles de lectura / lectura científica (versión 2026-1; la vigente es DP-S07) | [Abrir](https://docs.google.com/presentation/d/1bEIdwMWbGs2r7AUvdNUvyje11ozqad_n/edit?usp=sharing) | S10 | gestor 18-jun |
-
-### 🧩 Ejercicios, dinámicas y plataformas
-
-| # | Tipo | Recurso | URL | Sesión sugerida | Encontrado en |
-|---|------|---------|-----|-----------------|---------------|
-| DP-E01 | Dinámica | Dinámica «La fiesta» (D01, conocimiento del grupo) | Repositorio de dinámicas: D01 | S1 | gestor 7-may · plan 2026-2 |
-| DP-E02 | Ejercicio | Observation Rally — estaciones: refugio, cubos, guitarra, oficina, tejedora, gasolinera, columpio, escritorio | — (sin URL) | S3 | gestor 21-may |
-| DP-E03 | Dinámica | «Dos verdades y una mentira» | — | S4–S5 | gestor 28-may |
-| DP-P01 | Plataforma | Academic Manager | [Abrir](https://arturos-academic-manager.vercel.app/) | S2 | gestor 14 y 28-may · Moodle bienvenida |
-| DP-P02 | Plataforma | Perusall — lectura social (curso RODRIGUEZ-E7RKF) | [Abrir](https://app.perusall.com/join/RODRIGUEZ-E7RKF) | S2 (TA) | gestor 14-may · Moodle «Lectura en Perusall» |
-| DP-P03 | Plataforma | Brisk — definir, describir, caracterizar, comparar y relacionar | [Abrir](https://app.briskteaching.com/ws/bhgfx3) | S3–S5 | gestor 8-jun |
-| DP-P04 | Plataforma | Zotero (descarga y práctica) | [Abrir](https://www.zotero.org/) | S12 | gestor 18 y 25-jun |
-| DP-P05 | Plataforma | Compilatio — entrega de ensayo sin plagio (enlace de envío del curso) | [Abrir](https://app.compilatio.net/app/document-submission/W31-F83-1E7) | S15 (TA) | Moodle «Ensayo académico sin plagio» |
-| DP-P06 | Plataforma | Aula Moodle UTE (evaluaciones) | [Abrir](https://lms.ute.edu.ec/) | S6, S11, S16, S17 | gestor 4-jun |
-| DP-P07 | Plataforma | Mendeley (descarga) | [Abrir](https://www.mendeley.com/download-desktop-new/) | S12 | Moodle, sección Repositorios/Gestores |
-| DP-P08 | Plataforma | Repositorio de tesis UTE | [Abrir](https://repositorio.ute.edu.ec/) | S12 | Moodle, sección Repositorios/Gestores |
-| DP-V04 | Video | Video de organizadores gráficos (título por confirmar) | [Abrir](http://www.youtube.com/watch?v=_vnxQG8uebY) | S8–S9 | Moodle, sección Organizadores gráficos |
-| DP-S08 | Slide | Ética e integridad académica | [Abrir](https://docs.google.com/presentation/d/19LNC7TuhRlJzId5cd3fsA1TUKsMy7ClE/edit?usp=sharing) | S12 | Moodle, sección Repositorios/Gestores |
-
-### 📎 Archivos de Moodle (sin URL: subir a Drive antes de usar como ACD)
-
-| # | Archivo | Sesión sugerida | Observación |
-|---|---------|-----------------|-------------|
-| DP-M01 | `1_desarrollo_de_habilidades-25-67.pdf` (cuaderno de ejercicios mentales) | S2 | Equivale a PB06 en bibliografia.md |
-| DP-M02 | `Definir, describir y caracterizar.docx` | S3 | Base de la ACD de Brisk |
-| DP-M03 | «Ejercicios de Observación y Comparación» (recurso Moodle) | S3–S5 | — |
-| DP-M04 | `Libro mapas mentales.pdf` (23 MB) | S8–S9 | Equivale a PB01 (Campos Arenas) |
-| DP-M05 | `Knowledge_Representation_Schemes_Visual_Directory.png` (+ versión «Imprimir») | S8–S9 | Directorio visual de organizadores; versión imprimible = `[Imprimir]` |
-| DP-M06 | «Rutas de mapas en actividad» y «Ruta completa de gráficos con nombres» | S8–S9 | Solo en Moodle |
-| DP-M07 | «Guía de estudio: niveles de lectura» (PDF) | S10 | Solo en Moodle |
-| DP-M08 | `Plantilla de Inscripción y Autorización del Proyecto.docx` | S14–S15 (TA) | Experimento |
-| DP-M09 | `Plantilla Diario de Campo.docx` | S14–S15 (TA) | Experimento |
-| DP-M10 | `Título del Experimento.pptx` (plantilla de exposición) | S15 (TA) | — |
-
-### 📝 Tareas de Moodle del semestre 2026-1 (para `observaciones`, como AA/TA)
-
-| Sesión sugerida | Tarea | Notas |
-|-----------------|-------|-------|
-| S2 | Lectura en Perusall | — |
-| S3 | Exposiciones en clases | — |
-| S4–S5 | Ejercicios en clases: observación, comparación, relación | — |
-| S6, S11, S16 | Quiz de parcial (Grupo 1 y 2) + «2 puntos al examen» | Moodle |
-| S12 | Infografía de vacío de investigación y tres estudios citados con Zotero (Word) | — |
-| S13 | APA 7: simulación | — |
-| S15 | Ensayo académico sin plagio (Compilatio) · Inscripción del experimento · Diario de campo · Exposición con plantilla PPT | — |
-| S17 | Examen final (Grupo 1 y 2) | Moodle |
+## Sesión 6 — Evaluación del primer parcial · Contenidos de la Unidad 1
+**ACD:** Examen en Moodle, en clase, con supervisión. **EACD:** evaluación sumativa en Moodle.
+Recursos: **DP-P06** Aula Moodle UTE — https://lms.ute.edu.ec/ (†). Sin materiales ni faltantes.
 
 ---
 
-## 🗺️ Mapa por sesión (sílabo 2026-2, 18 sesiones)
+# UNIDAD 2. ORGANIZACIÓN DEL CONOCIMIENTO
 
-| Sesión | Tema del sílabo | Aprobados | Pendientes |
-|--------|-----------------|-----------|-----------|
-| S1 | La mente, el pensamiento, la inteligencia | DP-V01, DP-A02/A03 (AA) | DP-E01, DP-S01, DP-S02, PB04 |
-| S2 | Percepción y sensación | DP-L01, DP-L02, DP-L03, DP-E04 | DP-P01, DP-P02, DP-M01 (PB06) |
-| S3 | Observación y descripción | DP-S03, DP-A01 (AA) | DP-E02, DP-P03, DP-M02, DP-M03 |
-| S4 | Comparación | DP-S03 | DP-E03, DP-P03 |
-| S5 | Comparación (continuación) | DP-S03, R17 (repaso) | DP-P03 |
-| S6 | Evaluación parcial I (Unidad 1) | — | DP-P06 |
-| S7 | Qué es el conocimiento, tipos y elementos | DP-S06, R18 | — |
-| S8 | Organizadores gráficos (1ra parte) | DP-S04 | DP-V04, DP-M04 (PB01), DP-M05, DP-M06 |
-| S9 | Organizadores gráficos: resumen y mentefacto | DP-S04 | DP-M04, DP-M05 |
-| S10 | Lectura científica y niveles de comprensión | DP-S07, R29 | DP-M07 |
-| S11 | Evaluación parcial II (Unidad 2) | R17 | DP-P06 |
-| S12 | Repositorios y gestores de referencias | R26 | DP-P04, DP-P07, DP-P08, DP-S08 |
-| S13 | APA, Vancouver, Chicago | S19, S20, R10, R11 (simuladores APA 7) | — |
-| S14 | Informe académico | S21, R19 | DP-M08, DP-M09 |
-| S15 | Ensayo académico | S21, R19, R27 | DP-P05, DP-M10 |
-| S16 | Evaluación parcial III (Unidad 3) | R17 | DP-P06 |
-| S17 | Evaluación final | — | DP-P06 |
-| S18 | Retroalimentación | — | — |
+## Sesión 7 — 2.1 Qué es el conocimiento · 2.2 Tipos de conocimiento · 2.3 Elementos del conocimiento
+**ACD:** Retroalimentación del examen. Video sobre el conocimiento, trabajo en grupos que amplían cada punto de la temática asignada y exposición grupal.
+**AA:** Ampliación del punto asignado. **EACD:** rúbrica del trabajo grupal.
 
-> Vacíos: S13 (Chicago) ni S18. Sin slide específica de «mentefacto» (S9): dejar `Presentación PPT — Pendiente: Mentefacto`.
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **R18** Video «Desde el conocimiento vulgar hasta el entorno científico» — https://youtu.be/4DXwlwY1SPk | Video sobre el conocimiento |
+| ✅ | **DP-S06** Conocimiento empírico vs. científico — https://docs.google.com/presentation/d/1tTaCAgdsmYKNFGZlWndzDhU3uxCj_dfqMdxfJF-T4_s/edit?usp=sharing | Tipos de conocimiento |
+| † | **PB08** Hessen, *Teoría del conocimiento* — https://trabajosocialucen.wordpress.com/wp-content/uploads/2012/05/hessen_johannes-_teoria_del_conocimiento_pdf-1.pdf | Lectura base |
+| 🧱 | Reparto de la temática por grupo (qué punto toma cada grupo) y rúbrica del trabajo grupal | Trabajo en grupos |
+
+## Sesión 8 — 2.4 Sistematización del conocimiento (1ra parte): 2.4.1 Organizadores gráficos
+**ACD:** Exposición docente sobre organizadores gráficos y exposición grupal.
+**AA:** Lectura previa del texto base y elaboración de un organizador. **EAA:** rúbrica del trabajo en Moodle.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-S04** Organizadores Gráficos — https://docs.google.com/presentation/d/1kQxeJ7yrKsq8iDgxpobZrlPFhIvKONBlD8QdLgiehJw/edit?usp=sharing | Exposición docente |
+| † | **PB01** Campos Arenas, *Mapas conceptuales, mapas mentales…* — https://archive.org/details/campos-arenas-a.-mapas-conceptuales-mapas-mentales-y-otras-formas-de-representac · **DP-M04** `Libro mapas mentales.pdf` | Texto base (AA) |
+| † | **DP-M05** `Knowledge_Representation_Schemes_Visual_Directory.png` (+ versión imprimir) · **DP-M06** «Rutas de mapas» y «Ruta completa de gráficos» | Apoyo visual |
+| † | **DP-V04** Video de organizadores — http://www.youtube.com/watch?v=_vnxQG8uebY (título por confirmar) | Apoyo |
+| 🧱 | Rúbrica del trabajo en Moodle | EAA |
+
+## Sesión 9 — 2.5 Sistematización del conocimiento (2da parte): 2.5.1 Organizadores gráficos (resumen, mentefacto)
+**ACD:** Exposición sobre diferentes tipos de organizadores, entre ellos resumen y mentefacto, y preparación grupal de carteles.
+**AA:** Cartel grupal con declaración del uso de IA. **EACD:** lista de cotejo del avance del cartel.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-S04** (soporte) | Tipos de organizadores |
+| 🧱 | Slide **Resumen y mentefacto** | Exposición |
+| 🧱 | Guía/plantilla del cartel con declaración de uso de IA · lista de cotejo del avance | Carteles |
+
+## Sesión 10 — 2.6 Importancia de la lectura científica · 2.7 Niveles de comprensión lectora
+**ACD:** Presentación de carteles. Explicación de los niveles de comprensión lectora y práctica en un simulador en línea.
+**AA:** Ejercicios de lectura literal, inferencial y crítica. **EACD:** rúbrica del cartel · **EAA:** rúbrica de ejercicios de lectura.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **DP-S07** Niveles de lectura — https://docs.google.com/presentation/d/1DG2TSnd_rKf0AzxOO8Jf6Qtfkn3dQWP6wa2fUVn4DQ0/edit?usp=sharing | Explicación de niveles |
+| ✅ | **R29** Simulador de niveles de lectura — https://elprofesimulations.vercel.app/evaluaciones_lectura.html | Simulador en línea |
+| † | **PB09** Simbaña et al. (2021), TSAFIQUI — https://doi.org/10.29019/tsafiqui.v12i17.921 · **DP-M07** «Guía de estudio: niveles de lectura» (PDF) | Lectura científica |
+| † | **DP-S05** Niveles de lectura (versión 2026-1, anterior a DP-S07) | Reemplazable |
+| 🧱 | Slide **Importancia de la lectura científica** (2.6) · rúbricas del cartel y de ejercicios de lectura | 2.6 |
+
+## Sesión 11 — Evaluación del segundo parcial · Contenidos de la Unidad 2
+**ACD:** Examen en Moodle. **EACD:** evaluación sumativa. Recursos: **DP-P06** (†). Sin faltantes.
 
 ---
 
-## 🧱 Recursos faltantes por sesión (propuesta de plan 2026-2, 2026-10-18)
+# UNIDAD 3. INTRODUCCIÓN A LA PRODUCCIÓN TEXTUAL
 
-> Detectados al armar la propuesta de planes. Cada uno queda en el plan como actividad `Presentación PPT — Pendiente: <Tema>` (slides) o nota equivalente hasta que el profesor lo cree/apruebe. Al crearse, pasar a Aprobados.
+## Sesión 12 — 3.1 Repositorios digitales · 3.2 Gestores de referencias académicas
+**ACD:** Retroalimentación del examen. Presentación sobre repositorios digitales y gestores. Descarga e instalación práctica de Zotero.
+**AA:** Organización de fuentes en el gestor. **EAA:** lista de cotejo de uso del gestor.
 
-| Sesión | Tipo | Falta | Cómo queda en el plan |
-|--------|------|-------|-----------------------|
-| S1 | 📊 Slide | Presentación del sílabo | `Presentación PPT — Pendiente: Sílabo` |
-| S2 | 📊 Slide | Sensación vs. percepción (exposición docente de apoyo) | `Presentación PPT — Pendiente: Percepción y sensación` |
-| S2 | 🔗 Enlace | URL del Test de Atención Selectiva (Chile) | Pendiente en ACD de T5 |
-| S2 | 🔗 Enlace | URL de la Ilusión de Müller-Lyer (Dinamarca) | Pendiente en ACD de T5 |
-| S2 | 🔗 Enlace | URL de la Prueba de la Mancha Ciega (Egipto) | Pendiente en ACD de T5 |
-| S3 | 🖼️ Láminas | Láminas del Observation Rally (refugio, cubos, guitarra, oficina, tejedora, gasolinera, columpio, escritorio): sin archivo/URL en el repositorio | Pendiente: subir a Drive |
-| S4 | 📊 Slide | Comparación con ejemplos de ciencias de la salud (DP-S03 es indirecta) | `Presentación PPT — Pendiente: Comparación (ejemplos de ciencias de la salud)` |
-| S7 | 📄 Material | Tema asignado por grupo (puntos de la temática) | Definir reparto |
-| S8 | 🎬 Video | Título/confirmación del video de organizadores (DP-V04) | Pendiente de aprobar |
-| S9 | 📊 Slide | Resumen y mentefacto (no hay slide específica) | `Presentación PPT — Pendiente: Mentefacto y resumen` |
-| S9 | 📄 Plantilla | Plantilla/guía del cartel grupal con declaración de uso de IA | Pendiente |
-| S12 | 📊 Slide | Repositorios digitales y gestores de referencias (S11/S12 son indirectas) | `Presentación PPT — Pendiente: Repositorios digitales y gestores de referencias` |
-| S13 | 📊 Slide | Estilo Chicago | `Presentación PPT — Pendiente: Chicago` |
-| S14 | 📊 Slide | Informe académico (S21 es indirecta) | `Presentación PPT — Pendiente: Informe académico` |
-| S14 | 📄 Material | Textos generados con IA contrastados con fuentes académicas | Pendiente: preparar ejemplos |
-| S14 | 📊 Slide | Ética y plagio: DP-S08 existe pero está pendiente de aprobar | Aprobar DP-S08 |
-| S15 | 📊 Slide | Ensayo académico y estructura PEEL (S21 y R12 son indirectos) | `Presentación PPT — Pendiente: Ensayo académico y PEEL` |
-| S18 | 📊 Slide | Guía de repaso integrador de las Unidades 1–3 | `Presentación PPT — Pendiente: Repaso integrador` |
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **S11** Bases de datos académicas · **S12** Buscadores bibliográficos (investigación; indirectas) | Repositorios y gestores |
+| † | **DP-P04** Zotero — https://www.zotero.org/download/ · **DP-P07** Mendeley — https://www.mendeley.com/download-desktop-new/ | Descarga e instalación |
+| † | **DP-P08** Repositorio de tesis UTE — https://repositorio.ute.edu.ec/ | Repositorios digitales |
+| 🧱 | Slide **Repositorios digitales y gestores de referencias** (S11/S12 son indirectas) | Presentación |
 
-Sin faltantes de recurso: S5, S6, S10, S11, S16, S17 (exámenes en Moodle).
+## Sesión 13 — 3.3 Normas de redacción y estilo académico: 3.3.1 APA, Vancouver, Chicago
+**ACD:** Práctica de citación en estilo Vancouver con Zotero y simulación del envío de un artículo científico a una revista.
+**AA:** Ejercicios de citación en APA y Vancouver. **EACD:** lista de cotejo de la simulación · **EAA:** rúbrica de ejercicios.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **R13** Simulación OJS — https://elprofesimulations.vercel.app/revista.html | Envío a revista |
+| ✅ | **S20** Normas Vancouver · **S19** Normas APA 7 | Citación |
+| ✅ | **R10** Simulador APA 7 — https://elprofesimulations.vercel.app/apa7.html · **R11** Editor APA 7 — https://elprofesimulations.vercel.app/apa7_2.html | Práctica de citación |
+| † | **DP-P04** Zotero | Práctica con Zotero |
+| 🧱 | Slide **Estilo Chicago** | 3.3.1 |
+
+## Sesión 14 — 3.4 Redacción de documentos académicos (1ra parte): 3.4.1 Informe académico
+**ACD:** Clase magistral sobre ética académica y plagio, con análisis de textos generados con IA contrastados con fuentes académicas.
+**AA:** Redacción de un informe académico con declaración del uso de IA. **EACD:** rol de preguntas y respuestas (lista de cotejo) · **EAA:** rúbrica de redacción.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **T01** Taller «Ética y Publicación» **[Imprimir]** — https://docs.google.com/document/d/1-zg2nJNk_Hf7zwyeBRoKVZzMWfqmOWQ-v6AW9UnmXcY/edit?usp=sharing | Ética y plagio |
+| ✅ | **R14** Financiamiento y ética en investigación — https://elprofesimulations.vercel.app/financiamiento_etica.html | Ética y plagio |
+| † | **DP-S08** Ética e integridad académica — https://docs.google.com/presentation/d/19LNC7TuhRlJzId5cd3fsA1TUKsMy7ClE/edit?usp=sharing | Clase magistral |
+| ✅ | **S21** Redacción y estilo (soporte del informe) · **R23** Taller de informe (apoyo del AA) · **R19** Video «Escribir para impactar» | Informe académico |
+| 🧱 | Textos generados con IA contrastados con fuentes (ejemplos para el análisis) · slide **Informe académico** | ACD / tema 3.4.1 |
+
+## Sesión 15 — 3.5 Redacción de documentos académicos (2da parte): 3.5.1 Ensayo académico
+**ACD:** Clase magistral y taller de redacción de párrafos con estructura PEEL.
+**AA:** Redacción de un ensayo académico corto. **EAA:** rúbrica del ensayo.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **R12** Constructor PEEL — https://elprofesimulations.vercel.app/peel.html | Taller de párrafos PEEL |
+| ✅ | **S21** Redacción y estilo · **R19** Video · **R27** Conectores discursivos | Ensayo académico |
+| † | **DP-P05** Compilatio (entrega sin plagio) — https://app.compilatio.net/app/document-submission/W31-F83-1E7 | AA (solo `observaciones`) |
+| 🧱 | Slide **Ensayo académico y estructura PEEL** | Clase magistral |
+
+## Sesión 16 — Evaluación del tercer parcial · Contenidos de la Unidad 3
+**ACD:** Examen en Moodle. Recursos: **DP-P06** (†). Sin faltantes.
+
+## Sesión 17 — Evaluación final · Contenidos de las Unidades 1, 2 y 3
+**ACD:** Examen de todo el periodo en Moodle. Recursos: **DP-P06** (†). Sin faltantes.
+
+## Sesión 18 — Retroalimentación de los contenidos de las Unidades 1, 2 y 3
+**ACD:** Retroalimentación del tercer parcial y repaso integrador para quienes tomarán el remedial (tutorías).
+**AA:** Repaso para la evaluación final.
+
+| Estado | Recurso | Respalda |
+|---|---|---|
+| ✅ | **R17** r2-quiz — https://r2-quiz.vercel.app/ | Repaso integrador |
+| 🧱 | Guía/slide de **repaso integrador** de las Unidades 1–3 | Repaso |
+
+---
+
+# Fuera del sílabo 2026-2 (archivo de 2026-1)
+Experimentación blanda del semestre anterior; no figura en el sílabo vigente. Se conserva por si se retoma.
+- **DP-M08** Plantilla de inscripción y autorización del proyecto (.docx) · **DP-M09** Plantilla diario de campo (.docx) · **DP-M10** `Título del Experimento.pptx`.
+- Tareas Moodle 2026-1: Infografía de vacío de investigación con Zotero · Ensayo sin plagio · APA 7 simulación · Inscripción del experimento · Diario de campo · Exposición.
