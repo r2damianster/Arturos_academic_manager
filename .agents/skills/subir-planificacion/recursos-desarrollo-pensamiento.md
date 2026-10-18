@@ -18,7 +18,8 @@ description: Repositorio de recursos de Desarrollo del Pensamiento (Medicina UTE
 4. **Slide faltante** → `Presentación PPT — Pendiente: <Tema>` y `materiales = [Diapositiva — pendiente de carga]` si no hay ninguna.
 5. **Nunca aprobar automáticamente** (†). Solo el profesor mueve de pendiente a aprobado.
 6. **Ids propios**: `DP-S` slide · `DP-V` video · `DP-E` ejercicio/dinámica · `DP-P` plataforma · `DP-L` laboratorio · `DP-A` película/anime · `DP-M` archivo de Moodle (sin URL: subir a Drive antes de enlazar).
-7. Leyenda: ✅ aprobado · † pendiente de aprobación · 🧱 falta crear.
+7. **2026-10-18**: el profesor autorizó cargar en el plan 2026-2 los recursos † (siguen marcados † en el catálogo hasta su aprobación formal).
+8. Leyenda: ✅ aprobado · † pendiente de aprobación · 🧱 falta crear.
 
 ---
 
@@ -32,6 +33,7 @@ description: Repositorio de recursos de Desarrollo del Pensamiento (Medicina UTE
 |---|---|---|
 | ✅ | **D01 «La fiesta»** (dinamicas-juegos.md) | Dinámica de integración |
 | ✅ | **DP-V01** Video «La naturaleza y el viaje de la mente» — https://youtu.be/fjWLRv_30a0 | Presentación de video |
+| ✅ | **PB06 / DP-M01** Libro **[Imprimir]** Sánchez, M. A. de (1995, reimp. 2010). *Desarrollo de habilidades del pensamiento: procesos básicos del pensamiento* (2.ª ed.). Trillas. 197 p. — https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf · **imprimir páginas 29–70, a doble cara (doble carilla)** | Lectura y ejercicios de S2 y S3 (cuaderno de ejercicios mentales) |
 | † | **DP-S01** Slides presentación personal — https://docs.google.com/presentation/d/1FlIHGLETfZJFHtn3s_1726HeqEY_6oCAM1dmLlW65ns/edit?usp=sharing | Presentación personal |
 | † | **PB04** Medina, N. (2008). La ciencia cognitiva y el estudio de la mente — https://dialnet.unirioja.es/descarga/articulo/2747355.pdf | Artículo científico sobre la mente |
 | † | **DP-S02** Slides de reparto de subtemas por grupo — https://docs.google.com/presentation/d/14ssaJAuemuSlojn4XIavxBudkR9AFZjamPb5AxnFSb4/edit?usp=sharing | AA tarea grupal |
@@ -46,7 +48,7 @@ description: Repositorio de recursos de Desarrollo del Pensamiento (Medicina UTE
 |---|---|---|
 | ✅ | **DP-L01** Illusion Index — https://www.illusionsindex.org/i/ · **DP-L02** Michael Bach — https://michaelbach.de/ot/ · **DP-L03** Blob Opera — https://artsandculture.google.com/experiment/blob-opera/AAHWrq360NcGbw?hl=en | Material de las presentaciones sobre percepción y sensación (Centro de Cómputo) |
 | ✅ | **DP-E04** Actividad T5, aplicación experimental TA2: cada equipo aplica su prueba y explica la distorsión percibida — Chile Test de Atención Selectiva · Dinamarca Müller-Lyer · Egipto Mancha Ciega · Francia Blob Opera | Presentaciones grupales |
-| † | **PB06** Cuaderno de ejercicios mentales (Amestoy de Sánchez, 2004) — https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf · **DP-M01** `1_desarrollo_de_habilidades-25-67.pdf` | Ejercicios del cuaderno |
+| ✅ | **PB06** Libro de Sánchez (ver S1, imprimir pp. 29–70) = cuaderno de ejercicios mentales | Ejercicios del cuaderno |
 | † | **DP-P02** Perusall — https://app.perusall.com/join/RODRIGUEZ-E7RKF | AA (solo `observaciones`, sin recurso) |
 | † | **DP-P01** Academic Manager — https://arturos-academic-manager.vercel.app/ | Apoyo opcional |
 | 🧱 | URL del Test de Atención Selectiva, de la Ilusión de Müller-Lyer y de la Prueba de la Mancha Ciega | T5 |

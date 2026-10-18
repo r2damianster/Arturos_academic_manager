@@ -34,7 +34,9 @@ Catálogo de **referencias bibliográficas** (libros, artículos, guías) que se
 
 ### 🧠 Filosofía y pensamiento
 
-*(sin referencias aprobadas todavía)*
+| # | Tipo | Referencia (APA 7) | URL | Tema / uso | Recurrente | Usado en |
+|---|------|--------------------|-----|-----------|-----------|----------|
+| B02 | 📖 Libro **[Imprimir pp. 29–70, doble cara]** | Sánchez, M. A. de. (1995/2010). *Desarrollo de habilidades del pensamiento: procesos básicos del pensamiento* (2.ª ed.). Trillas. 197 p. | [Abrir](https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf) | Percepción, sensación, operaciones mentales; cuaderno de ejercicios mentales | 🔁 Sí | DP-M 2026-1 · MED-DPE S1–S3 (2026-2) |
 
 ### 🔬 Metodología de la investigación
 
@@ -57,7 +59,6 @@ Catálogo de **referencias bibliográficas** (libros, artículos, guías) que se
 | PB03 | 📄 Artículo | Falacias (Dergipark) | [Abrir](https://dergipark.org.tr/en/download/article-file/2028260) | Inglés académico / argumentación | ARW2-A | 2026-10-03 |
 | PB04 | 📄 Artículo | Artículo presentado por estudiantes (Dialnet 2747355) | [Abrir](https://dialnet.unirioja.es/descarga/articulo/2747355.pdf) | Por definir | dp-m261 | 2026-10-03 |
 | PB05 | 📄 Artículo | Lectura (Redalyc 44026102) | [Abrir](https://www.redalyc.org/pdf/440/44026102.pdf) | Por definir | MIAP-B | 2026-10-03 |
-| PB06 | 📖 Libro | Cuaderno de ejercicios mentales — *Desarrollo de habilidades* | [Abrir](https://memsupn.weebly.com/uploads/6/0/0/7/60077005/desarrollo_de_habilidades.pdf) | Pensamiento | dp-m261 | 2026-10-03 |
 | PB07 | 📄 Guía | Guía de rúbrica de escritura (TESOL Union) | [Abrir](https://www.tesolunion.org/attachments/files/9NZCY8MGRIBZMNMBZJEY7YJEZ4NDA2BNMQ14OWI5BYJJIFNDDL5OTE36ZDG0BZDGYAMTVL0ZGY50NZY04NJHI9NMMZALJQ00NZCY9ODQ00LJA0.pdf) | Inglés académico | ARW2-A | 2026-10-03 |
 | PB08 | 📖 Libro | Hessen, J. (1970). *Teoría del conocimiento* (J. Gaos, Trad.). Espasa-Calpe. | [Abrir](https://trabajosocialucen.wordpress.com/wp-content/uploads/2012/05/hessen_johannes-_teoria_del_conocimiento_pdf-1.pdf) | Filosofía y pensamiento (S7) | dp-m261 / MED-DPE (Moodle) | 2026-10-18 |
 | PB09 | 📄 Artículo | Simbaña Gallardo, V. P., et al. (2021). Estrategias lectoras para el desarrollo del pensamiento crítico. *TSAFIQUI*, (17). | [Abrir](https://doi.org/10.29019/tsafiqui.v12i17.921) | Lectura crítica y niveles de comprensión (S10) | dp-m261 / MED-DPE (Moodle) | 2026-10-18 |
