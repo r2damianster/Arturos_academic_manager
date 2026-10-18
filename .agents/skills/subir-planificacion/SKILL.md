@@ -176,6 +176,18 @@ Cuando el profesor pida **planificar** (o replanificar) una sesión, incluir **t
 
 ---
 
+## 🧠 Repositorio de Recursos — Desarrollo del Pensamiento
+
+Para **Desarrollo del Pensamiento** (Medicina UTE y afines) existe un catálogo propio: slides, videos, ejercicios, plataformas, archivos de Moodle y un mapa por sesión del sílabo.
+
+📄 **Archivo**: `.agents/skills/subir-planificacion/recursos-desarrollo-pensamiento.md`
+
+- **LEER** ese archivo antes de planificar cualquier sesión de Desarrollo del Pensamiento; los ids `S##/R##` que referencia viven en `recursos-investigacion.md`.
+- Los recursos Aprobados se asignan según el «Mapa por sesión»; los Pendientes solo los aprueba el profesor.
+- Tareas de Moodle → `observaciones` (AA/TA, sin recurso). Archivos de Moodle sin URL no se enlazan hasta que estén en Drive.
+
+---
+
 ## 🎲 Repositorio de Dinámicas y Juegos
 
 Catálogo de dinámicas de aula independientes del tema (rompehielos, conocimiento del grupo, activación, cierre):

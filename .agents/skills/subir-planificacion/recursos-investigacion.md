@@ -77,7 +77,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 
 | # | Tipo | Título | URL | Usado en |
 |---|------|--------|-----|----------|
-| R18 | 🎬 Video | Desde el conocimiento vulgar hasta el entorno científico | [Abrir](https://youtu.be/4DXwlwY1SPk) | GAS Ses.1–2 · ODO Ses.1–2 (2026-2) |
+| R18 | 🎬 Video | Desde el conocimiento vulgar hasta el entorno científico | [Abrir](https://youtu.be/4DXwlwY1SPk) | GAS Ses.1–2 · ODO Ses.1–2 (2026-2) · DP-M 28-may, 8-jun (2026-1) |
 
 ---
 
@@ -94,7 +94,7 @@ Este archivo es el **catálogo central** de recursos (slides, simuladores, talle
 
 | # | Tipo | Título | URL | Usado en |
 |---|------|--------|-----|----------|
-| R19 | 🎬 Video | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | GAS Ses.4 · ODO Ses.4 (2026-2) |
+| R19 | 🎬 Video | Escribir para impactar — escritura basada en ondas semánticas | [Abrir](https://youtu.be/Pv-vAHnWu3g) | GAS Ses.4 · ODO Ses.4 (2026-2) · Desarrollo del Pensamiento: redacción de informe/ensayo (ver recursos-desarrollo-pensamiento.md) |
 | R20 | 🎬 Video | Ondas semánticas para superar el segmentalismo | [Abrir](https://youtu.be/MpiR5KwJR8g) | GAS Ses.6, Ses.9 · ODO Ses.4, Ses.6, Ses.9 (2026-2) |
 
 ---
