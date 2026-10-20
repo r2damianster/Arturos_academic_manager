@@ -32,7 +32,7 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
       .eq('curso_id', cursoId)
       .order('created_at', { ascending: false }),
     db.from('bitacora_clase').select('fecha, hora_inicio_manual, hora_fin_manual').eq('curso_id', cursoId).eq('estado', 'cumplido'),
-    db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
+    db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId).eq('tipo', 'clase'),
     db.from('calificacion_rubricas')
       .select('id, curso_id, parcial, nombre_columna, escala_salida, definicion')
       .eq('curso_id', cursoId)
@@ -66,7 +66,8 @@ export default async function CalificacionesPage({ params }: { params: Promise<{
 
   const horasPorDia: Record<string, number> = {}
   for (const h of (horariosRes.data ?? []) as { dia_semana: string; hora_inicio: string; hora_fin: string }[]) {
-    horasPorDia[h.dia_semana] = calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
+    // Un día puede tener varios bloques (p. ej. 19-20 y 20-21): se suman
+    horasPorDia[h.dia_semana] = (horasPorDia[h.dia_semana] ?? 0) + calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
   }
   // Clases fuera de horario: clave = fecha ISO, tiene prioridad sobre el día de la semana
   for (const b of (bitacorasRes.data ?? []) as { fecha: string; hora_inicio_manual: string | null; hora_fin_manual: string | null }[]) {

@@ -18,7 +18,7 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
     db.from('cursos').select('id, asignatura, codigo').eq('id', cursoId).single(),
     db.from('estudiantes').select('id, nombre, email, estado').eq('curso_id', cursoId).order('nombre'),
     db.from('asistencia').select('*').eq('curso_id', cursoId).order('fecha'),
-    db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId),
+    db.from('horarios_clases').select('dia_semana, hora_inicio, hora_fin').eq('curso_id', cursoId).eq('tipo', 'clase'),
     db.from('bitacora_clase').select('fecha, hora_inicio_manual, hora_fin_manual').eq('curso_id', cursoId).eq('estado', 'cumplido'),
   ])
 
@@ -34,7 +34,8 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ cur
   type HorarioRow = { dia_semana: string; hora_inicio: string; hora_fin: string }
   const horasPorDia: Record<string, number> = {}
   for (const h of (horariosRes.data ?? []) as HorarioRow[]) {
-    horasPorDia[h.dia_semana] = calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
+    // Un día puede tener varios bloques (p. ej. 19-20 y 20-21): se suman
+    horasPorDia[h.dia_semana] = (horasPorDia[h.dia_semana] ?? 0) + calcularHorasDesdeHorario(h.hora_inicio, h.hora_fin)
   }
   // Clases fuera de horario: la clave es la fecha ISO y tiene prioridad sobre el día de la semana
   for (const b of (bitacorasRes.data ?? []) as { fecha: string; hora_inicio_manual: string | null; hora_fin_manual: string | null }[]) {
