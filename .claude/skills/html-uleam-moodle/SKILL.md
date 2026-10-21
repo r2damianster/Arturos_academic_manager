@@ -25,7 +25,7 @@ from bitacora_clase where curso_id='<curso>' and semana = <N> order by fecha;
 (`cursos` filtra siempre `estado='activo'`.) De `tema`, `actividades_json` y `materiales` salen:
 título/subtítulo, enlaces de presentaciones, videos, carpetas y la lectura. Si la base no está accesible, pedir al profesor que pegue el plan de la semana.
 
-- **Nunca inventar** autores, años, editoriales, DOI ni URLs. Lo que falte se deja como comentario HTML `<!-- FALTA: ... -->` dentro del bloque.
+- **Nunca inventar** autores, años, editoriales, DOI ni URLs. **Regla general: si un componente no tiene dato real en la planificación, se omite; nunca se muestran textos de relleno visibles** («por confirmar», «pendiente», «próximamente») ni botones/iframes sin URL. Lo que falte se anota solo como comentario HTML `<!-- FALTA: ... -->` (invisible para el estudiante). Talleres o actividades sin recurso pueden ir como tarjeta de contexto, sin enlace.
 - **Sin repetir recursos entre semanas**: cada recurso va en la semana donde la planificación lo programa; si otra semana lo menciona, una línea sin repetir enlace.
 - No incluir nombres, correos ni IDs de estudiantes.
 
@@ -50,7 +50,7 @@ Responder **única y exclusivamente** con bloque(s) de código ```html ... ```. 
 ## 3. Secuencia exacta de componentes
 
 1. **`<header>`**: `<h1>` de 28px + `<p>` subtítulo conciso; fondo pastel/acento propio.
-2. **Reading Capsule**: fondo pastel suave, borde izquierdo destacado de color complementario, referencia **APA 7 completa** con el título en negrita, enlace directo «Access Reading Capsule →».
+2. **Reading Capsule** (**solo si la planificación trae la lectura**: referencia con autor, año y título, o enlace en `actividades_json`/`materiales`): fondo pastel suave, borde izquierdo destacado de color complementario, referencia **APA 7 completa** con el título en negrita, enlace directo «Access Reading Capsule →». **Si no hay lectura, se omite el componente entero**: nada de cápsula vacía ni «por confirmar». Si la referencia existe pero está incompleta (p. ej. sin editorial/DOI), mostrar solo lo que consta, sin inventar, y avisar con un comentario HTML.
 3. **`<section>` Contexto/Conceptos**: párrafo ultra sintético (máx. 2 líneas) + flex (`gap:20px; flex-wrap:wrap`) con 2-3 tarjetas de fondos pastel variados, borde algo más intenso, `border-radius:12px`.
 4. **`<section>` por cada recurso multimedia/presentación**: emoji, tipo de recurso, `<h2>` de 22px, descripción de 1 oración, botón-pastilla centrado (`target="_blank"`), contenedor del `<iframe>` (500px, 100%, sin borde, `allowfullscreen`). Cada bloque puede llevar su color.
 5. **`<footer>` Key Takeaway**: fondo pastel suave, borde izquierdo de 6px de acento contrastante, `border-radius:12px`, «💡 Key Takeaway:» con síntesis de máx. 2 líneas; color distinto a los demás componentes.
