@@ -566,6 +566,25 @@ export function PlanificacionClient({ clases, cursos, profesorId: _profesorId }:
       )
     }
 
+    // Tutoría de curso: no se planifica, solo se inicia (registro aparte, no toca asistencia de clase)
+    if (!entry && isTutoria) {
+      return (
+        <div className="w-full h-full min-h-[40px] text-left px-2 py-1 rounded-lg bg-teal-900/20 border border-teal-600/30 flex flex-col gap-0.5">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-teal-300 text-xs font-medium">Tutoría</span>
+            {renderBadges()}
+            {horaLabel}
+          </div>
+          <Link
+            href={`/dashboard/tutoria-curso/${clase.id}?fecha=${fecha}`}
+            className="self-start text-[10px] text-teal-300 hover:text-teal-200 border border-teal-700/40 px-1.5 rounded hover:bg-teal-900/30 transition-colors"
+          >
+            ▶ Iniciar tutoría
+          </Link>
+        </div>
+      )
+    }
+
     if (!entry) {
       const espontaneaKey = `${cursoId}|${fecha}`
       return (

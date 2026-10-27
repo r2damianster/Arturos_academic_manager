@@ -16,6 +16,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { TrabajosAutonomosEditor } from './TrabajosAutonomosEditor'
 
 
 interface PlanificarModalProps {
@@ -739,6 +740,8 @@ export function PlanificarModal({
                   disabled={readOnly}
                 />
               </div>
+
+              <TrabajosAutonomosEditor cursoId={cursoId} fecha={fecha} readOnly={readOnly} />
 
 
               {error && (

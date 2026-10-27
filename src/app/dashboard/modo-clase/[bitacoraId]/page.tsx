@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ModoClaseClient } from './modo-clase-client'
 import type { ActividadPlanificada } from '@/types/domain'
+import { getTrabajosAutonomosDeClase } from '@/lib/actions/trabajos-autonomos'
 import { getGruposDeSesion, getCategorias, getUltimaSesionConGrupos, getPlantillasGrupos } from '@/lib/actions/grupos'
 
 export default async function ModoClaseActivaPage({
@@ -30,7 +31,7 @@ export default async function ModoClaseActivaPage({
   const diaSemana = dayNames[dow]
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes, ultimoCierreRes, participacionPeriodoRes] = await Promise.all([
+  const [estudiantesRes, asistenciaRes, horariosRes, gruposData, categoriasData, ultimaSesionGrupos, plantillas, itemsEnCursoRes, participacionRes, ultimoCierreRes, participacionPeriodoRes, trabajosAutonomos] = await Promise.all([
     db
       .from('estudiantes')
       .select('id, nombre, nombre_preferido, email, tutoria, estado')
@@ -67,6 +68,7 @@ export default async function ModoClaseActivaPage({
       .select('estudiante_id, fecha')
       .eq('curso_id', bitacora.curso_id)
       .not('nivel', 'is', null),
+    getTrabajosAutonomosDeClase(bitacora.curso_id, bitacora.fecha),
   ])
 
   const students = (estudiantesRes.data ?? []) as { id: string; nombre: string; nombre_preferido?: string | null; email: string; tutoria: boolean; estado?: string }[]
@@ -121,6 +123,7 @@ export default async function ModoClaseActivaPage({
       participacionInicial={participacionRes.data ?? []}
       calificadosPeriodoIds={calificadosPeriodoIds}
       numParciales={bitacora.cursos?.num_parciales ?? 2}
+      trabajosAutonomos={trabajosAutonomos}
     />
   )
 }

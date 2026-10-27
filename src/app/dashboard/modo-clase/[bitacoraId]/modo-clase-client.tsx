@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
+import { TrabajosAutonomosBanner } from '@/components/planificacion/TrabajosAutonomosBanner'
+import type { TrabajoAutonomoDeClase } from '@/lib/actions/trabajos-autonomos'
 import { useRouter } from 'next/navigation'
 import { ClaseExtraModal } from '@/components/agenda/ClaseExtraModal'
 import { iniciarClase, actualizarActividadesEnVivo, confirmarCumplido, detenerClase, getClasesFuturas, trasladarActividades } from '@/lib/actions/bitacora'
@@ -52,6 +54,7 @@ type Props = {
   participacionInicial?: { estudiante_id: string; nivel: number | null; observacion: string | null }[]
   calificadosPeriodoIds?: string[]
   numParciales?: number
+  trabajosAutonomos?: TrabajoAutonomoDeClase[]
 }
 
 function formatElapsed(secs: number) {
@@ -607,7 +610,7 @@ export function ModoClaseClient({
   fecha, tema, estadoClase, horaInicioReal: horaInicialProp,
   actividadesIniciales, students, asistenciaInicial, horasClase,
   gruposIniciales, categorias, gruposUltimaSesion, plantillas = [],
-  itemsEnCurso = [], participacionInicial = [], calificadosPeriodoIds = [], numParciales = 2,
+  itemsEnCurso = [], participacionInicial = [], calificadosPeriodoIds = [], numParciales = 2, trabajosAutonomos = [],
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -1227,6 +1230,7 @@ export function ModoClaseClient({
 
         {/* ── Columna izquierda: Actividades ── */}
         <div className={`flex-1 flex-col overflow-hidden border-r border-gray-800 ${mobileTab === 'actividades' ? 'flex' : 'hidden md:flex'}`}>
+          <TrabajosAutonomosBanner trabajos={trabajosAutonomos} />
           {/* Barra de progreso */}
           {actividades.length > 0 && (
             <div className="flex-shrink-0 px-6 pt-4 pb-2">

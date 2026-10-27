@@ -48,6 +48,7 @@ function horaLabel(r: ReservaHistorial): string {
 function origenLabel(origen: string): string {
   if (origen === 'manual')  return 'Manual'
   if (origen === 'directa') return 'Directa'
+  if (origen === 'sesion_curso') return 'Grupal'
   return 'Agendada'
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { TutoriasManager } from './tutorias-manager'
 import { HistorialTab } from '@/components/tutorias/HistorialTab'
 import { CitacionesTab } from '@/components/tutorias/CitacionesTab'
+import { ReporteCitadosTab } from '@/components/tutorias/ReporteCitadosTab'
 import type { ReservaHistorial, TipoTutoria } from '@/lib/actions/tutorias'
 
 interface Horario {
@@ -71,8 +72,10 @@ interface Citacion {
   razon: string
   detalle_razon: string | null
   estado: string
+  updated_at?: string | null
   cursos: { id: string; asignatura: string; institucion: string | null } | null
   estudiantes: { id: string; nombre: string; email: string } | null
+  reservas?: { fecha: string } | null
 }
 
 interface HorarioTutorado {
@@ -98,7 +101,7 @@ interface Props {
   horariosTutorados?: HorarioTutorado[]
 }
 
-type Tab = 'citaciones' | 'historial' | 'horarios'
+type Tab = 'citaciones' | 'reporte' | 'historial' | 'horarios'
 
 export function TutoriasPageClient({
   horarios,
@@ -138,6 +141,9 @@ export function TutoriasPageClient({
             </span>
           )}
         </TabButton>
+        <TabButton active={tab === 'reporte'} onClick={() => setTab('reporte')}>
+          Reporte de citados
+        </TabButton>
         <TabButton active={tab === 'historial'} onClick={() => setTab('historial')}>
           Historial y Exportación
         </TabButton>
@@ -154,6 +160,9 @@ export function TutoriasPageClient({
       {/* Tab content */}
       {tab === 'citaciones' && (
         <CitacionesTab citaciones={citaciones} />
+      )}
+      {tab === 'reporte' && (
+        <ReporteCitadosTab citaciones={citaciones} />
       )}
       {tab === 'historial' && (
         <HistorialTab

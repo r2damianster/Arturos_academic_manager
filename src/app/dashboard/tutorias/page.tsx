@@ -30,6 +30,7 @@ export default async function TutoriasPage() {
 
     db.from('reservas')
       .select('*')
+      .or('origen.is.null,origen.neq.sesion_curso')
       .order('fecha', { ascending: false }),
 
     db.from('horarios_clases')
@@ -63,9 +64,10 @@ export default async function TutoriasPage() {
 
     db.from('citaciones_tutoria')
       .select(`
-        id, fecha_citacion, razon, detalle_razon, estado,
+        id, fecha_citacion, razon, detalle_razon, estado, reserva_id, updated_at,
         cursos ( id, asignatura, institucion ),
-        estudiantes ( id, nombre, email )
+        estudiantes ( id, nombre, email ),
+        reservas ( fecha )
       `)
       .eq('profesor_id', user.id)
       .order('fecha_citacion', { ascending: false }),
