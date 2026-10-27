@@ -1,9 +1,10 @@
--- ACD1 (Metodología de Investigación II, ULEAM, Parcial 1): rúbrica sobre 4 + notas calculadas.
--- Curso: 1212364 (c7464bad-ddaa-42d1-b964-f83ad60dcd14). Idempotente.
+-- ACD1 (Metodología de Investigación II, ULEAM, Parcial 1): rúbrica sobre 5 + notas calculadas.
+-- Curso: 1212364 (c7464bad-ddaa-42d1-b964-f83ad60dcd14). Idempotente: se puede correr más de una vez.
 --
--- Criterios (total 4):
---   1. Asistencia (2.0): obligatoria, 31-ago → 23-oct, bandas >=100 %:2.0, >=85 %:1.5, >=75 %:1.0, >=60 %:0.5.
---   2. Participación (2.0): promedio de niveles, nivel 1 = 0, nivel 5 = 100 %.
+-- Criterios calculados en el gestor (total 5). Aporte a la clase y talleres (otros 5 de los 10 de la
+-- rúbrica publicada en Moodle) se califican fuera del gestor.
+--   1. Asistencia (2.5): obligatoria, 31-ago → 23-oct, bandas >=100 %:2.5, >=85 %:1.9, >=75 %:1.25, >=60 %:0.6.
+--   2. Participación (2.5): promedio de niveles, nivel 1 = 0, nivel 5 = 100 %.
 --      Solo existe una fecha registrada (7-oct). Decisión del profesor: quien no fue evaluado esa
 --      fecha recibe nivel 5 (ponderación alta); quienes tuvieron nivel bajo conservan su nivel.
 --
@@ -37,20 +38,20 @@ SELECT
     'criterios', jsonb_build_array(
       jsonb_build_object(
         'nombre', 'Asistencia y Puntualidad',
-        'puntosMax', 2,
+        'puntosMax', 2.5,
         'modo', 'bandas',
         'bandas', jsonb_build_array(
-          jsonb_build_object('desde', 1,    'puntos', 2),
-          jsonb_build_object('desde', 0.85, 'puntos', 1.5),
-          jsonb_build_object('desde', 0.75, 'puntos', 1),
-          jsonb_build_object('desde', 0.6,  'puntos', 0.5)),
+          jsonb_build_object('desde', 1,    'puntos', 2.5),
+          jsonb_build_object('desde', 0.85, 'puntos', 1.9),
+          jsonb_build_object('desde', 0.75, 'puntos', 1.25),
+          jsonb_build_object('desde', 0.6,  'puntos', 0.6)),
         'fuentes', jsonb_build_array(jsonb_build_object(
           'tipo', 'asistencia', 'escalaMax', 100, 'obligatoria', true, 'valorAtraso', 1,
           'desde', '2026-08-31', 'hasta', '2026-10-23'))
       ),
       jsonb_build_object(
         'nombre', 'Participación en Clases',
-        'puntosMax', 2,
+        'puntosMax', 2.5,
         'modo', 'lineal',
         'fuentes', jsonb_build_array(jsonb_build_object(
           'tipo', 'participacion', 'escalaMax', 5, 'escalaMin', 1, 'obligatoria', false,
@@ -91,10 +92,10 @@ asistencia_pts AS (
   SELECT id,
     CASE
       WHEN sesiones = 0 THEN 0
-      WHEN suma::numeric / sesiones >= 1    THEN 2
-      WHEN suma::numeric / sesiones >= 0.85 THEN 1.5
-      WHEN suma::numeric / sesiones >= 0.75 THEN 1
-      WHEN suma::numeric / sesiones >= 0.6  THEN 0.5
+      WHEN suma::numeric / sesiones >= 1    THEN 2.5
+      WHEN suma::numeric / sesiones >= 0.85 THEN 1.9
+      WHEN suma::numeric / sesiones >= 0.75 THEN 1.25
+      WHEN suma::numeric / sesiones >= 0.6  THEN 0.6
       ELSE 0
     END AS pts
   FROM asistencia_calc
@@ -105,7 +106,7 @@ participacion_pts AS (
       SELECT avg(p.nivel)::numeric FROM public.participacion p, cur
       WHERE p.estudiante_id = est.id AND p.curso_id = cur.id AND p.nivel IS NOT NULL
         AND p.fecha BETWEEN DATE '2026-08-31' AND DATE '2026-10-23'
-    ) - 1) / 4)) * 2, 2), 0) AS pts
+    ) - 1) / 4)) * 2.5, 2), 0) AS pts
   FROM est
 )
 INSERT INTO public.calificaciones_items
