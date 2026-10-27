@@ -1,15 +1,19 @@
--- ACD1 (Metodología de Investigación II, ULEAM, Parcial 1): rúbrica sobre 5 + notas calculadas.
+-- ACD1 (Metodología de Investigación II, ULEAM, Parcial 1): rúbrica sobre 10 + notas calculadas.
 -- Curso: 1212364 (c7464bad-ddaa-42d1-b964-f83ad60dcd14). Idempotente: se puede correr más de una vez.
 --
--- Criterios calculados en el gestor (total 5). Aporte a la clase y talleres (otros 5 de los 10 de la
--- rúbrica publicada en Moodle) se califican fuera del gestor.
+-- Criterios (total 10):
 --   1. Asistencia (2.5): obligatoria, 31-ago → 23-oct, bandas >=100 %:2.5, >=85 %:1.9, >=75 %:1.25, >=60 %:0.6.
 --   2. Participación (2.5): promedio de niveles, nivel 1 = 0, nivel 5 = 100 %.
 --      Solo existe una fecha registrada (7-oct). Decisión del profesor: quien no fue evaluado esa
 --      fecha recibe nivel 5 (ponderación alta); quienes tuvieron nivel bajo conservan su nivel.
+--   3. Talleres y aporte a la clase (5.0): ítem 'ACD1 - Talleres y aporte a la clase' (0-5, fuente moodle).
+--      Se cargó aparte (no va al repo): nota de Moodle del ACD1 / 2. Sin nota cuenta como 0.
 --
 -- Las notas se calculan aquí con las mismas reglas del motor (src/lib/rubrica-calculo.ts).
 -- Para recalcular con el motor de la app basta pulsar ↻ en la columna ACD1.
+--
+-- PE1 ('Pe1 - Validación de instrumento', sobre 10, tipo tarea, fuente moodle) se cargó aparte
+-- desde el Excel de Moodle; no depende de esta rúbrica.
 
 -- 1) Participación por defecto (nivel 5) para quien no tiene registro el 7-oct
 INSERT INTO public.participacion (profesor_id, curso_id, estudiante_id, fecha, semana, nivel, observacion)
@@ -56,6 +60,14 @@ SELECT
         'fuentes', jsonb_build_array(jsonb_build_object(
           'tipo', 'participacion', 'escalaMax', 5, 'escalaMin', 1, 'obligatoria', false,
           'desde', '2026-08-31', 'hasta', '2026-10-23'))
+      ),
+      jsonb_build_object(
+        'nombre', 'Talleres y Aporte a la Clase',
+        'puntosMax', 5,
+        'modo', 'lineal',
+        'fuentes', jsonb_build_array(jsonb_build_object(
+          'tipo', 'item', 'itemNombre', 'ACD1 - Talleres y aporte a la clase',
+          'itemParcial', 1, 'escalaMax', 5, 'obligatoria', true))
       )
     )
   )
@@ -108,13 +120,22 @@ participacion_pts AS (
         AND p.fecha BETWEEN DATE '2026-08-31' AND DATE '2026-10-23'
     ) - 1) / 4)) * 2.5, 2), 0) AS pts
   FROM est
+),
+talleres_pts AS (
+  SELECT est.id,
+    COALESCE(LEAST(5, GREATEST(0, (
+      SELECT i.nota FROM public.calificaciones_items i, cur
+      WHERE i.estudiante_id = est.id AND i.curso_id = cur.id AND i.parcial = 1
+        AND i.nombre_item = 'ACD1 - Talleres y aporte a la clase'))), 0) AS pts
+  FROM est
 )
 INSERT INTO public.calificaciones_items
   (profesor_id, curso_id, estudiante_id, parcial, categoria, nombre_item, tipo, nota, fuente, import_id, updated_at)
 SELECT cur.profesor_id, cur.id, est.id, 1, NULL, 'ACD1 - Portafolio de actividades', 'tarea',
-       round(a.pts + p.pts, 2), 'rubrica', NULL, NOW()
+       round(a.pts + p.pts + t.pts, 2), 'rubrica', NULL, NOW()
 FROM cur, est
 JOIN asistencia_pts a    ON a.id = est.id
 JOIN participacion_pts p ON p.id = est.id
+JOIN talleres_pts t      ON t.id = est.id
 ON CONFLICT (curso_id, estudiante_id, parcial, nombre_item)
 DO UPDATE SET nota = EXCLUDED.nota, fuente = 'rubrica', updated_at = NOW();
