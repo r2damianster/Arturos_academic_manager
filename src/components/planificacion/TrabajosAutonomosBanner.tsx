@@ -1,10 +1,10 @@
 import type { TrabajoAutonomoDeClase } from '@/lib/actions/trabajos-autonomos'
 
 /** Aparece antes de las actividades de la clase. Se calcula al mostrar, así que siempre refleja el origen. */
-export function TrabajosAutonomosBanner({ trabajos }: { trabajos: TrabajoAutonomoDeClase[] }) {
+export function TrabajosAutonomosBanner({ trabajos, className = 'flex-shrink-0 px-6 pt-4 space-y-2' }: { trabajos: TrabajoAutonomoDeClase[]; className?: string }) {
   if (trabajos.length === 0) return null
   return (
-    <div className="flex-shrink-0 px-6 pt-4 space-y-2">
+    <div className={className}>
       {trabajos.map(trabajo => (
         <div key={trabajo.codigo} className="rounded-xl border border-violet-700/40 bg-violet-950/30 px-4 py-3">
           <p className="text-[10px] uppercase tracking-widest text-violet-400">

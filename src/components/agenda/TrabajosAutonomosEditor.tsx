@@ -6,8 +6,22 @@ import {
   guardarTrabajoAutonomo,
   alternarTrabajoAutonomoActivo,
   eliminarTrabajoAutonomo,
+  getTrabajosAutonomosDeClase,
   type TrabajoAutonomo,
+  type TrabajoAutonomoDeClase,
 } from '@/lib/actions/trabajos-autonomos'
+import { TrabajosAutonomosBanner } from '@/components/planificacion/TrabajosAutonomosBanner'
+
+/** Trabajos asignados en sesiones anteriores que tocan esta clase: van arriba del plan. */
+export function TrabajosAutonomosEnlazados({ cursoId, fecha }: { cursoId: string; fecha: string }) {
+  const [linkedWorks, setLinkedWorks] = useState<TrabajoAutonomoDeClase[]>([])
+
+  useEffect(() => {
+    getTrabajosAutonomosDeClase(cursoId, fecha).then(setLinkedWorks)
+  }, [cursoId, fecha])
+
+  return <TrabajosAutonomosBanner trabajos={linkedWorks} className="space-y-2" />
+}
 
 interface Props {
   cursoId: string
@@ -32,10 +46,13 @@ export function TrabajosAutonomosEditor({ cursoId, fecha, readOnly = false }: Pr
   const [isPending, startTransition] = useTransition()
 
   function reload() {
-    listarTrabajosAutonomos(cursoId).then(setTrabajos)
+    // Solo los asignados en esta sesión (origen); los de sesiones previas se muestran arriba como seguimiento
+    listarTrabajosAutonomos(cursoId).then(allWorks =>
+      setTrabajos(allWorks.filter(work => work.fecha_asignacion === fecha))
+    )
   }
 
-  useEffect(reload, [cursoId])
+  useEffect(reload, [cursoId, fecha])
 
   function startNewDraft() {
     setErrorMessage(null)
@@ -99,7 +116,7 @@ export function TrabajosAutonomosEditor({ cursoId, fecha, readOnly = false }: Pr
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="label mb-0">Trabajos autónomos (se enlazan a las clases siguientes)</label>
+        <label className="label mb-0">Trabajos autónomos asignados en esta clase (se enlazan a las siguientes)</label>
         {!readOnly && !draft && (
           <button type="button" onClick={startNewDraft} className="text-[11px] text-green-400 hover:text-green-300">
             + Nuevo trabajo autónomo
@@ -108,7 +125,7 @@ export function TrabajosAutonomosEditor({ cursoId, fecha, readOnly = false }: Pr
       </div>
 
       {trabajos.length === 0 && !draft && (
-        <p className="text-[11px] text-gray-600">Ninguno en este curso.</p>
+        <p className="text-[11px] text-gray-600">Ninguno asignado en esta clase.</p>
       )}
 
       {trabajos.map(trabajo => (

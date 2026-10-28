@@ -16,7 +16,7 @@ import {
   useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { TrabajosAutonomosEditor } from './TrabajosAutonomosEditor'
+import { TrabajosAutonomosEditor, TrabajosAutonomosEnlazados } from './TrabajosAutonomosEditor'
 
 
 interface PlanificarModalProps {
@@ -590,6 +590,8 @@ export function PlanificarModal({
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+              <TrabajosAutonomosEnlazados cursoId={cursoId} fecha={fecha} />
 
               {/* Tema */}
               <div>
