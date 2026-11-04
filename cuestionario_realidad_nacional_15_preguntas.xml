@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="category">
+    <category><text>$course$/top/Realidad Nacional y Mundial - Repaso 15 preguntas</text></category>
+  </question>
+  <question type="multichoice">
+    <name><text>Método 03 - Testimonios involuntarios</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Por qué Bloch prefería los testimonios involuntarios (registros contables, vasijas, cartas privadas) frente a los voluntarios (memorias, crónicas, monumentos)?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Los testimonios voluntarios son propensos al sesgo; los involuntarios son restos genuinos de la vida cotidiana.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Porque no fueron hechos para la posteridad y revelan mejor la vida real.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Porque, al ser siempre más antiguos que los voluntarios, ofrecen una cronología más confiable del pasado.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Porque no necesitan ser sometidos a crítica externa ni interna.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Porque los escribieron personas con mayor educación formal y acceso a archivos.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Método 06 - Comprender antes que juzgar</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué error comete el historiador que 'juzga' el pasado con los valores del presente?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>La meta del método es comprender el porqué de las acciones humanas dentro de su contexto.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Un anacronismo: ignora la mentalidad de la época y distorsiona el análisis.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Un error de transcripción de las fuentes primarias que consulta en el archivo.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Un sesgo de selección en el archivo, al elegir solo documentos que confirman su tesis.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Una falla de crítica externa sobre la autenticidad del documento.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Trasplante 16 - Idea central</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué idea resume mejor la 'sociedad trasplantada'?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>La ruptura de Europa fue la semilla del renacimiento medieval en América.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[El orden feudal que caducaba en Europa renació en América como eje de Las Indias.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[América desarrolló un orden completamente nuevo, sin influencia alguna de Europa.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Los pueblos andinos impusieron su propio orden político y económico a los conquistadores españoles.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La colonia fue una copia fiel de la Europa moderna, mercantil y capitalista.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Periodos 19 - Orden de los periodos</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuál es el orden correcto de los grandes periodos de la historia del actual Ecuador estudiados en el curso?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Conviene pensar en periodos y procesos, no en fechas sueltas.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Sociedades aborígenes, conquista, colonia, independencia y República.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Colonia, sociedades aborígenes, independencia, conquista y República.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Conquista, sociedades aborígenes, República, colonia e independencia.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Sociedades aborígenes, colonia, conquista, República e independencia.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Braudel 23 - Tres tiempos</text></name>
+    <questiontext format="html"><text><![CDATA[<p>En Braudel, ¿qué corresponde a la estructura, la coyuntura y el acontecimiento?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Separar los tres tiempos ayuda a explicar un cambio.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Estructura: larga duración (siglos); coyuntura: ciclos de décadas; acontecimiento: tiempo corto.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Estructura: un año; coyuntura: un siglo; acontecimiento: milenios enteros de historia.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Estructura: las batallas; coyuntura: las leyes; acontecimiento: la geografía y el clima.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Estructura: lo político; coyuntura: lo social; acontecimiento: lo económico, lo cultural y lo religioso de cada época.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Braudel 29 - Del Mediterráneo al Atlántico</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuál es la consecuencia, para América, del desplazamiento del centro del comercio mundial?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Plata americana, imperios rivales y comercio colonial.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[América queda en el centro del eje atlántico y su control causa guerras entre imperios.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[América queda aislada del comercio mundial mientras Europa se reorganiza internamente.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[El Pacífico se convierte en el único eje comercial del mundo y reemplaza por completo al Atlántico.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[El Mediterráneo recupera el liderazgo comercial en el siglo XVIII gracias a Venecia.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Independencia 34 - Napoleón y el rey</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué hizo Napoleón que desencadenó la crisis política en el mundo hispánico?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Sin rey legítimo, alguien debía gobernar.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Forzó la abdicación de la familia real en Bayona y dejó a la monarquía sin rey legítimo.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Atacó con su flota las costas de América y bloqueó por meses los principales puertos coloniales.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Aprobó la Constitución de Cádiz para limitar el poder de los reyes borbones en América.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Proclamó la independencia de las colonias españolas desde París.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>Independencia 43 - La nación como resultado</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Para Chust y Frasquet, ¿cómo se entiende la nación en este proceso?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Hubo que construir la nación después de la independencia.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Como un resultado del proceso de independencia y no como su punto de partida.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Como una realidad ya existente desde la época aborigen que los criollos solo recuperaron.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Como una creación del rey de España para unificar a sus súbditos americanos.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Como una idea que nunca llegó a concretarse en ningún territorio.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 45 - Problema de orden</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué problema de fondo enfrentó la República del Ecuador en sus primeras décadas?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>El texto habla de 'la interminable búsqueda del orden'.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Fragmentación regional, precariedad fiscal y caudillismo que frenaban la autoridad central.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Exceso de recursos fiscales que generaba disputas entre las élites por repartirlos.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Una población mayoritariamente urbana, difícil de controlar desde los pueblos de la Sierra.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Falta de acuerdo diplomático entre Ecuador y España sobre el reconocimiento de la independencia.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 46 - Estado oligárquico-terrateniente</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué caracterizaba al Estado oligárquico-terrateniente?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>La ciudadanía estaba restringida por requisitos como poseer propiedad o rentas.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[El dominio de los grandes propietarios, que usaron lo público para reproducir su hegemonía.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La participación de artesanos e indígenas en el gobierno mediante el voto universal.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La separación total entre Iglesia y Estado desde la fundación de la República.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[El predominio de una burguesía industrial que financiaba al Estado con impuestos directos y aranceles.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 47 - Proyecto garciano</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cómo entendió García Moreno el orden?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>La Carta de 1869 exigió profesar la fe católica para ser ciudadano.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Centralización autoritaria y fe católica como base moral, con Concordato y ciudadanía católica.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Laicización del Estado y libertad de cultos garantizada en la Constitución.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Federación de las regiones, con gobiernos autónomos en Quito, Guayaquil y Cuenca.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Libre comercio sin intervención del Estado y con aranceles mínimos para todas las importaciones.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 48 - Proyecto alfarista</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuál fue la piedra angular del proyecto liberal de Alfaro?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Estado laico, institucionalidad secular y garantías individuales.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[La laicización: quitar a la Iglesia el Registro Civil, la educación y la beneficencia.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La restauración del Patronato colonial para controlar a la Iglesia desde el Estado.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La alianza estratégica con la Santa Sede para sostener al gobierno liberal ante la oposición.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La prohibición de la libertad de prensa para frenar la oposición conservadora.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 49 - Continuidades</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué continuidad socioeconómica se mantuvo pese a los dos proyectos?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>La Ley de Manos Muertas no transfirió tierras al campesinado; las arrendó a terratenientes seculares.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Ninguno impulsó una reforma agraria redistributiva; la exclusión del campesinado persistió.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Ambos repartieron las tierras eclesiásticas entre los campesinos sin tierra.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Ambos eliminaron el recurso al autoritarismo y gobernaron solo con consensos parlamentarios.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Ambos terminaron con la dependencia de los impuestos aduaneros.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 50 - Comercio exterior y estabilidad</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué relación muestra el caso ecuatoriano entre estabilidad política y comercio exterior?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>El boom cacaotero y el ferrocarril dependieron del capital extranjero y del endeudamiento.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[La inversión y el comercio exterior dependen de reglas internas estables y previsibles.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[La inestabilidad política favorece la llegada de inversión extranjera, que busca riesgo.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[El comercio exterior no se ve afectado por lo que ocurre en la política interna del país.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Solo importa el precio internacional de las materias primas que el país exporta.]]></text></answer>
+  </question>
+  <question type="multichoice">
+    <name><text>República 51 - Patronato</text></name>
+    <questiontext format="html"><text><![CDATA[<p>En el proyecto garciano, ¿qué significó que el Estado renunciara a las prerrogativas del Patronato?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>El Patronato era una figura de origen colonial que permitía la injerencia del poder civil en la designación de las autoridades eclesiásticas; el Concordato de 1862 la dejó atrás.</p>]]></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <single>true</single>
+    <shuffleanswers>true</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <correctfeedback format="html"><text>Respuesta correcta.</text></correctfeedback>
+    <partiallycorrectfeedback format="html"><text></text></partiallycorrectfeedback>
+    <incorrectfeedback format="html"><text>Respuesta incorrecta. Revisa la lectura o la presentación de la sesión.</text></incorrectfeedback>
+    <answer fraction="100" format="html"><text><![CDATA[Que el poder civil dejó de intervenir en la designación de las autoridades eclesiásticas.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Que la Iglesia perdió el control de la educación pública a manos del Estado laico y sus escuelas.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Que el Estado asumió el Registro Civil y la beneficencia que antes manejaba la Iglesia.]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Que se abolieron los diezmos que pagaban los campesinos a las parroquias de la Sierra.]]></text></answer>
+  </question>
+</quiz>
