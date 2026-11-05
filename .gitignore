@@ -39,3 +39,5 @@ scripts/update-*.js
 scripts/ute-planificacion-*.js
 scripts/crear_cursos_*.js
 scripts/query_pensamiento_*.js
+r2quiz-*.json
+.claude/scheduled_tasks.lock

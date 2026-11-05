@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { enviarEmail } from '@/lib/email'
 
 // ─── Duration options ─────────────────────────────────────────────────────────
@@ -81,9 +81,9 @@ export async function activarHorario(
 // ─── Auto-expire slots past disponible_hasta ─────────────────────────────────
 
 export async function limpiarHorariosVencidos() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return
+  const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
   const hoy = new Date().toISOString().split('T')[0]
@@ -109,7 +109,10 @@ export async function limpiarHorariosVencidos() {
     horasFijasPorCurso[hc.curso_id] = (horasFijasPorCurso[hc.curso_id] ?? 0) + calcHorasSlot(hc.hora_inicio, hc.hora_fin)
   }
 
-  // Para cada curso, calcular el total de horas por semana pasada (SET idempotente)
+  // Para cada curso, calcular el total de horas por semana pasada (SET idempotente).
+  // Se acumulan todas las filas y se escriben con UN solo upsert en lote
+  // (antes: una llamada RPC secuencial por curso y por semana).
+  const filasHorasSemana: { profesor_id: string; curso_id: string; fecha_semana: string; horas: number }[] = []
   for (const curso of cursos) {
     const fi = curso.fecha_inicio.slice(0, 10)
     const ff = curso.fecha_fin.slice(0, 10)
@@ -138,28 +141,15 @@ export async function limpiarHorariosVencidos() {
       totalHoras += horasFijasPorCurso[curso.id] ?? 0
 
       if (totalHoras > 0) {
-        await db.rpc('acumular_horas_tutoria_semana', {
-          p_profesor_id: user.id, p_curso_id: curso.id,
-          p_fecha_semana: semana, p_horas: totalHoras,
+        filasHorasSemana.push({
+          profesor_id: user.id, curso_id: curso.id,
+          fecha_semana: semana, horas: totalHoras,
         })
       }
     }
   }
 
-  // Expirar reservas pendientes/confirmadas de fechas pasadas (no-show automático)
-  await db.from('reservas')
-    .update({ estado: 'completada', asistio: false })
-    .in('horario_id', slots.map((s: { id: number }) => s.id))
-    .lt('fecha', hoy)
-    .in('estado', ['pendiente', 'confirmada'])
-
-  // Expirar slots cuyo disponible_hasta ya pasó
-  await db.from('horarios')
-    .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
-    .eq('profesor_id', user.id).eq('estado', 'disponible')
-    .not('disponible_hasta', 'is', null).lt('disponible_hasta', hoy)
-
-  // Expirar slots "muertos": próxima ocurrencia del día > disponible_hasta
+  // Slots "muertos": próxima ocurrencia del día > disponible_hasta
   const DIA_TO_DOW: Record<string, number> = {
     'lunes': 1, 'martes': 2, 'miércoles': 3, 'jueves': 4, 'viernes': 5, 'sábado': 6,
   }
@@ -176,11 +166,31 @@ export async function limpiarHorariosVencidos() {
     })
     .map((s: { id: number }) => s.id)
 
-  if (deadIds.length > 0) {
-    await db.from('horarios')
-      .update({ estado: 'no_disponible', disponible_hasta: null, activado_el: null })
-      .in('id', deadIds)
-  }
+  const slotLibre = { estado: 'no_disponible', disponible_hasta: null, activado_el: null }
+
+  // Las 4 escrituras son independientes entre sí → una sola ronda en paralelo
+  await Promise.all([
+    filasHorasSemana.length > 0
+      ? db.from('tutor_horas_semana')
+          .upsert(filasHorasSemana, { onConflict: 'profesor_id,curso_id,fecha_semana' })
+      : null,
+    // Expirar reservas pendientes/confirmadas de fechas pasadas (no-show automático)
+    slots.length > 0
+      ? db.from('reservas')
+          .update({ estado: 'completada', asistio: false })
+          .in('horario_id', slots.map((slot: { id: number }) => slot.id))
+          .lt('fecha', hoy)
+          .in('estado', ['pendiente', 'confirmada'])
+      : null,
+    // Expirar slots cuyo disponible_hasta ya pasó
+    db.from('horarios')
+      .update(slotLibre)
+      .eq('profesor_id', user.id).eq('estado', 'disponible')
+      .not('disponible_hasta', 'is', null).lt('disponible_hasta', hoy),
+    deadIds.length > 0
+      ? db.from('horarios').update(slotLibre).in('id', deadIds)
+      : null,
+  ])
 }
 
 // ─── Deactivate a slot ────────────────────────────────────────────────────────

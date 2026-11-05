@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
@@ -8,12 +8,11 @@ import { ClaseEnProgresoBar } from '@/components/layout/ClaseEnProgresoBar'
 import { FloatingNotesPanel } from '@/components/actividades/FloatingNotesPanel'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const user = await getAuthUser()
+  if (!user) redirect('/auth/login')
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
 
   // Detectar modo reemplazante via header puesto por middleware (antes del check de profesor)
   const hdrs = await headers()

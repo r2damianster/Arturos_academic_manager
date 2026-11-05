@@ -1,23 +1,26 @@
-import { createClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { SummaryPanel } from '@/components/dashboard/SummaryPanel'
 import { TodayPanel } from '@/components/dashboard/TodayPanel'
 import { AgendaSection } from '@/components/dashboard/AgendaSection'
-import { TutoriasPendientesPanel } from '@/components/dashboard/TutoriasPendientesPanel'
+import { NotificacionesLoader, TutoriasPendientesLoader } from '@/components/dashboard/DashboardAsyncPanels'
 import { limpiarHorariosVencidos } from '@/lib/actions/tutorias'
-import { NotificacionesPanel } from '@/components/dashboard/NotificacionesPanel'
-import { getNotificacionesProactivas } from '@/lib/actions/notificaciones'
 import { finalizarCursosVencidos } from '@/lib/actions/cursos'
 
 export default async function DashboardPage() {
+  const user = await getAuthUser()
+  if (!user) return null
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
 
-  await db.rpc('inicializar_horarios_profesor', { p_id: user.id })
-  await limpiarHorariosVencidos()
-  await finalizarCursosVencidos()
+  // Mantenimiento independiente entre sí → una sola ronda en paralelo
+  // (antes: 3 await en serie antes de poder consultar nada)
+  await Promise.all([
+    db.rpc('inicializar_horarios_profesor', { p_id: user.id }),
+    limpiarHorariosVencidos(),
+    finalizarCursosVencidos(),
+  ])
 
   const hoy = new Date().toISOString().split('T')[0]
 
@@ -31,9 +34,9 @@ export default async function DashboardPage() {
     horariosRes,
     profesorRes,
     estudiantesRes,
-    notificacionesData,
     horariosTutoradosRes,
     suspendidasRes,
+    reservasRes,
   ] = await Promise.all([
     db.from('cursos').select('id', { count: 'exact', head: true }),
     db.from('estudiantes').select('id', { count: 'exact', head: true }),
@@ -44,42 +47,22 @@ export default async function DashboardPage() {
     db.from('horarios').select('*').eq('profesor_id', user.id).order('dia_semana').order('hora_inicio'),
     db.from('profesores').select('nombre').eq('id', user.id).maybeSingle(),
     db.from('estudiantes').select('id, nombre, email, auth_user_id, curso_id').eq('profesor_id', user.id).order('nombre'),
-    getNotificacionesProactivas(),
     db.from('tutorado_perfil')
       .select('estudiante_id, dia_semana, hora_inicio, hora_fin, nota_horario, modalidad_trabajo')
       .eq('profesor_id', user.id)
       .not('dia_semana', 'is', null)
       .not('hora_inicio', 'is', null),
     db.from('bitacora_clase').select('curso_id, fecha').eq('profesor_id', user.id).eq('estado', 'suspendido'),
+    db.from('reservas')
+      .select('*, horarios!inner(profesor_id)')
+      .eq('horarios.profesor_id', user.id)
+      .order('fecha', { ascending: false }),
   ])
 
-  // Reservas de tutorías
+  // Reservas de tutorías del profesor (filtro en el join: no depende de ids previos)
   const horariosBase = horariosRes.data ?? []
-  const horarioIds: number[] = horariosBase.map((h: { id: number }) => h.id)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let reservas: any[] = []
-  let reservasPendientes: any[] = []
-  if (horarioIds.length > 0) {
-    const [allRes, pendRes] = await Promise.all([
-      db.from('reservas').select('*').in('horario_id', horarioIds).order('fecha', { ascending: false }),
-      db.from('reservas')
-        .select('id, fecha, estudiante_nombre, estado, asistio, horario_id, horarios!inner(hora_inicio, hora_fin)')
-        .in('horario_id', horarioIds)
-        .lt('fecha', hoy)
-        .is('asistio', null)
-        .order('fecha', { ascending: false }),
-    ])
-    reservas = allRes.data ?? []
-    reservasPendientes = (pendRes.data ?? []).map((r: any) => ({
-      id: r.id,
-      fecha: r.fecha,
-      estudiante_nombre: r.estudiante_nombre,
-      estado: r.estado,
-      asistio: r.asistio,
-      hora_inicio: r.horarios?.hora_inicio ?? '',
-      hora_fin: r.horarios?.hora_fin ?? '',
-    }))
-  }
+  const reservas: any[] = ((reservasRes.data ?? []) as any[]).map(({ horarios: _horarios, ...reserva }) => reserva)
 
   // Estudiantes del profesor (deduplicados por auth_user_id)
   const estudiantesData = estudiantesRes.data
@@ -93,11 +76,22 @@ export default async function DashboardPage() {
   const estudiantesArr = Array.from(estudiantesMap.values())
   const authIds = estudiantesArr.map((e: { auth_user_id: string }) => e.auth_user_id).filter(Boolean)
   const encuestasMap: Record<string, { carrera: string | null; telefono: string | null }> = {}
-  if (authIds.length > 0) {
-    const { data: encuestas } = await db.from('encuesta_estudiante').select('auth_user_id, carrera, telefono').in('auth_user_id', authIds)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const enc of (encuestas ?? []) as any[]) encuestasMap[enc.auth_user_id] = { carrera: enc.carrera, telefono: enc.telefono }
-  }
+  const clasesBase = clasesRes.data ?? []
+  const claseIds = clasesBase.map((clase: { id: string }) => clase.id)
+
+  // Encuestas y anuncios no dependen entre sí → en paralelo (antes: en serie)
+  const [encuestasRes, anunciosRes] = await Promise.all([
+    authIds.length > 0
+      ? db.from('encuesta_estudiante').select('auth_user_id, carrera, telefono').in('auth_user_id', authIds)
+      : null,
+    claseIds.length > 0
+      ? db.from('anuncios_tutoria_curso')
+          .select('horario_clase_id, estudiante_id, fecha, estudiantes(nombre, carrera, email)')
+          .in('horario_clase_id', claseIds)
+      : null,
+  ])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const enc of (encuestasRes?.data ?? []) as any[]) encuestasMap[enc.auth_user_id] = { carrera: enc.carrera, telefono: enc.telefono }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const estudiantes = estudiantesArr.map((e: any) => ({
     id: e.id, nombre: e.nombre, email: e.email, auth_user_id: e.auth_user_id ?? null,
@@ -106,16 +100,7 @@ export default async function DashboardPage() {
   }))
 
   // Anuncios tutoría de curso ("Asistiré")
-  const clasesBase = clasesRes.data ?? []
-  const claseIds = clasesBase.map((c: { id: string }) => c.id)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let anunciosData: any[] = []
-  if (claseIds.length > 0) {
-    const { data: anRes } = await db.from('anuncios_tutoria_curso')
-      .select('horario_clase_id, estudiante_id, fecha, estudiantes(nombre, carrera, email)')
-      .in('horario_clase_id', claseIds)
-    anunciosData = anRes ?? []
-  }
+  const anunciosData = anunciosRes?.data ?? []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anunciosPorClase: Record<string, any[]> = {}
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,7 +113,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <NotificacionesPanel notificaciones={notificacionesData} />
+      <Suspense fallback={null}>
+        <NotificacionesLoader />
+      </Suspense>
       <SummaryPanel
         totalCursos={cursosCountRes.count ?? 0}
         totalEstudiantes={estudiantesCountRes.count ?? 0}
@@ -170,7 +157,9 @@ export default async function DashboardPage() {
         profesorId={user.id}
         profesorNombre={profesorRes.data?.nombre ?? ''}
       />
-      <TutoriasPendientesPanel reservas={reservasPendientes} />
+      <Suspense fallback={null}>
+        <TutoriasPendientesLoader />
+      </Suspense>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import type { CookieOptions } from '@supabase/ssr'
 
 // Cliente de Supabase para Server Components, Server Actions y Route Handlers
@@ -30,6 +31,15 @@ export async function createClient() {
     }
   )
 }
+
+// Usuario autenticado, memoizado por request: layout, página y acciones comparten
+// una sola llamada de red a Supabase Auth en vez de una por cada getUser().
+// Sigue validando el JWT en el servidor (equivale a supabase.auth.getUser()).
+export const getAuthUser = cache(async () => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})
 
 // Cliente con service role — bypasea RLS completamente.
 // Usar SOLO para lecturas cross-usuario donde RLS bloquea legítimamente al profesor

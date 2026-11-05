@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 // ─── Schema canónico ──────────────────────────────────────────────────────────
@@ -468,10 +468,10 @@ export async function finalizarCurso(
 }
 
 export async function finalizarCursosVencidos(): Promise<void> {
+  const user = await getAuthUser()
+  if (!user) return
   const supabase = await createClient()
   const db = supabase as any // eslint-disable-line @typescript-eslint/no-explicit-any
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
 
   const hoy = new Date().toISOString().split('T')[0]
 
