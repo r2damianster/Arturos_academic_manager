@@ -70,3 +70,14 @@ Responder **única y exclusivamente** con bloque(s) de código ```html ... ```. 
 | Mezcla presentaciones + carpetas | Embeber todas las presentaciones; las carpetas solo como enlace |
 
 Para embeber usar la URL de incrustación del servicio (p. ej. Google Slides `.../embed`, YouTube `/embed/ID`) derivada de la URL directa dada; si no se puede derivar con certeza, dejar el botón y un `<!-- FALTA: URL de embebido -->`.
+
+### Videos de YouTube: evitar el reproductor duplicado en Moodle
+El filtro multimedia de Moodle convierte **todo enlace** a YouTube (`youtu.be/…`, `youtube.com/watch?v=…`) en un reproductor incrustado: el botón se transforma en un segundo video y el estudiante ve el video dos veces (iframe + reproductor). Para evitarlo, el botón-pastilla de cada video de YouTube **siempre** va así:
+
+```html
+<span class="nolink"><a class="nomediaplugin" href="https://www.youtube.com/watch?v=ID" target="_blank" rel="noopener" style="...">Ver en YouTube →</a></span>
+```
+
+- `<span class="nolink">` desactiva todos los filtros de Moodle sobre ese enlace; `class="nomediaplugin"` desactiva específicamente el de multimedia.
+- Aplica solo a enlaces de video/audio (YouTube, Vimeo, etc.); los demás botones llevan `<a>` normal.
+- El `<iframe>` de embed no cambia (`https://www.youtube.com/embed/ID`).
